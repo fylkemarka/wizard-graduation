@@ -41,46 +41,65 @@ import { motion } from 'framer-motion';
 const CARDS = [
   // ---- BASIC ----
   { id: 'c-strike', name: 'Strike', cost: 1, type: 'attack', rarity: 'basic',
-    effects: { attack: 6 }, desc: 'Deal 6 damage.' },
+    effects: { attack: 6 }, upgrade: { effects: { attack: 9 } },
+    desc: 'Deal 6 damage.' },
   { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
-    effects: { block: 5 }, desc: 'Gain 5 Block.' },
+    effects: { block: 5 }, upgrade: { effects: { block: 8 } },
+    desc: 'Gain 5 Block.' },
   { id: 'c-spark', name: 'Spark', cost: 0, type: 'attack', rarity: 'basic',
-    effects: { attack: 3 }, desc: 'Deal 3 damage. (Free)' },
+    effects: { attack: 3 }, upgrade: { effects: { attack: 5 } },
+    desc: 'Deal 3 damage. (Free)' },
   // ---- COMMON ----
   { id: 'c-arc-bolt', name: 'Arc Bolt', cost: 1, type: 'attack', rarity: 'common',
-    effects: { attack: 4, weak: 1 }, desc: 'Deal 4 damage. Apply 1 Weak.' },
+    effects: { attack: 4, weak: 1 }, upgrade: { effects: { attack: 6, weak: 1 } },
+    desc: 'Deal 4 damage. Apply 1 Weak.' },
   { id: 'c-hex-lance', name: 'Hex Lance', cost: 2, type: 'attack', rarity: 'common',
-    effects: { attack: 9 }, desc: 'Deal 9 damage.' },
+    effects: { attack: 9 }, upgrade: { effects: { attack: 13 } },
+    desc: 'Deal 9 damage.' },
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
-    effects: { block: 7 }, desc: 'Gain 7 Block.' },
+    effects: { block: 7 }, upgrade: { effects: { block: 10 } },
+    desc: 'Gain 7 Block.' },
   { id: 'c-acuity', name: 'Acuity', cost: 1, type: 'skill', rarity: 'common',
-    effects: { draw: 2 }, desc: 'Draw 2 cards.' },
+    effects: { draw: 2 }, upgrade: { effects: { draw: 3 } },
+    desc: 'Draw 2 cards.' },
   { id: 'c-piercing', name: 'Piercing', cost: 1, type: 'attack', rarity: 'common',
-    effects: { attack: 5, vulnerable: 1 }, desc: 'Deal 5 damage. Apply 1 Vulnerable.' },
+    effects: { attack: 5, vulnerable: 1 }, upgrade: { effects: { attack: 7, vulnerable: 1 } },
+    desc: 'Deal 5 damage. Apply 1 Vulnerable.' },
   { id: 'c-channel', name: 'Channel', cost: 0, type: 'skill', rarity: 'common',
-    effects: { draw: 1, energy: 1, exhaust: true }, desc: '+1 Energy. Draw 1. Exhaust.' },
+    effects: { draw: 1, energy: 1, exhaust: true }, upgrade: { effects: { draw: 2, energy: 1, exhaust: true } },
+    desc: '+1 Energy. Draw 1. Exhaust.' },
   // ---- UNCOMMON ----
   { id: 'c-fireball', name: 'Fireball', cost: 2, type: 'attack', rarity: 'uncommon',
-    effects: { attack: 14 }, desc: 'Deal 14 damage.' },
+    effects: { attack: 14 }, upgrade: { effects: { attack: 18 } },
+    desc: 'Deal 14 damage.' },
   { id: 'c-bulwark', name: 'Bulwark', cost: 1, type: 'skill', rarity: 'uncommon',
-    effects: { block: 10 }, desc: 'Gain 10 Block.' },
+    effects: { block: 10 }, upgrade: { effects: { block: 14 } },
+    desc: 'Gain 10 Block.' },
   { id: 'c-meditate', name: 'Meditate', cost: 0, type: 'skill', rarity: 'uncommon',
-    effects: { energy: 1, draw: 1, exhaust: true }, desc: 'Gain 1 Energy. Draw 1. Exhaust.' },
+    effects: { energy: 1, draw: 1, exhaust: true }, upgrade: { effects: { energy: 1, draw: 1 } },
+    desc: 'Gain 1 Energy. Draw 1. Exhaust.' },
   { id: 'c-warding', name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
-    effects: { block: 4, vulnerable: 1 }, desc: 'Gain 4 Block. Apply 1 Vulnerable.' },
+    effects: { block: 4, vulnerable: 1 }, upgrade: { effects: { block: 6, vulnerable: 2 } },
+    desc: 'Gain 4 Block. Apply 1 Vulnerable.' },
   { id: 'c-thunder', name: 'Thunderbolt', cost: 1, type: 'attack', rarity: 'uncommon',
-    effects: { attack: 6, weak: 2 }, desc: 'Deal 6 damage. Apply 2 Weak.' },
+    effects: { attack: 6, weak: 2 }, upgrade: { effects: { attack: 8, weak: 2 } },
+    desc: 'Deal 6 damage. Apply 2 Weak.' },
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
-    effects: { draw: 3, exhaust: true }, desc: 'Draw 3 cards. Exhaust.' },
+    effects: { draw: 3, exhaust: true }, upgrade: { effects: { draw: 4, exhaust: true } },
+    desc: 'Draw 3 cards. Exhaust.' },
   // ---- RARE ----
   { id: 'c-arcane-pulse', name: 'Arcane Pulse', cost: 2, type: 'attack', rarity: 'rare',
-    effects: { attack: 12, weak: 2 }, desc: 'Deal 12 damage. Apply 2 Weak.' },
+    effects: { attack: 12, weak: 2 }, upgrade: { effects: { attack: 16, weak: 2 } },
+    desc: 'Deal 12 damage. Apply 2 Weak.' },
   { id: 'c-immolate', name: 'Immolate', cost: 2, type: 'attack', rarity: 'rare',
-    effects: { attack: 18, exhaust: true }, desc: 'Deal 18 damage. Exhaust.' },
+    effects: { attack: 18, exhaust: true }, upgrade: { effects: { attack: 23, exhaust: true } },
+    desc: 'Deal 18 damage. Exhaust.' },
   { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
-    effects: { block: 16 }, desc: 'Gain 16 Block.' },
+    effects: { block: 16 }, upgrade: { effects: { block: 21 } },
+    desc: 'Gain 16 Block.' },
   { id: 'c-judgment', name: 'Judgment', cost: 2, type: 'attack', rarity: 'rare',
-    effects: { attack: 10, vulnerable: 2 }, desc: 'Deal 10 damage. Apply 2 Vulnerable.' },
+    effects: { attack: 10, vulnerable: 2 }, upgrade: { effects: { attack: 13, vulnerable: 2 } },
+    desc: 'Deal 10 damage. Apply 2 Vulnerable.' },
 
   // ---- POWERS ----
   // Type 'power'. When played, leaves the deck for the rest of combat
@@ -89,40 +108,91 @@ const CARDS = [
   // Pratchett tone — pompous names, modest mechanics, dry flavor.
   { id: 'p-borrowed-confidence', name: 'Borrowed Confidence',
     cost: 1, type: 'power', rarity: 'common',
-    power: { startOfTurn: { block: 2 } },
+    power: { startOfTurn: { block: 2 } }, upgrade: { power: { startOfTurn: { block: 3 } } },
     desc: 'At the start of each turn, gain 2 Block.',
     flavor: 'On loan from someone who needed it less.' },
   { id: 'p-mildly-threatening', name: 'Mildly Threatening Demeanour',
     cost: 1, type: 'power', rarity: 'common',
-    power: { endOfTurn: { weak: 1 } },
+    power: { endOfTurn: { weak: 1 } }, upgrade: { power: { endOfTurn: { weak: 2 } } },
     desc: 'At the end of each turn, apply 1 Weak.',
     flavor: "You haven't done anything yet. But you might." },
   { id: 'p-strongly-worded', name: 'A Strongly Worded Letter',
     cost: 1, type: 'power', rarity: 'uncommon',
-    power: { endOfTurn: { vulnerable: 1 } },
+    power: { endOfTurn: { vulnerable: 1 } }, upgrade: { power: { endOfTurn: { vulnerable: 2 } } },
     desc: 'At the end of each turn, apply 1 Vulnerable.',
     flavor: 'You will hear from the Bursar. Probably. He hasn\'t replied yet either.' },
   { id: 'p-inadvisable-acceleration', name: 'Inadvisable Acceleration',
     cost: 2, type: 'power', rarity: 'uncommon',
-    power: { startOfTurn: { draw: 1 } },
+    power: { startOfTurn: { draw: 1 } }, upgrade: { power: { startOfTurn: { draw: 2 } } },
     desc: 'At the start of each turn, draw 1 extra card.',
     flavor: 'The faster you go, the more there is to look at. Look anyway.' },
   { id: 'p-significant-pause', name: 'The Significant Pause',
     cost: 2, type: 'power', rarity: 'uncommon',
-    power: { startOfTurn: { energy: 1 } },
+    power: { startOfTurn: { energy: 1 } }, upgrade: { cost: 1 },
     desc: 'At the start of each turn, gain 1 Energy.',
     flavor: 'Wait. …Now.' },
   { id: 'p-ostensible-inferno', name: 'Ostensible Inferno',
     cost: 2, type: 'power', rarity: 'rare',
-    power: { endOfTurn: { attack: 4 } },
+    power: { endOfTurn: { attack: 4 } }, upgrade: { power: { endOfTurn: { attack: 6 } } },
     desc: 'At the end of each turn, deal 4 damage.',
     flavor: 'The fire is technically there. The fire-flavoured atmosphere certainly is.' },
   { id: 'p-octarine-squint', name: 'Octarine Squint',
     cost: 2, type: 'power', rarity: 'rare',
-    power: { onAttackCardPlayed: { vulnerable: 1 } },
+    power: { onAttackCardPlayed: { vulnerable: 1 } }, upgrade: { power: { onAttackCardPlayed: { vulnerable: 2 } } },
     desc: 'Each attack you play also applies 1 Vulnerable.',
     flavor: 'You\'re looking at the colour magic comes from. Don\'t blink.' },
 ];
+
+// Relics — passive items earned from elites / bosses / events. Persist
+// across combats AND across acts (whole-run). Effect hooks read by the
+// combat loop at the right moments:
+//   passiveStrikeBonus: N   — flat +N damage on Strike-named cards (stacks)
+//   permanentEnergyBonus: N — +N to every-turn energy refill
+//   onCombatStart: { effects } — applied once at start of every combat
+//   onEnemyDefeated: { effects } — fires when an enemy (non-boss) dies
+//   onCombatEnd: { effects }   — fires when a combat resolves to victory
+//   everyNthAttack: { n, extraDamage } — every Nth attack gets +N flat dmg
+// Pratchett tone — pompous artifacts of an over-administered school.
+const RELICS = [
+  // ---- COMMON ----
+  { id: 'r-lecturers-pointer', name: "Lecturer's Pointer", rarity: 'common',
+    effect: { passiveStrikeBonus: 1 },
+    desc: 'Your Strikes deal +1 damage.',
+    flavor: 'Frequently lost. Always returns.' },
+  { id: 'r-hat-pin', name: 'Hat Pin of Persistence', rarity: 'common',
+    effect: { onCombatStart: { block: 3 } },
+    desc: 'At the start of every combat, gain 3 Block.',
+    flavor: 'Holds the hat. Holds the dignity.' },
+  { id: 'r-pocket-familiar', name: 'Pocket Familiar', rarity: 'common',
+    effect: { onCombatStart: { draw: 1 } },
+    desc: 'At the start of every combat, draw 1 extra card.',
+    flavor: "It's a beetle. The beetle is on its third career." },
+
+  // ---- UNCOMMON ----
+  { id: 'r-deans-half-coat', name: "Dean's Half-Coat", rarity: 'uncommon',
+    effect: { onEnemyDefeated: { heal: 4 } },
+    desc: 'Whenever you defeat an enemy, heal 4 HP.',
+    flavor: 'The other half is on the Dean.' },
+  { id: 'r-sigil-orders', name: 'Sigil of Standing Orders', rarity: 'uncommon',
+    effect: { onCombatEnd: { heal: 6 } },
+    desc: 'At the end of every combat you win, heal 6 HP.',
+    flavor: 'Filed in triplicate. Refiled if necessary.' },
+  { id: 'r-brass-owl', name: 'Brass Owl, Polished', rarity: 'uncommon',
+    effect: { everyNthAttack: { n: 5, extraDamage: 5 } },
+    desc: 'Every 5th attack you play deals +5 damage.',
+    flavor: 'Watches everything. Pretends it isn\'t.' },
+
+  // ---- RARE / BOSS ----
+  { id: 'r-inverted-hourglass', name: 'Inverted Hourglass', rarity: 'rare',
+    effect: { permanentEnergyBonus: 1 },
+    desc: '+1 Energy every turn (permanent).',
+    flavor: "The sand falls upward. Don't comment." },
+  { id: 'r-lockbox', name: 'Lockbox of Examinations', rarity: 'rare',
+    effect: { onCombatStart: { draw: 2 } },
+    desc: 'At the start of every combat, draw 2 extra cards.',
+    flavor: 'Locked. Possibly empty. Definitely locked.' },
+];
+const RELICS_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
 const STARTER_DECK = [
@@ -423,6 +493,25 @@ function buildStartingDeck() {
   return shuffle(STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
 }
 
+// Return a new card object representing the upgraded version of `card`.
+// The upgrade field can override `effects`, `power`, or `cost`. Sets a
+// `upgraded: true` flag and adjusts the name with a "+" suffix.
+function upgradeCard(card) {
+  if (!card.upgrade) return card; // already-upgraded or no path
+  const up = card.upgrade;
+  const next = {
+    ...card,
+    uid: uid(),
+    name: card.upgraded ? card.name : `${card.name}+`,
+    upgraded: true,
+    upgrade: null, // can only upgrade once
+  };
+  if (up.effects) next.effects = { ...card.effects, ...up.effects };
+  if (up.power)   next.power   = { ...card.power, ...up.power };
+  if (up.cost !== undefined) next.cost = up.cost;
+  return next;
+}
+
 function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = []) {
   const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id));
   if (pool.length === 0) return null;
@@ -431,6 +520,18 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   for (const c of pool) {
     r -= rarityWeights[c.rarity];
     if (r <= 0) return c;
+  }
+  return pool[0];
+}
+
+function pickRelicByRarity(rarityWeights = { common: 3, uncommon: 2, rare: 1 }, excludeIds = []) {
+  const pool = RELICS.filter(r => rarityWeights[r.rarity] && !excludeIds.includes(r.id));
+  if (pool.length === 0) return null;
+  const total = pool.reduce((s, r) => s + rarityWeights[r.rarity], 0);
+  let r = Math.random() * total;
+  for (const relic of pool) {
+    r -= rarityWeights[relic.rarity];
+    if (r <= 0) return relic;
   }
   return pool[0];
 }
@@ -530,6 +631,15 @@ export default function App() {
   // and fire their triggers (startOfTurn / endOfTurn / onAttackCardPlayed).
   // Cleared at combat start.
   const [powers, setPowers] = useState([]);
+  // Relics — persistent across the whole run. Earned from elites / boss
+  // kills / treasure nodes / events. Effects fire via the same hooks
+  // dispatcher used by equipment + powers.
+  const [relics, setRelics] = useState([]);
+  // Player debuffs (mirror of enemy ones). Tick down at end of turn.
+  const [playerVulnerable, setPlayerVulnerable] = useState(0);
+  const [playerWeak, setPlayerWeak] = useState(0);
+  // Attack counter for everyNthAttack relic hooks (resets each combat).
+  const [attackCount, setAttackCount] = useState(0);
 
   // Act + map state
   const [currentActIdx, setCurrentActIdx] = useState(0);
@@ -550,6 +660,9 @@ export default function App() {
   const [activeEvent, setActiveEvent] = useState(null);
   const [forgeChoice, setForgeChoice] = useState(null);
   const [restNode, setRestNode] = useState(null);
+  // Card-upgrade picker at rest sites. When set, shows the deck and lets
+  // the player pick one non-upgraded card to upgrade.
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   // Log
   const [log, setLog] = useState([]);
@@ -557,9 +670,11 @@ export default function App() {
 
   const currentAct = ACTS[currentActIdx];
 
-  // Energy refill per turn — base + any permanentEnergyBonus equipment.
+  // Energy refill per turn — base + permanentEnergyBonus from equipment AND relics.
   const energyPerTurnRefill = () => {
-    return ENERGY_PER_TURN + equipment.reduce((s, eq) => s + (eq.bonus?.permanentEnergyBonus || 0), 0);
+    return ENERGY_PER_TURN
+      + equipment.reduce((s, eq) => s + (eq.bonus?.permanentEnergyBonus || 0), 0)
+      + relics.reduce((s, r) => s + (r.effect?.permanentEnergyBonus || 0), 0);
   };
 
   // ---------- RUN LIFECYCLE ----------
@@ -574,6 +689,11 @@ export default function App() {
     setDiscard([]);
     setExiled([]);
     setEquipment([]);
+    setPowers([]);
+    setRelics([]);
+    setPlayerVulnerable(0);
+    setPlayerWeak(0);
+    setAttackCount(0);
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -667,27 +787,40 @@ export default function App() {
     setEnemyIntent(rollIntent(e));
     // Powers don't persist between combats.
     setPowers([]);
+    // Reset per-combat counters and player debuffs.
+    setAttackCount(0);
+    setPlayerVulnerable(0);
+    setPlayerWeak(0);
 
-    // Apply start-of-combat equipment effects.
+    // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
     let startEnergyBonus = 0;
     let startHandBonus = 0;
     let healOnStart = 0;
+    let startDrawBonus = 0;
     for (const eq of equipment) {
       if (eq.bonus?.startBlock)          startBlockTotal      += eq.bonus.startBlock;
       if (eq.bonus?.energyOnCombatStart) startEnergyBonus     += eq.bonus.energyOnCombatStart;
       if (eq.bonus?.extraStartHand)      startHandBonus       += eq.bonus.extraStartHand;
       if (eq.bonus?.healOnCombatStart)   healOnStart          += eq.bonus.healOnCombatStart;
     }
+    for (const r of relics) {
+      const oc = r.effect?.onCombatStart;
+      if (!oc) continue;
+      if (oc.block)  startBlockTotal += oc.block;
+      if (oc.draw)   startDrawBonus  += oc.draw;
+      if (oc.energy) startEnergyBonus += oc.energy;
+      if (oc.hp)     healOnStart     += oc.hp;
+    }
     if (healOnStart > 0) {
       setHp(h => clamp(h + healOnStart, 0, maxHp));
-      pushLog(`💚 ${healOnStart} HP (Gem).`);
+      pushLog(`💚 +${healOnStart} HP (start of combat).`);
     }
     setBlock(startBlockTotal);
     setEnergy(energyPerTurnRefill() + startEnergyBonus);
 
     const fullDeck = [...deck, ...hand, ...discard];
-    const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus);
+    const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus + startDrawBonus);
     setDeck(drawn.deck);
     setHand(drawn.hand);
     setDiscard([]);
@@ -711,7 +844,26 @@ export default function App() {
   }
 
   function strikeBonusTotal() {
-    return equipment.reduce((s, eq) => s + (eq.bonus?.strikeBonus || 0), 0);
+    return equipment.reduce((s, eq) => s + (eq.bonus?.strikeBonus || 0), 0)
+         + relics.reduce((s, r) => s + (r.effect?.passiveStrikeBonus || 0), 0);
+  }
+
+  // Returns the extra flat damage to add this attack from relic-everyN
+  // triggers. Advances the global attackCount in the process. Called from
+  // playCard right before damage is computed.
+  function consumeEveryNthAttackBonus() {
+    const nextCount = attackCount + 1;
+    setAttackCount(nextCount);
+    let bonus = 0;
+    for (const r of relics) {
+      const every = r.effect?.everyNthAttack;
+      if (!every) continue;
+      if (nextCount % every.n === 0) {
+        bonus += every.extraDamage || 0;
+        pushLog(`📿 ${r.name}: +${every.extraDamage} damage.`);
+      }
+    }
+    return bonus;
   }
 
   function playCard(handIdx) {
@@ -736,6 +888,7 @@ export default function App() {
     if (fx.attack) {
       let base = fx.attack;
       if (card.name === 'Strike') base += strikeBonusTotal();
+      base += consumeEveryNthAttackBonus();
       const damage = computeAttackDamage(base);
       const after = applyDamageToEnemy(damage);
       logBits.push(`⚔ ${damage} → ${after} HP`);
@@ -829,6 +982,7 @@ export default function App() {
       const bits = [`📿 ${p.name}`];
       if (trig.attack) {
         let dmg = trig.attack;
+        if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
         if (wEnemyVuln > 0) dmg = Math.ceil(dmg * 1.5);
         const absorbed = Math.min(wEnemyBlock, dmg);
         wEnemyBlock -= absorbed;
@@ -875,6 +1029,7 @@ export default function App() {
 
   function computeAttackDamage(base) {
     let dmg = base;
+    if (playerWeak > 0)      dmg = Math.floor(dmg * 0.75);
     if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
     return dmg;
   }
@@ -907,6 +1062,8 @@ export default function App() {
     if (hp <= 0) return;
     setEnemyVulnerable(v => Math.max(0, v - 1));
     setEnemyWeak(w => Math.max(0, w - 1));
+    setPlayerVulnerable(v => Math.max(0, v - 1));
+    setPlayerWeak(w => Math.max(0, w - 1));
     setDiscard(d => [...d, ...hand]);
     setHand([]);
     setBlock(0);
@@ -937,18 +1094,22 @@ export default function App() {
       let raw = intent.value;
       if (enemyWeak > 0) raw = Math.floor(raw * 0.75);
       for (let i = 0; i < hits; i++) applyDamageToPlayer(raw);
-      pushLog(`👹 ${e.name}: ${intent.telegraph} → ${raw * hits} raw`);
+      pushLog(`👹 ${e.name}: ${intent.telegraph}`);
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
-    } else if (intent.kind === 'vulnerable' || intent.kind === 'weak') {
-      // Player-debuffs not yet implemented; flavored log only.
-      pushLog(`👹 ${e.name}: ${intent.telegraph}`);
+    } else if (intent.kind === 'vulnerable') {
+      setPlayerVulnerable(v => v + intent.value);
+      pushLog(`👹 ${e.name}: 🌀 You're Vulnerable +${intent.value}.`);
+    } else if (intent.kind === 'weak') {
+      setPlayerWeak(w => w + intent.value);
+      pushLog(`👹 ${e.name}: 🌀 You're Weak +${intent.value}.`);
     }
   }
 
   function applyDamageToPlayer(damage) {
     let remaining = damage;
+    if (playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
     let newBlock = block;
     let newHp = hp;
     if (newBlock > 0) {
@@ -964,6 +1125,27 @@ export default function App() {
     if (!enemy) return;
     pushLog(`✓ ${enemy.name} defeated.`);
     const isBoss = enemy.tier === 'boss';
+    // Fire relic onEnemyDefeated triggers (heal etc.). Not for bosses —
+    // bosses already give a richer reward path.
+    if (!isBoss) {
+      for (const r of relics) {
+        const ed = r.effect?.onEnemyDefeated;
+        if (!ed) continue;
+        if (ed.heal) {
+          setHp(h => clamp(h + ed.heal, 0, maxHp));
+          pushLog(`📿 ${r.name}: +${ed.heal} HP.`);
+        }
+      }
+    }
+    // Fire relic onCombatEnd triggers (heal etc.) for all kills incl. boss.
+    for (const r of relics) {
+      const ce = r.effect?.onCombatEnd;
+      if (!ce) continue;
+      if (ce.heal) {
+        setHp(h => clamp(h + ce.heal, 0, maxHp));
+        pushLog(`📿 ${r.name}: +${ce.heal} HP.`);
+      }
+    }
     if (isBoss) {
       // Boss kill → grant Master tier for this act's slot.
       const slot = currentAct.slot;
@@ -974,10 +1156,24 @@ export default function App() {
         applyEquipmentMaxHp(master);
         pushLog(`👑 Master ${SLOT_LABEL[slot]} claimed: ${master.name}.`);
       }
+      // Plus a random Rare relic from the boss chest. Skip duplicates.
+      const rareRelic = pickRelicByRarity({ rare: 1 }, relics.map(r => r.id));
+      if (rareRelic) {
+        setRelics(prev => [...prev, rareRelic]);
+        pushLog(`📿 Boss relic claimed: ${rareRelic.name}.`);
+      }
       setDeck(d => [...d, ...hand, ...discard, ...exiled]);
       setHand([]); setDiscard([]); setExiled([]);
       setStage('act-cleared');
       return;
+    }
+    // Elite kill → grant a random common/uncommon relic (no choice for MVP).
+    if (enemy.tier === 'elite') {
+      const r = pickRelicByRarity({ common: 2, uncommon: 3 }, relics.map(x => x.id));
+      if (r) {
+        setRelics(prev => [...prev, r]);
+        pushLog(`📿 Elite spoils: ${r.name}.`);
+      }
     }
     const weights = enemy.tier === 'elite'
       ? { common: 2, uncommon: 3, rare: 1 }
@@ -1052,11 +1248,33 @@ export default function App() {
       const amount = Math.floor(maxHp * 0.3);
       setHp(h => clamp(h + amount, 0, maxHp));
       pushLog(`🛏 Rest: +${amount} HP.`);
-    } else if (kind === 'reflect') {
-      setMaxHp(m => m + 3);
-      setHp(h => h + 3);
-      pushLog(`🛏 Reflect: +3 max HP.`);
+      setRestNode(null);
+      returnToMap();
+      return;
     }
+    if (kind === 'upgrade') {
+      // Open the upgrade picker. Rest node stays selected; the picker
+      // returns to map on confirm or cancel.
+      setUpgradeOpen(true);
+      setStage('upgrade');
+      return;
+    }
+  }
+
+  function pickCardToUpgrade(cardUid) {
+    if (cardUid === null) {
+      // Cancelled — go back to rest.
+      setUpgradeOpen(false);
+      setStage('rest');
+      return;
+    }
+    setDeck(prev => prev.map(c => {
+      if (c.uid !== cardUid) return c;
+      const upgraded = upgradeCard(c);
+      pushLog(`🛏 Upgraded ${c.name} → ${upgraded.name}.`);
+      return upgraded;
+    }));
+    setUpgradeOpen(false);
     setRestNode(null);
     returnToMap();
   }
@@ -1097,6 +1315,7 @@ export default function App() {
   if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward} />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
+  if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
   if (stage === 'forge')  {
     const slot = currentAct.slot;
     const piece = EQUIPMENT[slot]?.[forgeChoice?.tier];
@@ -1110,7 +1329,7 @@ export default function App() {
       map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
       currentNodeId={currentNodeId} clearedNodes={clearedNodes}
       reachable={reachableFromCurrent()}
-      player={{ hp, maxHp, equipment, deckSize: deck.length }}
+      player={{ hp, maxHp, equipment, relics, deckSize: deck.length }}
       onPick={pickNode} log={log} />;
   }
 
@@ -1121,7 +1340,8 @@ export default function App() {
     hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
     deck={deck} discard={discard}
     energyMax={energyPerTurnRefill()}
-    equipment={equipment} powers={powers}
+    equipment={equipment} powers={powers} relics={relics}
+    playerVulnerable={playerVulnerable} playerWeak={playerWeak}
     onPlayCard={playCard} onEndTurn={endTurn}
     log={log}
   />;
@@ -1224,12 +1444,24 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
         )}
       </div>
 
-      {player.equipment.length > 0 && (
+      {(player.equipment.length > 0 || (player.relics?.length || 0) > 0) && (
         <div className="parchment-card p-3 text-xs flex gap-3 flex-wrap">
-          <span className="uppercase text-parchment-300">Equipment:</span>
-          {player.equipment.map(eq => (
-            <span key={eq.id} className="text-gold-300">⚜ {eq.name}</span>
-          ))}
+          {player.equipment.length > 0 && (
+            <>
+              <span className="uppercase text-parchment-300">Equipment:</span>
+              {player.equipment.map(eq => (
+                <span key={eq.id} className="text-gold-300" title={eq.desc}>⚜ {eq.name}</span>
+              ))}
+            </>
+          )}
+          {(player.relics?.length || 0) > 0 && (
+            <>
+              <span className="uppercase text-parchment-300 ml-2">Relics:</span>
+              {player.relics.map(r => (
+                <span key={r.id} className="text-gold-300" title={`${r.desc}${r.flavor ? '\n\n' + r.flavor : ''}`}>📿 {r.name}</span>
+              ))}
+            </>
+          )}
         </div>
       )}
 
@@ -1269,7 +1501,8 @@ function Legend({ glyph, label }) {
 
 function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
                        hp, maxHp, block, energy, energyMax, hand, deck, discard,
-                       equipment, powers, onPlayCard, onEndTurn, log }) {
+                       equipment, powers, relics, playerVulnerable, playerWeak,
+                       onPlayCard, onEndTurn, log }) {
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
       <div className="parchment-card-strong p-4">
@@ -1320,9 +1553,29 @@ function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable
               ))}
             </div>
           )}
+          {playerVulnerable > 0 && (
+            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-xs" title="You take +50% damage from incoming attacks.">🌀 Vuln {playerVulnerable}</span>
+          )}
+          {playerWeak > 0 && (
+            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-xs" title="Your attacks deal -25% damage.">🌀 Weak {playerWeak}</span>
+          )}
         </div>
         <button onClick={onEndTurn} className="btn btn-ember">End Turn</button>
       </div>
+
+      {/* Relic chip row — persistent across the run, shown all combats. */}
+      {relics.length > 0 && (
+        <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
+          <span className="text-[10px] uppercase tracking-widest text-gold-300 mr-1">📿 Relics</span>
+          {relics.map(r => (
+            <span key={r.id}
+              title={`${r.desc}${r.flavor ? '\n\n' + r.flavor : ''}`}
+              className="px-2 py-1 bg-gold-700 text-parchment-50 rounded border border-gold-500 text-xs cursor-help">
+              {r.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Active Powers row — visible only while at least one power is on
           the field. Hover shows the trigger + flavor. */}
@@ -1419,13 +1672,92 @@ function RestScreen({ onChoose }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
       <h2 className="font-display text-3xl text-moss-300">A Rest Site</h2>
-      <p className="font-quill italic text-parchment-200 text-center">A small campfire, a flat rock. The path will still be there in the morning.</p>
+      <p className="font-quill italic text-parchment-200 text-center">A small campfire, a flat rock, the unmistakable feeling that someone has Recently Camped Here. The path will still be there in the morning. It's that kind of path.</p>
       <div className="flex flex-col gap-2 w-full">
-        <button onClick={() => onChoose('heal')} className="btn btn-moss">Sleep — heal 30% max HP</button>
-        <button onClick={() => onChoose('reflect')} className="btn btn-iris">Reflect — +3 max HP (permanent this run)</button>
+        <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — heal 30% max HP</button>
+        <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
       </div>
     </div>
   );
+}
+
+function UpgradeCardScreen({ deck, onPick }) {
+  // Show only NON-upgraded cards. Any card with no `upgrade` field is also
+  // ineligible (already at max).
+  const eligible = deck.filter(c => !c.upgraded && c.upgrade);
+  const ineligible = deck.filter(c => c.upgraded || !c.upgrade);
+  return (
+    <div className="min-h-screen flex flex-col p-6 gap-4 max-w-5xl mx-auto">
+      <div className="text-center">
+        <h2 className="font-display text-3xl text-gold-300">Study a Card</h2>
+        <p className="text-sm text-parchment-300 italic mt-1">Pick one to commit to memory. (Already-upgraded cards are listed for reference only.)</p>
+      </div>
+      <div className="parchment-card p-3">
+        <div className="text-[10px] uppercase text-parchment-300 mb-2 tracking-widest">Eligible ({eligible.length})</div>
+        <div className="flex flex-wrap gap-2">
+          {eligible.length === 0 && (
+            <div className="text-xs italic text-parchment-400">Nothing left to study — every card has been upgraded already. Sleep instead?</div>
+          )}
+          {eligible.map(card => {
+            const upgraded = upgradeCard(card);
+            return (
+              <button key={card.uid} onClick={() => onPick(card.uid)}
+                className="w-44 rounded-md border-2 p-2 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <div className="font-display text-sm">{card.name}</div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm bg-gold-500 text-ink-800">{card.cost}</div>
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
+                <div className="text-xs">{card.desc}</div>
+                <div className="text-[10px] mt-1 pt-1 border-t border-ink-300 text-moss-700">
+                  → <b>{upgraded.name}</b>: {summarizeEffects(upgraded.effects, upgraded.power, upgraded.cost)}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {ineligible.length > 0 && (
+        <div className="parchment-card p-3">
+          <div className="text-[10px] uppercase text-parchment-400 mb-1 tracking-widest">Already studied or no upgrade path ({ineligible.length})</div>
+          <div className="text-xs text-parchment-400 italic flex flex-wrap gap-2">
+            {ineligible.map(c => <span key={c.uid}>{c.name}</span>)}
+          </div>
+        </div>
+      )}
+      <button onClick={() => onPick(null)} className="btn btn-ink self-center">Back to rest</button>
+    </div>
+  );
+}
+
+// Format a card's upgraded effects/power/cost as a human-readable summary
+// for the upgrade picker. Doesn't aim to be exhaustive — just enough to
+// see what the upgrade changes.
+function summarizeEffects(effects, power, cost) {
+  const bits = [];
+  if (cost !== undefined) bits.push(`cost ${cost}`);
+  if (effects) {
+    if (effects.attack)     bits.push(`${effects.attack} dmg`);
+    if (effects.block)      bits.push(`${effects.block} Block`);
+    if (effects.draw)       bits.push(`draw ${effects.draw}`);
+    if (effects.energy)     bits.push(`+${effects.energy} Energy`);
+    if (effects.vulnerable) bits.push(`${effects.vulnerable} Vuln`);
+    if (effects.weak)       bits.push(`${effects.weak} Weak`);
+    if (effects.exhaust)    bits.push('Exhaust');
+  }
+  if (power) {
+    const k = power.startOfTurn ? 'turn start' : power.endOfTurn ? 'turn end' : power.onAttackCardPlayed ? 'per attack' : '';
+    const fx = power.startOfTurn || power.endOfTurn || power.onAttackCardPlayed || {};
+    const fxBits = [];
+    if (fx.attack)     fxBits.push(`${fx.attack} dmg`);
+    if (fx.block)      fxBits.push(`${fx.block} Block`);
+    if (fx.draw)       fxBits.push(`draw ${fx.draw}`);
+    if (fx.energy)     fxBits.push(`+${fx.energy} Energy`);
+    if (fx.vulnerable) fxBits.push(`${fx.vulnerable} Vuln`);
+    if (fx.weak)       fxBits.push(`${fx.weak} Weak`);
+    if (fxBits.length) bits.push(`${k}: ${fxBits.join(', ')}`);
+  }
+  return bits.join(' · ');
 }
 
 function ForgeScreen({ tier, slot, piece, alreadyHas, onChoose }) {

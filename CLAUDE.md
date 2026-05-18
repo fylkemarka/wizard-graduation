@@ -179,7 +179,7 @@ Same as Arcane Workshop:
 | 1 ✓ | Combat loop, intent, card rewards, linear fight chain |
 | 2 ✓ | Act 1 (Staff Path) branching DAG with node types + boss equipment reward |
 | 3 ✓ | Acts 2-4 + equipment tiers (basic/fine/master) + full run loop |
-| 4 | Powers (on-field state), relics, rest sites with heal-or-upgrade, more enemy variety per act |
+| 4 ✓ | Powers (4a), relics + card upgrades at rest sites + player debuffs (4b) |
 | 5 | Five wizard schools as playable classes with distinct mechanics |
 | 6 | Ascension-style difficulty ladder, run-persistence, leaderboards |
 
