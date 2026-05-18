@@ -123,6 +123,46 @@ wizard-graduation/
 - **Intent is rolled at start of enemy turn** (= immediately after a player
   ends turn) so the player sees what's coming on their next turn
 
+## 4½. Tone — Terry Pratchett wizard humor
+
+The flavor target for this game is **Pratchett, leaning Unseen
+University**. Every piece of flavor text should aim for the
+Pratchett rhythm: pompous setup → wry undercut → quiet observation
+that recasts the joke. Examples:
+
+> *Ostensible Inferno* — "The fire is technically there. The
+> fire-flavoured atmosphere certainly is."
+>
+> *A Strongly Worded Letter* — "You will hear from the Bursar.
+> Probably. He hasn't replied yet either."
+>
+> *Mildly Threatening Demeanour* — "You haven't done anything yet.
+> But you might."
+
+Tone guidance for adding content:
+
+- **Names**: prefer formal-but-slightly-absurd. "Octarine Squint",
+  "Inadvisable Acceleration", "The Significant Pause", "An Old
+  Tome" (re-titled in flavor as BORROWED — RETURN BY THE EQUINOX
+  OR FACE THE STACK CRONE).
+- **Card flavor**: 1-2 short sentences. Never explain the mechanic.
+  Always undercut something. If you mention magic, immediately
+  qualify it.
+- **Event flavor**: setup ("A figure in slightly-too-grey robes
+  waits at a fork in the path") → middle ("They produce a card
+  from a satchel") → undercut ("with the air of someone who has
+  rehearsed this. Twice.").
+- **Choice labels**: short, observational. "Refuse politely. They
+  expected this."
+- **Avoid**: epic-fantasy tone, grimdark, anime-style boast cards,
+  long titles full of capitalised Significance.
+- **Embrace**: bureaucracy of magic, footnote-style asides without
+  footnotes, certifications and committees, donations bowls
+  emptied daily, the school's bursar.
+
+Card *mechanics* should be readable and STS-clean; tone goes in
+`flavor` (a separate field on the card) and event flavor blocks.
+
 ## 5. User preferences
 
 Same as Arcane Workshop:

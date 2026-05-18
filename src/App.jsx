@@ -21,6 +21,15 @@ import { motion } from 'framer-motion';
 //   attack / block / draw / vulnerable / weak / energy / exhaust    (card)
 //   heal / maxHp / loseHp / gainCommonCard / gainUncommonCard /
 //   gainRareCard                                                    (event)
+//
+// Powers (type: 'power'): when played, the card LEAVES THE DECK and lives
+// on the player's `powers` array for the rest of the combat. The combat
+// loop fires power triggers at hooks:
+//   startOfTurn: { effects }   — applied at the start of every player turn
+//   endOfTurn:   { effects }   — applied at the end of every player turn
+//   onAttackCardPlayed: { effects } — applied each time an attack card resolves
+// Effects in power-trigger payloads use the same dispatcher as card effects.
+//
 // Equipment-bonus keys read at the right hooks (start-of-combat, etc.):
 //   strikeBonus            — +N damage on any Strike-named card
 //   startBlock             — +N Block at start of every combat
@@ -72,6 +81,47 @@ const CARDS = [
     effects: { block: 16 }, desc: 'Gain 16 Block.' },
   { id: 'c-judgment', name: 'Judgment', cost: 2, type: 'attack', rarity: 'rare',
     effects: { attack: 10, vulnerable: 2 }, desc: 'Deal 10 damage. Apply 2 Vulnerable.' },
+
+  // ---- POWERS ----
+  // Type 'power'. When played, leaves the deck for the rest of combat
+  // and triggers per its `power` field. Single-purchase impact:
+  // can be powerful, but you only get one chance to play each copy.
+  // Pratchett tone — pompous names, modest mechanics, dry flavor.
+  { id: 'p-borrowed-confidence', name: 'Borrowed Confidence',
+    cost: 1, type: 'power', rarity: 'common',
+    power: { startOfTurn: { block: 2 } },
+    desc: 'At the start of each turn, gain 2 Block.',
+    flavor: 'On loan from someone who needed it less.' },
+  { id: 'p-mildly-threatening', name: 'Mildly Threatening Demeanour',
+    cost: 1, type: 'power', rarity: 'common',
+    power: { endOfTurn: { weak: 1 } },
+    desc: 'At the end of each turn, apply 1 Weak.',
+    flavor: "You haven't done anything yet. But you might." },
+  { id: 'p-strongly-worded', name: 'A Strongly Worded Letter',
+    cost: 1, type: 'power', rarity: 'uncommon',
+    power: { endOfTurn: { vulnerable: 1 } },
+    desc: 'At the end of each turn, apply 1 Vulnerable.',
+    flavor: 'You will hear from the Bursar. Probably. He hasn\'t replied yet either.' },
+  { id: 'p-inadvisable-acceleration', name: 'Inadvisable Acceleration',
+    cost: 2, type: 'power', rarity: 'uncommon',
+    power: { startOfTurn: { draw: 1 } },
+    desc: 'At the start of each turn, draw 1 extra card.',
+    flavor: 'The faster you go, the more there is to look at. Look anyway.' },
+  { id: 'p-significant-pause', name: 'The Significant Pause',
+    cost: 2, type: 'power', rarity: 'uncommon',
+    power: { startOfTurn: { energy: 1 } },
+    desc: 'At the start of each turn, gain 1 Energy.',
+    flavor: 'Wait. …Now.' },
+  { id: 'p-ostensible-inferno', name: 'Ostensible Inferno',
+    cost: 2, type: 'power', rarity: 'rare',
+    power: { endOfTurn: { attack: 4 } },
+    desc: 'At the end of each turn, deal 4 damage.',
+    flavor: 'The fire is technically there. The fire-flavoured atmosphere certainly is.' },
+  { id: 'p-octarine-squint', name: 'Octarine Squint',
+    cost: 2, type: 'power', rarity: 'rare',
+    power: { onAttackCardPlayed: { vulnerable: 1 } },
+    desc: 'Each attack you play also applies 1 Vulnerable.',
+    flavor: 'You\'re looking at the colour magic comes from. Don\'t blink.' },
 ];
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
@@ -238,81 +288,81 @@ const EVENTS = [
   {
     id: 'ev-old-tome',
     title: 'An Old Tome',
-    flavor: 'A leather-bound book sits open on a rock. The page reads: "BORROWED — return by the equinox."',
+    flavor: 'A leather-bound book lies open on a rock. The page reads, in fading copperplate: BORROWED — RETURN BY THE EQUINOX OR FACE THE STACK CRONE. There is no further explanation, which is somehow more concerning.',
     choices: [
-      { label: 'Read it. (gain a random Common card)', effects: { gainCommonCard: 1 } },
-      { label: 'Tear the page out. (+4 HP, feel cool)', effects: { heal: 4 } },
-      { label: 'Walk on by.', effects: {} },
+      { label: 'Read on. (gain a random Common card)', effects: { gainCommonCard: 1 } },
+      { label: 'Tear the page out. Pocket it. (+4 HP — felt powerful)', effects: { heal: 4 } },
+      { label: 'Pretend you saw nothing.', effects: {} },
     ],
   },
   {
     id: 'ev-spring',
     title: 'Quiet Spring',
-    flavor: 'A small spring bubbles between two stones. The water is cold and clear.',
+    flavor: 'A small spring bubbles between two stones. The water is cold, clear, and almost certainly not deliberately enchanted.',
     choices: [
       { label: 'Drink deeply. (+8 HP)', effects: { heal: 8 } },
-      { label: 'Fill a flask. (+4 HP, +1 max HP)', effects: { heal: 4, maxHp: 1 } },
-      { label: 'Leave it for the next traveler.', effects: {} },
+      { label: 'Fill a flask carefully. (+4 HP, +1 max HP)', effects: { heal: 4, maxHp: 1 } },
+      { label: 'Leave it for the next traveller.', effects: {} },
     ],
   },
   {
     id: 'ev-stranger',
     title: 'The Stranger',
-    flavor: 'A figure in grey waits at a fork in the path. They offer a card from their satchel.',
+    flavor: 'A figure in slightly-too-grey robes waits at a fork in the path. They produce a card from a satchel with the air of someone who has rehearsed this. Twice.',
     choices: [
-      { label: 'Accept. (gain a random Uncommon card)', effects: { gainUncommonCard: 1 } },
-      { label: 'Bargain. (-5 HP, gain a random Rare card)', effects: { loseHp: 5, gainRareCard: 1 } },
-      { label: 'Refuse politely.', effects: {} },
+      { label: 'Accept the card. (gain a random Uncommon card)', effects: { gainUncommonCard: 1 } },
+      { label: 'Bargain. They look you up and down. (-5 HP, gain a random Rare card)', effects: { loseHp: 5, gainRareCard: 1 } },
+      { label: 'Refuse politely. They expected this.', effects: {} },
     ],
   },
   {
     id: 'ev-shrine',
     title: 'Roadside Shrine',
-    flavor: 'A weathered stone shrine to no god you recognize. A small bowl invites an offering.',
+    flavor: 'A weathered stone shrine to no god in particular. The donations bowl has been emptied recently. The donations bowl is, you suspect, emptied daily.',
     choices: [
       { label: 'Pray sincerely. (heal 5)', effects: { heal: 5 } },
-      { label: 'Curse it. (+2 max HP, -3 HP now)', effects: { maxHp: 2, loseHp: 3 } },
-      { label: 'Ignore it.', effects: {} },
+      { label: 'Pray sarcastically. (+2 max HP, -3 HP)', effects: { maxHp: 2, loseHp: 3 } },
+      { label: 'Walk on without looking. (Surely fine.)', effects: {} },
     ],
   },
   {
     id: 'ev-snake',
     title: 'Coiled Adder',
-    flavor: 'A small green snake watches you pass. Its eyes are bright, deliberate.',
+    flavor: 'A small green snake watches you pass. Its eyes are bright, deliberate, and noticeably more focused than yours have been all morning.',
     choices: [
       { label: 'Pick it up. (-4 HP, gain a Rare card)', effects: { loseHp: 4, gainRareCard: 1 } },
-      { label: 'Toss it food. (heal 3)', effects: { heal: 3 } },
-      { label: 'Step around it.', effects: {} },
+      { label: 'Offer it a crumb. (+3 HP)', effects: { heal: 3 } },
+      { label: 'Step around it, politely.', effects: {} },
     ],
   },
   {
     id: 'ev-mirror',
     title: 'A Shard of Mirror',
-    flavor: 'A piece of broken mirror, propped against a stump. You see yourself, harder around the eyes.',
+    flavor: 'A piece of broken mirror, propped against a stump. The version of you in the glass is harder around the eyes. They are not exactly your eyes. You are pretty sure.',
     choices: [
-      { label: 'Study it. (gain an Uncommon card)', effects: { gainUncommonCard: 1 } },
+      { label: 'Study it carefully. (gain an Uncommon card)', effects: { gainUncommonCard: 1 } },
       { label: 'Break it further. (+5 max HP, -2 HP)', effects: { maxHp: 5, loseHp: 2 } },
-      { label: 'Leave the shard.', effects: {} },
+      { label: 'Leave the shard. Leave quickly.', effects: {} },
     ],
   },
   {
     id: 'ev-pilgrim',
     title: 'Pilgrim on the Path',
-    flavor: 'An old pilgrim shares half a meal with you. "Eat," they say. "The path is longer than you think."',
+    flavor: 'An old pilgrim sets out half a meal between you. "Eat," they say, "the path is longer than you think. Everybody\'s path is longer than they think. That\'s the trick of paths."',
     choices: [
       { label: 'Eat with gratitude. (+10 HP)', effects: { heal: 10 } },
       { label: 'Trade words instead. (gain a Common card)', effects: { gainCommonCard: 1 } },
-      { label: 'Continue alone.', effects: {} },
+      { label: 'Decline politely and continue.', effects: {} },
     ],
   },
   {
     id: 'ev-vow',
     title: 'A Vow Offered',
-    flavor: 'A stone altar carved with a single line: "STRENGTH FOR STILLNESS."',
+    flavor: 'A stone altar, carved with a single grand line: STRENGTH FOR STILLNESS. Beneath it, in much smaller letters: TERMS APPLY. CONSULT THE STELE.',
     choices: [
       { label: 'Take the vow. (-6 HP, +1 max HP, gain a Rare card)', effects: { loseHp: 6, maxHp: 1, gainRareCard: 1 } },
-      { label: 'Decline. (gain an Uncommon card)', effects: { gainUncommonCard: 1 } },
-      { label: 'Walk away.', effects: {} },
+      { label: 'Read the small print, decline. (gain an Uncommon card)', effects: { gainUncommonCard: 1 } },
+      { label: 'Walk away. The altar is unmoved.', effects: {} },
     ],
   },
 ];
@@ -476,6 +526,10 @@ export default function App() {
   const [discard, setDiscard] = useState([]);
   const [exiled, setExiled] = useState([]);
   const [equipment, setEquipment] = useState([]);
+  // Powers — `type: 'power'` cards live here for the duration of one combat
+  // and fire their triggers (startOfTurn / endOfTurn / onAttackCardPlayed).
+  // Cleared at combat start.
+  const [powers, setPowers] = useState([]);
 
   // Act + map state
   const [currentActIdx, setCurrentActIdx] = useState(0);
@@ -611,6 +665,8 @@ export default function App() {
     setEnemyVulnerable(0);
     setEnemyWeak(0);
     setEnemyIntent(rollIntent(e));
+    // Powers don't persist between combats.
+    setPowers([]);
 
     // Apply start-of-combat equipment effects.
     let startBlockTotal = 0;
@@ -663,9 +719,19 @@ export default function App() {
     const card = hand[handIdx];
     if (!card) return;
     if (card.cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
-    const fx = card.effects || {};
     setEnergy(e => e - card.cost);
     const logBits = [card.name];
+
+    // Powers don't apply effects directly — they install themselves on the
+    // player's `powers` array and trigger via the turn-hooks instead.
+    if (card.type === 'power') {
+      setPowers(ps => [...ps, card]);
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      pushLog(`📿 ${card.name} — power active.`);
+      return;
+    }
+
+    const fx = card.effects || {};
 
     if (fx.attack) {
       let base = fx.attack;
@@ -673,6 +739,8 @@ export default function App() {
       const damage = computeAttackDamage(base);
       const after = applyDamageToEnemy(damage);
       logBits.push(`⚔ ${damage} → ${after} HP`);
+      // Fire onAttackCardPlayed power triggers.
+      applyPowerTriggers('onAttackCardPlayed');
     }
     if (fx.block) {
       setBlock(b => b + fx.block);
@@ -699,6 +767,91 @@ export default function App() {
     if (fx.exhaust) setExiled(ex => [...ex, card]);
     else setDiscard(d => [...d, card]);
     pushLog(logBits.join(' · '));
+  }
+
+  // Apply the effects payload from a power trigger. Mirrors playCard's
+  // dispatcher but reads from a plain effects object (no card metadata).
+  function applyPowerTriggerEffects(effects, sourceName) {
+    if (!effects) return;
+    const bits = [`📿 ${sourceName}`];
+    if (effects.attack) {
+      const dmg = computeAttackDamage(effects.attack);
+      const after = applyDamageToEnemy(dmg);
+      bits.push(`⚔ ${dmg} → ${after} HP`);
+    }
+    if (effects.block) {
+      setBlock(b => b + effects.block);
+      bits.push(`🛡 +${effects.block}`);
+    }
+    if (effects.vulnerable) {
+      setEnemyVulnerable(v => v + effects.vulnerable);
+      bits.push(`🌀 +${effects.vulnerable} Vuln`);
+    }
+    if (effects.weak) {
+      setEnemyWeak(w => w + effects.weak);
+      bits.push(`🌀 +${effects.weak} Weak`);
+    }
+    if (effects.energy) {
+      setEnergy(e => e + effects.energy);
+      bits.push(`+${effects.energy} Energy`);
+    }
+    if (effects.draw) {
+      drawCards(effects.draw);
+      bits.push(`+${effects.draw} draw`);
+    }
+    pushLog(bits.join(' · '));
+  }
+
+  // Walk all installed powers and fire any that have a trigger matching
+  // `hook` (one of: startOfTurn / onAttackCardPlayed). For endOfTurn use
+  // `applyEndOfTurnPowerTriggers` instead — it tracks enemy HP
+  // synchronously so the caller knows whether the enemy was killed.
+  function applyPowerTriggers(hook) {
+    for (const p of powers) {
+      const trig = p.power?.[hook];
+      if (trig) applyPowerTriggerEffects(trig, p.name);
+    }
+  }
+
+  // Specialised end-of-turn trigger pass that batches all damage / debuff
+  // / block changes into local working variables, then commits to state
+  // once. Returns true if the enemy died as a result. This is so the
+  // caller can short-circuit the enemy's intent resolution.
+  function applyEndOfTurnPowerTriggers() {
+    let wEnemyHp = enemyHp;
+    let wEnemyBlock = enemyBlock;
+    let wEnemyVuln = enemyVulnerable;
+    let wEnemyWeak = enemyWeak;
+    let wPlayerBlock = block;
+    for (const p of powers) {
+      const trig = p.power?.endOfTurn;
+      if (!trig) continue;
+      const bits = [`📿 ${p.name}`];
+      if (trig.attack) {
+        let dmg = trig.attack;
+        if (wEnemyVuln > 0) dmg = Math.ceil(dmg * 1.5);
+        const absorbed = Math.min(wEnemyBlock, dmg);
+        wEnemyBlock -= absorbed;
+        dmg -= absorbed;
+        wEnemyHp = Math.max(0, wEnemyHp - dmg);
+        bits.push(`⚔ → ${wEnemyHp} HP`);
+      }
+      if (trig.block) { wPlayerBlock += trig.block; bits.push(`🛡 +${trig.block}`); }
+      if (trig.vulnerable) { wEnemyVuln += trig.vulnerable; bits.push(`🌀 +${trig.vulnerable} Vuln`); }
+      if (trig.weak)       { wEnemyWeak += trig.weak;       bits.push(`🌀 +${trig.weak} Weak`); }
+      pushLog(bits.join(' · '));
+      if (wEnemyHp <= 0) break; // no point continuing
+    }
+    setBlock(wPlayerBlock);
+    setEnemyBlock(wEnemyBlock);
+    setEnemyHp(wEnemyHp);
+    setEnemyVulnerable(wEnemyVuln);
+    setEnemyWeak(wEnemyWeak);
+    if (wEnemyHp <= 0) {
+      setTimeout(() => onEnemyDefeated(), 200);
+      return true;
+    }
+    return false;
   }
 
   function drawCards(n) {
@@ -743,6 +896,13 @@ export default function App() {
 
   function endTurn() {
     if (stage !== 'combat') return;
+    // End-of-turn power triggers fire BEFORE the enemy resolves intent —
+    // so e.g. Ostensible Inferno's chip damage can finish off an enemy
+    // before they get a swing in. Uses sync local tracking because React
+    // state updates are batched and we need to know if the enemy died
+    // *this turn* before deciding whether to apply enemy intent.
+    const killedByPowers = applyEndOfTurnPowerTriggers();
+    if (killedByPowers) return;
     if (enemyIntent) applyEnemyIntent(enemyIntent);
     if (hp <= 0) return;
     setEnemyVulnerable(v => Math.max(0, v - 1));
@@ -761,6 +921,10 @@ export default function App() {
         setHand(result.hand);
         return result.deck;
       });
+      // Start-of-turn power triggers fire AFTER the new hand is drawn,
+      // so any card-draw or energy-grant from a power lands on top of
+      // the freshly-drawn baseline.
+      applyPowerTriggers('startOfTurn');
     }, 0);
     if (enemy) setEnemyIntent(rollIntent(enemy));
   }
@@ -957,7 +1121,7 @@ export default function App() {
     hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
     deck={deck} discard={discard}
     energyMax={energyPerTurnRefill()}
-    equipment={equipment}
+    equipment={equipment} powers={powers}
     onPlayCard={playCard} onEndTurn={endTurn}
     log={log}
   />;
@@ -1105,7 +1269,7 @@ function Legend({ glyph, label }) {
 
 function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
                        hp, maxHp, block, energy, energyMax, hand, deck, discard,
-                       equipment, onPlayCard, onEndTurn, log }) {
+                       equipment, powers, onPlayCard, onEndTurn, log }) {
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
       <div className="parchment-card-strong p-4">
@@ -1160,6 +1324,21 @@ function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable
         <button onClick={onEndTurn} className="btn btn-ember">End Turn</button>
       </div>
 
+      {/* Active Powers row — visible only while at least one power is on
+          the field. Hover shows the trigger + flavor. */}
+      {powers.length > 0 && (
+        <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
+          <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
+          {powers.map((p, i) => (
+            <span key={p.uid || i}
+              title={`${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
+              className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
+              {p.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex gap-2 flex-wrap min-h-[160px] items-center justify-center">
         {hand.map((card, i) => {
           const playable = card.cost <= energy;
@@ -1202,13 +1381,16 @@ function RewardScreen({ choices, onPick }) {
       <div className="flex gap-4 flex-wrap justify-center">
         {choices.map((card, i) => (
           <button key={i} onClick={() => onPick(card)}
-            className="w-44 h-60 rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition">
+            className="w-48 min-h-[260px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition">
             <div className="flex justify-between items-center">
-              <div className="font-display text-base">{card.name}</div>
+              <div className="font-display text-base leading-tight">{card.name}</div>
               <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
             </div>
             <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type} · {card.rarity}</div>
-            <div className="text-xs flex-1 font-quill">{card.desc}</div>
+            <div className="text-xs font-quill">{card.desc}</div>
+            {card.flavor && (
+              <div className="text-[11px] italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
+            )}
           </button>
         ))}
       </div>
