@@ -1,69 +1,63 @@
 // Wizard Graduation — STS-inspired single-player roguelike deckbuilder.
 //
-// Single-file App for early iteration; will split when systems stabilize.
-// Sections in order:
-//   1. DATA — cards, enemies, starter deck, acts (stubbed for MVP1)
-//   2. HELPERS — shuffle, clamp, uid, intent rolling
-//   3. App component — state + combat loop + card UI
+// Sections:
+//   1. DATA — cards, enemies, equipment, acts
+//   2. HELPERS — shuffle, clamp, uid, intent rolls, map generator
+//   3. App component — run state, stage flow, combat + map + reward UIs
 
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 
 // =============================================================================
 // 1. DATA
 // =============================================================================
 
-// Cards are the only stat-bearing unit in MVP1. Each carries an `effects`
-// payload that the combat loop's applyEffects() dispatcher reads.
-// Effect keys supported in MVP1:
-//   attack    — deal N damage to the active enemy (after Block)
-//   block     — gain N temporary Block (resets at start of next turn)
-//   draw      — draw N cards from your deck (auto-reshuffle from discard)
-//   vulnerable— stack N Vulnerable on the enemy (takes +50% next attack)
-//   weak      — stack N Weak on the enemy (deals -25% on next attack)
-//   energy    — gain N energy this turn
-//   exhaust   — the card is exiled (single-use) after play
-//
-// Rarities: basic (in starter deck) / common / uncommon / rare. Reward picks
-// roll weighted toward common in early acts.
+// Effect keys used by card / event / equipment dispatchers:
+//   attack      — deal N damage (post-Vulnerable modifier)
+//   block       — gain N temporary Block (resets at turn end)
+//   draw        — draw N cards
+//   vulnerable  — N stacks on enemy (next attack takes +50% damage)
+//   weak        — N stacks on enemy (its next attack deals -25%)
+//   energy      — +N energy this turn
+//   exhaust     — exile the card after play (until end of run)
+//   heal        — +N HP
+//   maxHp       — +N max HP (permanent for run)
+//   strikeBonus — +N damage on every Strike-named card this run
+//   startBlock  — +N Block at the start of every combat this run
 const CARDS = [
-  // ---- BASIC STARTER CARDS ----
-  { id: 'c-strike',   name: 'Strike',   cost: 1, type: 'attack', rarity: 'basic',
+  // ---- BASIC ----
+  { id: 'c-strike', name: 'Strike', cost: 1, type: 'attack', rarity: 'basic',
     effects: { attack: 6 }, desc: 'Deal 6 damage.' },
-  { id: 'c-defend',   name: 'Defend',   cost: 1, type: 'skill',  rarity: 'basic',
+  { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
     effects: { block: 5 }, desc: 'Gain 5 Block.' },
-  { id: 'c-spark',    name: 'Spark',    cost: 0, type: 'attack', rarity: 'basic',
+  { id: 'c-spark', name: 'Spark', cost: 0, type: 'attack', rarity: 'basic',
     effects: { attack: 3 }, desc: 'Deal 3 damage. (Free)' },
-
-  // ---- COMMON POOL (card rewards from combat) ----
+  // ---- COMMON ----
   { id: 'c-arc-bolt', name: 'Arc Bolt', cost: 1, type: 'attack', rarity: 'common',
     effects: { attack: 4, weak: 1 }, desc: 'Deal 4 damage. Apply 1 Weak.' },
-  { id: 'c-hex-lance',name: 'Hex Lance',cost: 2, type: 'attack', rarity: 'common',
+  { id: 'c-hex-lance', name: 'Hex Lance', cost: 2, type: 'attack', rarity: 'common',
     effects: { attack: 9 }, desc: 'Deal 9 damage.' },
-  { id: 'c-mend',     name: 'Mend',     cost: 1, type: 'skill',  rarity: 'common',
+  { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
     effects: { block: 7 }, desc: 'Gain 7 Block.' },
-  { id: 'c-acuity',   name: 'Acuity',   cost: 1, type: 'skill',  rarity: 'common',
+  { id: 'c-acuity', name: 'Acuity', cost: 1, type: 'skill', rarity: 'common',
     effects: { draw: 2 }, desc: 'Draw 2 cards.' },
   { id: 'c-piercing', name: 'Piercing', cost: 1, type: 'attack', rarity: 'common',
     effects: { attack: 5, vulnerable: 1 }, desc: 'Deal 5 damage. Apply 1 Vulnerable.' },
-
-  // ---- UNCOMMON POOL ----
+  // ---- UNCOMMON ----
   { id: 'c-fireball', name: 'Fireball', cost: 2, type: 'attack', rarity: 'uncommon',
     effects: { attack: 14 }, desc: 'Deal 14 damage.' },
-  { id: 'c-bulwark',  name: 'Bulwark',  cost: 1, type: 'skill',  rarity: 'uncommon',
+  { id: 'c-bulwark', name: 'Bulwark', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 10 }, desc: 'Gain 10 Block.' },
-  { id: 'c-meditate', name: 'Meditate', cost: 0, type: 'skill',  rarity: 'uncommon',
+  { id: 'c-meditate', name: 'Meditate', cost: 0, type: 'skill', rarity: 'uncommon',
     effects: { energy: 1, draw: 1, exhaust: true }, desc: 'Gain 1 Energy. Draw 1. Exhaust.' },
-  { id: 'c-warding',  name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-warding', name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, vulnerable: 1 }, desc: 'Gain 4 Block. Apply 1 Vulnerable.' },
-
-  // ---- RARE POOL ----
+  // ---- RARE ----
   { id: 'c-arcane-pulse', name: 'Arcane Pulse', cost: 2, type: 'attack', rarity: 'rare',
     effects: { attack: 12, weak: 2 }, desc: 'Deal 12 damage. Apply 2 Weak.' },
-  { id: 'c-immolate',     name: 'Immolate',     cost: 2, type: 'attack', rarity: 'rare',
+  { id: 'c-immolate', name: 'Immolate', cost: 2, type: 'attack', rarity: 'rare',
     effects: { attack: 18, exhaust: true }, desc: 'Deal 18 damage. Exhaust.' },
 ];
-
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
 const STARTER_DECK = [
@@ -72,39 +66,100 @@ const STARTER_DECK = [
   'c-spark', 'c-spark',
 ];
 
-// Enemies for MVP1. Each carries `behaviors` — a list of possible turn-actions
-// the AI rolls from. `intent` is set at the start of every enemy turn so the
-// player sees what's coming next. Behavior keys mirror the card effect keys
-// where relevant (attack, block) plus enemy-specific (debuff_strength etc.).
+// Enemies. `behaviors` = weighted random pool; one roll per enemy turn.
+// kind ∈ attack / attack-multi / block / vulnerable / weak.
 const ENEMIES = [
-  { id: 'e-acolyte',  name: 'Lost Acolyte', maxHp: 22, behaviors: [
+  { id: 'e-acolyte',  name: 'Lost Acolyte', maxHp: 20, tier: 'normal', behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
     ] },
-  { id: 'e-tutor',    name: 'Stern Tutor',  maxHp: 30, behaviors: [
-      { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7' },
-      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
-      { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
-    ] },
-  { id: 'e-imp',      name: 'Pact Imp',     maxHp: 18, behaviors: [
+  { id: 'e-imp',      name: 'Pact Imp', maxHp: 18, tier: 'normal', behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4' },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
     ] },
-  // Boss for Act 1 — placeholder until acts are wired up.
-  { id: 'e-boss-thornlord', name: 'The Thornlord', maxHp: 50, isBoss: true, behaviors: [
+  { id: 'e-shrine-rat', name: 'Shrine Rat Pack', maxHp: 16, tier: 'normal', behaviors: [
+      { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
+      { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
+    ] },
+  { id: 'e-tutor',    name: 'Stern Tutor', maxHp: 32, tier: 'elite', behaviors: [
+      { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
+      { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
+    ] },
+  { id: 'e-thicket', name: 'Living Thicket', maxHp: 38, tier: 'elite', behaviors: [
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
+      { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
+      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
+    ] },
+  // Boss
+  { id: 'e-boss-thornlord', name: 'The Thornlord', maxHp: 60, tier: 'boss', behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11' },
       { kind: 'attack-multi', value: 4, count: 3, weight: 2, telegraph: '⚔ 4×3' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vulnerable 2' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
 ];
-
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
-// MVP1 placeholder — just a sequence of 3 normal fights then the boss.
-// Real act/path/DAG comes in MVP2.
-const MVP_FIGHT_QUEUE = [
-  'e-acolyte', 'e-imp', 'e-tutor', 'e-boss-thornlord',
+// Equipment — earned by clearing acts. Three tiers per slot. Acts 2-4 stubbed.
+// Each piece carries a `bonus` payload that combat loop reads at start-of-
+// combat or in damage calc.
+const EQUIPMENT = {
+  staff: {
+    basic:  { id: 'eq-staff-basic',  name: 'Apprentice Staff',  bonus: { strikeBonus: 1 }, desc: '+1 damage on Strike.' },
+    fine:   { id: 'eq-staff-fine',   name: 'Journeyman Staff',  bonus: { strikeBonus: 2 }, desc: '+2 damage on Strike.' },
+    master: { id: 'eq-staff-master', name: 'Master Staff',      bonus: { strikeBonus: 3 }, desc: '+3 damage on Strike.' },
+  },
+  // Acts 2-4 stubbed for MVP3
+  robes:  { master: { id: 'eq-robes-master', name: 'Master Robes', bonus: { startBlock: 5 }, desc: 'Gain 5 Block at the start of every combat.' } },
+  gem:    { master: { id: 'eq-gem-master',   name: 'Master Gem',   bonus: { maxHp: 10 }, desc: '+10 max HP.' } },
+  ring:   { master: { id: 'eq-ring-master',  name: 'Master Ring',  bonus: { energyOnCombatStart: 1 }, desc: '+1 Energy on turn 1 of every combat.' } },
+};
+
+// Events — flavor + branching choices. Each choice has `effects` applied
+// immediately (using the same dispatcher as cards) or a special key like
+// `gainCard` / `loseHp`.
+const EVENTS = [
+  {
+    id: 'ev-old-tome',
+    title: 'An Old Tome',
+    flavor: 'A leather-bound book sits open on a rock. The page reads: "BORROWED — return by the equinox."',
+    choices: [
+      { label: 'Read it. (gain a random Common card)', effects: { gainCommonCard: 1 } },
+      { label: 'Tear the page out. (gain 30 gold? no — but feel cool)', effects: { heal: 4 } },
+      { label: 'Walk on by.',                          effects: {} },
+    ],
+  },
+  {
+    id: 'ev-spring',
+    title: 'Quiet Spring',
+    flavor: 'A small spring bubbles between two stones. The water is cold and clear.',
+    choices: [
+      { label: 'Drink deeply. (+8 HP)',                effects: { heal: 8 } },
+      { label: 'Fill a flask. (+4 HP, +1 max HP)',     effects: { heal: 4, maxHp: 1 } },
+      { label: 'Leave it for the next traveler.',     effects: {} },
+    ],
+  },
+  {
+    id: 'ev-stranger',
+    title: 'The Stranger',
+    flavor: 'A figure in grey waits at a fork in the path. They offer a card from their satchel.',
+    choices: [
+      { label: 'Accept. (gain a random Uncommon card)', effects: { gainUncommonCard: 1 } },
+      { label: 'Bargain. (-5 HP, gain a random Rare card)', effects: { loseHp: 5, gainRareCard: 1 } },
+      { label: 'Refuse politely.',                      effects: {} },
+    ],
+  },
+  {
+    id: 'ev-shrine',
+    title: 'Roadside Shrine',
+    flavor: 'A weathered stone shrine to no god you recognize. A small bowl invites an offering.',
+    choices: [
+      { label: 'Pray sincerely. (heal 5)',           effects: { heal: 5 } },
+      { label: 'Curse it. (gain 2 max HP, -3 HP now)', effects: { maxHp: 2, loseHp: 3 } },
+      { label: 'Ignore it.',                          effects: {} },
+    ],
+  },
 ];
 
 // =============================================================================
@@ -119,12 +174,10 @@ function shuffle(arr) {
   }
   return a;
 }
-
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 let _uid = 0;
 const uid = () => `u${++_uid}`;
 
-// Roll the next intent for an enemy based on weighted behavior list.
 function rollIntent(enemy) {
   const total = enemy.behaviors.reduce((s, b) => s + (b.weight || 1), 0);
   let roll = Math.random() * total;
@@ -139,85 +192,308 @@ function buildStartingDeck() {
   return shuffle(STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
 }
 
+// Pick a card weighted by rarity from a pool. Filters by allowed rarities.
+function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = []) {
+  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id));
+  if (pool.length === 0) return null;
+  const total = pool.reduce((s, c) => s + rarityWeights[c.rarity], 0);
+  let r = Math.random() * total;
+  for (const c of pool) {
+    r -= rarityWeights[c.rarity];
+    if (r <= 0) return c;
+  }
+  return pool[0];
+}
+
+// --------- MAP GENERATION ---------
+// STS-style branching DAG generator. Returns { nodes, edges } where each
+// node has { id, row, col, type, x, y } and edges describes which next-row
+// nodes each node can move to. Player starts at row 0 (one of 1-3 starts),
+// walks up to a single boss at the top row.
+//
+// Per-act spec:
+//   rows  : how many "depth" levels (boss is row N-1)
+//   width : max nodes per row
+//   types : weighted pool for non-start/non-boss rows
+function generateActMap(rows = 8, width = 3) {
+  const nodes = [];
+  const rng = Math.random;
+
+  // Row 0: starting nodes. 2-3 entry points.
+  const startCount = 2 + Math.floor(rng() * 2);
+  for (let c = 0; c < startCount; c++) {
+    nodes.push({
+      id: `n-0-${c}`, row: 0, col: c, type: 'start',
+      x: spacedX(c, startCount, width), y: rowY(0, rows),
+    });
+  }
+
+  // Middle rows.
+  for (let r = 1; r < rows - 1; r++) {
+    // Row width varies 2-3.
+    const w = 2 + Math.floor(rng() * 2);
+    for (let c = 0; c < w; c++) {
+      nodes.push({
+        id: `n-${r}-${c}`, row: r, col: c,
+        type: pickNodeType(r, rows),
+        x: spacedX(c, w, width), y: rowY(r, rows),
+      });
+    }
+  }
+
+  // Top row: a single boss in the center.
+  const bossRow = rows - 1;
+  nodes.push({
+    id: `n-${bossRow}-0`, row: bossRow, col: 0, type: 'boss',
+    x: spacedX(0, 1, width), y: rowY(bossRow, rows),
+  });
+
+  // Build edges: each node connects to 1-2 nodes in the next row up.
+  // Connections are nearest-by-column, never crossing.
+  const byRow = {};
+  for (const n of nodes) (byRow[n.row] = byRow[n.row] || []).push(n);
+  const edges = {};
+  for (let r = 0; r < rows - 1; r++) {
+    const cur = byRow[r] || [];
+    const next = byRow[r + 1] || [];
+    for (const a of cur) {
+      // Pick 1-2 next-row nodes closest in column.
+      const sorted = [...next].sort((x, y) => Math.abs(x.col - a.col) - Math.abs(y.col - a.col));
+      const links = sorted.slice(0, 1 + Math.floor(rng() * 2));
+      edges[a.id] = links.map(n => n.id);
+    }
+  }
+  // Ensure every next-row node has at least one incoming edge.
+  for (let r = 1; r < rows; r++) {
+    const cur = byRow[r] || [];
+    for (const n of cur) {
+      const hasIn = Object.values(edges).some(arr => arr.includes(n.id));
+      if (!hasIn) {
+        const prev = byRow[r - 1] || [];
+        // Attach to nearest previous-row node.
+        const closest = prev.sort((a, b) => Math.abs(a.col - n.col) - Math.abs(b.col - n.col))[0];
+        if (closest) edges[closest.id] = [...(edges[closest.id] || []), n.id];
+      }
+    }
+  }
+  return { nodes, edges };
+
+  // ---- helpers ----
+  function pickNodeType(r, rows) {
+    // Forge node sits at the "midway" point, giving the basic-tier staff.
+    // (For Act 1 we hard-code a basic staff option at row ~rows/3 and fine at
+    //  row ~2*rows/3. Both as 'forge-basic' and 'forge-fine' types.)
+    if (r === Math.floor(rows / 3))      return 'forge-basic';
+    if (r === Math.floor((2 * rows) / 3)) return 'forge-fine';
+    const roll = rng();
+    if (roll < 0.6) return 'combat';
+    if (roll < 0.78) return 'event';
+    if (roll < 0.92) return 'rest';
+    return 'elite';
+  }
+  function spacedX(c, w, totalCols) {
+    // Spread `w` nodes evenly across `totalCols` worth of x-space.
+    const pad = 0.5;
+    if (w === 1) return totalCols / 2;
+    return pad + (c * (totalCols - 1)) / (w - 1);
+  }
+  function rowY(r, totalRows) {
+    return totalRows - 1 - r; // row 0 at bottom; boss at top
+  }
+}
+
 // =============================================================================
 // 3. App
 // =============================================================================
 
-const MAX_HP = 60;
+const STARTING_MAX_HP = 70;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
 
-export default function App() {
-  // Run-level state
-  const [stage, setStage] = useState('menu'); // 'menu' | 'combat' | 'reward' | 'victory' | 'defeat'
-  const [fightIdx, setFightIdx] = useState(0);
+// Single Act 1 for MVP2. MVP3 will iterate through 4 acts.
+const ACT_SPEC = {
+  id: 'act-1',
+  name: 'The Staff Path',
+  slot: 'staff',
+  flavor: 'You set off to claim your staff. The further you push, the better the wood.',
+  rows: 7,
+  width: 4,
+};
 
-  // Player state (resets on new run)
-  const [hp, setHp] = useState(MAX_HP);
+export default function App() {
+  // Stage flow:
+  //   menu → map → combat → reward → map → ... → graduation/defeat
+  //   map can also lead to event / rest / forge stages
+  const [stage, setStage] = useState('menu');
+
+  // Player run state
+  const [maxHp, setMaxHp] = useState(STARTING_MAX_HP);
+  const [hp, setHp] = useState(STARTING_MAX_HP);
   const [block, setBlock] = useState(0);
   const [energy, setEnergy] = useState(ENERGY_PER_TURN);
   const [deck, setDeck] = useState([]);
   const [hand, setHand] = useState([]);
   const [discard, setDiscard] = useState([]);
   const [exiled, setExiled] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+
+  // Map state
+  const [map, setMap] = useState(null);
+  const [currentNodeId, setCurrentNodeId] = useState(null);
+  const [clearedNodes, setClearedNodes] = useState([]);
 
   // Combat state
   const [enemy, setEnemy] = useState(null);
   const [enemyHp, setEnemyHp] = useState(0);
   const [enemyBlock, setEnemyBlock] = useState(0);
   const [enemyIntent, setEnemyIntent] = useState(null);
-  const [enemyVulnerable, setEnemyVulnerable] = useState(0); // takes +50% next attack
-  const [enemyWeak, setEnemyWeak] = useState(0); // -25% to its next attack
+  const [enemyVulnerable, setEnemyVulnerable] = useState(0);
+  const [enemyWeak, setEnemyWeak] = useState(0);
 
-  // Reward state
+  // Reward / event state
   const [rewardChoices, setRewardChoices] = useState([]);
+  const [activeEvent, setActiveEvent] = useState(null);
+  const [forgeChoice, setForgeChoice] = useState(null); // { tier } when a forge node is opened
+  const [restNode, setRestNode] = useState(null);
 
-  // Log lines for the player
+  // Log
   const [log, setLog] = useState([]);
   const pushLog = (s) => setLog(prev => [...prev.slice(-20), s]);
 
   // ---------- RUN LIFECYCLE ----------
   function startRun() {
     const startDeck = buildStartingDeck();
-    setHp(MAX_HP);
-    setEnergy(ENERGY_PER_TURN);
+    setMaxHp(STARTING_MAX_HP);
+    setHp(STARTING_MAX_HP);
     setBlock(0);
+    setEnergy(ENERGY_PER_TURN);
     setDeck(startDeck);
     setHand([]);
     setDiscard([]);
     setExiled([]);
-    setFightIdx(0);
+    setEquipment([]);
+    setClearedNodes([]);
     setLog([]);
-    enterFight(0, startDeck);
+    const m = generateActMap(ACT_SPEC.rows, ACT_SPEC.width);
+    setMap(m);
+    setCurrentNodeId(null);
+    setStage('map');
+    pushLog(`🌅 ${ACT_SPEC.name} begins. Pick a starting trail.`);
   }
 
-  function enterFight(idx, deckArg) {
-    const enemyTemplate = ENEMIES_BY_ID[MVP_FIGHT_QUEUE[idx]];
-    if (!enemyTemplate) { setStage('victory'); return; }
-    const e = { ...enemyTemplate };
+  // ---------- MAP NAVIGATION ----------
+  function reachableFromCurrent() {
+    if (!map) return [];
+    if (!currentNodeId) {
+      // Pre-start: any row-0 node is reachable.
+      return map.nodes.filter(n => n.row === 0).map(n => n.id);
+    }
+    return map.edges[currentNodeId] || [];
+  }
+
+  function pickNode(nodeId) {
+    const node = map.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    if (!reachableFromCurrent().includes(nodeId)) {
+      pushLog('That trail is not connected from here.');
+      return;
+    }
+    setCurrentNodeId(nodeId);
+    resolveNodeEnter(node);
+  }
+
+  function resolveNodeEnter(node) {
+    if (node.type === 'start') {
+      // Start nodes are flavorless gates — auto-resolve and let the player
+      // pick the next move from here.
+      pushLog(`You set out at ${nodeLabel(node)}.`);
+      return;
+    }
+    if (node.type === 'combat') {
+      enterFight(pickCombatEnemyId('normal'));
+      return;
+    }
+    if (node.type === 'elite') {
+      enterFight(pickCombatEnemyId('elite'));
+      return;
+    }
+    if (node.type === 'rest') {
+      setRestNode(node);
+      setStage('rest');
+      return;
+    }
+    if (node.type === 'event') {
+      const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+      setActiveEvent(ev);
+      setStage('event');
+      return;
+    }
+    if (node.type === 'forge-basic') {
+      setForgeChoice({ tier: 'basic' });
+      setStage('forge');
+      return;
+    }
+    if (node.type === 'forge-fine') {
+      setForgeChoice({ tier: 'fine' });
+      setStage('forge');
+      return;
+    }
+    if (node.type === 'boss') {
+      enterFight('e-boss-thornlord');
+      return;
+    }
+  }
+
+  function pickCombatEnemyId(tier) {
+    const pool = ENEMIES.filter(e => e.tier === tier);
+    return pool[Math.floor(Math.random() * pool.length)].id;
+  }
+
+  function markCurrentNodeCleared() {
+    if (currentNodeId && !clearedNodes.includes(currentNodeId)) {
+      setClearedNodes(prev => [...prev, currentNodeId]);
+    }
+  }
+
+  function returnToMap() {
+    markCurrentNodeCleared();
+    setStage('map');
+  }
+
+  // ---------- COMBAT ----------
+  function enterFight(enemyId) {
+    const tmpl = ENEMIES_BY_ID[enemyId];
+    if (!tmpl) return;
+    const e = { ...tmpl };
     setEnemy(e);
     setEnemyHp(e.maxHp);
     setEnemyBlock(0);
     setEnemyVulnerable(0);
     setEnemyWeak(0);
     setEnemyIntent(rollIntent(e));
-    // Start of combat: reset block, full energy, draw a fresh hand.
-    setBlock(0);
-    setEnergy(ENERGY_PER_TURN);
-    const drawn = drawFromPiles(deckArg, [], HAND_SIZE);
+    // Start-of-combat effects from equipment.
+    let startBlock = 0;
+    let startEnergy = ENERGY_PER_TURN;
+    for (const eq of equipment) {
+      if (eq.bonus?.startBlock) startBlock += eq.bonus.startBlock;
+      if (eq.bonus?.energyOnCombatStart) startEnergy += eq.bonus.energyOnCombatStart;
+    }
+    setBlock(startBlock);
+    setEnergy(startEnergy);
+    // Build the full draw pile from any in-hand/discard leftovers + deck.
+    const fullDeck = [...deck, ...hand, ...discard];
+    const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE);
     setDeck(drawn.deck);
     setHand(drawn.hand);
     setDiscard([]);
     setStage('combat');
-    pushLog(`⚔ Combat begins — ${e.name} (HP ${e.maxHp}).`);
+    pushLog(`⚔ ${e.name} (HP ${e.maxHp})${e.tier === 'elite' ? ' — elite' : e.tier === 'boss' ? ' — BOSS' : ''}`);
   }
 
-  // Draw N cards from a deck/discard pair. Returns the new deck/discard/hand
-  // arrays. Reshuffles discard into deck when deck runs out.
   function drawFromPiles(deckIn, discardIn, n, handIn = []) {
     let deck = [...deckIn];
     let discard = [...discardIn];
-    let hand = [...handIn];
+    const hand = [...handIn];
     for (let i = 0; i < n; i++) {
       if (deck.length === 0) {
         if (discard.length === 0) break;
@@ -230,7 +506,10 @@ export default function App() {
     return { deck, discard, hand };
   }
 
-  // ---------- CARD PLAY ----------
+  function strikeBonusTotal() {
+    return equipment.reduce((s, eq) => s + (eq.bonus?.strikeBonus || 0), 0);
+  }
+
   function playCard(handIdx) {
     if (stage !== 'combat') return;
     const card = hand[handIdx];
@@ -240,15 +519,15 @@ export default function App() {
       return;
     }
     const fx = card.effects || {};
-
-    // Pay energy first.
     setEnergy(e => e - card.cost);
 
-    // Apply effects in order.
-    let logBits = [card.name];
+    const logBits = [card.name];
 
     if (fx.attack) {
-      const damage = computeAttackDamage(fx.attack);
+      // Strike-bonus equipment fires when the card NAME is Strike.
+      let base = fx.attack;
+      if (card.name === 'Strike') base += strikeBonusTotal();
+      const damage = computeAttackDamage(base);
       const after = applyDamageToEnemy(damage);
       logBits.push(`⚔ ${damage} → ${after} HP`);
     }
@@ -258,7 +537,7 @@ export default function App() {
     }
     if (fx.vulnerable) {
       setEnemyVulnerable(v => v + fx.vulnerable);
-      logBits.push(`🌀 +${fx.vulnerable} Vulnerable`);
+      logBits.push(`🌀 +${fx.vulnerable} Vuln`);
     }
     if (fx.weak) {
       setEnemyWeak(w => w + fx.weak);
@@ -269,49 +548,42 @@ export default function App() {
       logBits.push(`+${fx.energy} Energy`);
     }
     if (fx.draw) {
-      setTimeout(() => {
-        // Read latest piles via setters
-        setDeck(d => {
-          let deckNext = d;
-          let discardNext = null;
-          let handNext = null;
-          setDiscard(disc => {
-            setHand(h => {
-              const r = drawFromPiles(deckNext, disc, fx.draw, h);
-              deckNext = r.deck;
-              discardNext = r.discard;
-              handNext = r.hand;
-              return r.hand;
-            });
-            return discardNext ?? disc;
-          });
-          return deckNext;
-        });
-      }, 0);
+      drawCards(fx.draw);
       logBits.push(`+${fx.draw} draw`);
     }
 
-    // Remove from hand; route to discard or exiled.
     setHand(h => h.filter((_, i) => i !== handIdx));
-    if (fx.exhaust) {
-      setExiled(ex => [...ex, card]);
-    } else {
-      setDiscard(d => [...d, card]);
-    }
+    if (fx.exhaust) setExiled(ex => [...ex, card]);
+    else setDiscard(d => [...d, card]);
 
     pushLog(logBits.join(' · '));
   }
 
-  // Compute attack damage with Weak modifier (player's debuff TO enemy doesn't
-  // affect player's damage out; only enemy's outgoing attacks are affected by
-  // Weak. Here Vulnerable on enemy boosts our incoming damage to it.)
+  function drawCards(n) {
+    setTimeout(() => {
+      setDeck(d => {
+        let deckNext = d;
+        let discardNext = null;
+        setDiscard(disc => {
+          setHand(h => {
+            const r = drawFromPiles(deckNext, disc, n, h);
+            deckNext = r.deck;
+            discardNext = r.discard;
+            return r.hand;
+          });
+          return discardNext ?? disc;
+        });
+        return deckNext;
+      });
+    }, 0);
+  }
+
   function computeAttackDamage(base) {
     let dmg = base;
     if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
     return dmg;
   }
 
-  // Apply damage through enemy Block to HP. Returns the resulting HP for log.
   function applyDamageToEnemy(damage) {
     let remaining = damage;
     let newBlock = enemyBlock;
@@ -324,37 +596,20 @@ export default function App() {
     newHp = Math.max(0, newHp - remaining);
     setEnemyBlock(newBlock);
     setEnemyHp(newHp);
-    if (newHp <= 0) {
-      setTimeout(() => onEnemyDefeated(), 200);
-    }
+    if (newHp <= 0) setTimeout(() => onEnemyDefeated(), 200);
     return newHp;
   }
 
-  // ---------- END TURN ----------
   function endTurn() {
     if (stage !== 'combat') return;
-    // Resolve enemy intent.
-    const intent = enemyIntent;
-    if (intent) {
-      applyEnemyIntent(intent);
-    }
-    if (hp <= 0) return; // KO already handled
-
-    // End-of-turn cleanup: decrement debuffs on enemy.
+    if (enemyIntent) applyEnemyIntent(enemyIntent);
+    if (hp <= 0) return;
     setEnemyVulnerable(v => Math.max(0, v - 1));
     setEnemyWeak(w => Math.max(0, w - 1));
-
-    // Discard remaining hand.
     setDiscard(d => [...d, ...hand]);
     setHand([]);
-
-    // Reset block for new turn.
     setBlock(0);
-
-    // Refill energy.
     setEnergy(ENERGY_PER_TURN);
-
-    // Draw a fresh hand.
     setTimeout(() => {
       setDeck(d => {
         let result;
@@ -366,8 +621,6 @@ export default function App() {
         return result.deck;
       });
     }, 0);
-
-    // Roll new intent for next enemy turn.
     if (enemy) setEnemyIntent(rollIntent(enemy));
   }
 
@@ -378,17 +631,15 @@ export default function App() {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
       let raw = intent.value;
       if (enemyWeak > 0) raw = Math.floor(raw * 0.75);
-      for (let i = 0; i < hits; i++) {
-        applyDamageToPlayer(raw);
-      }
+      for (let i = 0; i < hits; i++) applyDamageToPlayer(raw);
       pushLog(`👹 ${e.name}: ${intent.telegraph} → ${raw * hits} raw`);
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
     } else if (intent.kind === 'vulnerable') {
-      pushLog(`👹 ${e.name}: 🌀 Vulnerable +${intent.value} (player)`);
+      pushLog(`👹 ${e.name}: 🌀 Vuln +${intent.value} (visual only — player Vuln NYI)`);
     } else if (intent.kind === 'weak') {
-      pushLog(`👹 ${e.name}: 🌀 Weak +${intent.value} (player)`);
+      pushLog(`👹 ${e.name}: 🌀 Weak +${intent.value} (visual only — player Weak NYI)`);
     }
   }
 
@@ -404,120 +655,333 @@ export default function App() {
     newHp = Math.max(0, newHp - remaining);
     setBlock(newBlock);
     setHp(newHp);
-    if (newHp <= 0) {
-      setTimeout(() => setStage('defeat'), 200);
-    }
+    if (newHp <= 0) setTimeout(() => setStage('defeat'), 200);
   }
 
-  // ---------- POST-COMBAT ----------
   function onEnemyDefeated() {
+    if (!enemy) return;
     pushLog(`✓ ${enemy.name} defeated.`);
-    // Roll 3 card-reward picks weighted toward common.
-    const isBoss = !!enemy.isBoss;
+    const isBoss = enemy.tier === 'boss';
     if (isBoss) {
-      // Boss — for now, advance straight to next fight or victory.
-      pushLog(`👑 You overcame ${enemy.name}!`);
-      if (fightIdx + 1 >= MVP_FIGHT_QUEUE.length) {
-        setStage('victory');
-      } else {
-        setFightIdx(i => i + 1);
-        // Next fight after a brief pause
-        setTimeout(() => enterFight(fightIdx + 1, deck.concat(hand, discard)), 500);
+      // Boss kill → grant Master tier equipment for this act's slot.
+      const master = EQUIPMENT[ACT_SPEC.slot]?.master;
+      if (master && !equipment.find(eq => eq.id === master.id)) {
+        setEquipment(prev => [...prev, master]);
+        applyEquipmentMaxHp(master);
+        pushLog(`👑 Master ${ACT_SPEC.slot} claimed: ${master.name}.`);
       }
+      // Move discard+hand back into deck, set victory.
+      setDeck(d => [...d, ...hand, ...discard, ...exiled]);
+      setHand([]); setDiscard([]); setExiled([]);
+      setStage('victory');
       return;
     }
-    const pool = CARDS.filter(c => c.rarity === 'common' || c.rarity === 'uncommon');
-    const weights = { common: 4, uncommon: 1 };
-    // Sample 3 distinct cards
+    // Normal / elite combat: card-reward draft.
+    const weights = enemy.tier === 'elite'
+      ? { common: 2, uncommon: 3, rare: 1 }
+      : { common: 4, uncommon: 1 };
     const choices = [];
-    const remaining = [...pool];
-    while (choices.length < 3 && remaining.length > 0) {
-      const total = remaining.reduce((s, c) => s + weights[c.rarity], 0);
-      let r = Math.random() * total;
-      for (let i = 0; i < remaining.length; i++) {
-        r -= weights[remaining[i].rarity];
-        if (r <= 0) {
-          choices.push(remaining[i]);
-          remaining.splice(i, 1);
-          break;
-        }
-      }
+    const used = [];
+    while (choices.length < 3) {
+      const pick = pickCardByRarity(weights, used);
+      if (!pick) break;
+      choices.push(pick);
+      used.push(pick.id);
     }
     setRewardChoices(choices);
     setStage('reward');
   }
 
+  function applyEquipmentMaxHp(eq) {
+    if (eq.bonus?.maxHp) {
+      setMaxHp(m => m + eq.bonus.maxHp);
+      setHp(h => h + eq.bonus.maxHp);
+    }
+  }
+
   function pickReward(cardOrSkip) {
-    let newDeck = [...deck, ...hand, ...discard, ...(exiled || [])];
-    // Combat-end: exiled cards return to deck for next fight (MVP1 simplification).
     if (cardOrSkip) {
-      newDeck.push({ ...cardOrSkip, uid: uid() });
+      setDeck(d => [...d, ...hand, ...discard, ...exiled, { ...cardOrSkip, uid: uid() }]);
       pushLog(`+ ${cardOrSkip.name} added to deck.`);
     } else {
+      setDeck(d => [...d, ...hand, ...discard, ...exiled]);
       pushLog(`Skipped reward.`);
     }
+    setHand([]); setDiscard([]); setExiled([]);
     setRewardChoices([]);
-    setFightIdx(i => i + 1);
-    setTimeout(() => enterFight(fightIdx + 1, shuffle(newDeck)), 300);
+    returnToMap();
+  }
+
+  // ---------- EVENT / REST / FORGE ----------
+  function resolveEventChoice(choice) {
+    const fx = choice.effects || {};
+    let logBits = [`📜 ${activeEvent.title}: ${choice.label}`];
+    if (fx.heal) {
+      setHp(h => clamp(h + fx.heal, 0, maxHp));
+      logBits.push(`+${fx.heal} HP`);
+    }
+    if (fx.loseHp) {
+      setHp(h => clamp(h - fx.loseHp, 0, maxHp));
+      logBits.push(`-${fx.loseHp} HP`);
+    }
+    if (fx.maxHp) {
+      setMaxHp(m => m + fx.maxHp);
+      setHp(h => h + fx.maxHp);
+      logBits.push(`+${fx.maxHp} max HP`);
+    }
+    if (fx.gainCommonCard) {
+      const c = pickCardByRarity({ common: 1 });
+      if (c) {
+        setDeck(d => [...d, { ...c, uid: uid() }]);
+        logBits.push(`+ ${c.name}`);
+      }
+    }
+    if (fx.gainUncommonCard) {
+      const c = pickCardByRarity({ uncommon: 1 });
+      if (c) {
+        setDeck(d => [...d, { ...c, uid: uid() }]);
+        logBits.push(`+ ${c.name}`);
+      }
+    }
+    if (fx.gainRareCard) {
+      const c = pickCardByRarity({ rare: 1 });
+      if (c) {
+        setDeck(d => [...d, { ...c, uid: uid() }]);
+        logBits.push(`+ ${c.name}`);
+      }
+    }
+    pushLog(logBits.join(' · '));
+    setActiveEvent(null);
+    returnToMap();
+  }
+
+  function resolveRestChoice(kind) {
+    if (kind === 'heal') {
+      const amount = Math.floor(maxHp * 0.3);
+      setHp(h => clamp(h + amount, 0, maxHp));
+      pushLog(`🛏 Rest: +${amount} HP.`);
+    } else if (kind === 'reflect') {
+      // Lightweight alt: gain a small permanent +1 max HP (instead of card upgrade for MVP2).
+      setMaxHp(m => m + 3);
+      setHp(h => h + 3);
+      pushLog(`🛏 Reflect: +3 max HP.`);
+    }
+    setRestNode(null);
+    returnToMap();
+  }
+
+  function claimForge(accept) {
+    if (accept && forgeChoice) {
+      const piece = EQUIPMENT[ACT_SPEC.slot]?.[forgeChoice.tier];
+      if (piece) {
+        if (!equipment.find(eq => eq.id === piece.id)) {
+          setEquipment(prev => [...prev, piece]);
+          applyEquipmentMaxHp(piece);
+          pushLog(`🛠 Forged: ${piece.name}.`);
+        }
+      }
+    } else {
+      pushLog(`Passed on the forge — pushing deeper.`);
+    }
+    setForgeChoice(null);
+    returnToMap();
   }
 
   // ---------- RENDER ----------
-  if (stage === 'menu') {
-    return <MenuScreen onStart={startRun} />;
-  }
-  if (stage === 'defeat') {
-    return <EndScreen win={false} onRetry={startRun} />;
-  }
-  if (stage === 'victory') {
-    return <EndScreen win={true} onRetry={startRun} />;
-  }
+  if (stage === 'menu')    return <MenuScreen onStart={startRun} />;
+  if (stage === 'defeat')  return <EndScreen win={false} onRetry={startRun} />;
+  if (stage === 'victory') return <VictoryScreen equipment={equipment} onContinue={startRun} />;
+
   if (stage === 'reward') {
     return <RewardScreen choices={rewardChoices} onPick={pickReward} />;
   }
+  if (stage === 'event') {
+    return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
+  }
+  if (stage === 'rest') {
+    return <RestScreen onChoose={resolveRestChoice} />;
+  }
+  if (stage === 'forge') {
+    return <ForgeScreen tier={forgeChoice?.tier} slot={ACT_SPEC.slot} alreadyHas={!!equipment.find(eq => eq.bonus?.strikeBonus)} onChoose={claimForge} />;
+  }
+  if (stage === 'map') {
+    return <MapScreen map={map} currentNodeId={currentNodeId} clearedNodes={clearedNodes}
+      reachable={reachableFromCurrent()} player={{ hp, maxHp, equipment, deckSize: deck.length }}
+      onPick={pickNode} actName={ACT_SPEC.name} log={log} />;
+  }
 
-  // Combat UI
+  // Combat
+  return <CombatScreen
+    enemy={enemy} enemyHp={enemyHp} enemyBlock={enemyBlock} enemyIntent={enemyIntent}
+    enemyVulnerable={enemyVulnerable} enemyWeak={enemyWeak}
+    hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
+    deck={deck} discard={discard}
+    onPlayCard={playCard} onEndTurn={endTurn}
+    log={log}
+  />;
+}
+
+// =============================================================================
+// SUB-SCREENS
+// =============================================================================
+
+function MenuScreen({ onStart }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
+      <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Wizard Graduation</h1>
+      <p className="font-quill text-parchment-200 italic max-w-xl text-center">
+        The school has taught you what it can. To graduate, you must walk the
+        Path of Mastery — gather your staff, robes, gem, and ring, each from
+        a trial worthier than the last.
+      </p>
+      <button onClick={onStart} className="btn btn-gold text-lg px-8 py-3">Begin the Path</button>
+      <p className="text-xs text-parchment-400">MVP 2 — Act 1: The Staff Path. Branching map, forge nodes, boss reward.</p>
+    </div>
+  );
+}
+
+function MapScreen({ map, currentNodeId, clearedNodes, reachable, player, onPick, actName, log }) {
+  if (!map) return null;
+  const W = 600;
+  const H = 480;
+  const padding = 40;
+  const rows = ACT_SPEC.rows;
+  const cols = ACT_SPEC.width;
+  const xScale = (x) => padding + (x * (W - 2 * padding)) / cols;
+  const yScale = (y) => padding + (y * (H - 2 * padding)) / (rows - 1);
+
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
-      {/* Top bar */}
       <div className="flex justify-between items-center parchment-card px-4 py-2">
-        <h1 className="font-display text-2xl text-gold-300 tracking-wide">Wizard Graduation</h1>
-        <div className="text-xs text-parchment-300">
-          Fight {fightIdx + 1} / {MVP_FIGHT_QUEUE.length}
+        <h1 className="font-display text-xl text-gold-300">{actName}</h1>
+        <div className="text-xs flex gap-4">
+          <span>❤️ {player.hp} / {player.maxHp}</span>
+          <span>📜 {player.deckSize} cards</span>
+          <span>⚜ {player.equipment.length} equipment</span>
         </div>
       </div>
 
-      {/* Enemy panel */}
-      {enemy && (
-        <div className="parchment-card-strong p-4">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <div className="font-display text-2xl text-ember-300">{enemy.name}</div>
-              <div className="text-xs text-parchment-300 italic">
-                {enemy.isBoss ? 'Boss' : 'Enemy'}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-mono text-ember-400">{enemyHp} <span className="text-sm text-parchment-300">/ {enemy.maxHp}</span></div>
-              <div className="text-sm">🛡 {enemyBlock}</div>
+      <div className="parchment-card p-4 flex flex-col items-center">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-3xl">
+          {/* edges */}
+          {Object.entries(map.edges).map(([fromId, tos]) => {
+            const from = map.nodes.find(n => n.id === fromId);
+            return tos.map(toId => {
+              const to = map.nodes.find(n => n.id === toId);
+              if (!from || !to) return null;
+              const cleared = clearedNodes.includes(fromId) && clearedNodes.includes(toId);
+              const onCurrentPath = currentNodeId === fromId;
+              return (
+                <line key={`${fromId}->${toId}`}
+                  x1={xScale(from.x)} y1={yScale(from.y)}
+                  x2={xScale(to.x)} y2={yScale(to.y)}
+                  stroke={cleared ? '#5d7e3f' : onCurrentPath ? '#c79d44' : '#3d3325'}
+                  strokeWidth={onCurrentPath ? 3 : 1.5}
+                  strokeDasharray={cleared ? '6,3' : '0'} />
+              );
+            });
+          })}
+          {/* nodes */}
+          {map.nodes.map(n => {
+            const isCurrent = n.id === currentNodeId;
+            const isCleared = clearedNodes.includes(n.id);
+            const isReachable = reachable.includes(n.id);
+            const fill = nodeColor(n.type, isCleared, isCurrent);
+            const stroke = isReachable ? '#dbb45f' : isCurrent ? '#c79d44' : '#5a4d3a';
+            const strokeWidth = isReachable ? 3 : isCurrent ? 2.5 : 1.5;
+            return (
+              <g key={n.id}
+                style={{ cursor: isReachable ? 'pointer' : 'default' }}
+                onClick={() => isReachable && onPick(n.id)}>
+                <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
+                  fill={fill} stroke={stroke} strokeWidth={strokeWidth}
+                  opacity={isCleared ? 0.55 : 1} />
+                <text x={xScale(n.x)} y={yScale(n.y) + 5} textAnchor="middle"
+                  className="select-none"
+                  fill="#f7eed3" fontSize={n.type === 'boss' ? 18 : 14}>
+                  {nodeGlyph(n.type)}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        <div className="mt-3 text-xs text-parchment-300 flex gap-3 flex-wrap justify-center">
+          <Legend glyph="⚔" label="Combat" />
+          <Legend glyph="☠" label="Elite" />
+          <Legend glyph="🛏" label="Rest" />
+          <Legend glyph="📜" label="Event" />
+          <Legend glyph="🛠" label="Forge" />
+          <Legend glyph="👑" label="Boss" />
+          <Legend glyph="·" label="Start" />
+        </div>
+        {!currentNodeId && (
+          <div className="mt-2 text-sm text-gold-300 italic">Pick a starting trail.</div>
+        )}
+      </div>
+
+      <div className="parchment-card p-3 max-h-32 overflow-y-auto text-xs font-quill text-parchment-200 space-y-0.5">
+        {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}
+      </div>
+    </div>
+  );
+}
+function nodeColor(type, isCleared, isCurrent) {
+  if (isCurrent) return '#c79d44';
+  if (isCleared) return '#2f481e';
+  if (type === 'boss') return '#7b1f15';
+  if (type === 'elite') return '#a8412f';
+  if (type === 'rest') return '#43622c';
+  if (type === 'event') return '#523a8b';
+  if (type === 'forge-basic' || type === 'forge-fine') return '#a98032';
+  if (type === 'start') return '#3d3325';
+  return '#2b2418'; // combat
+}
+function nodeGlyph(type) {
+  return {
+    combat: '⚔', elite: '☠', rest: '🛏', event: '📜',
+    boss: '👑', start: '·', 'forge-basic': '🛠', 'forge-fine': '🛠',
+  }[type] || '?';
+}
+function nodeLabel(n) {
+  return ({ combat: 'a combat tile', elite: 'an elite tile', rest: 'a rest tile', event: 'an event', start: 'the trailhead', 'forge-basic': 'the forge', 'forge-fine': 'the deeper forge', boss: 'the boss' }[n.type]) || 'a tile';
+}
+function Legend({ glyph, label }) {
+  return <span><span className="mr-1">{glyph}</span>{label}</span>;
+}
+
+function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
+                       hp, maxHp, block, energy, hand, deck, discard,
+                       onPlayCard, onEndTurn, log }) {
+  return (
+    <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
+      <div className="parchment-card-strong p-4">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <div className="font-display text-2xl text-ember-300">{enemy?.name}</div>
+            <div className="text-xs text-parchment-300 italic">
+              {enemy?.tier === 'boss' ? 'Boss' : enemy?.tier === 'elite' ? 'Elite' : 'Enemy'}
             </div>
           </div>
-          <div className="flex gap-3 items-center">
-            <div className="px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700">
-              <div className="text-[10px] uppercase text-ember-300 tracking-widest">Intent</div>
-              <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
-            </div>
-            {enemyVulnerable > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Vulnerable {enemyVulnerable}</span>}
-            {enemyWeak > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Weak {enemyWeak}</span>}
+          <div className="text-right">
+            <div className="text-3xl font-mono text-ember-400">{enemyHp} <span className="text-sm text-parchment-300">/ {enemy?.maxHp}</span></div>
+            <div className="text-sm">🛡 {enemyBlock}</div>
           </div>
         </div>
-      )}
+        <div className="flex gap-3 items-center flex-wrap">
+          <div className="px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700">
+            <div className="text-[10px] uppercase text-ember-300 tracking-widest">Intent</div>
+            <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
+          </div>
+          {enemyVulnerable > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Vuln {enemyVulnerable}</span>}
+          {enemyWeak > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Weak {enemyWeak}</span>}
+        </div>
+      </div>
 
-      {/* Player stats */}
       <div className="parchment-card p-3 flex justify-between items-center">
         <div className="flex gap-4 items-center">
           <div>
             <div className="text-[10px] uppercase text-parchment-300">HP</div>
-            <div className="text-xl font-mono text-moss-300">{hp} <span className="text-xs text-parchment-300">/ {MAX_HP}</span></div>
+            <div className="text-xl font-mono text-moss-300">{hp} <span className="text-xs text-parchment-300">/ {maxHp}</span></div>
           </div>
           <div>
             <div className="text-[10px] uppercase text-parchment-300">Block</div>
@@ -532,22 +996,17 @@ export default function App() {
             <div className="text-sm font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
           </div>
         </div>
-        <button onClick={endTurn} className="btn btn-ember">End Turn</button>
+        <button onClick={onEndTurn} className="btn btn-ember">End Turn</button>
       </div>
 
-      {/* Hand */}
       <div className="flex gap-2 flex-wrap min-h-[160px] items-center justify-center">
         {hand.map((card, i) => {
           const playable = card.cost <= energy;
           return (
-            <motion.button
-              key={card.uid}
-              initial={{ y: 30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -30, opacity: 0 }}
+            <motion.button key={card.uid}
+              initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-              onClick={() => playCard(i)}
-              disabled={!playable}
+              onClick={() => onPlayCard(i)} disabled={!playable}
               className={`w-36 h-48 rounded-lg border-2 p-2 text-left flex flex-col gap-1 shadow-lg transition-all ${
                 playable
                   ? 'bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer'
@@ -561,40 +1020,15 @@ export default function App() {
               </div>
               <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
               <div className="text-xs flex-1 font-quill">{card.desc}</div>
-              {card.effects?.exhaust && (
-                <div className="text-[10px] italic text-ember-700">Exhaust</div>
-              )}
+              {card.effects?.exhaust && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
             </motion.button>
           );
         })}
       </div>
 
-      {/* Log */}
       <div className="parchment-card p-3 max-h-32 overflow-y-auto text-xs font-quill text-parchment-200 space-y-0.5">
-        {log.slice(-10).map((line, i) => (
-          <div key={i}>{line}</div>
-        ))}
+        {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}
       </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// Sub-screens
-// =============================================================================
-
-function MenuScreen({ onStart }) {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
-      <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Wizard Graduation</h1>
-      <p className="font-quill text-parchment-200 italic max-w-xl text-center">
-        The school has taught you what it can. To graduate, you must walk the
-        Path of Mastery — gather your staff, robes, gem, and ring, each from
-        a trial worthier than the last. Every step forward sharpens the
-        opposition; every step back leaves you wanting.
-      </p>
-      <button onClick={onStart} className="btn btn-gold text-lg px-8 py-3">Begin the Path</button>
-      <p className="text-xs text-parchment-400">MVP 1 — single combat chain. Map and acts come next.</p>
     </div>
   );
 }
@@ -603,16 +1037,14 @@ function RewardScreen({ choices, onPick }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-3xl mx-auto">
       <h2 className="font-display text-3xl text-gold-300">Card Reward</h2>
-      <p className="text-sm text-parchment-300 italic">Choose one card to add to your deck — or skip.</p>
+      <p className="text-sm text-parchment-300 italic">Choose one to add to your deck — or skip.</p>
       <div className="flex gap-4 flex-wrap justify-center">
         {choices.map((card, i) => (
           <button key={i} onClick={() => onPick(card)}
             className="w-44 h-60 rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition">
             <div className="flex justify-between items-center">
               <div className="font-display text-base">{card.name}</div>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">
-                {card.cost}
-              </div>
+              <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
             </div>
             <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type} · {card.rarity}</div>
             <div className="text-xs flex-1 font-quill">{card.desc}</div>
@@ -624,6 +1056,80 @@ function RewardScreen({ choices, onPick }) {
   );
 }
 
+function EventScreen({ event, onChoose }) {
+  if (!event) return null;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-2xl mx-auto">
+      <h2 className="font-display text-3xl text-iris-300">{event.title}</h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-xl">"{event.flavor}"</p>
+      <div className="flex flex-col gap-2 w-full max-w-md">
+        {event.choices.map((c, i) => (
+          <button key={i} onClick={() => onChoose(c)}
+            className="btn bg-ink-600 hover:bg-ink-500 text-parchment-100 text-left">{c.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RestScreen({ onChoose }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
+      <h2 className="font-display text-3xl text-moss-300">A Rest Site</h2>
+      <p className="font-quill italic text-parchment-200 text-center">A small campfire, a flat rock. The path will still be there in the morning.</p>
+      <div className="flex flex-col gap-2 w-full">
+        <button onClick={() => onChoose('heal')} className="btn btn-moss">Sleep — heal 30% max HP</button>
+        <button onClick={() => onChoose('reflect')} className="btn btn-iris">Reflect — +3 max HP (permanent this run)</button>
+      </div>
+    </div>
+  );
+}
+
+function ForgeScreen({ tier, slot, alreadyHas, onChoose }) {
+  const piece = EQUIPMENT[slot]?.[tier];
+  if (!piece) return null;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
+      <h2 className="font-display text-3xl text-gold-300">A Roadside Forge</h2>
+      <p className="font-quill italic text-parchment-200 text-center">
+        An old forge sits beside the path, fires already kindled. You could claim a {tier} {slot} here — or push deeper for better.
+      </p>
+      <div className="parchment-card-strong p-4 w-full">
+        <div className="font-display text-xl text-gold-300">{piece.name}</div>
+        <div className="text-xs uppercase text-parchment-300">{tier} {slot}</div>
+        <div className="text-sm mt-2">{piece.desc}</div>
+      </div>
+      <div className="flex flex-col gap-2 w-full">
+        <button onClick={() => onChoose(true)} disabled={alreadyHas}
+          className={`btn ${alreadyHas ? 'btn-ink opacity-60 cursor-not-allowed' : 'btn-gold'}`}>
+          {alreadyHas ? `You already wield a ${slot}` : `Forge the ${piece.name}`}
+        </button>
+        <button onClick={() => onChoose(false)} className="btn btn-ink">
+          Push deeper (skip this forge)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function VictoryScreen({ equipment, onContinue }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-xl mx-auto">
+      <h2 className="font-display text-5xl text-moss-300">Act 1 Cleared</h2>
+      <p className="font-quill italic text-parchment-300 text-center">
+        The Thornlord falls. You set down your hard-won {equipment[equipment.length - 1]?.name || 'staff'} for a moment, breathe, and the path ahead opens further. (Acts 2–4 land in MVP 3.)
+      </p>
+      <div className="parchment-card p-3">
+        <div className="text-xs uppercase text-parchment-300 mb-1">Equipment earned</div>
+        <ul className="text-sm font-quill space-y-0.5">
+          {equipment.map(eq => <li key={eq.id}>• <span className="text-gold-300">{eq.name}</span> — {eq.desc}</li>)}
+        </ul>
+      </div>
+      <button onClick={onContinue} className="btn btn-gold text-lg px-8 py-3">Walk the Path Again</button>
+    </div>
+  );
+}
+
 function EndScreen({ win, onRetry }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
@@ -631,9 +1137,7 @@ function EndScreen({ win, onRetry }) {
         {win ? 'Graduation Achieved' : 'The Path Ends Here'}
       </h2>
       <p className="font-quill italic text-parchment-300 max-w-xl text-center">
-        {win
-          ? 'You return to the school, hands full of trophies. The robes settle on your shoulders. The staff knows your weight. You have graduated.'
-          : 'Your story ends in failure — for now. The school will receive another apprentice tomorrow. Begin again?'}
+        {win ? 'You return to the school, hands full of trophies.' : 'Your story ends in failure — for now.'}
       </p>
       <button onClick={onRetry} className="btn btn-gold text-lg px-8 py-3">
         {win ? 'Walk the Path Again' : 'Try Again'}
