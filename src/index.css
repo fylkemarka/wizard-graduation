@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at center, #2b2418 0%, #140f08 65%, #0a0703 100%);
+    background-attachment: fixed;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+}
+
+@layer components {
+  .parchment-card {
+    @apply bg-ink-700 rounded-md border border-ink-500 shadow-md;
+  }
+  .parchment-card-strong {
+    @apply bg-ink-700 rounded-md border-2 border-gold-500 shadow-xl;
+  }
+  .btn {
+    @apply px-3 py-2 rounded-md font-semibold transition-colors shadow-sm hover:shadow-md;
+  }
+  .btn-gold   { @apply bg-gold-500 hover:bg-gold-400 text-ink-800; }
+  .btn-ember  { @apply bg-ember-600 hover:bg-ember-500 text-parchment-50; }
+  .btn-moss   { @apply bg-moss-600 hover:bg-moss-500 text-parchment-50; }
+  .btn-iris   { @apply bg-iris-600 hover:bg-iris-500 text-parchment-50; }
+  .btn-ink    { @apply bg-ink-500 hover:bg-ink-400 text-parchment-100; }
+}
