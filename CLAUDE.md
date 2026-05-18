@@ -38,42 +38,54 @@ Mechanics **dropped** vs Arcane Workshop:
 - Instability dial / surge deck (gone — STS-style intent telegraph instead)
 - Hat slot (out — equipment is staff / robes / gem / ring(s) only)
 
-## 3. Current implementation state (MVP1)
+## 3. Current implementation state (MVP3)
 
-### Working
+### Working (MVP1 + MVP2 + MVP3)
 - **Single-file App** (`src/App.jsx`) like Arcane Workshop's pattern
 - **Combat loop** — Energy, Block, HP, Hand, Deck, Discard, Exiled. 5-card
-  hand at start of turn, 3 energy, block resets at end of turn (per STS)
-- **Card play** — `playCard(handIdx)` dispatches `effects` payload through a
-  small set of keys: `attack` / `block` / `draw` / `vulnerable` / `weak` /
-  `energy` / `exhaust`. Easy to extend
+  hand at start of turn, 3 base energy, block resets at end of turn
 - **Intent system** — every enemy turn rolls a weighted random behavior;
   next-turn intent shown above the enemy
-- **Status effects** — `Vulnerable` on enemy (+50% damage taken),
-  `Weak` on enemy (its outgoing attack -25%). Both tick down at end of turn
-- **Card rewards** — after a non-boss combat, draft 3 cards weighted toward
-  common (4:1 vs uncommon). Skip is allowed
-- **Fight queue** — `MVP_FIGHT_QUEUE` array of enemy IDs, played in order:
-  Acolyte → Imp → Tutor → Thornlord (boss)
-- **End screens** — Victory ("Graduation Achieved") and Defeat
-- **Setup → run → defeat/victory → restart** loop complete
+- **Status effects** — Vulnerable / Weak on enemy (player-debuffs flavored
+  but not yet mechanical)
+- **Card rewards** — 3-card draft after non-boss combat; elite combats
+  weight toward uncommon + rare; skip is allowed
+- **Branching DAG map** per act — `generateActMap(rows, width)` makes a new
+  one per act. Node types: combat / elite / rest / event / forge-basic /
+  forge-fine / boss / start
+- **Equipment system** — `EQUIPMENT[slot][tier]` for staff / robes / gem /
+  ring. Bonus payload keys: `strikeBonus`, `startBlock`, `maxHp`,
+  `healOnCombatStart`, `extraStartHand`, `energyOnCombatStart`,
+  `permanentEnergyBonus`. Read by combat loop at the right hooks
+- **Acts 1-4** — Staff Path / Thread Path / Stone Path / Forge Path. Each
+  has its own enemy pool (filtered via `enemy.act`), unique boss, and
+  master-tier reward
+- **Run chain** — boss kill → `act-cleared` screen → advanceToNextAct →
+  next act's map. Heals 25% max HP between acts. Final act → graduation
+- **Forge nodes** — at rows/3 (basic) and 2*rows/3 (fine), player chooses
+  to claim the tiered equipment OR skip toward the boss for master
+- **Events** — 8 starter events covering heal / loseHp / maxHp / random
+  card by rarity
 
 ### Data tables
-- `CARDS` — 14 cards across rarity tiers (basic / common / uncommon / rare)
+- `CARDS` — 19 cards across rarity tiers (basic / common / uncommon / rare)
 - `STARTER_DECK` — 4 Strike, 3 Defend, 2 Spark
-- `ENEMIES` — 4 (3 regular + 1 boss). Each has `behaviors` (weighted list of
-  intent rolls)
-- `MVP_FIGHT_QUEUE` — placeholder linear sequence; replaced by the Act 1 map
-  in MVP2
+- `ENEMIES` — 24 total: 18 act-specific normals + elites, 4 act bosses,
+  remaining slots for variety. Each has `act` (1-4) and `tier` (normal /
+  elite / boss). Stats scale: act 1 ~20 HP enemies, act 4 ~70 HP elites,
+  bosses 60→80→100→130
+- `EQUIPMENT` — full 3-tier ladders for all 4 slots
+- `EVENTS` — 8 events with 2-3 choice payloads
+- `ACTS` — 4 acts with `id`, `slot`, `name`, `flavor`, `rows`, `width`,
+  `bossId`
 
 ### Not yet built
-- **MVP2** — Act 1 branching DAG map (STS-style), node types (combat / elite
-  / rest / event / boss), node selection, tier-1 equipment rewards from
-  midway nodes
-- **MVP3** — Acts 2-4 (Robes / Gem / Ring paths), equipment-tier system
-  (basic / fine / master), full graduation run
-- **Eventually** — five wizard schools as STS-style playable classes,
-  Powers (on-field state cards), more enemy variety, run-persistence
+- **MVP4** — Powers (on-field state cards), relics, card upgrades at rest
+  sites, more enemy variety per act
+- **MVP5** — Five wizard schools as playable classes with distinct
+  mechanics (Strength stacks / Block scaling / Stances / Heal-spec /
+  Summoner)
+- **MVP6** — Ascension difficulty ladder, run-persistence, leaderboards
 
 ## 4. Architecture notes
 
@@ -125,9 +137,9 @@ Same as Arcane Workshop:
 | MVP | Scope |
 |---|---|
 | 1 ✓ | Combat loop, intent, card rewards, linear fight chain |
-| 2 | Act 1 (Staff Path) branching DAG with node types + boss equipment reward |
-| 3 | Acts 2-4 + equipment tiers (basic/fine/master) + full run loop |
-| 4 | Powers (on-field state), relics, rest sites with heal-or-upgrade |
+| 2 ✓ | Act 1 (Staff Path) branching DAG with node types + boss equipment reward |
+| 3 ✓ | Acts 2-4 + equipment tiers (basic/fine/master) + full run loop |
+| 4 | Powers (on-field state), relics, rest sites with heal-or-upgrade, more enemy variety per act |
 | 5 | Five wizard schools as playable classes with distinct mechanics |
 | 6 | Ascension-style difficulty ladder, run-persistence, leaderboards |
 
