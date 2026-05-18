@@ -1008,23 +1008,28 @@ export default function App() {
     return false;
   }
 
+  // Synchronous draw. Reads deck/discard/hand from closure (the state at
+  // the start of the current event handler) and computes the result in
+  // working locals before committing each pile once. The nested-setState
+  // pattern this replaced was broken — inner updaters don't fire
+  // synchronously inside the outer one, so `result` was undefined and
+  // `setHand(undefined.hand)` crashed the render → blank screen on endTurn.
   function drawCards(n) {
-    setTimeout(() => {
-      setDeck(d => {
-        let deckNext = d;
-        let discardNext = null;
-        setDiscard(disc => {
-          setHand(h => {
-            const r = drawFromPiles(deckNext, disc, n, h);
-            deckNext = r.deck;
-            discardNext = r.discard;
-            return r.hand;
-          });
-          return discardNext ?? disc;
-        });
-        return deckNext;
-      });
-    }, 0);
+    let wDeck = [...deck];
+    let wDiscard = [...discard];
+    const wHand = [...hand];
+    for (let i = 0; i < n; i++) {
+      if (wDeck.length === 0) {
+        if (wDiscard.length === 0) break;
+        wDeck = shuffle(wDiscard);
+        wDiscard = [];
+      }
+      const c = wDeck.shift();
+      wHand.push({ ...c, uid: uid() });
+    }
+    setDeck(wDeck);
+    setDiscard(wDiscard);
+    setHand(wHand);
   }
 
   function computeAttackDamage(base) {
@@ -1049,40 +1054,90 @@ export default function App() {
     return newHp;
   }
 
+  // End the player's turn. Sequence:
+  //   1. End-of-turn power triggers (sync local — may kill enemy).
+  //   2. Enemy resolves intent (may KO player).
+  //   3. Tick down debuff stacks (1 step each).
+  //   4. Discard hand, reset block.
+  //   5. Refill energy + draw new hand + run start-of-turn power triggers,
+  //      all computed in sync working locals before commit. This replaces
+  //      a nested-setState + setTimeout pattern that was unsafe — inner
+  //      updaters don't fire synchronously inside the outer one and the
+  //      hand-set ended up reading undefined, blanking the screen.
   function endTurn() {
     if (stage !== 'combat') return;
-    // End-of-turn power triggers fire BEFORE the enemy resolves intent —
-    // so e.g. Ostensible Inferno's chip damage can finish off an enemy
-    // before they get a swing in. Uses sync local tracking because React
-    // state updates are batched and we need to know if the enemy died
-    // *this turn* before deciding whether to apply enemy intent.
+
+    // 1. End-of-turn power triggers.
     const killedByPowers = applyEndOfTurnPowerTriggers();
     if (killedByPowers) return;
+
+    // 2. Enemy intent.
     if (enemyIntent) applyEnemyIntent(enemyIntent);
     if (hp <= 0) return;
+
+    // 3. Debuff decay.
     setEnemyVulnerable(v => Math.max(0, v - 1));
     setEnemyWeak(w => Math.max(0, w - 1));
     setPlayerVulnerable(v => Math.max(0, v - 1));
     setPlayerWeak(w => Math.max(0, w - 1));
-    setDiscard(d => [...d, ...hand]);
-    setHand([]);
-    setBlock(0);
-    setEnergy(energyPerTurnRefill());
-    setTimeout(() => {
-      setDeck(d => {
-        let result;
-        setDiscard(disc => {
-          result = drawFromPiles(d, disc, HAND_SIZE);
-          return result.discard;
-        });
-        setHand(result.hand);
-        return result.deck;
-      });
-      // Start-of-turn power triggers fire AFTER the new hand is drawn,
-      // so any card-draw or energy-grant from a power lands on top of
-      // the freshly-drawn baseline.
-      applyPowerTriggers('startOfTurn');
-    }, 0);
+
+    // 4-5. Compose the new turn's piles + start-of-turn triggers
+    //      synchronously, then commit all related state in one pass.
+    const stagedDiscard = [...discard, ...hand];
+    const drawn = drawFromPiles(deck, stagedDiscard, HAND_SIZE);
+    let wDeck     = drawn.deck;
+    let wDiscard  = drawn.discard;
+    const wHand   = [...drawn.hand];
+    let wEnergy   = energyPerTurnRefill();
+    let wBlock    = 0;
+    let wEnemyVuln = enemyVulnerable;  // not the decayed value, but the
+    let wEnemyWeak = enemyWeak;        // power triggers haven't fired yet;
+                                       // decay will happen via the setters
+                                       // above; powers add ON TOP after decay
+    // Apply start-of-turn power triggers in working locals.
+    for (const p of powers) {
+      const trig = p.power?.startOfTurn;
+      if (!trig) continue;
+      const bits = [`📿 ${p.name}`];
+      if (trig.block)      { wBlock += trig.block;   bits.push(`🛡 +${trig.block}`); }
+      if (trig.energy)     { wEnergy += trig.energy; bits.push(`+${trig.energy} Energy`); }
+      if (trig.vulnerable) { wEnemyVuln += trig.vulnerable; bits.push(`🌀 +${trig.vulnerable} Vuln`); }
+      if (trig.weak)       { wEnemyWeak += trig.weak; bits.push(`🌀 +${trig.weak} Weak`); }
+      if (trig.draw) {
+        for (let i = 0; i < trig.draw; i++) {
+          if (wDeck.length === 0) {
+            if (wDiscard.length === 0) break;
+            wDeck = shuffle(wDiscard);
+            wDiscard = [];
+          }
+          const c = wDeck.shift();
+          wHand.push({ ...c, uid: uid() });
+        }
+        bits.push(`+${trig.draw} draw`);
+      }
+      pushLog(bits.join(' · '));
+    }
+
+    // Commit.
+    setDeck(wDeck);
+    setDiscard(wDiscard);
+    setHand(wHand);
+    setBlock(wBlock);
+    setEnergy(wEnergy);
+    // Power triggers' Vuln/Weak adds — the decay setters above used the
+    // CURRENT enemyVulnerable closure, so they decay correctly; the power
+    // additions are stacked on top via these direct setters (read inside
+    // the next render). Net: decayed-current + power-additions.
+    if (wEnemyVuln !== enemyVulnerable) {
+      const stackedFromPowers = wEnemyVuln - enemyVulnerable;
+      setEnemyVulnerable(v => Math.max(0, v - 1) + stackedFromPowers);
+    }
+    if (wEnemyWeak !== enemyWeak) {
+      const stackedFromPowers = wEnemyWeak - enemyWeak;
+      setEnemyWeak(w => Math.max(0, w - 1) + stackedFromPowers);
+    }
+
+    // 6. New intent.
     if (enemy) setEnemyIntent(rollIntent(enemy));
   }
 
