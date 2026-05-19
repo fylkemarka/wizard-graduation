@@ -1121,7 +1121,7 @@ const SKILL_EVENTS = [
     flavor: 'A wooden hat-block sits on a stump, slightly damp, alarmingly head-shaped. There are pins around it in the manner of a small ritual.',
     choices: [
       { label: 'Try a quick brimming exercise. (+2 Felting)',               effects: { skill: { felting: 2 } } },
-      { label: 'Block a felt with serious intent. (+4 Felting, -1 max HP)', effects: { skill: { felting: 4 }, maxHp: -1 } },
+      { label: 'Block a felt with serious intent. (+4 Felting, -4 max HP)', effects: { skill: { felting: 4 }, maxHp: -4 } },
       { label: 'Tip your invisible hat at it. (+1 Common card)',             effects: { gainCommonCard: 1 } },
     ],
   },
@@ -1132,7 +1132,7 @@ const SKILL_EVENTS = [
     flavor: '"It\'s about the brim," he tells you, before you have asked. "Everyone gets the crown right. The brim is where the wizard is."',
     choices: [
       { label: 'Study his brim work. (+2 Felting)',                         effects: { skill: { felting: 2 } } },
-      { label: 'Become an apprentice for the afternoon. (+4 Felting, -1 max HP)', effects: { skill: { felting: 4 }, maxHp: -1 } },
+      { label: 'Become an apprentice for the afternoon. (+4 Felting, -4 max HP)', effects: { skill: { felting: 4 }, maxHp: -4 } },
       { label: 'Argue about crowns. He throws you a hat. (+1 Uncommon card)', effects: { gainUncommonCard: 1 } },
     ],
   },
