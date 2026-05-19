@@ -690,6 +690,17 @@ const ENEMIES = [
       { kind: 'block',  value: 20, weight: 1, telegraph: '🛡 20' },
       { kind: 'vulnerable', value: 3, weight: 1, telegraph: '🌀 Vuln 3' },
     ] },
+
+  // ===== TUTORIAL =====
+  // Low-stakes practice partner. All-baseline effectiveness so the
+  // player sees clean numbers. Light incoming damage so they learn
+  // Block without ever being in danger.
+  { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 24, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    behaviors: [
+      { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (gentle)' },
+      { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
+    ] },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
@@ -1039,6 +1050,13 @@ export default function App() {
   // fizzles at end-of-turn).
   const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
 
+  // Tutorial — when active, a scripted Bursar fight teaches the verbal
+  // combat system step-by-step. Step advances on specific player actions
+  // (see advanceTutorialStep). `tutorialActive` short-circuits onEnemyDefeated
+  // and applyDamageToPlayer's KO path so the player can learn safely.
+  const [tutorialActive, setTutorialActive] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+
   // Reward / event / forge / rest state
   const [rewardChoices, setRewardChoices] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
@@ -1070,6 +1088,53 @@ export default function App() {
       + equipment.reduce((s, eq) => s + (eq.bonus?.permanentEnergyBonus || 0), 0)
       + effectSources().reduce((s, x) => s + (x.effect?.permanentEnergyBonus || 0), 0);
   };
+
+  // ---------- TUTORIAL ----------
+  // Scripted practice match. Reset player state, build a small fixed
+  // deck, force the opening hand so the player always has a Word + a
+  // matching Effect on turn 1, and enter combat against the Bursar.
+  function startTutorial() {
+    setMaxHp(STARTING_MAX_HP);
+    setHp(STARTING_MAX_HP);
+    setBlock(0);
+    setEnergy(ENERGY_PER_TURN);
+    setExiled([]);
+    setEquipment([]);
+    setPowers([]);
+    setRelics([]);
+    setFamiliar(null);
+    setFamiliarName('');
+    setPlayerVulnerable(0);
+    setPlayerWeak(0);
+    setEffectCount(0);
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
+    setClearedNodes([]);
+    setLog([]);
+    setCurrentActIdx(0);
+    setMap(null);
+    setCurrentNodeId(null);
+    setTutorialActive(true);
+    setTutorialStep(0);
+    pushLog('🎓 Tutorial: a verbal sparring match with the Bursar.');
+    // Forced opening hand — guarantees a teachable turn 1.
+    const forcedHand = ['w-respect', 'e-persuade', 'c-defend', 'w-frankly', 'e-spark'];
+    const forcedDeck = ['w-erm', 'e-bluster', 'e-bewilder', 'c-defend'];
+    enterFight('tutorial-bursar', { forcedHand, forcedDeck });
+  }
+
+  // Advance the tutorial step IF the current step is waiting on a
+  // matching action. No-op when not in the tutorial.
+  function advanceTutorialStep(trigger) {
+    if (!tutorialActive) return;
+    if (tutorialStep === 1 && trigger === 'played-word')   setTutorialStep(2);
+    if (tutorialStep === 2 && trigger === 'played-effect') setTutorialStep(3);
+  }
+
+  function exitTutorial() {
+    setTutorialActive(false);
+    setTutorialStep(0);
+    setStage('menu');
+  }
 
   // ---------- RUN LIFECYCLE ----------
   function startRun() {
@@ -1229,7 +1294,11 @@ export default function App() {
   }
 
   // ---------- COMBAT ----------
-  function enterFight(enemyId) {
+  // `opts.forcedHand` / `opts.forcedDeck` — arrays of card IDs. When
+  // passed, the opening hand and deck are seeded deterministically
+  // (skipping the shuffle). Used by the tutorial; everyone else relies
+  // on the normal pile-shuffle draw.
+  function enterFight(enemyId, opts = {}) {
     const tmpl = ENEMIES_BY_ID[enemyId];
     if (!tmpl) return;
     const e = { ...tmpl };
@@ -1287,11 +1356,18 @@ export default function App() {
     setBlock(startBlockTotal);
     setEnergy(energyPerTurnRefill() + startEnergyBonus);
 
-    const fullDeck = [...deck, ...hand, ...discard];
-    const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus + startDrawBonus);
-    setDeck(drawn.deck);
-    setHand(drawn.hand);
-    setDiscard([]);
+    if (opts.forcedHand && opts.forcedDeck) {
+      // Tutorial path: deterministic deck + hand. Skip shuffle entirely.
+      setHand(opts.forcedHand.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
+      setDeck(opts.forcedDeck.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
+      setDiscard([]);
+    } else {
+      const fullDeck = [...deck, ...hand, ...discard];
+      const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus + startDrawBonus);
+      setDeck(drawn.deck);
+      setHand(drawn.hand);
+      setDiscard([]);
+    }
     setStage('combat');
     const tierTag = e.tier === 'elite' ? ' — elite' : e.tier === 'boss' ? ' — BOSS' : '';
     const composureNote = e.composureMax < 999 ? `Composure ${e.composureMax}` : '';
@@ -1376,6 +1452,7 @@ export default function App() {
       if (card.effects?.exhaust) setExiled(ex => [...ex, card]);
       else setDiscard(d => [...d, card]);
       pushLog(logBits.join(' · '));
+      advanceTutorialStep('played-word');
       return;
     }
 
@@ -1430,6 +1507,7 @@ export default function App() {
       if (eff.exhaust) setExiled(ex => [...ex, card]);
       else             setDiscard(d => [...d, card]);
       pushLog(logBits.join(' · '));
+      advanceTutorialStep('played-effect');
       return;
     }
 
@@ -1758,11 +1836,23 @@ export default function App() {
     }
     newHp = Math.max(0, newHp - remaining);
     setBlock(newBlock); setHp(newHp);
-    if (newHp <= 0) setTimeout(() => setStage('defeat'), 200);
+    if (newHp <= 0) {
+      // In the tutorial we never let the player die — the Bursar isn't
+      // out for blood. Restore HP and continue.
+      if (tutorialActive) { setHp(maxHp); return; }
+      setTimeout(() => setStage('defeat'), 200);
+    }
   }
 
   function onEnemyDefeated() {
     if (!enemy) return;
+    // Tutorial short-circuit: skip rewards, route to the wrap-up screen.
+    if (tutorialActive) {
+      pushLog(`✓ The Bursar concedes the match. "Well argued."`);
+      setTutorialActive(false);
+      setStage('tutorial-complete');
+      return;
+    }
     pushLog(`✓ ${enemy.name} defeated.`);
     const isBoss = enemy.tier === 'boss';
     // Fire relic onEnemyDefeated triggers (heal etc.). Not for bosses —
@@ -1940,9 +2030,10 @@ export default function App() {
   }
 
   // ---------- RENDER ----------
-  if (stage === 'menu')       return <MenuScreen onStart={startRun} />;
-  if (stage === 'defeat')     return <EndScreen win={false} onRetry={startRun} />;
-  if (stage === 'graduation') return <GraduationScreen equipment={equipment} familiar={familiar} familiarName={familiarName} onRetry={startRun} />;
+  if (stage === 'menu')               return <MenuScreen onStart={startRun} onTutorial={startTutorial} />;
+  if (stage === 'tutorial-complete')  return <TutorialCompleteScreen onStart={startRun} onMenu={() => setStage('menu')} />;
+  if (stage === 'defeat')             return <EndScreen win={false} onRetry={startRun} />;
+  if (stage === 'graduation')         return <GraduationScreen equipment={equipment} familiar={familiar} familiarName={familiarName} onRetry={startRun} />;
 
   if (stage === 'supply-shop')   return <SupplyShopScreen choices={supplyChoices} picks={supplyPicks} onPick={pickSupplyCard} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
@@ -1978,26 +2069,33 @@ export default function App() {
   }
 
   // Combat
-  return <CombatScreen
-    enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
-    enemyBlock={enemyBlock} enemyIntent={enemyIntent}
-    enemyVulnerable={enemyVulnerable} enemyWeak={enemyWeak}
-    hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
-    deck={deck} discard={discard} tray={tray}
-    energyMax={energyPerTurnRefill()}
-    equipment={equipment} powers={powers} relics={relics}
-    familiar={familiar} familiarName={familiarName}
-    playerVulnerable={playerVulnerable} playerWeak={playerWeak}
-    onPlayCard={playCard} onEndTurn={endTurn}
-    log={log}
-  />;
+  return <>
+    <CombatScreen
+      enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
+      enemyBlock={enemyBlock} enemyIntent={enemyIntent}
+      enemyVulnerable={enemyVulnerable} enemyWeak={enemyWeak}
+      hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
+      deck={deck} discard={discard} tray={tray}
+      energyMax={energyPerTurnRefill()}
+      equipment={equipment} powers={powers} relics={relics}
+      familiar={familiar} familiarName={familiarName}
+      playerVulnerable={playerVulnerable} playerWeak={playerWeak}
+      onPlayCard={playCard} onEndTurn={endTurn}
+      log={log}
+    />
+    {tutorialActive && <TutorialOverlay
+      step={tutorialStep}
+      onAdvance={() => setTutorialStep(s => s + 1)}
+      onExit={exitTutorial}
+    />}
+  </>;
 }
 
 // =============================================================================
 // 4. SUB-SCREENS
 // =============================================================================
 
-function MenuScreen({ onStart }) {
+function MenuScreen({ onStart, onTutorial }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
       <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Wizard Graduation</h1>
@@ -2006,8 +2104,115 @@ function MenuScreen({ onStart }) {
         Path of Mastery — gather your staff, robes, gem, and ring, each from
         a trial worthier than the last.
       </p>
-      <button onClick={onStart} className="btn btn-gold text-lg px-8 py-3">Begin the Path</button>
-      <p className="text-xs text-parchment-400">MVP 4 — town intro, fog of war, powers + relics, full ladder.</p>
+      <div className="flex flex-col gap-2 items-center">
+        <button onClick={onStart}    className="btn btn-gold text-lg px-8 py-3">Begin the Path</button>
+        <button onClick={onTutorial} className="btn btn-ink  text-sm px-6 py-2">First time? Practice with the Bursar →</button>
+      </div>
+      <p className="text-xs text-parchment-400">MVP 5 — verbal combat: words build spells, effects cast them.</p>
+    </div>
+  );
+}
+
+// Tutorial overlay — fixed-position floating panel that walks the player
+// through the verbal combat system. Step-gated content; step 1 and 2 wait
+// on a specific player action (advanced by advanceTutorialStep); other
+// steps advance via the Continue button.
+function TutorialOverlay({ step, onAdvance, onExit }) {
+  const STEPS = [
+    {
+      title: 'Welcome.',
+      body: (<>
+        <p>The Bursar has offered to spar with you. <i>Verbally</i>, of course — wizards prefer it that way. (He hasn't actually agreed to your terms, but he is here, which counts.)</p>
+        <p className="mt-2">Three things you'll need to know: <b>Words build spells</b>. <b>Effects cast them</b>. <b>Skills</b> (like Defend) do their thing immediately.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 1 — Play a Word card.',
+      body: (<>
+        <p>Look at your hand. The iris-bordered cards (like <b>"With all due respect,"</b>) are <b>Word cards</b>. They don't do anything to the enemy on their own — they add stat points to your <b>Spell Tray</b> (the panel right under the Bursar).</p>
+        <p className="mt-2">Play a Word card. Any will do. Watch the Tray fill up.</p>
+      </>),
+      cta: '(play any Word card)',
+      waitsForAction: true,
+    },
+    {
+      title: 'Step 2 — Cast a spell with an Effect card.',
+      body: (<>
+        <p>Excellent. Your tray now has a stat point. Words on their own do nothing — they're potential energy.</p>
+        <p className="mt-2">The ember-bordered cards are <b>Effect cards</b>. They <i>seal</i> the spell and cast it. <b>Persuade</b> reads "2 + Wit×2 Composure" — meaning it deals 2 base damage plus 2 per Wit point on the tray. Try it.</p>
+      </>),
+      cta: '(play any Effect card)',
+      waitsForAction: true,
+    },
+    {
+      title: 'Step 3 — Resistances, immunity, and fizzling.',
+      body: (<>
+        <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar). Drain it to 0 and he concedes.</p>
+        <p className="mt-2">Check the four chips next to his Intent. Each shows how he reacts to a stat: <span className="text-moss-300">×1.5 susceptible</span>, <span className="text-ember-300">×0.5 resistant</span>, or <span className="text-parchment-400">×0 immune</span>. The Bursar is baseline on everything; some enemies aren't.</p>
+        <p className="mt-2">One last lesson: if you play Word cards but never an Effect, the spell <b>fizzles</b> at end of turn. You'll see a message like <i>"… trails off. The spell does not arrive."</i> Be careful.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 4 — Physical, Block, and the rest.',
+      body: (<>
+        <p>A handful of enemies (Constructs, Crabs, Beetles) are <i>completely</i> verbal-immune. For them you'll want a <b>physical Effect</b> like <b>Spark</b> — it hits their HP instead of Composure, and scales the same way.</p>
+        <p className="mt-2"><b>Defend</b> still works the same as ever: gain Block, which absorbs incoming damage. Block resets to 0 at end of turn — spend it.</p>
+        <p className="mt-2">That's the whole system. Finish the Bursar at your leisure. (You can't lose this match — he's pulling his punches.)</p>
+      </>),
+      cta: 'Got it — let me finish',
+      waitsForAction: false,
+    },
+  ];
+  const data = STEPS[Math.min(step, STEPS.length - 1)];
+  if (step >= STEPS.length) return null;
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-50 p-3 pointer-events-none">
+      <div className="max-w-3xl mx-auto pointer-events-auto parchment-card-strong border-2 border-iris-500 bg-ink-700 p-4 shadow-2xl">
+        <div className="flex justify-between items-start mb-2">
+          <div className="font-display text-lg text-iris-300">🎓 {data.title}</div>
+          <button onClick={onExit} className="text-xs text-parchment-400 hover:text-parchment-200" title="Exit tutorial">✕ Exit</button>
+        </div>
+        <div className="text-sm font-quill text-parchment-100 space-y-1">{data.body}</div>
+        <div className="mt-3 flex justify-end">
+          {data.waitsForAction
+            ? <span className="text-xs italic text-iris-300">{data.cta}</span>
+            : <button onClick={onAdvance} className="btn btn-iris text-sm">{data.cta}</button>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Played after the player drains the Bursar's Composure to 0.
+function TutorialCompleteScreen({ onStart, onMenu }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-2xl mx-auto">
+      <h2 className="font-display text-5xl text-gold-300 tracking-widest text-center">Practice Match Won</h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-xl">
+        The Bursar inclines his head. "Reasonable," he says. "Mostly. We'll
+        see if it holds up in the field." He goes back to his ledger.
+      </p>
+      <div className="parchment-card-strong p-4 w-full">
+        <div className="text-xs uppercase text-parchment-300 mb-2 tracking-widest">What you just learned</div>
+        <ul className="text-sm font-quill text-parchment-100 space-y-1 list-disc list-inside">
+          <li><b>Word cards</b> add stat points to the Spell Tray.</li>
+          <li><b>Effect cards</b> cast a spell scaling off one stat — damage = (base + stat × multiplier) × effectiveness.</li>
+          <li>Enemies have per-stat resistance/susceptibility/immunity. Check the chips.</li>
+          <li>Play words without an Effect → spell <b>fizzles</b> at end of turn.</li>
+          <li>Most enemies are physical-immune by default; a few aren't (use Spark / Magic Missile / Sword Logic).</li>
+          <li>Block still works. Defend still defends.</li>
+        </ul>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onStart} className="btn btn-gold text-lg px-8 py-3">Begin the Path</button>
+        <button onClick={onMenu}  className="btn btn-ink  px-6 py-3">Back to Menu</button>
+      </div>
     </div>
   );
 }
