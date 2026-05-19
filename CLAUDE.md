@@ -38,16 +38,33 @@ Mechanics **dropped** vs Arcane Workshop:
 - Instability dial / surge deck (gone — STS-style intent telegraph instead)
 - Hat slot (out — equipment is staff / robes / gem / ring(s) only)
 
-## 3. Current implementation state (MVP3)
+## 3. Current implementation state (MVP5)
 
-### Working (MVP1 + MVP2 + MVP3)
+### Working (MVP1 + MVP2 + MVP3 + MVP4 + MVP5)
 - **Single-file App** (`src/App.jsx`) like Arcane Workshop's pattern
 - **Combat loop** — Energy, Block, HP, Hand, Deck, Discard, Exiled. 5-card
   hand at start of turn, 3 base energy, block resets at end of turn
 - **Intent system** — every enemy turn rolls a weighted random behavior;
   next-turn intent shown above the enemy
-- **Status effects** — Vulnerable / Weak on enemy (player-debuffs flavored
-  but not yet mechanical)
+- **Status effects** — Vulnerable / Weak on enemy AND player
+- **Verbal combat (MVP5)** — the heart of the game. Cards now come in
+  four types: WORD (phrase-fragment, contributes stat points to a "spell
+  tray"), EFFECT (seals the tray and casts a spell), SKILL (utility, no
+  spell contribution), POWER (installs on-field). The three stats are
+  **Chutzpah** (bravado / intimidation), **Wit** (cleverness / convince),
+  and **Jnsq** (je-ne-sais-quoi, chaos / confuse). Effect cards declare
+  what they `scaleBy`, plus a `base` and `multiplier`. Damage =
+  `(base + tray[scaleBy] * multiplier) * enemy.effectiveness[scaleBy]`.
+  Spell tray clears at end-of-turn — if you played word cards without
+  casting an effect, the spell **fizzles** (log says so, no damage).
+  Enemies have **Composure** (verbal HP) and **HP** (physical HP — most
+  enemies are effectively physical-immune by default; a few aren't).
+  Defeat = composure ≤ 0 OR HP ≤ 0. Enemies have a per-stat
+  `effectiveness` map: 1.0 = baseline, 0 = **immune** (a Lich does not
+  laugh — chaos and bluster slide off entirely), >1 = susceptible,
+  <1 = resistant. Physical Effect cards (Spark / Magic Missile / Sword
+  Logic) exist for wizards who still want to throw something at
+  Constructs, Thickets, Beetles, etc.
 - **Card rewards** — 3-card draft after non-boss combat; elite combats
   weight toward uncommon + rare; skip is allowed
 - **Branching DAG map** per act — `generateActMap(rows, width)` makes a new
@@ -179,9 +196,10 @@ Same as Arcane Workshop:
 | 1 ✓ | Combat loop, intent, card rewards, linear fight chain |
 | 2 ✓ | Act 1 (Staff Path) branching DAG with node types + boss equipment reward |
 | 3 ✓ | Acts 2-4 + equipment tiers (basic/fine/master) + full run loop |
-| 4 ✓ | Powers (4a), relics + card upgrades at rest sites + player debuffs (4b) |
-| 5 | Five wizard schools as playable classes with distinct mechanics |
-| 6 | Ascension-style difficulty ladder, run-persistence, leaderboards |
+| 4 ✓ | Powers (4a), relics + card upgrades + player debuffs (4b), map fog of war (4c), town intro / supply shop / familiar shop / naming (4d) |
+| 5 ✓ | Verbal combat: word + effect card types, three stats (chutzpah/wit/jnsq), spell tray, fizzle, composure, per-stat effectiveness incl. immunity, physical Effects for the chuck-it-anyway path |
+| 6 | Five wizard schools as playable classes with distinct mechanics |
+| 7 | Ascension-style difficulty ladder, run-persistence, leaderboards |
 
 ## 7. How to work on this
 

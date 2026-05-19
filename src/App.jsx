@@ -1,14 +1,41 @@
 // Wizard Graduation — STS-inspired single-player roguelike deckbuilder.
 //
-// MVP3: Acts 1-4 chained into a full graduation run with per-slot
-// equipment tiers (basic / fine / master). Single-file App.jsx for
-// fast iteration; will split when systems stabilize.
+// MVP5: Verbal combat. Cards are word-fragments and effect-seals; you
+// build up a spell by playing words that contribute stat points across
+// three traits (Chutzpah / Wit / Jnsq), then play an Effect card to
+// fire the spell against the enemy's Composure (or, for physical
+// effects, their HP). Enemies have per-stat `effectiveness` —
+// multipliers, with 0 meaning "completely immune to this kind of
+// argument" (a Lich, for example, does not laugh). Defense (Block) is
+// unchanged; physical damage from enemies still hits HP.
 //
-// Sections:
-//   1. DATA — cards, enemies, equipment, events, acts
-//   2. HELPERS — shuffle, clamp, uid, intent rolls, map generator
-//   3. App component — run state, stage flow, combat + map + reward UIs
-//   4. Sub-screens
+// Card shapes:
+//   - WORD   ({ stats: { chutzpah?, wit?, jnsq? }, phrase: '...' }) —
+//            contributes stat points to the spell tray for this turn.
+//            May also carry `effects` for an on-play side-bonus.
+//   - EFFECT ({ effect: { scaleBy, base, multiplier, damageType,
+//            rider?, exhaust? }, phrase: '...' }) — fires the spell.
+//            Damage = (base + tray[scaleBy] * multiplier) * effectiveness.
+//            Vulnerable/Weak ride after damage.
+//   - SKILL  — utility (block, draw, energy, heal). No stat contribution.
+//   - POWER  — installs on the field and triggers per turn hook.
+//
+// Effect dispatcher keys recognised at on-play time:
+//   block / draw / vulnerable / weak / energy / hp / exhaust   (skill side)
+//   stats: { chutzpah, wit, jnsq }                             (word)
+//   effect: { ... }                                            (effect-seal)
+//
+// Power trigger hooks:
+//   startOfTurn / endOfTurn / onEffectCardPlayed
+//
+// Equipment-bonus keys read at the right hooks (start-of-combat, etc.):
+//   strikeBonus            — +N base damage on any Strike-named effect card
+//   startBlock             — +N Block at start of every combat
+//   energyOnCombatStart    — +N energy on turn 1 of each combat (one-shot)
+//   permanentEnergyBonus   — +N energy refilled EVERY turn (perm)
+//   maxHp                  — +N max HP (applied once at install)
+//   healOnCombatStart      — +N HP at start of every combat
+//   extraStartHand         — +N to the turn-1 draw (per combat)
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -16,62 +43,217 @@ import { motion } from 'framer-motion';
 // =============================================================================
 // 1. DATA
 // =============================================================================
-
-// Effect dispatcher keys recognized by playCard / applyEnemyIntent / events:
-//   attack / block / draw / vulnerable / weak / energy / exhaust    (card)
-//   heal / maxHp / loseHp / gainCommonCard / gainUncommonCard /
-//   gainRareCard                                                    (event)
-//
-// Powers (type: 'power'): when played, the card LEAVES THE DECK and lives
-// on the player's `powers` array for the rest of the combat. The combat
-// loop fires power triggers at hooks:
-//   startOfTurn: { effects }   — applied at the start of every player turn
-//   endOfTurn:   { effects }   — applied at the end of every player turn
-//   onAttackCardPlayed: { effects } — applied each time an attack card resolves
-// Effects in power-trigger payloads use the same dispatcher as card effects.
-//
-// Equipment-bonus keys read at the right hooks (start-of-combat, etc.):
-//   strikeBonus            — +N damage on any Strike-named card
-//   startBlock             — +N Block at start of every combat
-//   energyOnCombatStart    — +N energy on turn 1 of each combat (one-shot)
-//   permanentEnergyBonus   — +N energy refilled EVERY turn (perm)
-//   maxHp                  — +N max HP (applied once at install)
-//   healOnCombatStart      — +N HP at start of every combat
-//   extraStartHand         — +N to the turn-1 draw (per combat)
 const CARDS = [
-  // ---- BASIC ----
-  { id: 'c-strike', name: 'Strike', cost: 1, type: 'attack', rarity: 'basic',
-    effects: { attack: 6 }, upgrade: { effects: { attack: 9 } },
-    desc: 'Deal 6 damage.' },
+  // =============================================================================
+  // WORD CARDS — phrase fragments. They contribute stat points to the
+  // spell tray for this turn. The `phrase` text reads out in the log
+  // as the spell builds.
+  // =============================================================================
+  // ---- BASIC (starter) ----
+  { id: 'w-respect', name: 'With all due respect,', cost: 0, type: 'word', rarity: 'basic',
+    stats: { wit: 1 }, phrase: 'with all due respect,',
+    upgrade: { stats: { wit: 2 } },
+    desc: '+1 Wit to your spell.',
+    flavor: 'Almost none of it is due.' },
+  { id: 'w-frankly', name: 'Frankly,', cost: 0, type: 'word', rarity: 'basic',
+    stats: { chutzpah: 1 }, phrase: 'frankly,',
+    upgrade: { stats: { chutzpah: 2 } },
+    desc: '+1 Chutzpah to your spell.',
+    flavor: 'The word is doing a lot of work.' },
+  { id: 'w-erm', name: 'Erm…', cost: 0, type: 'word', rarity: 'basic',
+    stats: { jnsq: 1 }, phrase: 'erm…',
+    upgrade: { stats: { jnsq: 2 } },
+    desc: '+1 Jnsq to your spell.',
+    flavor: 'You haven\'t worked out the next bit yet.' },
+
+  // ---- COMMON ----
+  { id: 'w-actually', name: 'Actually,', cost: 0, type: 'word', rarity: 'common',
+    stats: { wit: 1, chutzpah: 1 }, phrase: 'actually,',
+    upgrade: { stats: { wit: 2, chutzpah: 1 } },
+    desc: '+1 Wit, +1 Chutzpah.',
+    flavor: 'Slightly louder than the surrounding sentence.' },
+  { id: 'w-look-here', name: 'Look here,', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 2 }, phrase: 'look here,',
+    upgrade: { stats: { chutzpah: 3 } },
+    desc: '+2 Chutzpah.',
+    flavor: 'Don\'t actually look. The room behind you is more important.' },
+  { id: 'w-suppose', name: 'Suppose, hypothetically,', cost: 1, type: 'word', rarity: 'common',
+    stats: { wit: 3 }, phrase: 'suppose, hypothetically,',
+    upgrade: { stats: { wit: 4 } },
+    desc: '+3 Wit.',
+    flavor: 'It is never hypothetically.' },
+  { id: 'w-mutters', name: 'Mutters dark Latin', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 2 }, phrase: '(mutters dark Latin)',
+    upgrade: { stats: { jnsq: 3 } },
+    desc: '+2 Jnsq.',
+    flavor: 'You half-recognise the verb. It is not encouraging.' },
+  { id: 'w-stares', name: 'Stares', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 1, jnsq: 1 }, phrase: '(stares)',
+    upgrade: { stats: { chutzpah: 2, jnsq: 1 } },
+    desc: '+1 Chutzpah, +1 Jnsq.',
+    flavor: 'For longer than is socially comfortable.' },
+  { id: 'w-footnote', name: 'A Lengthy Footnote', cost: 1, type: 'word', rarity: 'common',
+    stats: { wit: 2, jnsq: 1 }, phrase: '— see footnote 17 —',
+    upgrade: { stats: { wit: 3, jnsq: 1 } },
+    desc: '+2 Wit, +1 Jnsq.',
+    flavor: 'Footnote 17 was always the dangerous one.' },
+
+  // ---- UNCOMMON ----
+  { id: 'w-rhetorical', name: 'A Rhetorical Question', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { wit: 4 }, phrase: 'but is it really, though?',
+    upgrade: { stats: { wit: 5 } },
+    desc: '+4 Wit.',
+    flavor: 'It does not require an answer. It demands one.' },
+  { id: 'w-thundering', name: 'Thundering Aside', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { chutzpah: 4 }, phrase: 'and FURTHERMORE,',
+    upgrade: { stats: { chutzpah: 5 } },
+    desc: '+4 Chutzpah.',
+    flavor: 'It was supposed to be quieter than that.' },
+  { id: 'w-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { jnsq: 4 }, phrase: 'speaking of cheese,',
+    upgrade: { stats: { jnsq: 5 } },
+    desc: '+4 Jnsq.',
+    flavor: 'No one was speaking of cheese.' },
+  { id: 'w-dramatic-pause', name: 'Dramatic Pause', cost: 0, type: 'word', rarity: 'uncommon',
+    stats: { chutzpah: 1, wit: 1, jnsq: 1 }, phrase: '…',
+    effects: { draw: 1 },
+    upgrade: { effects: { draw: 2 }, stats: { chutzpah: 1, wit: 1, jnsq: 1 } },
+    desc: '+1 to each stat. Draw 1.',
+    flavor: 'A bit longer than that. Hold it.' },
+
+  // =============================================================================
+  // EFFECT CARDS — seal the spell. Consume the tray, deal damage of
+  // `damageType` ('composure' or 'physical') = (base + tray[scaleBy] *
+  // multiplier) * enemy.effectiveness[scaleBy]. Composure → enemy
+  // verbal track. Physical → enemy HP (most enemies are essentially
+  // physical-immune by design; a few are not).
+  // =============================================================================
+  // ---- BASIC (starter) ----
+  { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
+    effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure' },
+    phrase: '…and so, surely, the matter is settled.',
+    upgrade: { effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure' } },
+    desc: 'Cast: 2 + Wit×2 Composure.',
+    flavor: 'You have brought receipts.' },
+  { id: 'e-bluster', name: 'Bluster', cost: 1, type: 'effect', rarity: 'basic',
+    effect: { scaleBy: 'chutzpah', base: 2, multiplier: 2, damageType: 'composure' },
+    phrase: '…and that is FINAL.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure' } },
+    desc: 'Cast: 2 + Chutzpah×2 Composure.',
+    flavor: 'You said it with your whole chest.' },
+  { id: 'e-bewilder', name: 'Bewilder', cost: 1, type: 'effect', rarity: 'basic',
+    effect: { scaleBy: 'jnsq', base: 2, multiplier: 2, damageType: 'composure' },
+    phrase: '…and the moon, of course, is a kind of biscuit.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure' } },
+    desc: 'Cast: 2 + Jnsq×2 Composure.',
+    flavor: 'They\'re thinking about it. They shouldn\'t be.' },
+
+  // ---- COMMON ----
+  { id: 'e-convince', name: 'Convince', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure' },
+    phrase: '…which, logically, you must accept.',
+    upgrade: { effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' } },
+    desc: 'Cast: 4 + Wit×2 Composure.',
+    flavor: 'They nod before they realise.' },
+  { id: 'e-intimidate', name: 'Intimidate', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure', rider: { weak: 1 } },
+    phrase: '…or what, exactly, would you do about it?',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure', rider: { weak: 1 } } },
+    desc: 'Cast: 4 + Chutzpah×2 Composure. Apply 1 Weak.',
+    flavor: 'You are taller than you ought to be.' },
+  { id: 'e-misdirect', name: 'Misdirect', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure', rider: { vulnerable: 1 } },
+    phrase: '…and look — a falling pigeon.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } } },
+    desc: 'Cast: 4 + Jnsq×2 Composure. Apply 1 Vulnerable.',
+    flavor: 'It is not, but the look is enough.' },
+  { id: 'e-strike', name: 'Strike', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure' },
+    phrase: '*pokes them, verbally, in the chest*',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 9, multiplier: 1, damageType: 'composure' } },
+    desc: 'Cast: 6 + Chutzpah Composure.',
+    flavor: 'A simple closing remark.' },
+
+  // ---- UNCOMMON ----
+  { id: 'e-refute', name: 'Refute', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
+    phrase: '…you appear to be misremembering your own earlier words.',
+    upgrade: { effect: { scaleBy: 'wit', base: 10, multiplier: 4, damageType: 'composure' } },
+    desc: 'Cast: 8 + Wit×3 Composure.',
+    flavor: 'They turn pale. Or maybe always were.' },
+  { id: 'e-cutting-remark', name: 'A Cutting Remark', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure' },
+    phrase: '…and the hat does not suit you.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure' } },
+    desc: 'Cast: 8 + Chutzpah×3 Composure.',
+    flavor: 'It is a perfectly normal hat.' },
+  { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure' },
+    phrase: '…the third inflection is the most important.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 10, multiplier: 4, damageType: 'composure' } },
+    desc: 'Cast: 8 + Jnsq×3 Composure.',
+    flavor: 'There were no inflections. There still aren\'t.' },
+
+  // ---- PHYSICAL EFFECT CARDS — for wizards who still want to throw something ----
+  { id: 'e-spark', name: 'Spark', cost: 0, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'physical' },
+    phrase: '(a small sharp light leaves your fingertips)',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'physical' } },
+    desc: 'Cast: 3 + Jnsq physical damage.',
+    flavor: 'It is not very impressive. It is also not very pleasant.' },
+  { id: 'e-magic-missile', name: 'Magic Missile', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 9, multiplier: 2, damageType: 'physical' },
+    phrase: '(the air parts in a straight line ahead of you)',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 12, multiplier: 3, damageType: 'physical' } },
+    desc: 'Cast: 9 + Jnsq×2 physical damage.',
+    flavor: 'It always misses the bookshelves. Always.' },
+  { id: 'e-sword-logic', name: 'Sword Logic', cost: 1, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'physical' },
+    phrase: '(hits them, mid-sentence)',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 8, multiplier: 2, damageType: 'physical' } },
+    desc: 'Cast: 5 + Chutzpah×2 physical damage.',
+    flavor: 'The argument was won earlier, in a closet, with a board.' },
+
+  // ---- RARE EFFECT CARDS ----
+  { id: 'e-devastating', name: 'Devastating Truth', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure' },
+    phrase: '…and that is what your tutor used to say about you, isn\'t it?',
+    upgrade: { effect: { scaleBy: 'wit', base: 16, multiplier: 4, damageType: 'composure' } },
+    desc: 'Cast: 12 + Wit×3 Composure.',
+    flavor: 'You found it in the library. It found you first.' },
+  { id: 'e-coup-de-grace', name: 'Coup de Grâce', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'chutzpah', base: 14, multiplier: 3, damageType: 'composure', exhaust: true },
+    phrase: '…and frankly that should have settled it ten minutes ago.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 18, multiplier: 4, damageType: 'composure', exhaust: true } },
+    desc: 'Cast: 14 + Chutzpah×3 Composure. Exhaust.',
+    flavor: 'You walk away mid-syllable. They notice eventually.' },
+  { id: 'e-paradox', name: 'A Functional Paradox', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'jnsq', base: 6, multiplier: 4, damageType: 'composure', rider: { vulnerable: 2 } },
+    phrase: '…the door is also, in this case, the question.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 8, multiplier: 5, damageType: 'composure', rider: { vulnerable: 2 } } },
+    desc: 'Cast: 6 + Jnsq×4 Composure. Apply 2 Vulnerable.',
+    flavor: 'They are working on it. They will be for some time.' },
+
+  // =============================================================================
+  // SKILL CARDS — no stat contribution, no spell sealing. Pure utility.
+  // =============================================================================
+  // ---- BASIC (starter) ----
   { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
     effects: { block: 5 }, upgrade: { effects: { block: 8 } },
     desc: 'Gain 5 Block.' },
-  { id: 'c-spark', name: 'Spark', cost: 0, type: 'attack', rarity: 'basic',
-    effects: { attack: 3 }, upgrade: { effects: { attack: 5 } },
-    desc: 'Deal 3 damage. (Free)' },
+
   // ---- COMMON ----
-  { id: 'c-arc-bolt', name: 'Arc Bolt', cost: 1, type: 'attack', rarity: 'common',
-    effects: { attack: 4, weak: 1 }, upgrade: { effects: { attack: 6, weak: 1 } },
-    desc: 'Deal 4 damage. Apply 1 Weak.' },
-  { id: 'c-hex-lance', name: 'Hex Lance', cost: 2, type: 'attack', rarity: 'common',
-    effects: { attack: 9 }, upgrade: { effects: { attack: 13 } },
-    desc: 'Deal 9 damage.' },
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
     effects: { block: 7 }, upgrade: { effects: { block: 10 } },
     desc: 'Gain 7 Block.' },
   { id: 'c-acuity', name: 'Acuity', cost: 1, type: 'skill', rarity: 'common',
     effects: { draw: 2 }, upgrade: { effects: { draw: 3 } },
     desc: 'Draw 2 cards.' },
-  { id: 'c-piercing', name: 'Piercing', cost: 1, type: 'attack', rarity: 'common',
-    effects: { attack: 5, vulnerable: 1 }, upgrade: { effects: { attack: 7, vulnerable: 1 } },
-    desc: 'Deal 5 damage. Apply 1 Vulnerable.' },
   { id: 'c-channel', name: 'Channel', cost: 0, type: 'skill', rarity: 'common',
     effects: { draw: 1, energy: 1, exhaust: true }, upgrade: { effects: { draw: 2, energy: 1, exhaust: true } },
     desc: '+1 Energy. Draw 1. Exhaust.' },
+
   // ---- UNCOMMON ----
-  { id: 'c-fireball', name: 'Fireball', cost: 2, type: 'attack', rarity: 'uncommon',
-    effects: { attack: 14 }, upgrade: { effects: { attack: 18 } },
-    desc: 'Deal 14 damage.' },
   { id: 'c-bulwark', name: 'Bulwark', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 10 }, upgrade: { effects: { block: 14 } },
     desc: 'Gain 10 Block.' },
@@ -81,31 +263,18 @@ const CARDS = [
   { id: 'c-warding', name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, vulnerable: 1 }, upgrade: { effects: { block: 6, vulnerable: 2 } },
     desc: 'Gain 4 Block. Apply 1 Vulnerable.' },
-  { id: 'c-thunder', name: 'Thunderbolt', cost: 1, type: 'attack', rarity: 'uncommon',
-    effects: { attack: 6, weak: 2 }, upgrade: { effects: { attack: 8, weak: 2 } },
-    desc: 'Deal 6 damage. Apply 2 Weak.' },
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { draw: 3, exhaust: true }, upgrade: { effects: { draw: 4, exhaust: true } },
     desc: 'Draw 3 cards. Exhaust.' },
+
   // ---- RARE ----
-  { id: 'c-arcane-pulse', name: 'Arcane Pulse', cost: 2, type: 'attack', rarity: 'rare',
-    effects: { attack: 12, weak: 2 }, upgrade: { effects: { attack: 16, weak: 2 } },
-    desc: 'Deal 12 damage. Apply 2 Weak.' },
-  { id: 'c-immolate', name: 'Immolate', cost: 2, type: 'attack', rarity: 'rare',
-    effects: { attack: 18, exhaust: true }, upgrade: { effects: { attack: 23, exhaust: true } },
-    desc: 'Deal 18 damage. Exhaust.' },
   { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
     effects: { block: 16 }, upgrade: { effects: { block: 21 } },
     desc: 'Gain 16 Block.' },
-  { id: 'c-judgment', name: 'Judgment', cost: 2, type: 'attack', rarity: 'rare',
-    effects: { attack: 10, vulnerable: 2 }, upgrade: { effects: { attack: 13, vulnerable: 2 } },
-    desc: 'Deal 10 damage. Apply 2 Vulnerable.' },
 
-  // ---- POWERS ----
-  // Type 'power'. When played, leaves the deck for the rest of combat
-  // and triggers per its `power` field. Single-purchase impact:
-  // can be powerful, but you only get one chance to play each copy.
-  // Pratchett tone — pompous names, modest mechanics, dry flavor.
+  // =============================================================================
+  // POWERS — install on the field, trigger via turn hooks.
+  // =============================================================================
   { id: 'p-borrowed-confidence', name: 'Borrowed Confidence',
     cost: 1, type: 'power', rarity: 'common',
     power: { startOfTurn: { block: 2 } }, upgrade: { power: { startOfTurn: { block: 3 } } },
@@ -133,25 +302,26 @@ const CARDS = [
     flavor: 'Wait. …Now.' },
   { id: 'p-ostensible-inferno', name: 'Ostensible Inferno',
     cost: 2, type: 'power', rarity: 'rare',
-    power: { endOfTurn: { attack: 4 } }, upgrade: { power: { endOfTurn: { attack: 6 } } },
-    desc: 'At the end of each turn, deal 4 damage.',
+    power: { endOfTurn: { composure: 4 } }, upgrade: { power: { endOfTurn: { composure: 6 } } },
+    desc: 'At the end of each turn, deal 4 Composure damage.',
     flavor: 'The fire is technically there. The fire-flavoured atmosphere certainly is.' },
   { id: 'p-octarine-squint', name: 'Octarine Squint',
     cost: 2, type: 'power', rarity: 'rare',
-    power: { onAttackCardPlayed: { vulnerable: 1 } }, upgrade: { power: { onAttackCardPlayed: { vulnerable: 2 } } },
-    desc: 'Each attack you play also applies 1 Vulnerable.',
+    power: { onEffectCardPlayed: { vulnerable: 1 } }, upgrade: { power: { onEffectCardPlayed: { vulnerable: 2 } } },
+    desc: 'Each Effect you cast also applies 1 Vulnerable.',
     flavor: 'You\'re looking at the colour magic comes from. Don\'t blink.' },
 ];
 
 // Relics — passive items earned from elites / bosses / events. Persist
 // across combats AND across acts (whole-run). Effect hooks read by the
 // combat loop at the right moments:
-//   passiveStrikeBonus: N   — flat +N damage on Strike-named cards (stacks)
+//   passiveStrikeBonus: N   — flat +N base on Strike-named effect cards
 //   permanentEnergyBonus: N — +N to every-turn energy refill
 //   onCombatStart: { effects } — applied once at start of every combat
 //   onEnemyDefeated: { effects } — fires when an enemy (non-boss) dies
 //   onCombatEnd: { effects }   — fires when a combat resolves to victory
-//   everyNthAttack: { n, extraDamage } — every Nth attack gets +N flat dmg
+//   everyNthEffect: { n, extraDamage } — every Nth Effect card cast gets
+//                                        +N flat damage (composure OR phys)
 // Pratchett tone — pompous artifacts of an over-administered school.
 const RELICS = [
   // ---- COMMON ----
@@ -178,8 +348,8 @@ const RELICS = [
     desc: 'At the end of every combat you win, heal 6 HP.',
     flavor: 'Filed in triplicate. Refiled if necessary.' },
   { id: 'r-brass-owl', name: 'Brass Owl, Polished', rarity: 'uncommon',
-    effect: { everyNthAttack: { n: 5, extraDamage: 5 } },
-    desc: 'Every 5th attack you play deals +5 damage.',
+    effect: { everyNthEffect: { n: 5, extraDamage: 5 } },
+    desc: 'Every 5th Effect you cast deals +5 damage.',
     flavor: 'Watches everything. Pretends it isn\'t.' },
 
   // ---- RARE / BOSS ----
@@ -227,10 +397,11 @@ const FAMILIARS = [
     desc: 'At the start of every combat, gain 3 Block.',
     flavor: 'The cat knows where it is. The cat refuses to discuss it.',
     bonus: { onCombatStart: { block: 3 } },
-    card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'attack', rarity: 'basic',
-      effects: { attack: 5, weak: 1 },
-      upgrade: { effects: { attack: 7, weak: 2 } },
-      desc: 'Deal 5 damage. Apply 1 Weak.',
+    card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'effect', rarity: 'basic',
+      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure', rider: { weak: 1 } },
+      phrase: '(the cat refuses to be impressed)',
+      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 2, damageType: 'composure', rider: { weak: 2 } } },
+      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Weak.',
       flavor: 'It is unimpressed.' },
   },
   {
@@ -271,10 +442,11 @@ const FAMILIARS = [
     desc: 'Take 1 less damage from every incoming attack (combats always cost at least 1).',
     flavor: 'It is on its third career. The first two were also waiting.',
     bonus: { damageReduction: 1 },
-    card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'attack', rarity: 'basic',
-      effects: { attack: 3, block: 3 },
-      upgrade: { effects: { attack: 5, block: 4 } },
-      desc: 'Deal 3 damage. Gain 3 Block.',
+    card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'effect', rarity: 'basic',
+      effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'composure', rider: { block: 3 } },
+      phrase: '(the beetle, briefly, expresses itself)',
+      upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'composure', rider: { block: 4 } } },
+      desc: 'Cast: 3 + Jnsq Composure. Gain 3 Block.',
       flavor: 'The beetle is angry. In its way.' },
   },
   {
@@ -293,10 +465,11 @@ const FAMILIARS = [
     desc: 'Whenever you defeat an enemy, heal 2 HP.',
     flavor: 'It has a collection. The collection has a collection.',
     bonus: { onEnemyDefeated: { heal: 2 } },
-    card: { id: 'f-pilfer', name: 'Pilfer', cost: 1, type: 'attack', rarity: 'basic',
-      effects: { attack: 4, draw: 1 },
-      upgrade: { effects: { attack: 6, draw: 1 } },
-      desc: 'Deal 4 damage. Draw 1.',
+    card: { id: 'f-pilfer', name: 'Pilfer', cost: 1, type: 'effect', rarity: 'basic',
+      effect: { scaleBy: 'jnsq', base: 4, multiplier: 1, damageType: 'composure', rider: { draw: 1 } },
+      phrase: '(the crow takes something while you talk)',
+      upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 1, damageType: 'composure', rider: { draw: 1 } } },
+      desc: 'Cast: 4 + Jnsq Composure. Draw 1.',
       flavor: 'It brought you something. You did not ask.' },
   },
   {
@@ -304,10 +477,11 @@ const FAMILIARS = [
     desc: 'At the start of every combat, apply 2 Vulnerable to the enemy.',
     flavor: 'It is patient. You are not. This is the arrangement.',
     bonus: { startCombatVulnerable: 2 },
-    card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'attack', rarity: 'basic',
-      effects: { attack: 5, vulnerable: 1 },
-      upgrade: { effects: { attack: 7, vulnerable: 2 } },
-      desc: 'Deal 5 damage. Apply 1 Vulnerable.',
+    card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'effect', rarity: 'basic',
+      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure', rider: { vulnerable: 1 } },
+      phrase: '(a small green warning slides into view)',
+      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 1, damageType: 'composure', rider: { vulnerable: 2 } } },
+      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Vulnerable.',
       flavor: 'A small green warning.' },
   },
   {
@@ -315,49 +489,74 @@ const FAMILIARS = [
     desc: 'Your Strikes deal +1 damage.',
     flavor: 'Direction was secondary. Speed was the trick.',
     bonus: { passiveStrikeBonus: 1 },
-    card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'attack', rarity: 'basic',
-      effects: { attack: 4, exhaust: true },
-      upgrade: { effects: { attack: 6, exhaust: true } },
-      desc: 'Deal 4 damage. Exhaust.',
+    card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'effect', rarity: 'basic',
+      effect: { scaleBy: 'chutzpah', base: 4, multiplier: 1, damageType: 'composure', exhaust: true },
+      phrase: '(it is gone — so is the apple)',
+      upgrade: { effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure', exhaust: true } },
+      desc: 'Cast: 4 + Chutzpah Composure. Exhaust.',
       flavor: 'It was gone. So was the apple.' },
   },
 ];
 const FAMILIARS_BY_ID = Object.fromEntries(FAMILIARS.map(f => [f.id, f]));
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
+// 9-card starter. One word per stat (chutzpah / wit / jnsq), one effect
+// per stat (Bluster / Persuade / Bewilder), three Defends. With 5-card
+// hands you'll see at least one effect ~95% of turns; fizzling is real
+// when you draw all three effects with no words to feed them.
 const STARTER_DECK = [
-  'c-strike', 'c-strike', 'c-strike', 'c-strike',
+  'w-respect', 'w-frankly', 'w-erm',
+  'e-persuade', 'e-bluster', 'e-bewilder',
   'c-defend', 'c-defend', 'c-defend',
-  'c-spark', 'c-spark',
 ];
 
 // Enemies. `act` filters which act they appear in. `tier` ∈ normal / elite / boss.
-// behaviors[*]: { kind, value, weight, telegraph, count? }
+// Verbal-combat fields:
+//   composureMax — verbal HP. Drains to 0 = enemy concedes / backs off.
+//   hpMax        — physical HP. Most enemies effectively physical-immune
+//                  (very high). A few (Living Thicket, Crystal Beetle…)
+//                  have low hp — physical effects are the fast path on
+//                  them.
+//   effectiveness — multiplier per stat. 1.0 = baseline. 0 = HARD immune
+//                   (a Lich does not laugh). Values >1 = susceptible.
+// behaviors[*]: { kind, value, weight, telegraph, count? } — unchanged.
 const ENEMIES = [
   // ===== ACT 1 — The Staff Path =====
-  { id: 'e1-acolyte', act: 1, name: 'Lost Acolyte', maxHp: 20, tier: 'normal', behaviors: [
+  { id: 'e1-acolyte', act: 1, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
+    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
     ] },
-  { id: 'e1-imp', act: 1, name: 'Pact Imp', maxHp: 18, tier: 'normal', behaviors: [
+  { id: 'e1-imp', act: 1, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4' },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e1-shrine-rat', act: 1, name: 'Shrine Rat Pack', maxHp: 16, tier: 'normal', behaviors: [
+  { id: 'e1-shrine-rat', act: 1, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
+    behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
     ] },
-  { id: 'e1-tutor', act: 1, name: 'Stern Tutor', maxHp: 32, tier: 'elite', behaviors: [
+  { id: 'e1-tutor', act: 1, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
+    behaviors: [
       { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
     ] },
-  { id: 'e1-thicket', act: 1, name: 'Living Thicket', maxHp: 38, tier: 'elite', behaviors: [
+  { id: 'e1-thicket', act: 1, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
+    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
+    behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
     ] },
-  { id: 'e1-boss-thornlord', act: 1, name: 'The Thornlord', maxHp: 60, tier: 'boss', behaviors: [
+  { id: 'e1-boss-thornlord', act: 1, name: 'The Thornlord', composureMax: 60, hpMax: 80, tier: 'boss',
+    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11' },
       { kind: 'attack-multi', value: 4, count: 3, weight: 2, telegraph: '⚔ 4×3' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
@@ -365,29 +564,41 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Thread Path =====
-  { id: 'e2-hollow-weaver', act: 2, name: 'Hollow Weaver', maxHp: 28, tier: 'normal', behaviors: [
+  { id: 'e2-hollow-weaver', act: 2, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7' },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e2-silk-wraith', act: 2, name: 'Silk Wraith', maxHp: 22, tier: 'normal', behaviors: [
+  { id: 'e2-silk-wraith', act: 2, name: 'Silk Wraith', composureMax: 22, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    behaviors: [
       { kind: 'attack-multi', value: 3, count: 3, weight: 3, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
     ] },
-  { id: 'e2-loom-familiar', act: 2, name: 'Loom Familiar', maxHp: 30, tier: 'normal', behaviors: [
+  { id: 'e2-loom-familiar', act: 2, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
     ] },
-  { id: 'e2-pattern-maker', act: 2, name: 'The Pattern-Maker', maxHp: 44, tier: 'elite', behaviors: [
+  { id: 'e2-pattern-maker', act: 2, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10' },
       { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
-  { id: 'e2-silent-spinner', act: 2, name: 'The Silent Spinner', maxHp: 50, tier: 'elite', behaviors: [
+  { id: 'e2-silent-spinner', act: 2, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
+    effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
+    behaviors: [
       { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12' },
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
       { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
     ] },
-  { id: 'e2-boss-tapestry', act: 2, name: 'The Tapestry Walker', maxHp: 80, tier: 'boss', behaviors: [
+  { id: 'e2-boss-tapestry', act: 2, name: 'The Tapestry Walker', composureMax: 80, hpMax: 999, tier: 'boss',
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    behaviors: [
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
@@ -395,29 +606,41 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 3 — The Stone Path =====
-  { id: 'e3-geode-crab', act: 3, name: 'Geode Crab', maxHp: 36, tier: 'normal', behaviors: [
+  { id: 'e3-geode-crab', act: 3, name: 'Geode Crab', composureMax: 999, hpMax: 36, tier: 'normal',
+    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
       { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12' },
     ] },
-  { id: 'e3-glow-mite', act: 3, name: 'Glow Mite Swarm', maxHp: 26, tier: 'normal', behaviors: [
+  { id: 'e3-glow-mite', act: 3, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
+    behaviors: [
       { kind: 'attack-multi', value: 3, count: 4, weight: 3, telegraph: '⚔ 3×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 3, name: 'Crystal Beetle', maxHp: 34, tier: 'normal', behaviors: [
+  { id: 'e3-crystal-beetle', act: 3, name: 'Crystal Beetle', composureMax: 999, hpMax: 34, tier: 'normal',
+    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14' },
     ] },
-  { id: 'e3-quartz-sentinel', act: 3, name: 'Quartz Sentinel', maxHp: 56, tier: 'elite', behaviors: [
+  { id: 'e3-quartz-sentinel', act: 3, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
       { kind: 'block',  value: 15, weight: 2, telegraph: '🛡 15' },
       { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
     ] },
-  { id: 'e3-vein-devourer', act: 3, name: 'Vein Devourer', maxHp: 62, tier: 'elite', behaviors: [
+  { id: 'e3-vein-devourer', act: 3, name: 'Vein Devourer', composureMax: 999, hpMax: 62, tier: 'elite',
+    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 13, weight: 3, telegraph: '⚔ 13' },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
-  { id: 'e3-boss-geode', act: 3, name: 'The Awakened Geode', maxHp: 100, tier: 'boss', behaviors: [
+  { id: 'e3-boss-geode', act: 3, name: 'The Awakened Geode', composureMax: 100, hpMax: 100, tier: 'boss',
+    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4' },
       { kind: 'block',  value: 18, weight: 1, telegraph: '🛡 18' },
@@ -425,31 +648,43 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 4 — The Forge Path =====
-  { id: 'e4-apprentice-shade', act: 4, name: "Apprentice's Shade", maxHp: 42, tier: 'normal', behaviors: [
+  { id: 'e4-apprentice-shade', act: 4, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 },
+    behaviors: [
       { kind: 'attack', value: 10, weight: 3, telegraph: '⚔ 10' },
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10' },
     ] },
-  { id: 'e4-failed-initiate', act: 4, name: 'Failed Initiate', maxHp: 38, tier: 'normal', behaviors: [
+  { id: 'e4-failed-initiate', act: 4, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
+    behaviors: [
       { kind: 'attack-multi', value: 4, count: 4, weight: 3, telegraph: '⚔ 4×4' },
       { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
     ] },
-  { id: 'e4-mirror-past', act: 4, name: 'Mirror of the Past', maxHp: 44, tier: 'normal', behaviors: [
+  { id: 'e4-mirror-past', act: 4, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
       { kind: 'vulnerable', value: 2, weight: 2, telegraph: '🌀 Vuln 2' },
       { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8' },
     ] },
-  { id: 'e4-forgotten-master', act: 4, name: 'The Forgotten Master', maxHp: 70, tier: 'elite', behaviors: [
+  { id: 'e4-forgotten-master', act: 4, name: 'The Forgotten Master', composureMax: 70, hpMax: 999, tier: 'elite',
+    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    behaviors: [
       { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4' },
       { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
     ] },
-  { id: 'e4-test-wraith', act: 4, name: 'The Test Wraith', maxHp: 64, tier: 'elite', behaviors: [
+  { id: 'e4-test-wraith', act: 4, name: 'The Test Wraith', composureMax: 64, hpMax: 999, tier: 'elite',
+    effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
+    behaviors: [
       { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
       { kind: 'vulnerable', value: 3, weight: 1, telegraph: '🌀 Vuln 3' },
       { kind: 'weak',   value: 3, weight: 1, telegraph: '🌀 Weak 3' },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
     ] },
-  { id: 'e4-boss-headmaster', act: 4, name: "The Headmaster's Shadow", maxHp: 130, tier: 'boss', behaviors: [
+  { id: 'e4-boss-headmaster', act: 4, name: "The Headmaster's Shadow", composureMax: 130, hpMax: 999, tier: 'boss',
+    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 0.5 },
+    behaviors: [
       { kind: 'attack', value: 16, weight: 2, telegraph: '⚔ 16' },
       { kind: 'attack-multi', value: 5, count: 5, weight: 2, telegraph: '⚔ 5×5' },
       { kind: 'block',  value: 20, weight: 1, telegraph: '🛡 20' },
@@ -624,8 +859,8 @@ function buildStartingDeck() {
 }
 
 // Return a new card object representing the upgraded version of `card`.
-// The upgrade field can override `effects`, `power`, or `cost`. Sets a
-// `upgraded: true` flag and adjusts the name with a "+" suffix.
+// The upgrade field can override `effects`, `power`, `cost`, `stats`,
+// `effect`, or `phrase`. Sets `upgraded: true` and "+"-suffixes the name.
 function upgradeCard(card) {
   if (!card.upgrade) return card; // already-upgraded or no path
   const up = card.upgrade;
@@ -638,7 +873,10 @@ function upgradeCard(card) {
   };
   if (up.effects) next.effects = { ...card.effects, ...up.effects };
   if (up.power)   next.power   = { ...card.power, ...up.power };
-  if (up.cost !== undefined) next.cost = up.cost;
+  if (up.stats)   next.stats   = { ...card.stats, ...up.stats };
+  if (up.effect)  next.effect  = { ...card.effect, ...up.effect };
+  if (up.phrase !== undefined) next.phrase = up.phrase;
+  if (up.cost !== undefined)   next.cost   = up.cost;
   return next;
 }
 
@@ -758,7 +996,7 @@ export default function App() {
   const [exiled, setExiled] = useState([]);
   const [equipment, setEquipment] = useState([]);
   // Powers — `type: 'power'` cards live here for the duration of one combat
-  // and fire their triggers (startOfTurn / endOfTurn / onAttackCardPlayed).
+  // and fire their triggers (startOfTurn / endOfTurn / onEffectCardPlayed).
   // Cleared at combat start.
   const [powers, setPowers] = useState([]);
   // Relics — persistent across the whole run. Earned from elites / boss
@@ -777,7 +1015,8 @@ export default function App() {
   const [playerVulnerable, setPlayerVulnerable] = useState(0);
   const [playerWeak, setPlayerWeak] = useState(0);
   // Attack counter for everyNthAttack relic hooks (resets each combat).
-  const [attackCount, setAttackCount] = useState(0);
+  // Count of effect cards cast this run (drives everyNthEffect relic).
+  const [effectCount, setEffectCount] = useState(0);
 
   // Act + map state
   const [currentActIdx, setCurrentActIdx] = useState(0);
@@ -787,11 +1026,18 @@ export default function App() {
 
   // Combat state
   const [enemy, setEnemy] = useState(null);
+  const [enemyComposure, setEnemyComposure] = useState(0);
   const [enemyHp, setEnemyHp] = useState(0);
   const [enemyBlock, setEnemyBlock] = useState(0);
   const [enemyIntent, setEnemyIntent] = useState(null);
   const [enemyVulnerable, setEnemyVulnerable] = useState(0);
   const [enemyWeak, setEnemyWeak] = useState(0);
+
+  // Spell tray — accumulates as the player plays word cards this turn.
+  // `phrases` is the running list of fragment text; `effectFiredThisTurn`
+  // tracks whether ANY effect card has resolved the tray (used to detect
+  // fizzles at end-of-turn).
+  const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
 
   // Reward / event / forge / rest state
   const [rewardChoices, setRewardChoices] = useState([]);
@@ -843,7 +1089,8 @@ export default function App() {
     setFamiliarName('');
     setPlayerVulnerable(0);
     setPlayerWeak(0);
-    setAttackCount(0);
+    setEffectCount(0);
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -987,7 +1234,8 @@ export default function App() {
     if (!tmpl) return;
     const e = { ...tmpl };
     setEnemy(e);
-    setEnemyHp(e.maxHp);
+    setEnemyComposure(e.composureMax);
+    setEnemyHp(e.hpMax);
     setEnemyBlock(0);
     setEnemyVulnerable(0);
     setEnemyWeak(0);
@@ -995,9 +1243,9 @@ export default function App() {
     // Powers don't persist between combats.
     setPowers([]);
     // Reset per-combat counters and player debuffs.
-    setAttackCount(0);
     setPlayerVulnerable(0);
     setPlayerWeak(0);
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -1045,7 +1293,11 @@ export default function App() {
     setHand(drawn.hand);
     setDiscard([]);
     setStage('combat');
-    pushLog(`⚔ ${e.name} (HP ${e.maxHp})${e.tier === 'elite' ? ' — elite' : e.tier === 'boss' ? ' — BOSS' : ''}`);
+    const tierTag = e.tier === 'elite' ? ' — elite' : e.tier === 'boss' ? ' — BOSS' : '';
+    const composureNote = e.composureMax < 999 ? `Composure ${e.composureMax}` : '';
+    const hpNote = e.hpMax < 999 ? `HP ${e.hpMax}` : '';
+    const tags = [composureNote, hpNote].filter(Boolean).join(' · ');
+    pushLog(`⚔ ${e.name} (${tags})${tierTag}`);
   }
 
   function drawFromPiles(deckIn, discardIn, n, handIn = []) {
@@ -1068,14 +1320,14 @@ export default function App() {
          + effectSources().reduce((s, x) => s + (x.effect?.passiveStrikeBonus || 0), 0);
   }
 
-  // Returns the extra flat damage to add this attack from everyNth-attack
-  // triggers across all effect sources. Advances the global attackCount.
-  function consumeEveryNthAttackBonus() {
-    const nextCount = attackCount + 1;
-    setAttackCount(nextCount);
+  // Returns the extra flat damage to add this Effect cast from everyNth-effect
+  // triggers across all effect sources. Advances the global effectCount.
+  function consumeEveryNthEffectBonus() {
+    const nextCount = effectCount + 1;
+    setEffectCount(nextCount);
     let bonus = 0;
     for (const { effect, sourceName } of effectSources()) {
-      const every = effect?.everyNthAttack;
+      const every = effect?.everyNthEffect;
       if (!every) continue;
       if (nextCount % every.n === 0) {
         bonus += every.extraDamage || 0;
@@ -1102,18 +1354,97 @@ export default function App() {
       return;
     }
 
-    const fx = card.effects || {};
-
-    if (fx.attack) {
-      let base = fx.attack;
-      if (card.name === 'Strike') base += strikeBonusTotal();
-      base += consumeEveryNthAttackBonus();
-      const damage = computeAttackDamage(base);
-      const after = applyDamageToEnemy(damage);
-      logBits.push(`⚔ ${damage} → ${after} HP`);
-      // Fire onAttackCardPlayed power triggers.
-      applyPowerTriggers('onAttackCardPlayed');
+    // WORD CARD — contributes stats to the spell tray. May also fire an
+    // on-play side `effects` block (draw/block/etc.) like a skill.
+    if (card.type === 'word') {
+      const stats = card.stats || {};
+      setTray(prev => ({
+        chutzpah: prev.chutzpah + (stats.chutzpah || 0),
+        wit:      prev.wit      + (stats.wit      || 0),
+        jnsq:     prev.jnsq     + (stats.jnsq     || 0),
+        phrases:  [...prev.phrases, card.phrase || card.name],
+        effectFiredThisTurn: prev.effectFiredThisTurn,
+      }));
+      const sBits = [];
+      if (stats.chutzpah) sBits.push(`+${stats.chutzpah} Chutzpah`);
+      if (stats.wit)      sBits.push(`+${stats.wit} Wit`);
+      if (stats.jnsq)     sBits.push(`+${stats.jnsq} Jnsq`);
+      if (sBits.length) logBits.push(sBits.join(' · '));
+      // Side-effects (draw etc.) — same dispatch as skill.
+      applySideEffects(card.effects || {}, logBits);
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      if (card.effects?.exhaust) setExiled(ex => [...ex, card]);
+      else setDiscard(d => [...d, card]);
+      pushLog(logBits.join(' · '));
+      return;
     }
+
+    // EFFECT CARD — seals the spell, consumes the tray, applies damage.
+    if (card.type === 'effect') {
+      const eff = card.effect || {};
+      let base = eff.base || 0;
+      if (card.name === 'Strike' || card.name === 'Strike+') base += strikeBonusTotal();
+      base += consumeEveryNthEffectBonus();
+      const stat = eff.scaleBy || 'wit';
+      const trayVal = tray[stat] || 0;
+      const rawSpell = base + trayVal * (eff.multiplier || 0);
+      const dmgType = eff.damageType || 'composure';
+      const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
+      const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
+      let dmg = rawSpell;
+      if (dmgType === 'physical') {
+        dmg = Math.round(dmg * phys_mult);
+      } else {
+        dmg = Math.round(dmg * eff_mult);
+      }
+      // Player Weak still nerfs outgoing damage of any kind.
+      if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
+      // Enemy Vulnerable still amplifies damage of any kind.
+      if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+
+      // Read out the spell phrase before logging the resolution.
+      const phrase = [...tray.phrases, card.phrase || ''].filter(Boolean).join(' ');
+      if (phrase) pushLog(`✨ "${phrase}"`);
+
+      let after = 0;
+      if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
+      else                        after = applyDamageToEnemyComposure(dmg);
+      const stickyTag = eff_mult === 0 ? ' (IMMUNE)' : (eff_mult >= 1.5 ? ' (susceptible)' : eff_mult <= 0.5 ? ' (resistant)' : '');
+      const dmgTag = dmgType === 'physical' ? `${dmg} phys → ${after} HP${phys_mult === 0 ? ' (IMMUNE)' : ''}` : `${dmg} comp → ${after}${stickyTag}`;
+      logBits.push(`🎯 ${(card.name || '').toUpperCase()} ${dmgTag}`);
+
+      // Riders fire after damage.
+      const rider = eff.rider || {};
+      if (rider.weak)       { setEnemyWeak(w => w + rider.weak);       logBits.push(`🌀 +${rider.weak} Weak`); }
+      if (rider.vulnerable) { setEnemyVulnerable(v => v + rider.vulnerable); logBits.push(`🌀 +${rider.vulnerable} Vuln`); }
+      if (rider.block)      { setBlock(b => b + rider.block);          logBits.push(`🛡 +${rider.block}`); }
+      if (rider.draw)       { drawCards(rider.draw);                   logBits.push(`+${rider.draw} draw`); }
+
+      // Clear the tray and mark an effect as fired this turn.
+      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: true });
+
+      // Fire onEffectCardPlayed power triggers (Octarine Squint etc.).
+      applyPowerTriggers('onEffectCardPlayed');
+
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      if (eff.exhaust) setExiled(ex => [...ex, card]);
+      else             setDiscard(d => [...d, card]);
+      pushLog(logBits.join(' · '));
+      return;
+    }
+
+    // SKILL CARD — pure utility, no stat / spell.
+    const fx = card.effects || {};
+    applySideEffects(fx, logBits);
+    setHand(h => h.filter((_, i) => i !== handIdx));
+    if (fx.exhaust) setExiled(ex => [...ex, card]);
+    else            setDiscard(d => [...d, card]);
+    pushLog(logBits.join(' · '));
+  }
+
+  // Side-effects shared between skill cards and word cards' on-play block.
+  // Mutates the logBits array in place.
+  function applySideEffects(fx, logBits) {
     if (fx.block) {
       setBlock(b => b + fx.block);
       logBits.push(`🛡 +${fx.block}`);
@@ -1134,22 +1465,28 @@ export default function App() {
       drawCards(fx.draw);
       logBits.push(`+${fx.draw} draw`);
     }
-
-    setHand(h => h.filter((_, i) => i !== handIdx));
-    if (fx.exhaust) setExiled(ex => [...ex, card]);
-    else setDiscard(d => [...d, card]);
-    pushLog(logBits.join(' · '));
+    if (fx.hp) {
+      setHp(h => clamp(h + fx.hp, 0, maxHp));
+      logBits.push(`+${fx.hp} HP`);
+    }
   }
 
   // Apply the effects payload from a power trigger. Mirrors playCard's
   // dispatcher but reads from a plain effects object (no card metadata).
+  // `composure` here is the new analogue of the old `attack` key — Ostensible
+  // Inferno etc. deal composure damage through the enemy's wit effectiveness
+  // (treat it as wit-channelled for resistance purposes — flame-shaped magic
+  // bypasses the social system but enemies who are unflappable still no-sell).
   function applyPowerTriggerEffects(effects, sourceName) {
     if (!effects) return;
     const bits = [`📿 ${sourceName}`];
-    if (effects.attack) {
-      const dmg = computeAttackDamage(effects.attack);
-      const after = applyDamageToEnemy(dmg);
-      bits.push(`⚔ ${dmg} → ${after} HP`);
+    if (effects.composure) {
+      const eff_mult = enemy?.effectiveness?.wit ?? 1.0;
+      let dmg = Math.round(effects.composure * eff_mult);
+      if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
+      if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+      const after = applyDamageToEnemyComposure(dmg);
+      bits.push(`✨ ${dmg} comp → ${after}`);
     }
     if (effects.block) {
       setBlock(b => b + effects.block);
@@ -1175,9 +1512,9 @@ export default function App() {
   }
 
   // Walk all installed powers and fire any that have a trigger matching
-  // `hook` (one of: startOfTurn / onAttackCardPlayed). For endOfTurn use
-  // `applyEndOfTurnPowerTriggers` instead — it tracks enemy HP
-  // synchronously so the caller knows whether the enemy was killed.
+  // `hook` (one of: startOfTurn / onEffectCardPlayed). For endOfTurn use
+  // `applyEndOfTurnPowerTriggers` instead — it tracks enemy composure / hp
+  // synchronously so the caller knows whether the enemy was defeated.
   function applyPowerTriggers(hook) {
     for (const p of powers) {
       const trig = p.power?.[hook];
@@ -1187,10 +1524,11 @@ export default function App() {
 
   // Specialised end-of-turn trigger pass that batches all damage / debuff
   // / block changes into local working variables, then commits to state
-  // once. Returns true if the enemy died as a result. This is so the
-  // caller can short-circuit the enemy's intent resolution.
+  // once. Returns true if the enemy was defeated as a result. This is so
+  // the caller can short-circuit the enemy's intent resolution.
   function applyEndOfTurnPowerTriggers() {
-    let wEnemyHp = enemyHp;
+    let wComposure = enemyComposure;
+    let wHp = enemyHp;
     let wEnemyBlock = enemyBlock;
     let wEnemyVuln = enemyVulnerable;
     let wEnemyWeak = enemyWeak;
@@ -1199,28 +1537,29 @@ export default function App() {
       const trig = p.power?.endOfTurn;
       if (!trig) continue;
       const bits = [`📿 ${p.name}`];
-      if (trig.attack) {
-        let dmg = trig.attack;
+      if (trig.composure) {
+        const eff_mult = enemy?.effectiveness?.wit ?? 1.0;
+        let dmg = Math.round(trig.composure * eff_mult);
         if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
         if (wEnemyVuln > 0) dmg = Math.ceil(dmg * 1.5);
         const absorbed = Math.min(wEnemyBlock, dmg);
-        wEnemyBlock -= absorbed;
-        dmg -= absorbed;
-        wEnemyHp = Math.max(0, wEnemyHp - dmg);
-        bits.push(`⚔ → ${wEnemyHp} HP`);
+        wEnemyBlock -= absorbed; dmg -= absorbed;
+        wComposure = Math.max(0, wComposure - dmg);
+        bits.push(`✨ → ${wComposure} comp`);
       }
       if (trig.block) { wPlayerBlock += trig.block; bits.push(`🛡 +${trig.block}`); }
       if (trig.vulnerable) { wEnemyVuln += trig.vulnerable; bits.push(`🌀 +${trig.vulnerable} Vuln`); }
       if (trig.weak)       { wEnemyWeak += trig.weak;       bits.push(`🌀 +${trig.weak} Weak`); }
       pushLog(bits.join(' · '));
-      if (wEnemyHp <= 0) break; // no point continuing
+      if (wComposure <= 0 || wHp <= 0) break;
     }
     setBlock(wPlayerBlock);
     setEnemyBlock(wEnemyBlock);
-    setEnemyHp(wEnemyHp);
+    setEnemyComposure(wComposure);
+    setEnemyHp(wHp);
     setEnemyVulnerable(wEnemyVuln);
     setEnemyWeak(wEnemyWeak);
-    if (wEnemyHp <= 0) {
+    if (wComposure <= 0 || wHp <= 0) {
       setTimeout(() => onEnemyDefeated(), 200);
       return true;
     }
@@ -1251,14 +1590,24 @@ export default function App() {
     setHand(wHand);
   }
 
-  function computeAttackDamage(base) {
-    let dmg = base;
-    if (playerWeak > 0)      dmg = Math.floor(dmg * 0.75);
-    if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
-    return dmg;
+  // Composure damage: block absorbs first, then composure drops.
+  function applyDamageToEnemyComposure(damage) {
+    let remaining = damage;
+    let newBlock = enemyBlock;
+    let newComposure = enemyComposure;
+    if (newBlock > 0) {
+      const absorbed = Math.min(newBlock, remaining);
+      newBlock -= absorbed; remaining -= absorbed;
+    }
+    newComposure = Math.max(0, newComposure - remaining);
+    setEnemyBlock(newBlock);
+    setEnemyComposure(newComposure);
+    if (newComposure <= 0) setTimeout(() => onEnemyDefeated(), 200);
+    return newComposure;
   }
 
-  function applyDamageToEnemy(damage) {
+  // Physical damage: same block-then-pool flow, but pool is enemy HP.
+  function applyDamageToEnemyHp(damage) {
     let remaining = damage;
     let newBlock = enemyBlock;
     let newHp = enemyHp;
@@ -1285,6 +1634,13 @@ export default function App() {
   //      hand-set ended up reading undefined, blanking the screen.
   function endTurn() {
     if (stage !== 'combat') return;
+
+    // 0. Fizzle check — if any word phrases were laid down but no effect
+    //    card sealed the spell, the spell does not arrive. Tray clears.
+    if (tray.phrases.length > 0 && !tray.effectFiredThisTurn) {
+      pushLog(`💨 "${tray.phrases.join(' ')}" …trails off. The spell does not arrive.`);
+    }
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
 
     // 1. End-of-turn power triggers.
     const killedByPowers = applyEndOfTurnPowerTriggers();
@@ -1623,10 +1979,11 @@ export default function App() {
 
   // Combat
   return <CombatScreen
-    enemy={enemy} enemyHp={enemyHp} enemyBlock={enemyBlock} enemyIntent={enemyIntent}
+    enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
+    enemyBlock={enemyBlock} enemyIntent={enemyIntent}
     enemyVulnerable={enemyVulnerable} enemyWeak={enemyWeak}
     hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
-    deck={deck} discard={discard}
+    deck={deck} discard={discard} tray={tray}
     energyMax={energyPerTurnRefill()}
     equipment={equipment} powers={powers} relics={relics}
     familiar={familiar} familiarName={familiarName}
@@ -1966,11 +2323,18 @@ function Legend({ glyph, label }) {
   return <span><span className="mr-1">{glyph}</span>{label}</span>;
 }
 
-function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
-                       hp, maxHp, block, energy, energyMax, hand, deck, discard,
+function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
+                       hp, maxHp, block, energy, energyMax, hand, deck, discard, tray,
                        equipment, powers, relics, familiar, familiarName,
                        playerVulnerable, playerWeak,
                        onPlayCard, onEndTurn, log }) {
+  const composureMax = enemy?.composureMax ?? 999;
+  const hpMax = enemy?.hpMax ?? 999;
+  const showComposure = composureMax < 999;
+  const showHp = hpMax < 999;
+  const eff = enemy?.effectiveness || { chutzpah: 1, wit: 1, jnsq: 1, physical: 1 };
+  const eff_label = (v) => v === 0 ? 'immune' : v >= 1.5 ? `×${v} susceptible` : v <= 0.5 ? `×${v} resistant` : `×${v}`;
+  const eff_color = (v) => v === 0 ? 'bg-ink-500 text-parchment-300' : v >= 1.5 ? 'bg-moss-700 text-parchment-50' : v <= 0.5 ? 'bg-ember-800 text-parchment-100' : 'bg-ink-600 text-parchment-200';
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
       <div className="parchment-card-strong p-4">
@@ -1982,17 +2346,51 @@ function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable
             </div>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-mono text-ember-400">{enemyHp} <span className="text-sm text-parchment-300">/ {enemy?.maxHp}</span></div>
+            {showComposure && (
+              <div className="text-2xl font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
+                ✨ {enemyComposure} <span className="text-sm text-parchment-300">/ {composureMax}</span>
+              </div>
+            )}
+            {showHp && (
+              <div className="text-2xl font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
+                ❤ {enemyHp} <span className="text-sm text-parchment-300">/ {hpMax}</span>
+              </div>
+            )}
             <div className="text-sm">🛡 {enemyBlock}</div>
           </div>
         </div>
-        <div className="flex gap-3 items-center flex-wrap">
+        <div className="flex gap-2 items-center flex-wrap">
           <div className="px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700">
             <div className="text-[10px] uppercase text-ember-300 tracking-widest">Intent</div>
             <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
           </div>
           {enemyVulnerable > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Vuln {enemyVulnerable}</span>}
           {enemyWeak > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Weak {enemyWeak}</span>}
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 {eff_label(eff.chutzpah ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ {eff_label(eff.wit ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 {eff_label(eff.jnsq ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ {eff_label(eff.physical ?? 1)}</span>
+        </div>
+      </div>
+
+      {/* SPELL TRAY — accumulates as you play Word cards. Cast an Effect
+          to consume it; end the turn without casting and the spell fizzles. */}
+      <div className={`parchment-card p-3 border-l-4 ${
+        tray.phrases.length > 0 ? 'border-l-iris-400' : 'border-l-ink-500'
+      }`}>
+        <div className="flex justify-between items-center mb-1">
+          <div className="text-[10px] uppercase tracking-widest text-iris-300">Spell Tray</div>
+          <div className="flex gap-2 text-xs">
+            <span className={tray.chutzpah > 0 ? 'text-ember-300 font-bold' : 'text-parchment-400'}>💪 Chutzpah {tray.chutzpah}</span>
+            <span className={tray.wit > 0 ? 'text-iris-200 font-bold' : 'text-parchment-400'}>✨ Wit {tray.wit}</span>
+            <span className={tray.jnsq > 0 ? 'text-moss-300 font-bold' : 'text-parchment-400'}>🌀 Jnsq {tray.jnsq}</span>
+          </div>
+        </div>
+        <div className="text-xs font-quill italic text-parchment-200 min-h-[1.25rem]">
+          {tray.phrases.length === 0
+            ? <span className="text-parchment-400">(no spell yet — play Word cards to build one)</span>
+            : <span>"{tray.phrases.join(' ')} <span className="text-iris-300 not-italic">…</span>"</span>
+          }
         </div>
       </div>
 
@@ -2070,25 +2468,52 @@ function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable
       <div className="flex gap-2 flex-wrap min-h-[160px] items-center justify-center">
         {hand.map((card, i) => {
           const playable = card.cost <= energy;
+          // Card frame tint by type — word = iris, effect = ember,
+          // skill = moss, power = gold.
+          const tint = card.type === 'word'   ? 'border-iris-500'
+                     : card.type === 'effect' ? 'border-ember-500'
+                     : card.type === 'power'  ? 'border-gold-500'
+                     :                          'border-moss-500';
           return (
             <motion.button key={card.uid}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
               onClick={() => onPlayCard(i)} disabled={!playable}
-              className={`w-36 h-48 rounded-lg border-2 p-2 text-left flex flex-col gap-1 shadow-lg transition-all ${
+              className={`w-40 h-52 rounded-lg border-2 p-2 text-left flex flex-col gap-1 shadow-lg transition-all ${
                 playable
-                  ? 'bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer'
+                  ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
               <div className="flex justify-between items-center">
-                <div className="font-display text-sm">{card.name}</div>
+                <div className="font-display text-sm leading-tight">{card.name}</div>
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
                   {card.cost}
                 </div>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
+              <div className="text-[10px] uppercase tracking-wider text-ink-400">
+                {card.type}
+                {card.type === 'effect' && card.effect?.damageType === 'physical' && <span className="ml-1 text-ember-700">phys</span>}
+              </div>
+              {/* Word stat row */}
+              {card.type === 'word' && card.stats && (
+                <div className="flex gap-1 flex-wrap text-[10px] font-mono">
+                  {card.stats.chutzpah ? <span className="px-1 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                  {card.stats.wit      ? <span className="px-1 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                  {card.stats.jnsq     ? <span className="px-1 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                </div>
+              )}
+              {/* Effect formula */}
+              {card.type === 'effect' && card.effect && (
+                <div className="text-[10px] font-mono text-ink-700">
+                  {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
+                  <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
+                    {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
+                  </span>
+                </div>
+              )}
               <div className="text-xs flex-1 font-quill">{card.desc}</div>
-              {card.effects?.exhaust && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
+              {card.flavor && <div className="text-[10px] italic text-ink-500 truncate">"{card.flavor}"</div>}
+              {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
             </motion.button>
           );
         })}
@@ -2185,7 +2610,7 @@ function UpgradeCardScreen({ deck, onPick }) {
                 <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
                 <div className="text-xs">{card.desc}</div>
                 <div className="text-[10px] mt-1 pt-1 border-t border-ink-300 text-moss-700">
-                  → <b>{upgraded.name}</b>: {summarizeEffects(upgraded.effects, upgraded.power, upgraded.cost)}
+                  → <b>{upgraded.name}</b>: {summarizeEffects(upgraded.effects, upgraded.power, upgraded.cost, upgraded.stats, upgraded.effect)}
                 </div>
               </button>
             );
@@ -2208,23 +2633,42 @@ function UpgradeCardScreen({ deck, onPick }) {
 // Format a card's upgraded effects/power/cost as a human-readable summary
 // for the upgrade picker. Doesn't aim to be exhaustive — just enough to
 // see what the upgrade changes.
-function summarizeEffects(effects, power, cost) {
+function summarizeEffects(effects, power, cost, stats, effect) {
   const bits = [];
   if (cost !== undefined) bits.push(`cost ${cost}`);
+  if (stats) {
+    if (stats.chutzpah) bits.push(`+${stats.chutzpah} Chutzpah`);
+    if (stats.wit)      bits.push(`+${stats.wit} Wit`);
+    if (stats.jnsq)     bits.push(`+${stats.jnsq} Jnsq`);
+  }
+  if (effect) {
+    const dmgType = effect.damageType === 'physical' ? 'phys' : 'comp';
+    bits.push(`${effect.base} + ${effect.scaleBy}×${effect.multiplier} ${dmgType}`);
+    if (effect.rider) {
+      if (effect.rider.weak)       bits.push(`+${effect.rider.weak} Weak`);
+      if (effect.rider.vulnerable) bits.push(`+${effect.rider.vulnerable} Vuln`);
+      if (effect.rider.block)      bits.push(`${effect.rider.block} Block`);
+      if (effect.rider.draw)       bits.push(`draw ${effect.rider.draw}`);
+    }
+    if (effect.exhaust) bits.push('Exhaust');
+  }
   if (effects) {
-    if (effects.attack)     bits.push(`${effects.attack} dmg`);
     if (effects.block)      bits.push(`${effects.block} Block`);
     if (effects.draw)       bits.push(`draw ${effects.draw}`);
     if (effects.energy)     bits.push(`+${effects.energy} Energy`);
     if (effects.vulnerable) bits.push(`${effects.vulnerable} Vuln`);
     if (effects.weak)       bits.push(`${effects.weak} Weak`);
+    if (effects.hp)         bits.push(`+${effects.hp} HP`);
     if (effects.exhaust)    bits.push('Exhaust');
   }
   if (power) {
-    const k = power.startOfTurn ? 'turn start' : power.endOfTurn ? 'turn end' : power.onAttackCardPlayed ? 'per attack' : '';
-    const fx = power.startOfTurn || power.endOfTurn || power.onAttackCardPlayed || {};
+    const k = power.startOfTurn ? 'turn start'
+            : power.endOfTurn ? 'turn end'
+            : power.onEffectCardPlayed ? 'per effect'
+            : '';
+    const fx = power.startOfTurn || power.endOfTurn || power.onEffectCardPlayed || {};
     const fxBits = [];
-    if (fx.attack)     fxBits.push(`${fx.attack} dmg`);
+    if (fx.composure)  fxBits.push(`${fx.composure} comp`);
     if (fx.block)      fxBits.push(`${fx.block} Block`);
     if (fx.draw)       fxBits.push(`draw ${fx.draw}`);
     if (fx.energy)     fxBits.push(`+${fx.energy} Energy`);
