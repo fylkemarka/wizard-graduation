@@ -887,7 +887,7 @@ const EVENTS = [
     flavor: 'A weathered stone shrine to no god in particular. The donations bowl has been emptied recently. The donations bowl is, you suspect, emptied daily.',
     choices: [
       { label: 'Pray sincerely. The god takes a memory. (heal 10, lose a random card)', effects: { heal: 10, loseRandomCard: true } },
-      { label: 'Pray sarcastically. The god is petty AND powerful. (+3 max HP, -10 HP)', effects: { maxHp: 3, loseHp: 10 } },
+      { label: 'Pray sarcastically. The god is petty AND powerful. (+5 max HP, -12 HP)', effects: { maxHp: 5, loseHp: 12 } },
       { label: 'Walk on without looking.', effects: {} },
     ],
   },
@@ -907,7 +907,7 @@ const EVENTS = [
     flavor: 'A piece of broken mirror, propped against a stump. The version of you in the glass is harder around the eyes. They are not exactly your eyes. You are pretty sure.',
     choices: [
       { label: 'Study it. The reflection takes your name. (gain Uncommon, lose a random card)', effects: { gainUncommonCard: 1, loseRandomCard: true } },
-      { label: 'Break it further. The breaking shatters something else. (+5 max HP, -8 HP)', effects: { maxHp: 5, loseHp: 8 } },
+      { label: 'Break it further. The breaking shatters something else. (+6 max HP, -13 HP)', effects: { maxHp: 6, loseHp: 13 } },
       { label: 'Leave the shard. Leave quickly.', effects: {} },
     ],
   },
@@ -926,7 +926,7 @@ const EVENTS = [
     title: 'A Vow Offered',
     flavor: 'A stone altar, carved with a single grand line: STRENGTH FOR STILLNESS. Beneath it, in much smaller letters: TERMS APPLY. CONSULT THE STELE.',
     choices: [
-      { label: 'Take the full vow. (gain Rare, +2 max HP, -8 HP, lose a random card)', effects: { gainRareCard: 1, maxHp: 2, loseHp: 8, loseRandomCard: true } },
+      { label: 'Take the full vow. (gain Rare, +7 max HP, -15 HP, lose a random card)', effects: { gainRareCard: 1, maxHp: 7, loseHp: 15, loseRandomCard: true } },
       { label: 'Read the small print, decline most. (gain Common, -2 max HP)', effects: { gainCommonCard: 1, maxHp: -2 } },
       { label: 'Walk away. The altar is unmoved.', effects: {} },
     ],
@@ -2915,9 +2915,14 @@ export default function App() {
     }
     if (fx.maxHp) {
       setMaxHp(m => Math.max(1, m + fx.maxHp));
-      // On a max-HP loss, clamp current HP DOWN to the new ceiling but don't
-      // heal the player; on a gain, also heal so the new room counts as real.
-      setHp(h => fx.maxHp < 0 ? Math.max(1, Math.min(h, maxHp + fx.maxHp)) : h + fx.maxHp);
+      // On loss: clamp current HP DOWN to the new ceiling.
+      // On gain: do NOT auto-heal — that would silently cancel the loseHp
+      // cost on options like "+6 max HP, -13 HP" and make the labeled cost
+      // a lie. Raising the ceiling is the benefit; the player heals through
+      // rest stops and inter-act recovery.
+      if (fx.maxHp < 0) {
+        setHp(h => Math.max(1, Math.min(h, maxHp + fx.maxHp)));
+      }
       logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
     }
     // Lose a random non-starter card from the deck. Starters are protected so
