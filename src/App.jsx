@@ -3086,30 +3086,36 @@ function UpgradeCardScreen({ deck, onPick }) {
   // ineligible (already at max).
   const eligible = deck.filter(c => !c.upgraded && c.upgrade);
   const ineligible = deck.filter(c => c.upgraded || !c.upgrade);
+  // pendingUid: which card is queued for upgrade-confirmation. null =
+  // browsing the list. When set, the confirm-modal renders over the
+  // list and the player can commit or back out.
+  const [pendingUid, setPendingUid] = useState(null);
+  const pendingCard = pendingUid ? eligible.find(c => c.uid === pendingUid) : null;
+  const pendingUpgraded = pendingCard ? upgradeCard(pendingCard) : null;
   return (
     <div className="min-h-screen flex flex-col p-6 gap-4 max-w-5xl mx-auto">
       <div className="text-center">
-        <h2 className="font-display text-3xl text-gold-300">Study a Card</h2>
-        <p className="text-sm text-parchment-300 italic mt-1">Pick one to commit to memory. (Already-upgraded cards are listed for reference only.)</p>
+        <h2 className="font-display text-4xl text-gold-300">Study a Card</h2>
+        <p className="text-base text-parchment-300 italic mt-1">Pick one to commit to memory. Click a card to preview the upgrade — then confirm.</p>
       </div>
       <div className="parchment-card p-3">
-        <div className="text-[10px] uppercase text-parchment-300 mb-2 tracking-widest">Eligible ({eligible.length})</div>
-        <div className="flex flex-wrap gap-2">
+        <div className="text-xs uppercase text-parchment-300 mb-2 tracking-widest">Eligible ({eligible.length})</div>
+        <div className="flex flex-wrap gap-3">
           {eligible.length === 0 && (
-            <div className="text-xs italic text-parchment-400">Nothing left to study — every card has been upgraded already. Sleep instead?</div>
+            <div className="text-sm italic text-parchment-400">Nothing left to study — every card has been upgraded already. Sleep instead?</div>
           )}
           {eligible.map(card => {
             const upgraded = upgradeCard(card);
             return (
-              <button key={card.uid} onClick={() => onPick(card.uid)}
-                className="w-44 rounded-md border-2 p-2 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1">
+              <button key={card.uid} onClick={() => setPendingUid(card.uid)}
+                className="w-52 rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
                 <div className="flex justify-between items-center">
-                  <div className="font-display text-sm">{card.name}</div>
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm bg-gold-500 text-ink-800">{card.cost}</div>
+                  <div className="font-display text-base">{card.name}</div>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
                 </div>
-                <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
-                <div className="text-xs">{card.desc}</div>
-                <div className="text-[10px] mt-1 pt-1 border-t border-ink-300 text-moss-700">
+                <div className="text-xs uppercase tracking-wider text-ink-400">{card.type}</div>
+                <div className="text-sm">{card.desc}</div>
+                <div className="text-xs mt-1 pt-2 border-t border-ink-300 text-moss-700">
                   → <b>{upgraded.name}</b>: {summarizeEffects(upgraded.effects, upgraded.power, upgraded.cost, upgraded.stats, upgraded.effect)}
                 </div>
               </button>
@@ -3119,13 +3125,97 @@ function UpgradeCardScreen({ deck, onPick }) {
       </div>
       {ineligible.length > 0 && (
         <div className="parchment-card p-3">
-          <div className="text-[10px] uppercase text-parchment-400 mb-1 tracking-widest">Already studied or no upgrade path ({ineligible.length})</div>
-          <div className="text-xs text-parchment-400 italic flex flex-wrap gap-2">
+          <div className="text-xs uppercase text-parchment-400 mb-1 tracking-widest">Already studied or no upgrade path ({ineligible.length})</div>
+          <div className="text-sm text-parchment-400 italic flex flex-wrap gap-2">
             {ineligible.map(c => <span key={c.uid}>{c.name}</span>)}
           </div>
         </div>
       )}
       <button onClick={() => onPick(null)} className="btn btn-ink self-center">Back to rest</button>
+
+      {/* Confirm modal — fires when the player has clicked an eligible
+          card. Shows the current card and the upgraded card side-by-side
+          with a Confirm / Pick a different card pair of buttons. */}
+      {pendingCard && pendingUpgraded && (
+        <UpgradeConfirmModal
+          before={pendingCard}
+          after={pendingUpgraded}
+          onConfirm={() => { const uid = pendingUid; setPendingUid(null); onPick(uid); }}
+          onCancel={() => setPendingUid(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Side-by-side "before / after" card preview that locks the upgrade-at-
+// rest decision behind an explicit confirm step. Renders a full-screen
+// dim overlay so the choice is unambiguous.
+function UpgradeConfirmModal({ before, after, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center p-6">
+      <div className="parchment-card-strong p-6 max-w-3xl w-full flex flex-col gap-4 border-2 border-gold-500">
+        <h3 className="font-display text-3xl text-gold-300 text-center">Confirm upgrade?</h3>
+        <p className="text-base text-parchment-200 italic text-center">You can study only one card at this rest. Make sure this is the one.</p>
+        <div className="flex gap-4 justify-center items-stretch flex-wrap">
+          <UpgradePreviewCard card={before} label="Current" tone="ink" />
+          <div className="self-center font-display text-4xl text-gold-400 px-2">→</div>
+          <UpgradePreviewCard card={after} label="Upgraded" tone="moss" />
+        </div>
+        <div className="flex gap-3 justify-center mt-2">
+          <button onClick={onConfirm} className="btn btn-gold text-lg px-8 py-3">Confirm upgrade</button>
+          <button onClick={onCancel}  className="btn btn-ink  text-base px-6 py-3">Pick a different card</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Detail card-face used inside the upgrade confirm modal. Same shape as
+// the hand-card display but slightly larger and always-bright (the
+// modal sits over a dimmed backdrop).
+function UpgradePreviewCard({ card, label, tone }) {
+  const border = tone === 'moss' ? 'border-moss-500' : 'border-ink-500';
+  const labelColor = tone === 'moss' ? 'text-moss-300' : 'text-parchment-300';
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={`text-xs uppercase tracking-widest ${labelColor}`}>{label}</div>
+      <div className={`w-56 min-h-[18rem] rounded-lg border-2 p-3 bg-parchment-50 text-ink-800 ${border} flex flex-col gap-2`}>
+        <div className="flex justify-between items-start gap-1">
+          <div className="font-display text-lg leading-tight">{card.name}</div>
+          <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-lg bg-gold-500 text-ink-800">
+            {card.cost}
+          </div>
+        </div>
+        <div className="text-xs uppercase tracking-wider text-ink-400">{card.type}</div>
+        {card.type === 'word' && card.stats && (
+          <div className="flex gap-1 flex-wrap text-sm font-mono">
+            {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+            {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+            {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+          </div>
+        )}
+        {card.type === 'effect' && card.effect && (
+          <div className="text-sm font-mono text-ink-700">
+            {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
+            <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
+              {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
+            </span>
+          </div>
+        )}
+        <div className="text-base font-quill leading-snug flex-1">{card.desc}</div>
+        {card.flavor && <div className="text-sm italic text-ink-500">"{card.flavor}"</div>}
+        {(card.type === 'word' && card.tags?.length > 0) && (
+          <div className="mt-1 pt-2 border-t border-ink-300 text-sm text-ink-500 italic">
+            ✦ {card.tags.join(' · ')}
+          </div>
+        )}
+        {(card.type === 'effect' && card.effect?.resonatesWith?.length > 0) && (
+          <div className="mt-1 pt-2 border-t border-ink-300 text-sm text-iris-700 italic">
+            ✦ resonates: {card.effect.resonatesWith.join(', ')}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
