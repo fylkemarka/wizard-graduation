@@ -120,6 +120,13 @@ const CARDS = [
     upgrade: { effects: { draw: 2 }, stats: { chutzpah: 1, wit: 1, jnsq: 1 } },
     desc: '+1 to each stat. Draw 1.',
     flavor: 'A bit longer than that. Hold it.' },
+  { id: 'w-corner-them', name: 'Corner Them', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 3 }, tags: ['threatening', 'dismissive'],
+    effects: { loseHp: 2 },
+    phrase: "and there's nowhere left to go,",
+    upgrade: { stats: { chutzpah: 4 }, effects: { loseHp: 2 } },
+    desc: '+3 Chutzpah. Lose 2 HP.',
+    flavor: 'Their back is against the bookshelf. There was no need to push.' },
 
   // =============================================================================
   // EFFECT CARDS — seal the spell. Consume the tray, deal damage of
@@ -265,6 +272,30 @@ const CARDS = [
               rider: { vulnerable: 2 }, resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 3 } } },
     desc: 'Cast: 6 + Jnsq×4 Composure. Apply 2 Vulnerable. Resonates: absurd, mystical (+3).',
     flavor: 'They are working on it. They will be for some time.' },
+
+  // ---- ARCHETYPE-COMMITTING CARDS — added cycle 4. Each uses a
+  //      mechanical lever that ONLY exists in that archetype's lane.
+  //      Chutzpah → loseHp (risk-for-damage). Jnsq → chance (weighted gambles).
+  { id: 'e-go-for-the-throat', name: 'Go For The Throat', cost: 1, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
+              loseHpOnPlay: 3,
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
+    phrase: '…and now we both know how this ends.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure',
+              loseHpOnPlay: 3,
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 8 + Chutzpah×3 Composure. Lose 3 HP. Resonates: threatening, dismissive.',
+    flavor: 'You commit. There is no second draft.' },
+  { id: 'e-cantrip-roulette', name: 'Cantrip Roulette', cost: 1, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 6, multiplier: 2, damageType: 'composure',
+              chance: { prob: 0.7, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } },
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 2 } },
+    phrase: '…heads they fold, tails I sneeze.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
+              chance: { prob: 0.75, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } },
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 6 + Jnsq×2 Composure. 70%: apply 2 Vuln. 30%: gain 1 Weak.',
+    flavor: 'Heads, they cower. Tails, you sneeze.' },
 
   // =============================================================================
   // SKILL CARDS — no stat contribution, no spell sealing. Pure utility.
@@ -552,8 +583,9 @@ const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 const STARTER_DECK = [
   'w-respect', 'w-frankly', 'w-erm',
   'e-persuade', 'e-bluster', 'e-bewilder',
-  'e-spark', 'c-channel',
-  'c-defend', 'c-defend', 'c-defend',
+  'e-spark', 'e-sword-logic',
+  'c-channel',
+  'c-defend', 'c-defend',
 ];
 
 // Enemies. `act` filters which act they appear in. `tier` ∈ normal / elite / boss.
@@ -610,87 +642,87 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Thread Path =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7' },
+      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 22, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack-multi', value: 3, count: 3, weight: 3, telegraph: '⚔ 3×3' },
+      { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10' },
-      { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8' },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
-      { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12' },
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
+      { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
       { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 80, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 65, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8' },
+      { kind: 'attack-multi', value: 3, count: 4, weight: 2, telegraph: '⚔ 3×4' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
-      { kind: 'block',  value: 15, weight: 1, telegraph: '🛡 15' },
+      { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
     ] },
 
   // ===== ACT 3 — The Stone Path =====
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 28, tier: 'normal',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 22, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.5, physical: 1.2 },
     behaviors: [
-      { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7' },
+      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
     behaviors: [
-      { kind: 'attack-multi', value: 3, count: 4, weight: 3, telegraph: '⚔ 3×4' },
+      { kind: 'attack-multi', value: 2, count: 4, weight: 3, telegraph: '⚔ 2×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 26, tier: 'normal',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.3, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
-      { kind: 'attack', value: 11, weight: 1, telegraph: '⚔ 11' },
+      { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
     ] },
-  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
-      { kind: 'block',  value: 15, weight: 2, telegraph: '🛡 15' },
-      { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
+      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10' },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 62, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 44, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 3, telegraph: '⚔ 13' },
-      { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
+      { kind: 'attack', value: 10, weight: 3, telegraph: '⚔ 10' },
+      { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
+      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln 1' },
     ] },
-  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 100, hpMax: 100, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 64, hpMax: 70, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13' },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4' },
-      { kind: 'block',  value: 18, weight: 1, telegraph: '🛡 18' },
-      { kind: 'vulnerable', value: 3, weight: 1, telegraph: '🌀 Vuln 3' },
+      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10' },
+      { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
+      { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
 
   // ===== ACT 4 — The Forge Path =====
@@ -713,28 +745,28 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 2, weight: 2, telegraph: '🌀 Vuln 2' },
       { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8' },
     ] },
-  { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 70, hpMax: 999, tier: 'elite',
+  { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4' },
-      { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
+      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
+      { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
     ] },
-  { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 64, hpMax: 999, tier: 'elite',
+  { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
-      { kind: 'vulnerable', value: 3, weight: 1, telegraph: '🌀 Vuln 3' },
-      { kind: 'weak',   value: 3, weight: 1, telegraph: '🌀 Weak 3' },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
+      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
+      { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
+      { kind: 'attack-multi', value: 3, count: 4, weight: 1, telegraph: '⚔ 3×4' },
     ] },
-  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 130, hpMax: 999, tier: 'boss',
+  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 78, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     behaviors: [
-      { kind: 'attack', value: 16, weight: 2, telegraph: '⚔ 16' },
-      { kind: 'attack-multi', value: 5, count: 5, weight: 2, telegraph: '⚔ 5×5' },
-      { kind: 'block',  value: 20, weight: 1, telegraph: '🛡 20' },
-      { kind: 'vulnerable', value: 3, weight: 1, telegraph: '🌀 Vuln 3' },
+      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
+      { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
 
   // ===== TUTORIAL =====
@@ -914,7 +946,7 @@ const MATERIAL_TEMPLATES = {
     { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted.',       stats: { defense: 1, regen: 1, draw: 1 } },
     { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging.',                          stats: { defense: 1, regen: 2 } },
     { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', flavor: 'Drinks the light. Mildly judgmental.',       stats: { defense: 2, draw: 1 } },
-    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', flavor: 'Itches by design.',                           stats: { defense: 4 } },
+    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', flavor: 'Itches by design.',                           stats: { defense: 3 } },
   ],
   ring: [
     { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring',  flavor: 'Plain. Reliable. Slightly rusted in places.', stats: { defense: 2 } },
@@ -1399,7 +1431,7 @@ const SKILL_MAX = 5;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
 // Heal a fraction of max HP between acts (STS-style act transition heal).
-const INTER_ACT_HEAL_RATIO = 0.25;
+const INTER_ACT_HEAL_RATIO = 0.40;
 
 export default function App() {
   // Stage flow:
@@ -1456,6 +1488,23 @@ export default function App() {
   const [enemyIntent, setEnemyIntent] = useState(null);
   const [enemyVulnerable, setEnemyVulnerable] = useState(0);
   const [enemyWeak, setEnemyWeak] = useState(0);
+  // Visceral feedback — short-lived state flipped when the enemy takes
+  // damage. The CombatScreen reads these and applies the hit-shake
+  // class + renders damage-number floaters.
+  const [enemyHitFlash, setEnemyHitFlash] = useState(0);
+  const [dmgFloaters, setDmgFloaters] = useState([]);
+
+  // Push a damage floater + trigger the enemy hit-shake. Auto-removes
+  // the floater after the animation duration.
+  function showDamageFloater(amount, dmgType) {
+    if (amount <= 0) return;
+    const id = uid();
+    setDmgFloaters(prev => [...prev, { id, amount, dmgType }]);
+    setEnemyHitFlash(Date.now());
+    setTimeout(() => {
+      setDmgFloaters(prev => prev.filter(f => f.id !== id));
+    }, 900);
+  }
 
   // Spell tray — accumulates as the player plays word cards this turn.
   // `phrases` is the running list of fragment text; `effectFiredThisTurn`
@@ -1874,6 +1923,8 @@ export default function App() {
     setEnemyBlock(0);
     setEnemyVulnerable(0);
     setEnemyWeak(0);
+    setEnemyHitFlash(0);
+    setDmgFloaters([]);
     setEnemyIntent(rollIntent(e));
     // Powers don't persist between combats.
     setPowers([]);
@@ -2134,6 +2185,14 @@ export default function App() {
     if (rider.vulnerable) { setEnemyVulnerable(v => v + rider.vulnerable); pushLog(`🌀 +${rider.vulnerable} Vuln`); }
     if (rider.block)      { setBlock(b => b + rider.block);          pushLog(`🛡 +${rider.block}`); }
     if (rider.draw)       { drawCards(rider.draw);                   pushLog(`+${rider.draw} draw`); }
+    // Chutzpah-archetype effects: pay HP to cast.
+    if (eff.loseHpOnPlay)  { setHp(h => clamp(h - eff.loseHpOnPlay, 0, maxHp)); pushLog(`💔 -${eff.loseHpOnPlay} HP (self)`); }
+    // Jnsq-archetype effects: weighted gamble.
+    if (eff.chance) {
+      const chanceBits = [];
+      applyChance(eff.chance, chanceBits);
+      if (chanceBits.length) pushLog(chanceBits.join(' · '));
+    }
 
     // Send all staged cards to discard / exile based on flags.
     const wordsToDiscard = tray.words.filter(w => !w.effects?.exhaust);
@@ -2208,6 +2267,35 @@ export default function App() {
     if (fx.hp) {
       setHp(h => clamp(h + fx.hp, 0, maxHp));
       logBits.push(`+${fx.hp} HP`);
+    }
+    // Self-damage cost on the card (Chutzpah identity — risk for damage).
+    if (fx.loseHp) {
+      setHp(h => clamp(h - fx.loseHp, 0, maxHp));
+      logBits.push(`-${fx.loseHp} HP (self)`);
+    }
+    // Player-side debuff (e.g., Cantrip Roulette failure).
+    if (fx.selfWeak) {
+      setPlayerWeak(w => w + fx.selfWeak);
+      logBits.push(`🌀 +${fx.selfWeak} Weak (self)`);
+    }
+    // Apply Vulnerable to the enemy from a side-effect path (used by
+    // chance.success in some Jnsq effects).
+    if (fx.enemyVulnerable) {
+      setEnemyVulnerable(v => v + fx.enemyVulnerable);
+      logBits.push(`🌀 +${fx.enemyVulnerable} Vuln`);
+    }
+  }
+
+  // Resolve a `chance: { prob, success, failure }` block — used by Jnsq
+  // archetype cards. Rolls once and applies one of the two effect
+  // payloads through the same applySideEffects dispatcher.
+  function applyChance(chanceBlock, logBits) {
+    if (!chanceBlock) return;
+    const roll = Math.random();
+    const fired = roll < (chanceBlock.prob ?? 0.5) ? chanceBlock.success : chanceBlock.failure;
+    if (fired) {
+      logBits.push(roll < chanceBlock.prob ? `🎲 lucky` : `🎲 unlucky`);
+      applySideEffects(fired, logBits);
     }
   }
 
@@ -2342,6 +2430,7 @@ export default function App() {
     newComposure = Math.max(0, newComposure - remaining);
     setEnemyBlock(newBlock);
     setEnemyComposure(newComposure);
+    showDamageFloater(damage, 'composure');
     if (newComposure <= 0) setTimeout(() => onEnemyDefeated(), 200);
     return newComposure;
   }
@@ -2358,6 +2447,7 @@ export default function App() {
     newHp = Math.max(0, newHp - remaining);
     setEnemyBlock(newBlock);
     setEnemyHp(newHp);
+    showDamageFloater(damage, 'physical');
     if (newHp <= 0) setTimeout(() => onEnemyDefeated(), 200);
     return newHp;
   }
@@ -2831,6 +2921,7 @@ export default function App() {
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent}
       enemyVulnerable={enemyVulnerable} enemyWeak={enemyWeak}
+      enemyHitFlash={enemyHitFlash} dmgFloaters={dmgFloaters}
       hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
       deck={deck} discard={discard} tray={tray}
       energyMax={energyPerTurnRefill()}
@@ -3305,6 +3396,7 @@ function Legend({ glyph, label }) {
 }
 
 function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
+                       enemyHitFlash, dmgFloaters,
                        hp, maxHp, block, energy, energyMax, hand, deck, discard, tray,
                        equipment, powers, relics, familiar, familiarName,
                        playerVulnerable, playerWeak,
@@ -3316,9 +3408,26 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
   const eff = enemy?.effectiveness || { chutzpah: 1, wit: 1, jnsq: 1, physical: 1 };
   const eff_label = (v) => v === 0 ? 'immune' : v >= 1.5 ? `×${v} susceptible` : v <= 0.5 ? `×${v} resistant` : `×${v}`;
   const eff_color = (v) => v === 0 ? 'bg-ink-500 text-parchment-300' : v >= 1.5 ? 'bg-moss-700 text-parchment-50' : v <= 0.5 ? 'bg-ember-800 text-parchment-100' : 'bg-ink-600 text-parchment-200';
+  // Hit-shake: re-key on every enemyHitFlash change so the animation
+  // restarts even on rapid consecutive hits.
+  const shakeClass = enemyHitFlash ? 'enemy-hit-shake' : '';
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
-      <div className="parchment-card-strong p-4">
+      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-4 relative ${shakeClass}`}>
+        {/* Damage floaters — composure (iris) and physical (ember). */}
+        {dmgFloaters && dmgFloaters.length > 0 && (
+          <div className="pointer-events-none absolute left-1/2 top-2 z-20">
+            {dmgFloaters.map(f => (
+              <div key={f.id}
+                className={`dmg-float absolute font-display font-bold text-3xl tabular-nums whitespace-nowrap drop-shadow-lg ${
+                  f.dmgType === 'physical' ? 'text-ember-300' : 'text-iris-200'
+                }`}
+                style={{ left: 0 }}>
+                −{f.amount}
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex justify-between items-start mb-2">
           <div>
             <div className="font-display text-3xl text-ember-300">{enemy?.name}</div>

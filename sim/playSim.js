@@ -50,6 +50,9 @@ const CARDS = [
   { id: 'w-dramatic-pause', name: 'Dramatic Pause', cost: 0, type: 'word', rarity: 'uncommon',
     stats: { chutzpah: 1, wit: 1, jnsq: 1 }, tags: ['theatrical', 'mystical'],
     effects: { draw: 1 } },
+  { id: 'w-corner-them', name: 'Corner Them', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 3 }, tags: ['threatening', 'dismissive'],
+    effects: { loseHp: 2 } },
 
   // ---- EFFECT CARDS (basic / starter) ----
   { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
@@ -104,6 +107,15 @@ const CARDS = [
   { id: 'e-paradox', name: 'A Functional Paradox', cost: 2, type: 'effect', rarity: 'rare',
     effect: { scaleBy: 'jnsq', base: 6, multiplier: 4, damageType: 'composure',
               rider: { vulnerable: 2 }, resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 3 } } },
+  // ---- ARCHETYPE-COMMITTING CARDS (cycle 4) ----
+  { id: 'e-go-for-the-throat', name: 'Go For The Throat', cost: 1, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
+              loseHpOnPlay: 3,
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
+  { id: 'e-cantrip-roulette', name: 'Cantrip Roulette', cost: 1, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 6, multiplier: 2, damageType: 'composure',
+              chance: { prob: 0.7, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } },
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 2 } } },
 
   // ---- SKILL CARDS ----
   { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
@@ -146,8 +158,9 @@ const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 const STARTER_DECK = [
   'w-respect', 'w-frankly', 'w-erm',
   'e-persuade', 'e-bluster', 'e-bewilder',
-  'e-spark', 'c-channel',
-  'c-defend', 'c-defend', 'c-defend',
+  'e-spark', 'e-sword-logic',
+  'c-channel',
+  'c-defend', 'c-defend',
 ];
 
 // --- ENEMIES ---
@@ -194,86 +207,86 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
   // ACT 2
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 7, weight: 3 },
+      { kind: 'attack', value: 5, weight: 3 },
       { kind: 'weak',   value: 1, weight: 2 },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 22, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack-multi', value: 3, count: 3, weight: 3 },
+      { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 6, weight: 1 },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 8, weight: 2 },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 10, weight: 2 },
-      { kind: 'attack-multi', value: 4, count: 3, weight: 1 },
+      { kind: 'attack', value: 8, weight: 2 },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
-      { kind: 'block',  value: 12, weight: 2 },
-      { kind: 'attack', value: 9, weight: 2 },
+      { kind: 'block',  value: 8, weight: 2 },
+      { kind: 'attack', value: 7, weight: 2 },
       { kind: 'weak',   value: 2, weight: 1 },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 80, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 65, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2 },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
+      { kind: 'attack', value: 8, weight: 2 },
+      { kind: 'attack-multi', value: 3, count: 4, weight: 2 },
       { kind: 'vulnerable', value: 2, weight: 1 },
-      { kind: 'block',  value: 15, weight: 1 },
+      { kind: 'block',  value: 10, weight: 1 },
     ] },
   // ACT 3
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 28, tier: 'normal',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 22, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.5, physical: 1.2 },
     behaviors: [
-      { kind: 'attack', value: 7, weight: 3 },
+      { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 8, weight: 1 },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
     behaviors: [
-      { kind: 'attack-multi', value: 3, count: 4, weight: 3 },
+      { kind: 'attack-multi', value: 2, count: 4, weight: 3 },
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 26, tier: 'normal',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
+    effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.3, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3 },
-      { kind: 'attack', value: 11, weight: 1 },
+      { kind: 'attack', value: 8, weight: 1 },
     ] },
-  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 12, weight: 2 },
-      { kind: 'block',  value: 15, weight: 2 },
-      { kind: 'attack-multi', value: 4, count: 3, weight: 1 },
+      { kind: 'attack', value: 9, weight: 2 },
+      { kind: 'block',  value: 10, weight: 2 },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 62, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 44, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 3 },
-      { kind: 'attack-multi', value: 5, count: 3, weight: 1 },
-      { kind: 'vulnerable', value: 2, weight: 1 },
+      { kind: 'attack', value: 10, weight: 3 },
+      { kind: 'attack-multi', value: 4, count: 3, weight: 1 },
+      { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
-  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 100, hpMax: 100, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 64, hpMax: 70, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 2 },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2 },
-      { kind: 'block',  value: 18, weight: 1 },
-      { kind: 'vulnerable', value: 3, weight: 1 },
+      { kind: 'attack', value: 10, weight: 2 },
+      { kind: 'attack-multi', value: 4, count: 3, weight: 1 },
+      { kind: 'block',  value: 8, weight: 1 },
+      { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
   // ACT 4
   { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
@@ -295,28 +308,28 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 2, weight: 2 },
       { kind: 'block',  value: 8, weight: 1 },
     ] },
-  { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 70, hpMax: 999, tier: 'elite',
+  { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 15, weight: 2 },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2 },
-      { kind: 'block',  value: 16, weight: 1 },
+      { kind: 'attack', value: 12, weight: 2 },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
+      { kind: 'block',  value: 12, weight: 1 },
     ] },
-  { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 64, hpMax: 999, tier: 'elite',
+  { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 14, weight: 2 },
-      { kind: 'vulnerable', value: 3, weight: 1 },
-      { kind: 'weak',   value: 3, weight: 1 },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 1 },
+      { kind: 'attack', value: 11, weight: 2 },
+      { kind: 'vulnerable', value: 2, weight: 1 },
+      { kind: 'weak',   value: 2, weight: 1 },
+      { kind: 'attack-multi', value: 3, count: 4, weight: 1 },
     ] },
-  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 130, hpMax: 999, tier: 'boss',
+  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 78, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     behaviors: [
-      { kind: 'attack', value: 16, weight: 2 },
-      { kind: 'attack-multi', value: 5, count: 5, weight: 2 },
-      { kind: 'block',  value: 20, weight: 1 },
-      { kind: 'vulnerable', value: 3, weight: 1 },
+      { kind: 'attack', value: 12, weight: 2 },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
+      { kind: 'block',  value: 10, weight: 1 },
+      { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
@@ -343,7 +356,7 @@ const MATERIAL_TEMPLATES = {
     { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', stats: { defense: 1, regen: 1, draw: 1 } },
     { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', stats: { defense: 1, regen: 2 } },
     { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', stats: { defense: 2, draw: 1 } },
-    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', stats: { defense: 4 } },
+    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', stats: { defense: 3 } },
   ],
   ring: [
     { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring', stats: { defense: 2 } },
@@ -368,7 +381,7 @@ const SKILL_MAX = 5;
 const STARTING_MAX_HP = 70;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
-const INTER_ACT_HEAL_RATIO = 0.25;
+const INTER_ACT_HEAL_RATIO = 0.40;
 
 // =============================================================================
 // 2. HELPERS
@@ -602,6 +615,17 @@ function applySideEffects(state, combat, fx) {
   if (fx.energy)     state.energy += fx.energy;
   if (fx.hp)         state.hp = clamp(state.hp + fx.hp, 0, state.maxHp);
   if (fx.draw)       drawCards(state, fx.draw);
+  // Cycle-4 archetype additions:
+  if (fx.loseHp)         state.hp = clamp(state.hp - fx.loseHp, 0, state.maxHp);
+  if (fx.selfWeak)       combat.playerWeak += fx.selfWeak;
+  if (fx.enemyVulnerable) combat.enemyVulnerable += fx.enemyVulnerable;
+}
+
+function applyChance(state, combat, chanceBlock) {
+  if (!chanceBlock) return;
+  const roll = Math.random();
+  const fired = roll < (chanceBlock.prob ?? 0.5) ? chanceBlock.success : chanceBlock.failure;
+  if (fired) applySideEffects(state, combat, fired);
 }
 
 function drawCards(state, n) {
@@ -656,6 +680,9 @@ function castSpell(state, combat) {
   if (rider.vulnerable) combat.enemyVulnerable += rider.vulnerable;
   if (rider.block)      state.block += rider.block;
   if (rider.draw)       drawCards(state, rider.draw);
+  // Cycle-4 archetype-card payloads.
+  if (eff.loseHpOnPlay)  state.hp = clamp(state.hp - eff.loseHpOnPlay, 0, state.maxHp);
+  if (eff.chance)        applyChance(state, combat, eff.chance);
 
   // Discard staged cards (skipping exhausts).
   for (const w of combat.tray.words) {
@@ -1002,9 +1029,39 @@ function simAct(state, act, runStats) {
       const pool = MATERIAL_TEMPLATES[slot] || [];
       const shuffled = shuffle(pool);
       const choices = shuffled.slice(0, Math.min(3, shuffled.length));
-      // Greedy: pick material with highest sum of stats relevant to the slot.
+      // Slot-aware scoring: each slot's mechanic values certain stats
+      // very differently. Per-turn ticks (energy, draw) scale across a
+      // run and beat raw defense over time; raw defense matters most
+      // when it's the only output (robes).
+      const scoreMaterial = (m) => {
+        const st = m.stats || {};
+        if (slot === 'ring') {
+          return (st.energy || 0) * 5
+               + (st.draw   || 0) * 3
+               + (st.defense || 0) * 0.5;
+        }
+        if (slot === 'robes') {
+          return (st.defense || 0) * 1.5
+               + (st.regen   || 0) * 1.5
+               + (st.draw    || 0) * 2;
+        }
+        if (slot === 'hat') {
+          return (st.defense || 0) * 1.5
+               + (st.draw    || 0) * 2
+               + (st.vuln    || 0) * 3;
+        }
+        if (slot === 'staff') {
+          return (st.chutzpah || 0) * 2
+               + (st.defense  || 0) * 1
+               + (st.regen    || 0) * 1
+               + (st.draw     || 0) * 1.5
+               + (st.dot      || 0) * 1.5
+               + (st.jnsq     || 0) * 0.5;
+        }
+        return Object.values(st).reduce((s, v) => s + v, 0);
+      };
       const chosen = choices.reduce((best, m) => {
-        const score = Object.values(m.stats || {}).reduce((s, v) => s + v, 0);
+        const score = scoreMaterial(m);
         return !best || score > best.score ? { mat: m, score } : best;
       }, null);
       if (chosen) {
