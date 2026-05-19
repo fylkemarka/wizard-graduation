@@ -680,7 +680,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
-  { id: 'e3-boss-geode', act: 3, name: 'The Awakened Geode', composureMax: 100, hpMax: 100, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 3, name: 'The Anvil-Forged', composureMax: 100, hpMax: 100, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13' },
@@ -724,8 +724,8 @@ const ENEMIES = [
       { kind: 'weak',   value: 3, weight: 1, telegraph: '🌀 Weak 3' },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
     ] },
-  { id: 'e4-boss-headmaster', act: 4, name: "The Headmaster's Shadow", composureMax: 130, hpMax: 999, tier: 'boss',
-    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 0.5 },
+  { id: 'e4-boss-headmasters-hat', act: 4, name: "The Headmaster's Hat", composureMax: 130, hpMax: 999, tier: 'boss',
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     behaviors: [
       { kind: 'attack', value: 16, weight: 2, telegraph: '⚔ 16' },
       { kind: 'attack-multi', value: 5, count: 5, weight: 2, telegraph: '⚔ 5×5' },
@@ -748,6 +748,12 @@ const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
 // Equipment per slot with full tier ladders. `bonus` keys are read by the
 // combat loop at appropriate hooks (start-of-combat, damage calc, etc.).
+// Equipment data — placeholder Master-tier entries used by the
+// current boss-grant flow. These exist as stat-stick fallbacks while
+// the new crafting system is being built; once Commit 3 lands the
+// boss flow routes through the crafting screen instead and these
+// entries are reduced to "if the player skipped everything" defaults.
+// `gem` data is kept as an orphan reference (no act maps to it).
 const EQUIPMENT = {
   staff: {
     basic:  { id: 'eq-staff-basic',  name: 'Apprentice Staff',  bonus: { strikeBonus: 1 }, desc: '+1 damage on Strike.' },
@@ -759,15 +765,22 @@ const EQUIPMENT = {
     fine:   { id: 'eq-robes-fine',   name: 'Woven Robes',       bonus: { startBlock: 6 }, desc: 'Gain 6 Block at the start of every combat.' },
     master: { id: 'eq-robes-master', name: 'Master Robes',      bonus: { startBlock: 10 }, desc: 'Gain 10 Block at the start of every combat.' },
   },
-  gem: {
-    basic:  { id: 'eq-gem-basic',    name: 'Rough Gem',         bonus: { maxHp: 8 }, desc: '+8 max HP.' },
-    fine:   { id: 'eq-gem-fine',     name: 'Cut Gem',           bonus: { maxHp: 15 }, desc: '+15 max HP.' },
-    master: { id: 'eq-gem-master',   name: 'Master Gem',        bonus: { maxHp: 20, healOnCombatStart: 3 }, desc: '+20 max HP. Heal 3 HP at start of every combat.' },
-  },
   ring: {
     basic:  { id: 'eq-ring-basic',   name: 'Apprentice Ring',   bonus: { extraStartHand: 1 }, desc: 'Draw 1 extra card on turn 1.' },
     fine:   { id: 'eq-ring-fine',    name: 'Journeyman Ring',   bonus: { energyOnCombatStart: 1 }, desc: '+1 Energy on turn 1 of every combat.' },
     master: { id: 'eq-ring-master',  name: 'Master Ring',       bonus: { permanentEnergyBonus: 1 }, desc: '+1 Energy every turn (permanent).' },
+  },
+  hat: {
+    basic:  { id: 'eq-hat-basic',    name: 'Apprentice Cap',    bonus: { extraStartHand: 1 }, desc: 'Draw 1 extra card on turn 1.' },
+    fine:   { id: 'eq-hat-fine',     name: 'Journeyman Hat',    bonus: { healOnCombatStart: 2 }, desc: 'Heal 2 HP at start of every combat.' },
+    master: { id: 'eq-hat-master',   name: 'Master Hat',        bonus: { healOnCombatStart: 4, extraStartHand: 1 }, desc: 'Heal 4 HP and draw +1 on turn 1 of every combat.' },
+  },
+  // Orphan — the gem slot was retired in favour of ring/hat. Data kept
+  // for possible future reuse (alternate equipment paths, etc.).
+  gem: {
+    basic:  { id: 'eq-gem-basic',    name: 'Rough Gem',         bonus: { maxHp: 8 }, desc: '+8 max HP.' },
+    fine:   { id: 'eq-gem-fine',     name: 'Cut Gem',           bonus: { maxHp: 15 }, desc: '+15 max HP.' },
+    master: { id: 'eq-gem-master',   name: 'Master Gem',        bonus: { maxHp: 20, healOnCombatStart: 3 }, desc: '+20 max HP. Heal 3 HP at start of every combat.' },
   },
 };
 
@@ -855,31 +868,39 @@ const EVENTS = [
   },
 ];
 
-// Acts — each is one slot of equipment, with escalating difficulty.
+// Acts — four paths, one per equipment slot, with escalating
+// difficulty. All four are ~15 rows long because Material and Skill
+// nodes (Commit 2) need room to compete with combat for the player's
+// path budget. Slot order: staff → robes → ring → hat.
 const ACTS = [
   { id: 1, slot: 'staff', name: 'The Staff Path',
     flavor: 'You set out to claim your staff. The further you push, the better the wood.',
-    rows: 7, width: 4,
+    rows: 15, width: 4,
     bossId: 'e1-boss-thornlord',
+    craft: 'whittling',
   },
   { id: 2, slot: 'robes', name: 'The Thread Path',
     flavor: 'Threads, looms, and the things that walk between them. The right robes find the right wearer.',
-    rows: 8, width: 4,
+    rows: 15, width: 4,
     bossId: 'e2-boss-tapestry',
+    craft: 'weaving',
   },
-  { id: 3, slot: 'gem',   name: 'The Stone Path',
-    flavor: 'The deep places remember every footstep. The gem you carry out is the gem that wanted out.',
-    rows: 8, width: 4,
-    bossId: 'e3-boss-geode',
+  { id: 3, slot: 'ring',  name: 'The Forge Path',
+    flavor: 'Coal, anvil, and a metal with opinions of its own. A ring earned at the forge fits no other hand.',
+    rows: 15, width: 4,
+    bossId: 'e3-boss-anvil',
+    craft: 'smithing',
   },
-  { id: 4, slot: 'ring',  name: 'The Forge Path',
-    flavor: 'Your final ring waits beyond a mentor you have not yet met. The school will know if you return without it.',
-    rows: 9, width: 4,
-    bossId: 'e4-boss-headmaster',
+  { id: 4, slot: 'hat',   name: "The Milliner's Path",
+    flavor: "The hat does not, in itself, want to be worn. It does, however, have very specific opinions about by whom. The school will know if you return bareheaded.",
+    rows: 15, width: 4,
+    bossId: 'e4-boss-headmasters-hat',
+    craft: 'blocking',
   },
 ];
 
-const SLOT_LABEL = { staff: 'Staff', robes: 'Robes', gem: 'Gem', ring: 'Ring' };
+const SLOT_LABEL = { staff: 'Staff', robes: 'Robes', ring: 'Ring', hat: 'Hat', gem: 'Gem' };
+const CRAFT_LABEL = { whittling: 'Whittling', weaving: 'Weaving', smithing: 'Smithing', blocking: 'Blocking' };
 
 // =============================================================================
 // 2. HELPERS

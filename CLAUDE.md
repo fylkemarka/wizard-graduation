@@ -74,9 +74,10 @@ Mechanics **dropped** vs Arcane Workshop:
   ring. Bonus payload keys: `strikeBonus`, `startBlock`, `maxHp`,
   `healOnCombatStart`, `extraStartHand`, `energyOnCombatStart`,
   `permanentEnergyBonus`. Read by combat loop at the right hooks
-- **Acts 1-4** — Staff Path / Thread Path / Stone Path / Forge Path. Each
-  has its own enemy pool (filtered via `enemy.act`), unique boss, and
-  master-tier reward
+- **Acts 1-4** — Staff Path / Thread Path / Forge Path / Milliner's Path.
+  Each has its own enemy pool (filtered via `enemy.act`), unique boss,
+  and Master-tier equipment reward. Slot order: staff → robes → ring →
+  hat. Each act is ~15 rows long.
 - **Run chain** — boss kill → `act-cleared` screen → advanceToNextAct →
   next act's map. Heals 25% max HP between acts. Final act → graduation
 - **Equipment progression** — staff/robe/gem/ring are Master tier only,
@@ -94,7 +95,7 @@ Mechanics **dropped** vs Arcane Workshop:
   remaining slots for variety. Each has `act` (1-4) and `tier` (normal /
   elite / boss). Stats scale: act 1 ~20 HP enemies, act 4 ~70 HP elites,
   bosses 60→80→100→130
-- `EQUIPMENT` — full 3-tier ladders for all 4 slots
+- `EQUIPMENT` — staff / robes / ring / hat at 3 tiers each (basic / fine / master). The auto-Master-on-boss flow uses Master tier here as a placeholder while the crafting system (planned: gather materials + skills along the act → crafting minigame at boss kill → equipment card enters deck) is being built. Gem slot data orphaned for possible reuse.
 - `EVENTS` — 8 events with 2-3 choice payloads
 - `ACTS` — 4 acts with `id`, `slot`, `name`, `flavor`, `rows`, `width`,
   `bossId`
