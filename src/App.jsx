@@ -1054,7 +1054,7 @@ const SKILL_EVENTS = [
     title: 'A Mossy Whittling Block',
     flavor: 'A sturdy stump, a half-finished blank, and a knife with sentimental fingerprints. Someone left, presumably, before they were finished.',
     choices: [
-      { label: 'Practice the long curve. (+2 Whittling, -3 HP)',             effects: { skill: { whittling: 2 }, loseHp: 3 } },
+      { label: 'Practice the long curve. (+2 Whittling, -8 HP)',             effects: { skill: { whittling: 2 }, loseHp: 8 } },
       { label: 'Carve until your hands cramp. (+4 Whittling, -4 max HP)',    effects: { skill: { whittling: 4 }, maxHp: -4 } },
       { label: 'Pocket the knife. Walk on. (+6 HP)',                          effects: { heal: 6 } },
     ],
@@ -1065,7 +1065,7 @@ const SKILL_EVENTS = [
     title: "Old Greb the Whittler",
     flavor: 'An old man sits beside the path, working a length of yew into a shape that does not declare itself. "Sit a while," he says. "I\'ll show you the trick. The trick is not what you think it is."',
     choices: [
-      { label: 'Watch the trick. (+2 Whittling, -3 HP)',                     effects: { skill: { whittling: 2 }, loseHp: 3 } },
+      { label: 'Watch the trick. (+2 Whittling, -8 HP)',                     effects: { skill: { whittling: 2 }, loseHp: 8 } },
       { label: 'Sit for a long lesson. (+4 Whittling, -4 max HP)',           effects: { skill: { whittling: 4 }, maxHp: -4 } },
       { label: 'Decline. Old Greb gives you something instead. (+1 Common card)', effects: { gainCommonCard: 1 } },
     ],
@@ -1076,7 +1076,7 @@ const SKILL_EVENTS = [
     title: 'A Roadside Loom',
     flavor: 'It hums. Looms are not supposed to hum. This one is, apparently, an exception.',
     choices: [
-      { label: 'Sit and practice. (+2 Weaving, -3 HP)',                      effects: { skill: { weaving: 2 }, loseHp: 3 } },
+      { label: 'Sit and practice. (+2 Weaving, -8 HP)',                      effects: { skill: { weaving: 2 }, loseHp: 8 } },
       { label: 'Try the difficult cross-warp. (+4 Weaving, -4 max HP)',      effects: { skill: { weaving: 4 }, maxHp: -4 } },
       { label: 'Step around it carefully. (+5 HP, it was warmer than it looked)', effects: { heal: 5 } },
     ],
@@ -1087,7 +1087,7 @@ const SKILL_EVENTS = [
     title: 'The Sewing Circle',
     flavor: 'Three women sit on a fence in a row. None of them speak. All of them sew. It is an enormous sock and they appear to be on the third foot.',
     choices: [
-      { label: 'Join in. (+2 Weaving, -3 HP)',                               effects: { skill: { weaving: 2 }, loseHp: 3 } },
+      { label: 'Join in. (+2 Weaving, -8 HP)',                               effects: { skill: { weaving: 2 }, loseHp: 8 } },
       { label: 'Stay until the fourth foot. (+4 Weaving, -4 max HP)',        effects: { skill: { weaving: 4 }, maxHp: -4 } },
       { label: 'Ask whose foot it is. (+1 Uncommon card)',                   effects: { gainUncommonCard: 1 } },
     ],
@@ -1098,7 +1098,7 @@ const SKILL_EVENTS = [
     title: 'A Travelling Forge',
     flavor: 'Coal smoke and a stranger pounding a hot bar into a shape you cannot, in the moment, identify. "Hold this," they say, before you have agreed to anything.',
     choices: [
-      { label: 'Hold it. Carefully. (+2 Smithing, -3 HP)',                   effects: { skill: { smithing: 2 }, loseHp: 3 } },
+      { label: 'Hold it. Carefully. (+2 Smithing, -8 HP)',                   effects: { skill: { smithing: 2 }, loseHp: 8 } },
       { label: 'Try the hammer yourself. (+4 Smithing, -4 max HP)',          effects: { skill: { smithing: 4 }, maxHp: -4 } },
       { label: 'Politely decline. (+1 Common card from the cart)',           effects: { gainCommonCard: 1 } },
     ],
@@ -1109,7 +1109,7 @@ const SKILL_EVENTS = [
     title: 'A Cooling Anvil',
     flavor: 'An anvil sits alone in a clearing, faintly warm. Around it: tongs, hammers, a kettle, and a brief note: BACK SHORTLY. PLEASE NO BANGING.',
     choices: [
-      { label: 'Bang on it once, quietly. (+2 Smithing, -3 HP)',             effects: { skill: { smithing: 2 }, loseHp: 3 } },
+      { label: 'Bang on it once, quietly. (+2 Smithing, -8 HP)',             effects: { skill: { smithing: 2 }, loseHp: 8 } },
       { label: 'Bang loudly. Take the consequences. (+4 Smithing, -4 max HP)', effects: { skill: { smithing: 4 }, maxHp: -4 } },
       { label: 'Read the note. Use the kettle. (+8 HP)',                     effects: { heal: 8 } },
     ],
@@ -1120,7 +1120,7 @@ const SKILL_EVENTS = [
     title: "A Milliner's Block",
     flavor: 'A wooden hat-block sits on a stump, slightly damp, alarmingly head-shaped. There are pins around it in the manner of a small ritual.',
     choices: [
-      { label: 'Try a quick brimming exercise. (+2 Felting, -3 HP)',        effects: { skill: { felting: 2 }, loseHp: 3 } },
+      { label: 'Try a quick brimming exercise. (+2 Felting, -8 HP)',        effects: { skill: { felting: 2 }, loseHp: 8 } },
       { label: 'Block a felt with serious intent. (+4 Felting, -4 max HP)', effects: { skill: { felting: 4 }, maxHp: -4 } },
       { label: 'Tip your invisible hat at it. (+1 Common card)',             effects: { gainCommonCard: 1 } },
     ],
@@ -1131,7 +1131,7 @@ const SKILL_EVENTS = [
     title: 'The Old Hatter',
     flavor: '"It\'s about the brim," he tells you, before you have asked. "Everyone gets the crown right. The brim is where the wizard is."',
     choices: [
-      { label: 'Study his brim work. (+2 Felting, -3 HP)',                  effects: { skill: { felting: 2 }, loseHp: 3 } },
+      { label: 'Study his brim work. (+2 Felting, -8 HP)',                  effects: { skill: { felting: 2 }, loseHp: 8 } },
       { label: 'Become an apprentice for the afternoon. (+4 Felting, -4 max HP)', effects: { skill: { felting: 4 }, maxHp: -4 } },
       { label: 'Argue about crowns. He throws you a hat. (+1 Uncommon card)', effects: { gainUncommonCard: 1 } },
     ],
@@ -1146,9 +1146,9 @@ const SKILL_EVENTS = [
     title: 'A Crossroads Workshop',
     flavor: 'A tarp, a folding chair, and a sign: HALF AN HOUR\'S TUITION — PICK A CRAFT. The proprietor is asleep.',
     choices: [
-      { label: '(Practice your weaving, if still relevant) (+2 Weaving, -3 HP)',   effects: { skill: { weaving: 2 }, loseHp: 3 } },
-      { label: '(Practice your smithing, if still relevant) (+2 Smithing, -3 HP)', effects: { skill: { smithing: 2 }, loseHp: 3 } },
-      { label: '(Practice your felting, if still relevant) (+2 Felting, -3 HP)',   effects: { skill: { felting: 2 }, loseHp: 3 } },
+      { label: '(Practice your weaving, if still relevant) (+2 Weaving, -8 HP)',   effects: { skill: { weaving: 2 }, loseHp: 8 } },
+      { label: '(Practice your smithing, if still relevant) (+2 Smithing, -8 HP)', effects: { skill: { smithing: 2 }, loseHp: 8 } },
+      { label: '(Practice your felting, if still relevant) (+2 Felting, -8 HP)',   effects: { skill: { felting: 2 }, loseHp: 8 } },
       { label: 'Leave the proprietor to it. (+6 HP, +1 Common card)',      effects: { heal: 6, gainCommonCard: 1 } },
     ],
   },
