@@ -1972,8 +1972,33 @@ export default function App() {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
       let raw = intent.value;
       if (enemyWeak > 0) raw = Math.floor(raw * 0.75);
-      for (let i = 0; i < hits; i++) applyDamageToPlayer(raw);
+      const reduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0);
+      // Apply all hits in one batched pass over local working state.
+      // Earlier this used applyDamageToPlayer in a for-loop, but each
+      // call read block/hp from the closure — so subsequent hits saw
+      // the pre-attack state and only one hit effectively landed
+      // against blocked / armored players. Multi-attack bosses now
+      // resolve correctly.
+      let wBlock = block;
+      let wHp = hp;
+      for (let i = 0; i < hits; i++) {
+        let remaining = raw;
+        if (playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
+        if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
+        if (wBlock > 0) {
+          const absorbed = Math.min(wBlock, remaining);
+          wBlock -= absorbed; remaining -= absorbed;
+        }
+        wHp = Math.max(0, wHp - remaining);
+        if (wHp <= 0) break;
+      }
+      setBlock(wBlock);
+      setHp(wHp);
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
+      if (wHp <= 0) {
+        if (tutorialActive) { setHp(maxHp); return; }
+        setTimeout(() => setStage('defeat'), 200);
+      }
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
@@ -1986,12 +2011,13 @@ export default function App() {
     }
   }
 
+  // Single-hit incoming damage path — used by anything that's NOT an
+  // enemy intent (e.g., self-damage from loseHp event choices). Multi-
+  // attacks resolve inline in applyEnemyIntent to avoid the closure-
+  // stale-state bug; if you call this in a loop you'll get the same bug.
   function applyDamageToPlayer(damage) {
     let remaining = damage;
     if (playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
-    // Flat damageReduction from effect sources (Beetle familiar etc.).
-    // Floored so a hit always deals at least 1 — Beetle is meant to chip,
-    // not no-sell encounters.
     const reduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0);
     if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
     let newBlock = block;
@@ -2003,8 +2029,6 @@ export default function App() {
     newHp = Math.max(0, newHp - remaining);
     setBlock(newBlock); setHp(newHp);
     if (newHp <= 0) {
-      // In the tutorial we never let the player die — the Bursar isn't
-      // out for blood. Restore HP and continue.
       if (tutorialActive) { setHp(maxHp); return; }
       setTimeout(() => setStage('defeat'), 200);
     }
