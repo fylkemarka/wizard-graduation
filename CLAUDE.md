@@ -83,11 +83,24 @@ Mechanics **dropped** vs Arcane Workshop:
   hat. Each act is ~15 rows long.
 - **Run chain** — boss kill → `act-cleared` screen → advanceToNextAct →
   next act's map. Heals 25% max HP between acts. Final act → graduation
-- **Equipment progression** — staff/robe/gem/ring are Master tier only,
-  granted on each act's boss kill. The basic and fine tiers in
-  `EQUIPMENT[slot]` are kept in the data table but currently unreachable
-  (no forge nodes route to them). They're handy if we ever reintroduce
-  alternate equipment paths.
+- **Equipment progression — crafting system (live)** — at boss kill the
+  player routes through a 3-phase crafting screen: pick a primary material
+  from the act's `inventory[slot]`, play a gauge-timing minigame (target
+  zones widen with the act's craft skill level), and confirm the resulting
+  output. Per-slot output shape:
+  - Staff → drawable **Effect card** added to the deck (cost 2, scales by
+    chutzpah, resonance tags derived from material stats)
+  - Hat → drawable **Power card** added to the deck (cost 1, start-of-turn
+    Block + Draw based on material/quality)
+  - Robes → **stat-stick equipment** (start-of-combat Block, optional HP
+    regen rider). Permanent install via existing `bonus.startBlock` path.
+  - Ring → **stat-stick equipment** with per-turn tick (energy / draw /
+    block at combat start). Permanent via existing bonus keys.
+  Quality multipliers: Rough 0.5×, Fine 1.0×, Master 1.5×. If the player
+  brought nothing, a Salvaged Scrap is dropped by the boss and the result
+  is forced Rough.
+  Legacy `EQUIPMENT[slot]` table (basic/fine/master stat-sticks) is kept
+  as data but no longer referenced by the boss-grant flow.
 - **Events** — 8 starter events covering heal / loseHp / maxHp / random
   card by rarity
 

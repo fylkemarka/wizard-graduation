@@ -37,7 +37,7 @@
 //   healOnCombatStart      — +N HP at start of every combat
 //   extraStartHand         — +N to the turn-1 draw (per combat)
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 // =============================================================================
@@ -1100,6 +1100,157 @@ function upgradeCard(card) {
   return next;
 }
 
+// Crafting output factory. Takes the chosen material + quality grade
+// + skill level and produces either a CARD (for staff/hat — goes into
+// the deck) or a stat-stick EQUIPMENT (for robes/ring — goes into the
+// equipment[] slot). The two output shapes correspond to the per-slot
+// mechanic decided in the design memo:
+//   staff = one-shot drawable Effect
+//   hat   = drawable Power
+//   robes = permanent install via equipment bonus
+//   ring  = per-turn tick via equipment bonus
+//
+// Quality multipliers: rough 0.5, fine 1.0, master 1.5.
+const QUALITY_MULT = { rough: 0.5, fine: 1.0, master: 1.5 };
+const QUALITY_LABEL = { rough: 'Rough', fine: 'Fine', master: 'Master' };
+
+function buildCraftedEquipment({ slot, material, quality, skill }) {
+  const q = QUALITY_MULT[quality] ?? 1.0;
+  const qLabel = QUALITY_LABEL[quality] || 'Fine';
+  const matStats = material.stats || {};
+  const mult = (v) => Math.max(1, Math.round((v || 0) * q));
+  const namePrefix = `${qLabel} ${material.name}`;
+  const craftedMeta = { slot, materialId: material.id, quality, skill };
+
+  if (slot === 'staff') {
+    // Drawable Effect card. Scales by chutzpah (the staff's primary).
+    // Resonance derives from material's flavor stats.
+    const baseAtk = mult(8 + (matStats.chutzpah || 0) * 2);
+    const multAtk = mult(2 + (matStats.chutzpah || 0));
+    const resonatesWith = [];
+    if ((matStats.chutzpah || 0) >= 2) resonatesWith.push('booming');
+    if ((matStats.defense || 0) >= 1)  resonatesWith.push('formal');
+    if ((matStats.jnsq || 0)    >= 1)  resonatesWith.push('absurd');
+    if ((matStats.dot || 0)     >= 1)  resonatesWith.push('threatening');
+    if (resonatesWith.length === 0)    resonatesWith.push('dismissive');
+    return {
+      kind: 'card',
+      card: {
+        id: `eq-staff-${material.id}-${quality}`,
+        name: `${namePrefix} Staff`,
+        cost: 2,
+        type: 'effect',
+        rarity: 'rare',
+        effect: {
+          scaleBy: 'chutzpah',
+          base: baseAtk,
+          multiplier: multAtk,
+          damageType: 'composure',
+          resonatesWith,
+          resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
+          exhaust: false,
+        },
+        phrase: '…and that is what the Staff says, and the Staff does not say it twice.',
+        desc: `Cast: ${baseAtk} + Chutzpah×${multAtk} Composure.`,
+        flavor: material.flavor,
+        crafted: craftedMeta,
+      },
+    };
+  }
+  if (slot === 'hat') {
+    // Drawable Power. Effects compound during the combat in which
+    // it's played. Material's primary stat shapes the bonus.
+    const startBlock = mult(2 + (matStats.defense || 0));
+    const turnDraw = (matStats.draw || 0) > 0 || quality === 'master' ? 1 : 0;
+    const witTick = mult(matStats.wit || 0);
+    const power = { startOfTurn: {} };
+    if (startBlock > 0) power.startOfTurn.block = startBlock;
+    if (turnDraw > 0)   power.startOfTurn.draw  = turnDraw;
+    // Wit-leaning hats grant an in-combat Power that adds Wit each turn
+    // to the spell tray via... we don't have a direct hook for that yet.
+    // For C3 the hat sticks to Block + Draw on turn start; richer
+    // hooks are easy to add later.
+    const descParts = [];
+    if (startBlock > 0) descParts.push(`+${startBlock} Block`);
+    if (turnDraw > 0)   descParts.push(`draw +${turnDraw}`);
+    return {
+      kind: 'card',
+      card: {
+        id: `eq-hat-${material.id}-${quality}`,
+        name: `${namePrefix} Hat`,
+        cost: 1,
+        type: 'power',
+        rarity: 'rare',
+        power,
+        desc: `At the start of each turn: ${descParts.join(', ') || 'nothing happens (this is a Rough hat)'}.`,
+        flavor: material.flavor,
+        crafted: craftedMeta,
+      },
+    };
+  }
+  if (slot === 'robes') {
+    // Permanent install via the existing equipment bonus shape. Block
+    // at combat start is the bread-and-butter; material adds riders.
+    const startBlock = mult(4 + (matStats.defense || 0) * 2);
+    const regen = matStats.regen || 0;
+    const bonus = { startBlock };
+    if (regen > 0) bonus.healOnCombatStart = mult(regen * 2);
+    const descParts = [`Gain ${startBlock} Block at the start of every combat`];
+    if (bonus.healOnCombatStart) descParts.push(`Heal ${bonus.healOnCombatStart} HP`);
+    return {
+      kind: 'equipment',
+      equipment: {
+        id: `eq-robes-${material.id}-${quality}`,
+        name: `${namePrefix} Robes`,
+        bonus,
+        desc: descParts.join('. ') + '.',
+        flavor: material.flavor,
+        crafted: craftedMeta,
+      },
+    };
+  }
+  if (slot === 'ring') {
+    // Per-turn stat tick via the existing energy / draw / start-block
+    // bonus keys. Material's primary stat picks which tick the ring
+    // emphasizes.
+    const bonus = {};
+    if ((matStats.energy || 0) > 0)  bonus.permanentEnergyBonus = quality === 'master' ? 1 : 0;
+    if ((matStats.draw || 0)   > 0)  bonus.extraStartHand       = 1 + (quality === 'master' ? 1 : 0);
+    if ((matStats.defense || 0) > 0) bonus.startBlock           = mult(2 + matStats.defense);
+    // If material had none of the above, fall back to a small block
+    // bonus so the ring isn't a dead slot.
+    if (Object.keys(bonus).length === 0) bonus.startBlock = mult(3);
+    const descParts = [];
+    if (bonus.permanentEnergyBonus) descParts.push(`+${bonus.permanentEnergyBonus} Energy per turn (permanent)`);
+    if (bonus.extraStartHand)       descParts.push(`draw +${bonus.extraStartHand} on turn 1`);
+    if (bonus.startBlock)           descParts.push(`+${bonus.startBlock} Block at combat start`);
+    return {
+      kind: 'equipment',
+      equipment: {
+        id: `eq-ring-${material.id}-${quality}`,
+        name: `${namePrefix} Ring`,
+        bonus,
+        desc: descParts.join('. ') + '.',
+        flavor: material.flavor,
+        crafted: craftedMeta,
+      },
+    };
+  }
+  return null;
+}
+
+// Pathetic salvage material used when the player gathered nothing for
+// this act's slot. Boss-drop fallback; forces Rough quality.
+function salvageMaterial(slot) {
+  return {
+    id: `salvage-${slot}`,
+    name: 'Salvaged Scrap',
+    slot,
+    flavor: 'You found it on the boss. Frankly, you wish you had not.',
+    stats: { defense: 1 },
+  };
+}
+
 function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = []) {
   const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id));
   if (pool.length === 0) return null;
@@ -1305,6 +1456,12 @@ export default function App() {
   const [materialChoices, setMaterialChoices] = useState(null);
   // The skill event currently being resolved. null = not on a skill node.
   const [activeSkillEvent, setActiveSkillEvent] = useState(null);
+  // Crafting screen prompt — set when the act's boss is defeated and the
+  // crafting flow opens. Shape:
+  //   { slot, materials: [], skill: N, phase: 'choose' | 'gauge' | 'result',
+  //     chosenMaterial: matObj | null, quality: 'rough'|'fine'|'master' | null,
+  //     gaugeWidth: 0-1, result: cardObj | null }
+  const [craftingPrompt, setCraftingPrompt] = useState(null);
   // Card-upgrade picker at rest sites. When set, shows the deck and lets
   // the player pick one non-upgraded card to upgrade.
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -2372,15 +2529,14 @@ export default function App() {
       }
     }
     if (isBoss) {
-      // Boss kill → grant Master tier for this act's slot.
+      // Boss kill — route to the crafting screen. The act's gathered
+      // inventory + skill is bundled into the prompt; if the inventory
+      // is empty, a salvaged scrap is dropped by the boss so the act
+      // never feels broken. Crafting confirms → act-cleared.
       const slot = currentAct.slot;
-      const master = EQUIPMENT[slot]?.master;
-      if (master && !equipment.find(eq => eq.id === master.id)) {
-        const next = [...equipment, master];
-        setEquipment(next);
-        applyEquipmentMaxHp(master);
-        pushLog(`👑 Master ${SLOT_LABEL[slot]} claimed: ${master.name}.`);
-      }
+      const skillName = currentAct.craft;
+      const gathered = inventory[slot] || [];
+      const materials = gathered.length > 0 ? gathered : [salvageMaterial(slot)];
       // Plus a random Rare relic from the boss chest. Skip duplicates.
       const rareRelic = pickRelicByRarity({ rare: 1 }, relics.map(r => r.id));
       if (rareRelic) {
@@ -2389,7 +2545,19 @@ export default function App() {
       }
       setDeck(d => [...d, ...hand, ...discard, ...exiled]);
       setHand([]); setDiscard([]); setExiled([]);
-      setStage('act-cleared');
+      pushLog(`👑 ${enemy.name} falls. Time to craft your ${SLOT_LABEL[slot]}.`);
+      setCraftingPrompt({
+        slot,
+        skillName,
+        materials,
+        skill: skills[skillName] || 0,
+        phase: 'choose',
+        chosenMaterial: null,
+        quality: null,
+        result: null,
+        salvaged: gathered.length === 0,
+      });
+      setStage('crafting');
       return;
     }
     // Elite kill → grant a random common/uncommon relic (no choice for MVP).
@@ -2486,6 +2654,61 @@ export default function App() {
     returnToMap();
   }
 
+  // Crafting screen handlers. Three phases — choose / gauge / result —
+  // tracked on craftingPrompt.phase. Confirm at the end commits the
+  // crafted output (card or equipment) and routes to act-cleared.
+  function craftingPickMaterial(materialId) {
+    if (!craftingPrompt) return;
+    const m = craftingPrompt.materials.find(x => x.id === materialId);
+    if (!m) return;
+    setCraftingPrompt(prev => ({ ...prev, chosenMaterial: m, phase: 'gauge' }));
+  }
+
+  // Called when the gauge minigame locks in. Position 0..1; target is
+  // centered around 0.5 with width that grows with skill.
+  function craftingResolveGauge(position) {
+    if (!craftingPrompt) return;
+    const skill = craftingPrompt.skill || 0;
+    // Master zone: ±(0.06 + skill * 0.025) → 0.06 (skill 0) to 0.185 (skill 5)
+    // Fine zone:   ±(0.18 + skill * 0.04)  → 0.18 (skill 0) to 0.38 (skill 5)
+    const masterRadius = 0.06 + skill * 0.025;
+    const fineRadius   = 0.18 + skill * 0.04;
+    const offset = Math.abs(position - 0.5);
+    const quality = craftingPrompt.salvaged ? 'rough'
+                  : offset <= masterRadius   ? 'master'
+                  : offset <= fineRadius     ? 'fine'
+                  :                            'rough';
+    const built = buildCraftedEquipment({
+      slot: craftingPrompt.slot,
+      material: craftingPrompt.chosenMaterial,
+      quality,
+      skill,
+    });
+    setCraftingPrompt(prev => ({ ...prev, phase: 'result', quality, result: built }));
+  }
+
+  // Commit the crafted output — card to deck, equipment to equipment slot.
+  // Clear the act's inventory for that slot (materials are spent) and
+  // route to act-cleared.
+  function craftingConfirm() {
+    if (!craftingPrompt || !craftingPrompt.result) return;
+    const r = craftingPrompt.result;
+    if (r.kind === 'card') {
+      setDeck(d => [...d, { ...r.card, uid: uid() }]);
+      pushLog(`🛠 Crafted: ${r.card.name} — added to your deck.`);
+    } else if (r.kind === 'equipment') {
+      setEquipment(prev => [...prev, r.equipment]);
+      applyEquipmentMaxHp(r.equipment);
+      pushLog(`🛠 Crafted: ${r.equipment.name}.`);
+    }
+    // Spend materials for this slot (rest are kept for narrative? no —
+    // simpler to clear: they were used in the workshop or set aside).
+    const slot = craftingPrompt.slot;
+    setInventory(prev => ({ ...prev, [slot]: [] }));
+    setCraftingPrompt(null);
+    setStage('act-cleared');
+  }
+
   function resolveRestChoice(kind) {
     if (kind === 'heal') {
       const amount = Math.floor(maxHp * 0.3);
@@ -2546,6 +2769,12 @@ export default function App() {
   if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
   if (stage === 'material-choose') return <MaterialChooseScreen prompt={materialChoices} onPick={claimMaterial} onSkip={skipMaterial} />;
   if (stage === 'skill-event') return <SkillEventScreen event={activeSkillEvent} skills={skills} onChoose={resolveSkillChoice} />;
+  if (stage === 'crafting') return <CraftingScreen
+    prompt={craftingPrompt}
+    onPickMaterial={craftingPickMaterial}
+    onResolveGauge={craftingResolveGauge}
+    onConfirm={craftingConfirm}
+  />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
@@ -3507,6 +3736,161 @@ function SkillEventScreen({ event, skills, onChoose }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// CRAFTING SCREEN — three phases (choose material → gauge → result).
+// `prompt` shape:
+//   { slot, skillName, materials, skill, phase, chosenMaterial,
+//     quality, result, salvaged }
+function CraftingScreen({ prompt, onPickMaterial, onResolveGauge, onConfirm }) {
+  if (!prompt) return null;
+  const { slot, skillName, materials, skill, phase, chosenMaterial, quality, result, salvaged } = prompt;
+  const slotLabel = SLOT_LABEL[slot] || slot;
+  const craftLabel = CRAFT_LABEL[skillName] || skillName;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-4 max-w-5xl mx-auto">
+      <h2 className="font-display text-4xl text-gold-300 text-center">
+        {SLOT_EMOJI[slot]} The {slotLabel} Workshop
+      </h2>
+      <div className="text-base text-parchment-300 italic text-center max-w-xl">
+        {salvaged
+          ? `You arrive with nothing in hand. The boss had this, ${slotLabel === 'Robes' ? 'wrapped around a regret' : 'shoved into a corner'}. It will have to do.`
+          : `Your gather, on the bench. Your ${craftLabel} skill, in your hands. Make the thing.`}
+      </div>
+      <div className="text-sm text-moss-300">
+        {craftLabel} skill: <b>{skill}</b> / {SKILL_MAX}
+        {skill === 0 && <span className="text-parchment-400 italic"> — untrained. The gauge will be narrow.</span>}
+      </div>
+
+      {phase === 'choose' && (
+        <CraftingChooseMaterial materials={materials} onPick={onPickMaterial} />
+      )}
+
+      {phase === 'gauge' && chosenMaterial && (
+        <CraftingGauge skill={skill} material={chosenMaterial} salvaged={salvaged} onLock={onResolveGauge} />
+      )}
+
+      {phase === 'result' && result && (
+        <CraftingResult quality={quality} material={chosenMaterial} result={result} onConfirm={onConfirm} />
+      )}
+    </div>
+  );
+}
+
+function CraftingChooseMaterial({ materials, onPick }) {
+  return (
+    <>
+      <div className="text-sm text-parchment-300 uppercase tracking-widest">Step 1 — pick the primary material</div>
+      <div className="flex gap-4 flex-wrap justify-center">
+        {materials.map((m) => (
+          <button key={m.id + m.name} onClick={() => onPick(m.id)}
+            className="w-56 min-h-[14rem] rounded-lg border-2 border-gold-500 bg-parchment-50 text-ink-800 p-3 text-left hover:scale-105 hover:shadow-2xl transition flex flex-col gap-2">
+            <div className="font-display text-lg">{m.name}</div>
+            <div className="text-xs uppercase tracking-wider text-ink-400">{SLOT_LABEL[m.slot] || m.slot} material</div>
+            <div className="flex flex-wrap gap-1 text-xs font-mono">
+              {Object.entries(m.stats || {}).map(([k, v]) => (
+                <span key={k} className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">
+                  {k} +{v}
+                </span>
+              ))}
+            </div>
+            <div className="text-sm font-quill italic text-ink-500 mt-auto pt-2 border-t border-ink-300">"{m.flavor}"</div>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function CraftingGauge({ skill, material, salvaged, onLock }) {
+  // Cursor oscillates 0..1 with a sine wave. Speed slows slightly as
+  // skill rises so high-skill players get more thinking time. Click
+  // STOP to lock — the result feeds quality via the parent's resolve.
+  const [pos, setPos] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const rafRef = useRef(null);
+  const speed = 1.6 - skill * 0.12; // cycles per second-ish
+  useEffect(() => {
+    if (locked) return;
+    let t0 = performance.now();
+    const tick = (t) => {
+      const elapsed = (t - t0) / 1000;
+      // Triangle wave on [0,1]
+      const phase = (elapsed * speed) % 2;
+      const p = phase <= 1 ? phase : 2 - phase;
+      setPos(p);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [locked, speed]);
+
+  // Master + fine zone widths mirror the resolver's logic.
+  const masterRadius = 0.06 + skill * 0.025;
+  const fineRadius   = 0.18 + skill * 0.04;
+  // Convert to percent for CSS.
+  const pct = (v) => `${(v * 100).toFixed(1)}%`;
+  const lock = () => {
+    if (locked) return;
+    setLocked(true);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    // Briefly hold the result, then route up.
+    setTimeout(() => onLock(pos), 250);
+  };
+  return (
+    <>
+      <div className="text-sm text-parchment-300 uppercase tracking-widest">Step 2 — settle the {material.name.toLowerCase()}</div>
+      <div className="text-sm text-parchment-200 italic">
+        {salvaged ? 'You will salvage no matter how steady the hand.' : 'Stop the cursor over the green zone. The wider band rewards a Fine result; the narrow centre rewards Master.'}
+      </div>
+      <div className="relative w-full max-w-2xl h-14 bg-ink-700 rounded-full border-2 border-ink-500 overflow-hidden shadow-inner">
+        {/* Fine zone */}
+        <div className="absolute top-0 bottom-0 bg-moss-700 opacity-60"
+             style={{ left: pct(0.5 - fineRadius), width: pct(fineRadius * 2) }} />
+        {/* Master zone */}
+        <div className="absolute top-0 bottom-0 bg-gold-500 opacity-80"
+             style={{ left: pct(0.5 - masterRadius), width: pct(masterRadius * 2) }} />
+        {/* Centre line */}
+        <div className="absolute top-0 bottom-0 w-px bg-parchment-100 opacity-40" style={{ left: '50%' }} />
+        {/* Cursor */}
+        <div className={`absolute top-0 bottom-0 w-1 ${locked ? 'bg-ember-300' : 'bg-parchment-50'} shadow-lg transition-colors`}
+             style={{ left: pct(pos), transform: 'translateX(-50%)' }} />
+      </div>
+      <button onClick={lock} disabled={locked}
+        className={`btn text-lg px-10 py-3 ${locked ? 'btn-ink' : 'btn-gold'}`}>
+        {locked ? '…' : 'STOP'}
+      </button>
+    </>
+  );
+}
+
+function CraftingResult({ quality, material, result, onConfirm }) {
+  const qTone =
+    quality === 'master' ? 'text-gold-300' :
+    quality === 'fine'   ? 'text-moss-300' :
+                           'text-ember-300';
+  const isCard = result.kind === 'card';
+  const item = isCard ? result.card : result.equipment;
+  return (
+    <>
+      <div className={`font-display text-3xl ${qTone}`}>
+        {QUALITY_LABEL[quality]}!
+      </div>
+      <div className="parchment-card-strong p-5 max-w-md w-full">
+        <div className="text-xs uppercase tracking-widest text-parchment-300 mb-2">{isCard ? 'New card in your deck' : 'New equipment installed'}</div>
+        <div className="font-display text-2xl text-gold-300">{item.name}</div>
+        <div className="text-sm text-parchment-200 mt-2">{item.desc}</div>
+        {item.flavor && <div className="text-sm font-quill italic text-parchment-400 mt-2 pt-2 border-t border-ink-500">"{item.flavor}"</div>}
+        {isCard && item.effect?.resonatesWith?.length > 0 && (
+          <div className="text-sm text-iris-300 italic mt-2">
+            ✦ resonates: {item.effect.resonatesWith.join(', ')} (+{item.effect.resonanceBonus?.perTag || 0}/match)
+          </div>
+        )}
+      </div>
+      <button onClick={onConfirm} className="btn btn-gold text-lg px-8 py-3">Take it and move on</button>
+    </>
   );
 }
 
