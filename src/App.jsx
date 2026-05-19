@@ -2149,9 +2149,15 @@ function TutorialOverlay({ step, onAdvance, onExit }) {
     {
       title: 'Step 3 — Resistances, immunity, and fizzling.',
       body: (<>
-        <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar). Drain it to 0 and he concedes.</p>
-        <p className="mt-2">Check the four chips next to his Intent. Each shows how he reacts to a stat: <span className="text-moss-300">×1.5 susceptible</span>, <span className="text-ember-300">×0.5 resistant</span>, or <span className="text-parchment-400">×0 immune</span>. The Bursar is baseline on everything; some enemies aren't.</p>
-        <p className="mt-2">One last lesson: if you play Word cards but never an Effect, the spell <b>fizzles</b> at end of turn. You'll see a message like <i>"… trails off. The spell does not arrive."</i> Be careful.</p>
+        <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar at top-right). Drain it to 0 and he concedes.</p>
+        <p className="mt-2">Now look at the four small badges next to his red <b>Intent</b> box — they're labelled <b>Chutz</b>, <b>Wit</b>, <b>Jnsq</b>, and <b>Phys</b>. Each shows how this specific enemy reacts to that kind of damage:</p>
+        <ul className="mt-1 ml-4 list-disc text-xs">
+          <li><b>×1</b> means baseline — your damage lands at full value. The Bursar is ×1 on all four (he's a fair sparring partner).</li>
+          <li><span className="text-moss-300">Green ×1.5 or ×2</span> — <b>susceptible</b>. Damage of that kind is amplified.</li>
+          <li><span className="text-ember-300">Red ×0.5</span> — <b>resistant</b>. Damage is halved.</li>
+          <li><span className="text-parchment-400">Grey ×0</span> — <b>immune</b>. That kind of damage does nothing. A Lich won't laugh; a stone Construct won't argue.</li>
+        </ul>
+        <p className="mt-2">Last lesson: if you play Word cards but never play an Effect, the spell <b>fizzles</b> at end of turn. You'll see a message like <i>"…trails off. The spell does not arrive."</i> The Wit you built up vanishes. Don't let it happen.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -2571,10 +2577,10 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           </div>
           {enemyVulnerable > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Vuln {enemyVulnerable}</span>}
           {enemyWeak > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Weak {enemyWeak}</span>}
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 {eff_label(eff.chutzpah ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ {eff_label(eff.wit ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 {eff_label(eff.jnsq ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ {eff_label(eff.physical ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 Chutz {eff_label(eff.chutzpah ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ Wit {eff_label(eff.wit ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 Jnsq {eff_label(eff.jnsq ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ Phys {eff_label(eff.physical ?? 1)}</span>
         </div>
       </div>
 
