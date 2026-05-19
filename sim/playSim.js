@@ -196,7 +196,7 @@ const ENEMIES = [
       { kind: 'attack', value: 8, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
       { kind: 'block',  value: 7, weight: 1 },
-      { kind: 'attack', value: 8, weight: 1 },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
@@ -211,7 +211,7 @@ const ENEMIES = [
       { kind: 'attack', value: 15, weight: 2 },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'block',  value: 16, weight: 1 },
-      { kind: 'vulnerable', value: 2, weight: 1 },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1 },
     ] },
   // ACT 2
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
@@ -238,7 +238,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
-      { kind: 'vulnerable', value: 1, weight: 1 },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1 },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
@@ -252,7 +252,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
-      { kind: 'vulnerable', value: 2, weight: 1 },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1 },
       { kind: 'block',  value: 10, weight: 1 },
     ] },
   // ACT 3
@@ -295,7 +295,7 @@ const ENEMIES = [
       { kind: 'attack', value: 13, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 4, weight: 1 },
       { kind: 'block',  value: 12, weight: 1 },
-      { kind: 'vulnerable', value: 2, weight: 1 },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
     ] },
   // ACT 4
   { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
@@ -323,13 +323,13 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
-      { kind: 'block',  value: 12, weight: 1, riders: { vulnerable: 1 } },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1 },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, riders: { weak: 1, vulnerable: 1 } },
-      { kind: 'vulnerable', value: 2, weight: 1 },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
       { kind: 'weak',   value: 2, weight: 1 },
       { kind: 'attack-multi', value: 3, count: 4, weight: 1 },
     ] },
@@ -338,7 +338,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 14, weight: 2 },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, riders: { weak: 1 } },
-      { kind: 'block',  value: 14, weight: 1 },
+      { kind: 'attack', value: 9, pool: 'composure', weight: 1 },
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
 ];
@@ -392,6 +392,7 @@ const STARTING_MAX_HP = 70;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
 const INTER_ACT_HEAL_RATIO = 0.40;
+const STARTING_MAX_COMPOSURE = 30;
 
 // =============================================================================
 // 2. HELPERS
@@ -917,14 +918,13 @@ function applyIntent(state, combat, intent) {
   if (!intent) return;
   if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
     const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+    const targetsComposure = intent.pool === 'composure';
     let raw = intent.value;
     let raw0 = raw; raw = Math.round(raw0 * combat.enemyDmgMult);
-    // Defense (damage reduction) per-hit, min 1 damage. Sums equipment
-    // bonuses + familiar/relic damageReduction. Capped at 2 so stacking
-    // doesn't trivialize multi-attacks.
     const defense = Math.min(2, state.equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0));
     let wBlock = state.block;
     let wHp = state.hp;
+    let wComp = state.composure;
     for (let i = 0; i < hits; i++) {
       let remaining = raw;
       if (defense > 0 && remaining > 0) remaining = Math.max(1, remaining - defense);
@@ -932,12 +932,14 @@ function applyIntent(state, combat, intent) {
         const absorbed = Math.min(wBlock, remaining);
         wBlock -= absorbed; remaining -= absorbed;
       }
-      wHp = Math.max(0, wHp - remaining);
+      if (targetsComposure) wComp = Math.max(0, wComp - remaining);
+      else                  wHp   = Math.max(0, wHp   - remaining);
       combat.totalDamageTaken += remaining;
-      if (wHp <= 0) break;
+      if (wHp <= 0 || wComp <= 0) break;
     }
     state.block = wBlock;
     state.hp = wHp;
+    state.composure = wComp;
   } else if (intent.kind === 'block') {
     combat.enemyBlock += intent.value;
   } else if (intent.kind === 'vulnerable') {
@@ -964,7 +966,7 @@ function simCombat(state, enemyId) {
   let prevDamageDealt = 0;
   let zeroDamageStreak = 0;
   while (safety-- > 0) {
-    if (state.hp <= 0) return { combat, outcome: 'lost' };
+    if (state.hp <= 0 || state.composure <= 0) return { combat, outcome: 'lost' };
     if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) return { combat, outcome: 'won' };
     aiTurn(state, combat);
     if (combat.totalDamageDealt === prevDamageDealt) {
@@ -975,7 +977,7 @@ function simCombat(state, enemyId) {
       prevDamageDealt = combat.totalDamageDealt;
     }
   }
-  return { combat, outcome: state.hp <= 0 ? 'lost' : combat.enemyComposure <= 0 ? 'won' : 'stall' };
+  return { combat, outcome: (state.hp <= 0 || state.composure <= 0) ? 'lost' : combat.enemyComposure <= 0 ? 'won' : 'stall' };
 }
 
 // =============================================================================
@@ -987,6 +989,8 @@ function makeRunState() {
   return {
     hp: STARTING_MAX_HP,
     maxHp: STARTING_MAX_HP,
+    composure: STARTING_MAX_COMPOSURE,
+    composureMax: STARTING_MAX_COMPOSURE,
     block: 0,
     energy: ENERGY_PER_TURN,
     deck: shuffle(deck),
@@ -1037,7 +1041,7 @@ function simAct(state, act, runStats) {
   ];
 
   for (const step of sequence) {
-    if (state.hp <= 0) return false;
+    if (state.hp <= 0 || state.composure <= 0) return false;
     if (step === 'combat' || step === 'elite') {
       const tier = step === 'combat' ? 'normal' : 'elite';
       const pool = ENEMIES.filter(e => e.act === act.id && e.tier === tier);
@@ -1161,8 +1165,9 @@ function simAct(state, act, runStats) {
       }
       // Boss relic (random rare): track as bookkeeping (not used by sim).
       runStats.relicsClaimed++;
-      // Inter-act heal
-      state.hp = clamp(state.hp + Math.floor(state.maxHp * INTER_ACT_HEAL_RATIO), 0, state.maxHp);
+      // Inter-act heal (both pools).
+      state.hp        = clamp(state.hp        + Math.floor(state.maxHp        * INTER_ACT_HEAL_RATIO), 0, state.maxHp);
+      state.composure = clamp(state.composure + Math.floor(state.composureMax * INTER_ACT_HEAL_RATIO), 0, state.composureMax);
     }
   }
   return true;

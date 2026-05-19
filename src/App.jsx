@@ -645,7 +645,7 @@ const ENEMIES = [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
-      { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (cutting remark)' },
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
@@ -660,7 +660,7 @@ const ENEMIES = [
       { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (bramble-whisper)' },
     ] },
 
   // ===== ACT 2 — The Thread Path =====
@@ -688,7 +688,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
-      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (pattern-wrong)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
@@ -702,7 +702,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (loom-song)' },
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
     ] },
 
@@ -746,7 +746,7 @@ const ENEMIES = [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 4, weight: 1, telegraph: '⚔ 5×4' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (hammer-rhythm)' },
     ] },
 
   // ===== ACT 4 — The Forge Path =====
@@ -775,13 +775,13 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (corrects your form)' },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1 + 🩸 Vuln 1', riders: { weak: 1, vulnerable: 1 } },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (impossible question)' },
       { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
       { kind: 'attack-multi', value: 3, count: 4, weight: 1, telegraph: '⚔ 3×4' },
     ] },
@@ -790,7 +790,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'block',  value: 14, weight: 1, telegraph: '🛡 14' },
+      { kind: 'attack', value: 9, pool: 'composure', weight: 1, telegraph: '🎭 9 (withering remark)' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
     ] },
 
@@ -1517,6 +1517,10 @@ function generateActMap(rows, width) {
 // =============================================================================
 
 const STARTING_MAX_HP = 70;
+// Composure — the player's "verbal HP." Some enemies (Tapestry's loom song,
+// the Headmaster's withering remarks) target this instead of HP. Drops to 0
+// = you lose your nerve = defeat. Block and Defense protect both pools.
+const STARTING_MAX_COMPOSURE = 30;
 // Each craft skill caps at this level. C3's crafting minigame reads
 // the current level and widens the gauge / softens the chooser.
 const SKILL_MAX = 5;
@@ -1536,6 +1540,8 @@ export default function App() {
   // Run-wide player state
   const [maxHp, setMaxHp] = useState(STARTING_MAX_HP);
   const [hp, setHp] = useState(STARTING_MAX_HP);
+  const [composureMax, setComposureMax] = useState(STARTING_MAX_COMPOSURE);
+  const [composure, setComposure] = useState(STARTING_MAX_COMPOSURE);
   const [block, setBlock] = useState(0);
   const [energy, setEnergy] = useState(ENERGY_PER_TURN);
   const [deck, setDeck] = useState([]);
@@ -1683,6 +1689,8 @@ export default function App() {
   function startTutorial() {
     setMaxHp(STARTING_MAX_HP);
     setHp(STARTING_MAX_HP);
+    setComposureMax(STARTING_MAX_COMPOSURE);
+    setComposure(STARTING_MAX_COMPOSURE);
     setBlock(0);
     setEnergy(ENERGY_PER_TURN);
     setExiled([]);
@@ -1730,6 +1738,8 @@ export default function App() {
     const startDeck = buildStartingDeck();
     setMaxHp(STARTING_MAX_HP);
     setHp(STARTING_MAX_HP);
+    setComposureMax(STARTING_MAX_COMPOSURE);
+    setComposure(STARTING_MAX_COMPOSURE);
     setBlock(0);
     setEnergy(ENERGY_PER_TURN);
     setDeck(startDeck);
@@ -1819,10 +1829,13 @@ export default function App() {
       setStage('graduation');
       return;
     }
-    // Heal a fraction of max HP between acts.
+    // Heal a fraction of max HP between acts. Composure gets the same ratio
+    // (or restored fully if the ratio rounds higher than current loss).
     const healAmount = Math.floor(maxHp * INTER_ACT_HEAL_RATIO);
+    const compHeal   = Math.floor(composureMax * INTER_ACT_HEAL_RATIO);
     setHp(h => clamp(h + healAmount, 0, maxHp));
-    pushLog(`🌄 Between acts: +${healAmount} HP.`);
+    setComposure(c => clamp(c + compHeal, 0, composureMax));
+    pushLog(`🌄 Between acts: +${healAmount} HP, +${compHeal} Composure.`);
     setCurrentActIdx(nextIdx);
     const nextAct = ACTS[nextIdx];
     setMap(generateActMap(nextAct.rows, nextAct.width));
@@ -2601,7 +2614,13 @@ export default function App() {
 
     // 2. Enemy intent.
     if (enemyIntent) applyEnemyIntent(enemyIntent);
-    if (hp <= 0) return;
+    if (hp <= 0 || composure <= 0) return;
+
+    // 2.5. Block fades — explicit log so the player sees expiry happen even
+    //      when a Hedgehog/Felt re-grant immediately tops it back up below.
+    //      `block` here is the closure value at the top of the event handler;
+    //      good enough for "you had block; it's gone now."
+    if (block > 0) pushLog(`🛡 Block fades.`);
 
     // 3. Debuff decay.
     // Multiplier drift: shift toward 1.0 by 0.25 per turn.
@@ -2619,8 +2638,13 @@ export default function App() {
     let wBlock    = 0;
     // Familiar-style startOfTurnBlock (e.g. Hedgehog): fires every turn,
     // including turn 1 (handled separately in enterFight's startBlockTotal).
-    for (const { effect } of effectSources()) {
-      if (effect?.startOfTurnBlock) wBlock += effect.startOfTurnBlock;
+    // This is the SAME source the player sees as "Block: 2 every turn"
+    // — it's not lingering, it's being re-granted.
+    for (const { effect, sourceName } of effectSources()) {
+      if (effect?.startOfTurnBlock) {
+        wBlock += effect.startOfTurnBlock;
+        pushLog(`🛡 +${effect.startOfTurnBlock} (${sourceName || 'aura'}).`);
+      }
     }
     // Apply start-of-turn power triggers in working locals. Multiplier
     // shifts dispatch live via adjustEnemyDmg/adjustPlayerDmg.
@@ -2664,6 +2688,10 @@ export default function App() {
     let playerDied = false;
     if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+      // Pool routing: intent.pool === 'composure' targets the verbal pool;
+      // default is HP. Block + Defense protect both — they're "bracing,"
+      // not just "armor."
+      const targetsComposure = intent.pool === 'composure';
       // Enemy outgoing damage multiplier (old weak/vuln replacement).
       let raw = Math.round(intent.value * enemyDmgMult);
       const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
@@ -2671,6 +2699,7 @@ export default function App() {
       const reduction = Math.min(2, rawReduction);
       let wBlock = block;
       let wHp = hp;
+      let wComp = composure;
       for (let i = 0; i < hits; i++) {
         let remaining = raw;
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
@@ -2678,13 +2707,15 @@ export default function App() {
           const absorbed = Math.min(wBlock, remaining);
           wBlock -= absorbed; remaining -= absorbed;
         }
-        wHp = Math.max(0, wHp - remaining);
-        if (wHp <= 0) break;
+        if (targetsComposure) wComp = Math.max(0, wComp - remaining);
+        else                  wHp   = Math.max(0, wHp   - remaining);
+        if (wHp <= 0 || wComp <= 0) break;
       }
       setBlock(wBlock);
       setHp(wHp);
+      setComposure(wComp);
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
-      if (wHp <= 0) playerDied = true;
+      if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
@@ -2709,7 +2740,7 @@ export default function App() {
       if (r.block) setEnemyBlock(b => b + r.block);
     }
     if (playerDied) {
-      if (tutorialActive) { setHp(maxHp); return; }
+      if (tutorialActive) { setHp(maxHp); setComposure(composureMax); return; }
       setTimeout(() => setStage('defeat'), 200);
     }
   }
@@ -3055,7 +3086,9 @@ export default function App() {
       enemyBlock={enemyBlock} enemyIntent={enemyIntent}
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyHitFlash={enemyHitFlash} dmgFloaters={dmgFloaters}
-      hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
+      hp={hp} maxHp={maxHp}
+      playerComposure={composure} playerComposureMax={composureMax}
+      block={block} energy={energy} hand={hand}
       deck={deck} discard={discard} tray={tray}
       energyMax={energyPerTurnRefill()}
       equipment={equipment} powers={powers} relics={relics}
@@ -3530,7 +3563,8 @@ function Legend({ glyph, label }) {
 function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        enemyDmgMult, playerDmgMult,
                        enemyHitFlash, dmgFloaters,
-                       hp, maxHp, block, energy, energyMax, hand, deck, discard, tray,
+                       hp, maxHp, playerComposure, playerComposureMax,
+                       block, energy, energyMax, hand, deck, discard, tray,
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log }) {
   const composureMax = enemy?.composureMax ?? 999;
@@ -3690,6 +3724,10 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           <div>
             <div className="text-xs uppercase text-parchment-300">HP</div>
             <div className="text-2xl font-mono text-moss-300">{hp} <span className="text-sm text-parchment-300">/ {maxHp}</span></div>
+          </div>
+          <div>
+            <div className="text-xs uppercase text-parchment-300" title="Composure — your nerve. Drop to 0 and you lose your nerve, even at full HP.">Composure</div>
+            <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
           </div>
           <div>
             <div className="text-xs uppercase text-parchment-300">Block</div>
