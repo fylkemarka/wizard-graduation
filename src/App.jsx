@@ -1444,47 +1444,111 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
       </div>
 
       <div className="parchment-card p-4 flex flex-col items-center">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-3xl">
-          {Object.entries(map.edges).map(([fromId, tos]) => {
-            const from = map.nodes.find(n => n.id === fromId);
-            return tos.map(toId => {
-              const to = map.nodes.find(n => n.id === toId);
-              if (!from || !to) return null;
-              const cleared = clearedNodes.includes(fromId) && clearedNodes.includes(toId);
-              const onCurrentPath = currentNodeId === fromId;
-              return (
-                <line key={`${fromId}->${toId}`}
-                  x1={xScale(from.x)} y1={yScale(from.y)}
-                  x2={xScale(to.x)} y2={yScale(to.y)}
-                  stroke={cleared ? '#5d7e3f' : onCurrentPath ? '#c79d44' : '#3d3325'}
-                  strokeWidth={onCurrentPath ? 3 : 1.5}
-                  strokeDasharray={cleared ? '6,3' : '0'} />
-              );
-            });
-          })}
-          {map.nodes.map(n => {
-            const isCurrent = n.id === currentNodeId;
-            const isCleared = clearedNodes.includes(n.id);
-            const isReachable = reachable.includes(n.id);
-            const fill = nodeColor(n.type, isCleared, isCurrent);
-            const stroke = isReachable ? '#dbb45f' : isCurrent ? '#c79d44' : '#5a4d3a';
-            const strokeWidth = isReachable ? 3 : isCurrent ? 2.5 : 1.5;
-            return (
-              <g key={n.id}
-                style={{ cursor: isReachable ? 'pointer' : 'default' }}
-                onClick={() => isReachable && onPick(n.id)}>
-                <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
-                  fill={fill} stroke={stroke} strokeWidth={strokeWidth}
-                  opacity={isCleared ? 0.55 : 1} />
-                <text x={xScale(n.x)} y={yScale(n.y) + 5} textAnchor="middle"
-                  className="select-none" fill="#f7eed3"
-                  fontSize={n.type === 'boss' ? 18 : 14}>
-                  {nodeGlyph(n.type)}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+        {(() => {
+          // Fog-of-war visibility per node:
+          //   cleared : in clearedNodes — path you've already walked
+          //   current : your current spot
+          //   next    : directly reachable from current — choose-from set
+          //   peek    : reachable from a 'next' node (2 steps away) — shape
+          //             visible as "?" silhouette, type masked
+          //   hidden  : further out — tiny faint dot only, no type or edge
+          // Player picks among 'next'. As they advance the window slides.
+          const reachableSet = new Set(reachable);
+          const clearedSet = new Set(clearedNodes);
+          const peekSet = new Set();
+          for (const nextId of reachable) {
+            for (const beyondId of (map.edges[nextId] || [])) {
+              if (!reachableSet.has(beyondId) && !clearedSet.has(beyondId) && beyondId !== currentNodeId) {
+                peekSet.add(beyondId);
+              }
+            }
+          }
+          const visibilityOf = (nodeId) => {
+            if (clearedSet.has(nodeId))   return 'cleared';
+            if (nodeId === currentNodeId) return 'current';
+            if (reachableSet.has(nodeId)) return 'next';
+            if (peekSet.has(nodeId))      return 'peek';
+            return 'hidden';
+          };
+          return (
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-3xl">
+              {Object.entries(map.edges).map(([fromId, tos]) => {
+                const from = map.nodes.find(n => n.id === fromId);
+                return tos.map(toId => {
+                  const to = map.nodes.find(n => n.id === toId);
+                  if (!from || !to) return null;
+                  const fromVis = visibilityOf(fromId);
+                  const toVis   = visibilityOf(toId);
+                  // Edges between two hidden nodes — render barely-there or
+                  // skip. Between a visible node and a hidden one — faint.
+                  const bothHidden = fromVis === 'hidden' && toVis === 'hidden';
+                  if (bothHidden) return null;
+                  const someHidden = fromVis === 'hidden' || toVis === 'hidden';
+                  const cleared = fromVis === 'cleared' && toVis === 'cleared';
+                  const onCurrentPath = currentNodeId === fromId;
+                  let stroke, strokeWidth, opacity;
+                  if (cleared)               { stroke = '#5d7e3f'; strokeWidth = 1.5; opacity = 0.55; }
+                  else if (onCurrentPath)    { stroke = '#c79d44'; strokeWidth = 3;   opacity = 1;    }
+                  else if (someHidden)       { stroke = '#2b2418'; strokeWidth = 1;   opacity = 0.2;  }
+                  else                       { stroke = '#3d3325'; strokeWidth = 1.5; opacity = 0.7;  }
+                  return (
+                    <line key={`${fromId}->${toId}`}
+                      x1={xScale(from.x)} y1={yScale(from.y)}
+                      x2={xScale(to.x)} y2={yScale(to.y)}
+                      stroke={stroke}
+                      strokeWidth={strokeWidth}
+                      opacity={opacity}
+                      strokeDasharray={cleared ? '6,3' : '0'} />
+                  );
+                });
+              })}
+              {map.nodes.map(n => {
+                const vis = visibilityOf(n.id);
+                // Hidden node: tiny faint dot, no interaction.
+                if (vis === 'hidden') {
+                  return (
+                    <circle key={n.id} cx={xScale(n.x)} cy={yScale(n.y)} r={2}
+                      fill="#5a4d3a" opacity={0.4} />
+                  );
+                }
+                // Peek node: medium "?" silhouette, no type info, no click.
+                if (vis === 'peek') {
+                  return (
+                    <g key={n.id}>
+                      <circle cx={xScale(n.x)} cy={yScale(n.y)} r={14}
+                        fill="#241b10" stroke="#5a4d3a" strokeWidth={1.5}
+                        opacity={0.78} />
+                      <text x={xScale(n.x)} y={yScale(n.y) + 4} textAnchor="middle"
+                        className="select-none" fill="#a8895a" fontSize={14}
+                        opacity={0.85}>?</text>
+                    </g>
+                  );
+                }
+                // Cleared / current / next: full type-color circle.
+                const isCurrent   = vis === 'current';
+                const isCleared   = vis === 'cleared';
+                const isReachable = vis === 'next';
+                const fill   = nodeColor(n.type, isCleared, isCurrent);
+                const stroke = isReachable ? '#dbb45f' : isCurrent ? '#c79d44' : '#5a4d3a';
+                const strokeWidth = isReachable ? 3 : isCurrent ? 2.5 : 1.5;
+                return (
+                  <g key={n.id}
+                    style={{ cursor: isReachable ? 'pointer' : 'default' }}
+                    onClick={() => isReachable && onPick(n.id)}>
+                    <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
+                      fill={fill} stroke={stroke} strokeWidth={strokeWidth}
+                      opacity={isCleared ? 0.55 : 1} />
+                    <text x={xScale(n.x)} y={yScale(n.y) + 5} textAnchor="middle"
+                      className="select-none" fill="#f7eed3"
+                      fontSize={n.type === 'boss' ? 18 : 14}>
+                      {nodeGlyph(n.type)}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          );
+        })()}
         <div className="mt-3 text-xs text-parchment-300 flex gap-3 flex-wrap justify-center">
           <Legend glyph="⚔" label="Combat" />
           <Legend glyph="☠" label="Elite" />
@@ -1493,9 +1557,10 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           <Legend glyph="🛠" label="Forge" />
           <Legend glyph="👑" label="Boss" />
           <Legend glyph="·" label="Start" />
+          <Legend glyph="?" label="Glimpsed" />
         </div>
         {!currentNodeId && (
-          <div className="mt-2 text-sm text-gold-300 italic">Pick a starting trail.</div>
+          <div className="mt-2 text-sm text-gold-300 italic">Pick a starting trail. The path beyond is hearsay.</div>
         )}
       </div>
 
