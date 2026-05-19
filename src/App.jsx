@@ -1090,7 +1090,7 @@ export default function App() {
   // `phrases` is the running list of fragment text; `effectFiredThisTurn`
   // tracks whether ANY effect card has resolved the tray (used to detect
   // fizzles at end-of-turn).
-  const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
+  const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -1104,6 +1104,10 @@ export default function App() {
   const [activeEvent, setActiveEvent] = useState(null);
   const [forgeChoice, setForgeChoice] = useState(null);
   const [restNode, setRestNode] = useState(null);
+  // When set, shows the "you received this card" modal. Used after
+  // events / shops that hand the player cards silently. Shape:
+  // { cards: [...card objects...], title?, body? } — null means no modal.
+  const [cardGrantPrompt, setCardGrantPrompt] = useState(null);
   // Card-upgrade picker at rest sites. When set, shows the deck and lets
   // the player pick one non-upgraded card to upgrade.
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -1149,7 +1153,7 @@ export default function App() {
     setPlayerVulnerable(0);
     setPlayerWeak(0);
     setEffectCount(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -1168,8 +1172,8 @@ export default function App() {
   // matching action. No-op when not in the tutorial.
   function advanceTutorialStep(trigger) {
     if (!tutorialActive) return;
-    if (tutorialStep === 1 && trigger === 'played-word')   setTutorialStep(2);
-    if (tutorialStep === 2 && trigger === 'played-effect') setTutorialStep(3);
+    if (tutorialStep === 1 && trigger === 'played-word') setTutorialStep(2);
+    if (tutorialStep === 2 && trigger === 'cast-spell')  setTutorialStep(3);
   }
 
   function exitTutorial() {
@@ -1197,7 +1201,7 @@ export default function App() {
     setPlayerVulnerable(0);
     setPlayerWeak(0);
     setEffectCount(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -1356,7 +1360,7 @@ export default function App() {
     // Reset per-combat counters and player debuffs.
     setPlayerVulnerable(0);
     setPlayerWeak(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -1472,111 +1476,190 @@ export default function App() {
       return;
     }
 
-    // WORD CARD — contributes stats to the spell tray. May also fire an
-    // on-play side `effects` block (draw/block/etc.) like a skill.
+    // WORD CARD — stage in the spell tray. Stats / phrase / tags add to
+    // the tray totals. Energy spent at staging; refundable via unstageCard.
     if (card.type === 'word') {
       const stats = card.stats || {};
       const cardTags = card.tags || [];
       setTray(prev => ({
+        ...prev,
         chutzpah: prev.chutzpah + (stats.chutzpah || 0),
         wit:      prev.wit      + (stats.wit      || 0),
         jnsq:     prev.jnsq     + (stats.jnsq     || 0),
         phrases:  [...prev.phrases, card.phrase || card.name],
         tags:     [...prev.tags, ...cardTags],
-        effectFiredThisTurn: prev.effectFiredThisTurn,
+        words:    [...prev.words, card],
       }));
-      const sBits = [];
-      if (stats.chutzpah) sBits.push(`+${stats.chutzpah} Chutzpah`);
-      if (stats.wit)      sBits.push(`+${stats.wit} Wit`);
-      if (stats.jnsq)     sBits.push(`+${stats.jnsq} Jnsq`);
-      if (cardTags.length) sBits.push(`✦ ${cardTags.join(', ')}`);
-      if (sBits.length) logBits.push(sBits.join(' · '));
-      // Side-effects (draw etc.) — same dispatch as skill.
+      // On-play side-effects (Dramatic Pause's draw etc.) STILL fire on
+      // stage — those are immediate, not part of the spell payload.
       applySideEffects(card.effects || {}, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
-      if (card.effects?.exhaust) setExiled(ex => [...ex, card]);
-      else setDiscard(d => [...d, card]);
-      pushLog(logBits.join(' · '));
+      pushLog(logBits.join(' · ') + `  →  📜 staged`);
       advanceTutorialStep('played-word');
       return;
     }
 
-    // EFFECT CARD — seals the spell, consumes the tray, applies damage.
+    // EFFECT CARD — stage as the spell's sealer. Only one effect at a
+    // time; staging a new one returns the previous to hand (with energy
+    // refunded, of course).
     if (card.type === 'effect') {
-      const eff = card.effect || {};
-      let base = eff.base || 0;
-      if (card.name === 'Strike' || card.name === 'Strike+') base += strikeBonusTotal();
-      base += consumeEveryNthEffectBonus();
-      const stat = eff.scaleBy || 'wit';
-      const trayVal = tray[stat] || 0;
-      const rawSpell = base + trayVal * (eff.multiplier || 0);
-      const dmgType = eff.damageType || 'composure';
-      const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
-      const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
-      let dmg = rawSpell;
-      if (dmgType === 'physical') {
-        dmg = Math.round(dmg * phys_mult);
-      } else {
-        dmg = Math.round(dmg * eff_mult);
+      const prevEffect = tray.effectCard;
+      setTray(prev => ({ ...prev, effectCard: card }));
+      if (prevEffect) {
+        // Return the previously-staged effect to hand + refund its cost.
+        setHand(h => [...h, prevEffect]);
+        setEnergy(e => e + (prevEffect.cost || 0));
+        pushLog(`↩ Replaced ${prevEffect.name} — returned to hand.`);
       }
-      // Resonance bonus — count tag matches between tray and effect.
-      // Added AFTER effectiveness so a discovered combo always pays out,
-      // even against resistant enemies (the bonus is flat, the player
-      // earned it). Still subject to weak/vuln since those are global.
-      const rWith = eff.resonatesWith || [];
-      const perTag = eff.resonanceBonus?.perTag || 0;
-      const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
-      const resonanceMatches = matchedTags.length;
-      const resonanceBonus = resonanceMatches * perTag;
-      if (resonanceBonus > 0) dmg += resonanceBonus;
-      // Player Weak still nerfs outgoing damage of any kind.
-      if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
-      // Enemy Vulnerable still amplifies damage of any kind.
-      if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
-
-      // Read out the spell phrase before logging the resolution.
-      const phrase = [...tray.phrases, card.phrase || ''].filter(Boolean).join(' ');
-      if (phrase) pushLog(`✨ "${phrase}"`);
-      if (resonanceMatches > 0) {
-        const uniq = Array.from(new Set(matchedTags));
-        pushLog(`✦ Resonance ×${resonanceMatches} (${uniq.join(', ')}) → +${resonanceBonus} damage`);
-      }
-
-      let after = 0;
-      if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
-      else                        after = applyDamageToEnemyComposure(dmg);
-      const stickyTag = eff_mult === 0 ? ' (IMMUNE)' : (eff_mult >= 1.5 ? ' (susceptible)' : eff_mult <= 0.5 ? ' (resistant)' : '');
-      const dmgTag = dmgType === 'physical' ? `${dmg} phys → ${after} HP${phys_mult === 0 ? ' (IMMUNE)' : ''}` : `${dmg} comp → ${after}${stickyTag}`;
-      logBits.push(`🎯 ${(card.name || '').toUpperCase()} ${dmgTag}`);
-
-      // Riders fire after damage.
-      const rider = eff.rider || {};
-      if (rider.weak)       { setEnemyWeak(w => w + rider.weak);       logBits.push(`🌀 +${rider.weak} Weak`); }
-      if (rider.vulnerable) { setEnemyVulnerable(v => v + rider.vulnerable); logBits.push(`🌀 +${rider.vulnerable} Vuln`); }
-      if (rider.block)      { setBlock(b => b + rider.block);          logBits.push(`🛡 +${rider.block}`); }
-      if (rider.draw)       { drawCards(rider.draw);                   logBits.push(`+${rider.draw} draw`); }
-
-      // Clear the tray and mark an effect as fired this turn.
-      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: true });
-
-      // Fire onEffectCardPlayed power triggers (Octarine Squint etc.).
-      applyPowerTriggers('onEffectCardPlayed');
-
       setHand(h => h.filter((_, i) => i !== handIdx));
-      if (eff.exhaust) setExiled(ex => [...ex, card]);
-      else             setDiscard(d => [...d, card]);
-      pushLog(logBits.join(' · '));
-      advanceTutorialStep('played-effect');
+      pushLog(`🎯 ${card.name} sealed — ready to CAST.`);
       return;
     }
 
-    // SKILL CARD — pure utility, no stat / spell.
+    // SKILL CARD — pure utility, no stat / spell. Fires immediately.
     const fx = card.effects || {};
     applySideEffects(fx, logBits);
     setHand(h => h.filter((_, i) => i !== handIdx));
     if (fx.exhaust) setExiled(ex => [...ex, card]);
     else            setDiscard(d => [...d, card]);
     pushLog(logBits.join(' · '));
+  }
+
+  // Take a staged card back to hand + refund its energy. Word cards
+  // restore their stat contributions; effects clear the sealer slot.
+  function unstageCard(cardUid) {
+    if (stage !== 'combat') return;
+    // Try word first.
+    const wordIdx = tray.words.findIndex(w => w.uid === cardUid);
+    if (wordIdx >= 0) {
+      const w = tray.words[wordIdx];
+      const stats = w.stats || {};
+      const tags = w.tags || [];
+      setTray(prev => {
+        const newWords = prev.words.filter((_, i) => i !== wordIdx);
+        // Recompute everything from the remaining words to be safe.
+        const c = { chutzpah: 0, wit: 0, jnsq: 0 };
+        const phrases = [];
+        const allTags = [];
+        for (const x of newWords) {
+          if (x.stats?.chutzpah) c.chutzpah += x.stats.chutzpah;
+          if (x.stats?.wit)      c.wit      += x.stats.wit;
+          if (x.stats?.jnsq)     c.jnsq     += x.stats.jnsq;
+          phrases.push(x.phrase || x.name);
+          if (x.tags) allTags.push(...x.tags);
+        }
+        return { ...prev, words: newWords, phrases, tags: allTags, ...c };
+      });
+      setHand(h => [...h, w]);
+      setEnergy(e => e + (w.cost || 0));
+      pushLog(`↩ Unstaged ${w.name}.`);
+      return;
+    }
+    if (tray.effectCard && tray.effectCard.uid === cardUid) {
+      const e = tray.effectCard;
+      setTray(prev => ({ ...prev, effectCard: null }));
+      setHand(h => [...h, e]);
+      setEnergy(en => en + (e.cost || 0));
+      pushLog(`↩ Unstaged ${e.name}.`);
+    }
+  }
+
+  // CAST — resolve the staged spell. Requires at least one word AND a
+  // staged effect. Computes the full damage (including resonance, Strike
+  // bonus, every-nth-effect, weak/vuln, effectiveness), applies damage
+  // and any riders, and clears the tray.
+  function castStagedSpell() {
+    if (stage !== 'combat') return;
+    if (!tray.effectCard) { pushLog('No Effect staged — nothing to cast.'); return; }
+    if (tray.words.length === 0) { pushLog('No Word staged — Effect cards need at least one word.'); return; }
+
+    const card = tray.effectCard;
+    const eff = card.effect || {};
+    let base = eff.base || 0;
+    if (card.name === 'Strike' || card.name === 'Strike+') base += strikeBonusTotal();
+    base += consumeEveryNthEffectBonus();
+    const stat = eff.scaleBy || 'wit';
+    const trayVal = tray[stat] || 0;
+    const rawSpell = base + trayVal * (eff.multiplier || 0);
+    const dmgType = eff.damageType || 'composure';
+    const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
+    const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
+    let dmg = rawSpell;
+    if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
+    else                        dmg = Math.round(dmg * eff_mult);
+    const rWith = eff.resonatesWith || [];
+    const perTag = eff.resonanceBonus?.perTag || 0;
+    const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
+    const resonanceBonus = matchedTags.length * perTag;
+    if (resonanceBonus > 0) dmg += resonanceBonus;
+    if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
+    if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+
+    const phrase = [...tray.phrases, card.phrase || ''].filter(Boolean).join(' ');
+    if (phrase) pushLog(`✨ "${phrase}"`);
+    if (matchedTags.length > 0) {
+      const uniq = Array.from(new Set(matchedTags));
+      pushLog(`✦ Resonance ×${matchedTags.length} (${uniq.join(', ')}) → +${resonanceBonus} damage`);
+    }
+
+    let after = 0;
+    if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
+    else                        after = applyDamageToEnemyComposure(dmg);
+    const stickyTag = eff_mult === 0 ? ' (IMMUNE)' : (eff_mult >= 1.5 ? ' (susceptible)' : eff_mult <= 0.5 ? ' (resistant)' : '');
+    const dmgTag = dmgType === 'physical' ? `${dmg} phys → ${after} HP${phys_mult === 0 ? ' (IMMUNE)' : ''}` : `${dmg} comp → ${after}${stickyTag}`;
+    pushLog(`🎯 ${(card.name || '').toUpperCase()} — ${dmgTag}`);
+
+    const rider = eff.rider || {};
+    if (rider.weak)       { setEnemyWeak(w => w + rider.weak);       pushLog(`🌀 +${rider.weak} Weak`); }
+    if (rider.vulnerable) { setEnemyVulnerable(v => v + rider.vulnerable); pushLog(`🌀 +${rider.vulnerable} Vuln`); }
+    if (rider.block)      { setBlock(b => b + rider.block);          pushLog(`🛡 +${rider.block}`); }
+    if (rider.draw)       { drawCards(rider.draw);                   pushLog(`+${rider.draw} draw`); }
+
+    // Send all staged cards to discard / exile based on flags.
+    const wordsToDiscard = tray.words.filter(w => !w.effects?.exhaust);
+    const wordsToExile   = tray.words.filter(w =>  w.effects?.exhaust);
+    if (eff.exhaust) setExiled(ex => [...ex, ...wordsToExile, card]);
+    else             { setDiscard(d => [...d, ...wordsToDiscard, card]); if (wordsToExile.length) setExiled(ex => [...ex, ...wordsToExile]); }
+    if (!eff.exhaust && wordsToDiscard.length === tray.words.length) {
+      // already handled in the else branch above
+    }
+
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
+    applyPowerTriggers('onEffectCardPlayed');
+    advanceTutorialStep('cast-spell');
+  }
+
+  // Compute the predicted damage if you CAST right now. Used by the
+  // tray UI's preview. Pure read of current state — no mutations.
+  function previewCastDamage() {
+    if (!tray.effectCard) return null;
+    const card = tray.effectCard;
+    const eff = card.effect || {};
+    let base = eff.base || 0;
+    if (card.name === 'Strike' || card.name === 'Strike+') base += strikeBonusTotal();
+    // Peek the everyNth bonus (don't consume).
+    for (const { effect } of effectSources()) {
+      const every = effect?.everyNthEffect;
+      if (!every) continue;
+      if ((effectCount + 1) % every.n === 0) base += every.extraDamage || 0;
+    }
+    const stat = eff.scaleBy || 'wit';
+    const trayVal = tray[stat] || 0;
+    const rawSpell = base + trayVal * (eff.multiplier || 0);
+    const dmgType = eff.damageType || 'composure';
+    const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
+    const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
+    let dmg = rawSpell;
+    if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
+    else                        dmg = Math.round(dmg * eff_mult);
+    const rWith = eff.resonatesWith || [];
+    const perTag = eff.resonanceBonus?.perTag || 0;
+    const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
+    const resonanceBonus = matchedTags.length * perTag;
+    if (resonanceBonus > 0) dmg += resonanceBonus;
+    if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
+    if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+    return { dmg, dmgType, resonanceBonus, matchedTags, eff_mult, phys_mult, base, trayVal, multiplier: eff.multiplier || 0, stat };
   }
 
   // Side-effects shared between skill cards and word cards' on-play block.
@@ -1772,12 +1855,16 @@ export default function App() {
   function endTurn() {
     if (stage !== 'combat') return;
 
-    // 0. Fizzle check — if any word phrases were laid down but no effect
-    //    card sealed the spell, the spell does not arrive. Tray clears.
-    if (tray.phrases.length > 0 && !tray.effectFiredThisTurn) {
+    // 0. Fizzle check — if any cards were staged but no CAST happened,
+    //    the spell does not arrive. Staged cards go to discard (you
+    //    spent the energy; you don't get the cards back).
+    if ((tray.words.length > 0 || tray.effectCard) && !tray.effectFiredThisTurn) {
       pushLog(`💨 "${tray.phrases.join(' ')}" …trails off. The spell does not arrive.`);
+      const dropped = [...tray.words];
+      if (tray.effectCard) dropped.push(tray.effectCard);
+      setDiscard(d => [...d, ...dropped]);
     }
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
 
     // 1. End-of-turn power triggers.
     const killedByPowers = applyEndOfTurnPowerTriggers();
@@ -2015,20 +2102,38 @@ export default function App() {
       setHp(h => h + fx.maxHp);
       logBits.push(`+${fx.maxHp} max HP`);
     }
+    const grantedCards = [];
     if (fx.gainCommonCard) {
       const c = pickCardByRarity({ common: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); grantedCards.push(c); }
     }
     if (fx.gainUncommonCard) {
       const c = pickCardByRarity({ uncommon: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); grantedCards.push(c); }
     }
     if (fx.gainRareCard) {
       const c = pickCardByRarity({ rare: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); grantedCards.push(c); }
     }
     pushLog(logBits.join(' · '));
+    const eventTitle = activeEvent?.title;
     setActiveEvent(null);
+    // If the event granted cards, queue them up in the modal and defer
+    // returning to the map until the player acknowledges them.
+    if (grantedCards.length > 0) {
+      setCardGrantPrompt({
+        cards: grantedCards,
+        title: `${eventTitle} — added to your deck`,
+      });
+      setStage('card-grant');
+      return;
+    }
+    returnToMap();
+  }
+
+  // Dismiss the card-grant modal. Routes back to the map.
+  function dismissCardGrant() {
+    setCardGrantPrompt(null);
     returnToMap();
   }
 
@@ -2093,6 +2198,8 @@ export default function App() {
   if (stage === 'tutorial-complete')  return <TutorialCompleteScreen onStart={startRun} onMenu={() => setStage('menu')} />;
   if (stage === 'defeat')             return <EndScreen win={false} onRetry={startRun} />;
   if (stage === 'graduation')         return <GraduationScreen equipment={equipment} familiar={familiar} familiarName={familiarName} onRetry={startRun} />;
+  // Card-grant modal sits on top of whatever stage triggered it — render
+  // the modal as an overlay below.
 
   if (stage === 'supply-shop')   return <SupplyShopScreen choices={supplyChoices} picks={supplyPicks} onPick={pickSupplyCard} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
@@ -2107,6 +2214,7 @@ export default function App() {
       }} />;
   }
   if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward} />;
+  if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
@@ -2140,6 +2248,8 @@ export default function App() {
       familiar={familiar} familiarName={familiarName}
       playerVulnerable={playerVulnerable} playerWeak={playerWeak}
       onPlayCard={playCard} onEndTurn={endTurn}
+      onUnstage={unstageCard} onCast={castStagedSpell}
+      castPreview={previewCastDamage()}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -2197,12 +2307,12 @@ function TutorialOverlay({ step, onAdvance, onExit }) {
       waitsForAction: true,
     },
     {
-      title: 'Step 2 — Cast a spell with an Effect card.',
+      title: 'Step 2 — Stage an Effect card and CAST.',
       body: (<>
         <p>Excellent. Your tray now has a stat point. Words on their own do nothing — they're potential energy.</p>
-        <p className="mt-2">The ember-bordered cards are <b>Effect cards</b>. They <i>seal</i> the spell and cast it. <b>Persuade</b> reads "2 + Wit×2 Composure" — meaning it deals 2 base damage plus 2 per Wit point on the tray. Try it.</p>
+        <p className="mt-2">The ember-bordered cards are <b>Effect cards</b>. Click one — it goes to the tray as the <i>sealer</i>. The tray will show a <b>Predicted damage</b> number, then click the big <b>✨ CAST</b> button to actually fire the spell. (You can stage more words first if you want a bigger spell. You can also click a staged card to take it back.)</p>
       </>),
-      cta: '(play any Effect card)',
+      cta: '(stage an Effect, then click CAST)',
       waitsForAction: true,
     },
     {
@@ -2555,7 +2665,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
         </div>
       )}
 
-      <div className="parchment-card p-3 max-h-32 overflow-y-auto text-xs font-quill text-parchment-200 space-y-0.5">
+      <div className="parchment-card p-3 max-h-40 overflow-y-auto text-sm font-quill text-parchment-200 space-y-0.5">
         {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}
       </div>
     </div>
@@ -2593,7 +2703,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        hp, maxHp, block, energy, energyMax, hand, deck, discard, tray,
                        equipment, powers, relics, familiar, familiarName,
                        playerVulnerable, playerWeak,
-                       onPlayCard, onEndTurn, log }) {
+                       onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -2606,117 +2716,159 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       <div className="parchment-card-strong p-4">
         <div className="flex justify-between items-start mb-2">
           <div>
-            <div className="font-display text-2xl text-ember-300">{enemy?.name}</div>
-            <div className="text-xs text-parchment-300 italic">
+            <div className="font-display text-3xl text-ember-300">{enemy?.name}</div>
+            <div className="text-sm text-parchment-300 italic">
               {enemy?.tier === 'boss' ? 'Boss' : enemy?.tier === 'elite' ? 'Elite' : 'Enemy'}
             </div>
           </div>
           <div className="text-right">
             {showComposure && (
-              <div className="text-2xl font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
-                ✨ {enemyComposure} <span className="text-sm text-parchment-300">/ {composureMax}</span>
+              <div className="text-3xl font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
+                ✨ {enemyComposure} <span className="text-base text-parchment-300">/ {composureMax}</span>
               </div>
             )}
             {showHp && (
-              <div className="text-2xl font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
-                ❤ {enemyHp} <span className="text-sm text-parchment-300">/ {hpMax}</span>
+              <div className="text-3xl font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
+                ❤ {enemyHp} <span className="text-base text-parchment-300">/ {hpMax}</span>
               </div>
             )}
-            <div className="text-sm">🛡 {enemyBlock}</div>
+            <div className="text-base">🛡 {enemyBlock}</div>
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           <div className="px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700">
-            <div className="text-[10px] uppercase text-ember-300 tracking-widest">Intent</div>
+            <div className="text-xs uppercase text-ember-300 tracking-widest">Intent</div>
             <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
           </div>
-          {enemyVulnerable > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Vuln {enemyVulnerable}</span>}
-          {enemyWeak > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-xs">🌀 Weak {enemyWeak}</span>}
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 Chutz {eff_label(eff.chutzpah ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ Wit {eff_label(eff.wit ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 Jnsq {eff_label(eff.jnsq ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-[10px] font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ Phys {eff_label(eff.physical ?? 1)}</span>
+          {enemyVulnerable > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-sm">🌀 Vuln {enemyVulnerable}</span>}
+          {enemyWeak > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-sm">🌀 Weak {enemyWeak}</span>}
+          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 Chutz {eff_label(eff.chutzpah ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ Wit {eff_label(eff.wit ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 Jnsq {eff_label(eff.jnsq ?? 1)}</span>
+          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ Phys {eff_label(eff.physical ?? 1)}</span>
         </div>
       </div>
 
-      {/* SPELL TRAY — accumulates as you play Word cards. Cast an Effect
-          to consume it; end the turn without casting and the spell fizzles. */}
+      {/* SPELL TRAY — staging area. Word + Effect cards get queued here.
+          Click CAST to resolve. End the turn without casting and the
+          spell fizzles (energy lost, cards discarded). */}
       <div className={`parchment-card p-3 border-l-4 ${
-        tray.phrases.length > 0 ? 'border-l-iris-400' : 'border-l-ink-500'
+        (tray.words.length > 0 || tray.effectCard) ? 'border-l-iris-400' : 'border-l-ink-500'
       }`}>
-        <div className="flex justify-between items-center mb-1">
-          <div className="text-[10px] uppercase tracking-widest text-iris-300">Spell Tray</div>
-          <div className="flex gap-2 text-xs">
-            <span className={tray.chutzpah > 0 ? 'text-ember-300 font-bold' : 'text-parchment-400'}>💪 Chutzpah {tray.chutzpah}</span>
-            <span className={tray.wit > 0 ? 'text-iris-200 font-bold' : 'text-parchment-400'}>✨ Wit {tray.wit}</span>
-            <span className={tray.jnsq > 0 ? 'text-moss-300 font-bold' : 'text-parchment-400'}>🌀 Jnsq {tray.jnsq}</span>
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-xs uppercase tracking-widest text-iris-300 font-bold">📜 Spell Tray</div>
+          <div className="flex gap-3 text-sm">
+            <span className={tray.chutzpah > 0 ? 'text-ember-300 font-bold' : 'text-parchment-400'}>💪 {tray.chutzpah}</span>
+            <span className={tray.wit > 0 ? 'text-iris-200 font-bold' : 'text-parchment-400'}>✨ {tray.wit}</span>
+            <span className={tray.jnsq > 0 ? 'text-moss-300 font-bold' : 'text-parchment-400'}>🌀 {tray.jnsq}</span>
           </div>
         </div>
-        <div className="text-xs font-quill italic text-parchment-200 min-h-[1.25rem]">
+
+        {/* Phrase preview */}
+        <div className="text-sm font-quill italic text-parchment-100 min-h-[1.5rem] mb-2">
           {tray.phrases.length === 0
-            ? <span className="text-parchment-400">(no spell yet — play Word cards to build one)</span>
-            : <span>"{tray.phrases.join(' ')} <span className="text-iris-300 not-italic">…</span>"</span>
+            ? <span className="text-parchment-400">(empty — click a Word card to stage it)</span>
+            : <span>"{tray.phrases.join(' ')} {tray.effectCard ? <span className="text-iris-200 not-italic">{tray.effectCard.phrase}</span> : <span className="text-parchment-400 not-italic">… (need an Effect to seal)</span>}"</span>
           }
         </div>
-        {/* Tag chip row — shows the theme the spell is taking on. When
-            you play an Effect that resonatesWith a tag here, you get a
-            flat damage bonus per match. Counts shown if >1. */}
+
+        {/* Theme chip row */}
         {tray.tags && tray.tags.length > 0 && (() => {
           const counts = {};
           for (const t of tray.tags) counts[t] = (counts[t] || 0) + 1;
           return (
-            <div className="mt-1 flex gap-1 flex-wrap text-[10px] font-mono">
+            <div className="mb-2 flex gap-1 flex-wrap text-xs font-mono">
               <span className="text-iris-300">✦</span>
               {Object.entries(counts).map(([tag, n]) => (
-                <span key={tag} className="px-1 rounded bg-iris-800 text-parchment-100">
+                <span key={tag} className="px-2 py-0.5 rounded bg-iris-800 text-parchment-100">
                   {tag}{n > 1 ? ` ×${n}` : ''}
                 </span>
               ))}
             </div>
           );
         })()}
+
+        {/* Staged cards + CAST button row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-xs text-parchment-400 mr-1">Staged:</div>
+          {tray.words.map((w) => (
+            <button key={w.uid} onClick={() => onUnstage(w.uid)}
+              title="Click to unstage (refunds energy)"
+              className="px-2 py-1 rounded bg-iris-700 hover:bg-iris-600 border border-iris-400 text-parchment-50 text-xs flex items-center gap-1">
+              <span>{w.name}</span> <span className="text-parchment-400 text-[10px]">×</span>
+            </button>
+          ))}
+          {tray.effectCard ? (
+            <button onClick={() => onUnstage(tray.effectCard.uid)}
+              title="Click to unstage (refunds energy)"
+              className="px-2 py-1 rounded bg-ember-700 hover:bg-ember-600 border border-ember-400 text-parchment-50 text-sm font-bold flex items-center gap-1">
+              <span>🎯 {tray.effectCard.name}</span> <span className="text-parchment-300 text-[10px]">×</span>
+            </button>
+          ) : (
+            <span className="px-2 py-1 rounded bg-ink-700 border border-dashed border-ink-400 text-parchment-400 text-xs italic">need an Effect card</span>
+          )}
+          <div className="flex-1" />
+          {castPreview && tray.effectCard && tray.words.length > 0 && (
+            <div className="text-right">
+              <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
+              <div className={`text-2xl font-bold font-mono ${castPreview.dmgType === 'physical' ? 'text-ember-300' : 'text-iris-200'}`}
+                title={`${castPreview.base} base + ${castPreview.trayVal}×${castPreview.multiplier} from ${castPreview.stat} ${castPreview.resonanceBonus ? `+ ${castPreview.resonanceBonus} resonance` : ''} × ${castPreview.dmgType === 'physical' ? castPreview.phys_mult : castPreview.eff_mult} effectiveness`}>
+                {castPreview.dmg} <span className="text-sm text-parchment-300">{castPreview.dmgType === 'physical' ? 'phys' : 'comp'}</span>
+              </div>
+            </div>
+          )}
+          <button onClick={onCast}
+            disabled={!tray.effectCard || tray.words.length === 0}
+            className={`btn text-base px-6 py-2 ml-2 ${
+              tray.effectCard && tray.words.length > 0
+                ? 'btn-iris animate-pulse'
+                : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
+            }`}>
+            ✨ CAST
+          </button>
+        </div>
       </div>
 
       <div className="parchment-card p-3 flex justify-between items-center">
         <div className="flex gap-4 items-center flex-wrap">
           <div>
-            <div className="text-[10px] uppercase text-parchment-300">HP</div>
-            <div className="text-xl font-mono text-moss-300">{hp} <span className="text-xs text-parchment-300">/ {maxHp}</span></div>
+            <div className="text-xs uppercase text-parchment-300">HP</div>
+            <div className="text-2xl font-mono text-moss-300">{hp} <span className="text-sm text-parchment-300">/ {maxHp}</span></div>
           </div>
           <div>
-            <div className="text-[10px] uppercase text-parchment-300">Block</div>
-            <div className="text-xl font-mono text-iris-300">🛡 {block}</div>
+            <div className="text-xs uppercase text-parchment-300">Block</div>
+            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase text-parchment-300">Energy</div>
-            <div className="text-xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
+            <div className="text-xs uppercase text-parchment-300">Energy</div>
+            <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase text-parchment-300">Deck</div>
-            <div className="text-sm font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
+            <div className="text-xs uppercase text-parchment-300">Deck</div>
+            <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
           </div>
           {familiar && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-xs"
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-sm"
                   title={familiar.desc}>
-              <span className="text-base leading-none">{familiar.emoji}</span>
+              <span className="text-lg leading-none">{familiar.emoji}</span>
               <span className="text-gold-300">{familiarName || familiar.species}</span>
             </span>
           )}
           {equipment.length > 0 && (
-            <div className="text-[10px] flex gap-2 flex-wrap ml-2">
+            <div className="text-xs flex gap-2 flex-wrap ml-2">
               {equipment.map(eq => (
                 <span key={eq.id} className="text-gold-300" title={eq.desc}>⚜ {eq.name}</span>
               ))}
             </div>
           )}
           {playerVulnerable > 0 && (
-            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-xs" title="You take +50% damage from incoming attacks.">🌀 Vuln {playerVulnerable}</span>
+            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-sm" title="You take +50% damage from incoming attacks.">🌀 Vuln {playerVulnerable}</span>
           )}
           {playerWeak > 0 && (
-            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-xs" title="Your attacks deal -25% damage.">🌀 Weak {playerWeak}</span>
+            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-sm" title="Your attacks deal -25% damage.">🌀 Weak {playerWeak}</span>
           )}
         </div>
-        <button onClick={onEndTurn} className="btn btn-ember">End Turn</button>
+        <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
       </div>
 
       {/* Relic chip row — persistent across the run, shown all combats. */}
@@ -2748,7 +2900,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap min-h-[160px] items-center justify-center">
+      <div className="flex gap-3 flex-wrap min-h-[200px] items-center justify-center">
         {hand.map((card, i) => {
           const playable = card.cost <= energy;
           // Card frame tint by type — word = iris, effect = ember,
@@ -2762,31 +2914,31 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
               onClick={() => onPlayCard(i)} disabled={!playable}
-              className={`w-40 h-52 rounded-lg border-2 p-2 text-left flex flex-col gap-1 shadow-lg transition-all ${
+              className={`w-48 h-64 rounded-lg border-2 p-3 text-left flex flex-col gap-1.5 shadow-lg transition-all ${
                 playable
                   ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
-              <div className="flex justify-between items-center">
-                <div className="font-display text-sm leading-tight">{card.name}</div>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-sm ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
+              <div className="flex justify-between items-start gap-1">
+                <div className="font-display text-base leading-tight">{card.name}</div>
+                <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
                   {card.cost}
                 </div>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-ink-400">
+              <div className="text-xs uppercase tracking-wider text-ink-400">
                 {card.type}
                 {card.type === 'effect' && card.effect?.damageType === 'physical' && <span className="ml-1 text-ember-700">phys</span>}
               </div>
               {/* Word stat row + tag row */}
               {card.type === 'word' && card.stats && (
                 <>
-                  <div className="flex gap-1 flex-wrap text-[10px] font-mono">
-                    {card.stats.chutzpah ? <span className="px-1 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                    {card.stats.wit      ? <span className="px-1 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                    {card.stats.jnsq     ? <span className="px-1 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                  <div className="flex gap-1 flex-wrap text-xs font-mono">
+                    {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                    {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                    {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
                   </div>
                   {card.tags && card.tags.length > 0 && (
-                    <div className="text-[9px] text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
+                    <div className="text-xs text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
                       ✦ {card.tags.join(' · ')}
                     </div>
                   )}
@@ -2795,28 +2947,28 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               {/* Effect formula + resonance row */}
               {card.type === 'effect' && card.effect && (
                 <>
-                  <div className="text-[10px] font-mono text-ink-700">
+                  <div className="text-xs font-mono text-ink-700">
                     {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
                     <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
                       {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
                     </span>
                   </div>
                   {card.effect.resonatesWith && card.effect.resonatesWith.length > 0 && (
-                    <div className="text-[9px] text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
-                      ✦ resonates: {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0}/match)</span>
+                    <div className="text-xs text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
+                      ✦ resonates: {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0})</span>
                     </div>
                   )}
                 </>
               )}
-              <div className="text-xs flex-1 font-quill">{card.desc}</div>
-              {card.flavor && <div className="text-[10px] italic text-ink-500 truncate">"{card.flavor}"</div>}
-              {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
+              <div className="text-sm flex-1 font-quill leading-snug">{card.desc}</div>
+              {card.flavor && <div className="text-xs italic text-ink-500 leading-tight">"{card.flavor}"</div>}
+              {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-xs italic text-ember-700">Exhaust</div>}
             </motion.button>
           );
         })}
       </div>
 
-      <div className="parchment-card p-3 max-h-32 overflow-y-auto text-xs font-quill text-parchment-200 space-y-0.5">
+      <div className="parchment-card p-3 max-h-40 overflow-y-auto text-sm font-quill text-parchment-200 space-y-0.5">
         {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}
       </div>
     </div>
@@ -2845,6 +2997,65 @@ function RewardScreen({ choices, onPick }) {
         ))}
       </div>
       <button onClick={() => onPick(null)} className="btn btn-ink mt-4">Skip</button>
+    </div>
+  );
+}
+
+// Played when an event / shop / familiar hands the player one or more
+// cards. Shows them face-up with a single "Got it" button. Prompt shape:
+// { cards: [card objects], title: string }
+function CardGrantScreen({ prompt, onDismiss }) {
+  if (!prompt) return null;
+  const { cards, title } = prompt;
+  const tint = (card) =>
+    card.type === 'word'   ? 'border-iris-500' :
+    card.type === 'effect' ? 'border-ember-500' :
+    card.type === 'power'  ? 'border-gold-500' :
+                             'border-moss-500';
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-4xl mx-auto">
+      <h2 className="font-display text-4xl text-gold-300 text-center">📜 You gained {cards.length === 1 ? 'a card' : `${cards.length} cards`}</h2>
+      <div className="text-sm text-parchment-300 italic">{title}</div>
+      <div className="flex gap-4 flex-wrap justify-center">
+        {cards.map((card, i) => (
+          <div key={i}
+            className={`w-52 min-h-[280px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 ${tint(card)}`}>
+            <div className="flex justify-between items-start gap-1">
+              <div className="font-display text-base leading-tight">{card.name}</div>
+              <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
+            </div>
+            <div className="text-xs uppercase tracking-wider text-ink-400">{card.type} · {card.rarity}</div>
+            {card.type === 'word' && card.stats && (
+              <div className="flex gap-1 flex-wrap text-xs font-mono">
+                {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+              </div>
+            )}
+            {card.type === 'word' && card.tags && card.tags.length > 0 && (
+              <div className="text-xs text-ink-500 italic">✦ {card.tags.join(' · ')}</div>
+            )}
+            {card.type === 'effect' && card.effect && (
+              <>
+                <div className="text-xs font-mono text-ink-700">
+                  {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}{' '}
+                  <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
+                    {card.effect.damageType === 'physical' ? 'phys' : 'comp'}
+                  </span>
+                </div>
+                {card.effect.resonatesWith && card.effect.resonatesWith.length > 0 && (
+                  <div className="text-xs text-iris-700 italic">✦ resonates: {card.effect.resonatesWith.join(', ')}</div>
+                )}
+              </>
+            )}
+            <div className="text-sm font-quill leading-snug">{card.desc}</div>
+            {card.flavor && (
+              <div className="text-xs italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
+            )}
+          </div>
+        ))}
+      </div>
+      <button onClick={onDismiss} className="btn btn-gold text-lg px-8 py-3">Got it</button>
     </div>
   );
 }
