@@ -2627,7 +2627,14 @@ export default function App() {
     const killedByPowers = applyEndOfTurnPowerTriggers();
     if (killedByPowers) return;
 
-    // 2. Enemy intent.
+    // 2. Enemy turn begins. Enemy block expires here, before the intent
+    // fires — so an enemy that blocks on consecutive turns gets a fresh
+    // pool each time, and player attacks during the previous turn can't
+    // free-rider through stale block.
+    if (enemyBlock > 0) pushLog(`👹 ${enemy?.name || 'Enemy'}: 🛡 fades.`);
+    setEnemyBlock(0);
+
+    // 3. Enemy intent.
     if (enemyIntent) applyEnemyIntent(enemyIntent);
     if (hp <= 0 || composure <= 0) return;
 

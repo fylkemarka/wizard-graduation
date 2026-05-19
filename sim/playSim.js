@@ -839,6 +839,9 @@ function aiTurn(state, combat) {
       if (trig.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * trig.vulnerable);
       if (trig.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * trig.weak);
     }
+    // Enemy block fades before its new intent fires — same rule as
+    // player block. Otherwise a Block intent stacks indefinitely.
+    combat.enemyBlock = 0;
     // Enemy intent
     if (combat.enemyComposure > 0 && combat.enemyHp > 0) {
       applyIntent(state, combat, combat.enemyIntent);
