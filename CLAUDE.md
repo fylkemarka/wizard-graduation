@@ -68,8 +68,8 @@ Mechanics **dropped** vs Arcane Workshop:
 - **Card rewards** — 3-card draft after non-boss combat; elite combats
   weight toward uncommon + rare; skip is allowed
 - **Branching DAG map** per act — `generateActMap(rows, width)` makes a new
-  one per act. Node types: combat / elite / rest / event / forge-basic /
-  forge-fine / boss / start
+  one per act. Node types: combat / elite / rest / event / boss / start.
+  Forge nodes were removed — equipment is now boss-only.
 - **Equipment system** — `EQUIPMENT[slot][tier]` for staff / robes / gem /
   ring. Bonus payload keys: `strikeBonus`, `startBlock`, `maxHp`,
   `healOnCombatStart`, `extraStartHand`, `energyOnCombatStart`,
@@ -79,8 +79,11 @@ Mechanics **dropped** vs Arcane Workshop:
   master-tier reward
 - **Run chain** — boss kill → `act-cleared` screen → advanceToNextAct →
   next act's map. Heals 25% max HP between acts. Final act → graduation
-- **Forge nodes** — at rows/3 (basic) and 2*rows/3 (fine), player chooses
-  to claim the tiered equipment OR skip toward the boss for master
+- **Equipment progression** — staff/robe/gem/ring are Master tier only,
+  granted on each act's boss kill. The basic and fine tiers in
+  `EQUIPMENT[slot]` are kept in the data table but currently unreachable
+  (no forge nodes route to them). They're handy if we ever reintroduce
+  alternate equipment paths.
 - **Events** — 8 starter events covering heal / loseHp / maxHp / random
   card by rarity
 

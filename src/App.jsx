@@ -1005,9 +1005,9 @@ function generateActMap(rows, width) {
   return { nodes, edges };
 
   function pickNodeType(r, rows) {
-    // Two forge nodes per act: at rows/3 (basic) and 2*rows/3 (fine).
-    if (r === Math.floor(rows / 3))       return 'forge-basic';
-    if (r === Math.floor((2 * rows) / 3)) return 'forge-fine';
+    // Forge nodes were removed — equipment now drops only from the act
+    // boss (Master tier). Map distribution skews toward combat with
+    // events and rest as breathers, plus the occasional elite.
     const roll = rng();
     if (roll < 0.58) return 'combat';
     if (roll < 0.78) return 'event';
@@ -1034,8 +1034,10 @@ const INTER_ACT_HEAL_RATIO = 0.25;
 
 export default function App() {
   // Stage flow:
-  //   menu → map → (combat / event / rest / forge / reward) → map →
+  //   menu → map → (combat / event / rest / reward) → map →
   //   act-cleared → map (next act) → ... → graduation / defeat
+  //   Equipment is granted only on boss kill (Master tier). Forge
+  //   nodes were removed in the simplification pass.
   const [stage, setStage] = useState('menu');
 
   // Run-wide player state
@@ -1099,10 +1101,9 @@ export default function App() {
   const [tutorialActive, setTutorialActive] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
-  // Reward / event / forge / rest state
+  // Reward / event / rest state
   const [rewardChoices, setRewardChoices] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
-  const [forgeChoice, setForgeChoice] = useState(null);
   const [restNode, setRestNode] = useState(null);
   // When set, shows the "you received this card" modal. Used after
   // events / shops that hand the player cards silently. Shape:
@@ -1317,8 +1318,6 @@ export default function App() {
       const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
       setActiveEvent(ev); setStage('event'); return;
     }
-    if (node.type === 'forge-basic')   { setForgeChoice({ tier: 'basic' }); setStage('forge'); return; }
-    if (node.type === 'forge-fine')    { setForgeChoice({ tier: 'fine' });  setStage('forge'); return; }
     if (node.type === 'boss')          return enterFight(currentAct.bossId);
   }
 
@@ -2173,26 +2172,6 @@ export default function App() {
     returnToMap();
   }
 
-  function claimForge(accept) {
-    if (accept && forgeChoice) {
-      const slot = currentAct.slot;
-      const piece = EQUIPMENT[slot]?.[forgeChoice.tier];
-      if (piece) {
-        const alreadyHasSlot = equipment.find(eq => eq.id.startsWith(`eq-${slot}-`));
-        if (!alreadyHasSlot) {
-          const next = [...equipment, piece];
-          setEquipment(next);
-          applyEquipmentMaxHp(piece);
-          pushLog(`🛠 Forged: ${piece.name}.`);
-        }
-      }
-    } else {
-      pushLog(`Passed on the forge — pushing deeper.`);
-    }
-    setForgeChoice(null);
-    returnToMap();
-  }
-
   // ---------- RENDER ----------
   if (stage === 'menu')               return <MenuScreen onStart={startRun} onTutorial={startTutorial} />;
   if (stage === 'tutorial-complete')  return <TutorialCompleteScreen onStart={startRun} onMenu={() => setStage('menu')} />;
@@ -2218,14 +2197,6 @@ export default function App() {
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
-  if (stage === 'forge')  {
-    const slot = currentAct.slot;
-    const piece = EQUIPMENT[slot]?.[forgeChoice?.tier];
-    return <ForgeScreen
-      tier={forgeChoice?.tier} slot={slot} piece={piece}
-      alreadyHas={!!equipment.find(eq => eq.id.startsWith(`eq-${slot}-`))}
-      onChoose={claimForge} />;
-  }
   if (stage === 'map') {
     return <MapScreen
       map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
@@ -2634,7 +2605,6 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           <Legend glyph="☠" label="Elite" />
           <Legend glyph="🛏" label="Rest" />
           <Legend glyph="📜" label="Event" />
-          <Legend glyph="🛠" label="Forge" />
           <Legend glyph="👑" label="Boss" />
           <Legend glyph="·" label="Start" />
           <Legend glyph="?" label="Glimpsed" />
@@ -2678,21 +2648,19 @@ function nodeColor(type, isCleared, isCurrent) {
   if (type === 'elite') return '#a8412f';
   if (type === 'rest') return '#43622c';
   if (type === 'event') return '#523a8b';
-  if (type === 'forge-basic' || type === 'forge-fine') return '#a98032';
   if (type === 'start') return '#3d3325';
   return '#2b2418';
 }
 function nodeGlyph(type) {
   return {
     combat: '⚔', elite: '☠', rest: '🛏', event: '📜',
-    boss: '👑', start: '·', 'forge-basic': '🛠', 'forge-fine': '🛠',
+    boss: '👑', start: '·',
   }[type] || '?';
 }
 function nodeLabel(n) {
   return ({
     combat: 'a combat tile', elite: 'an elite tile', rest: 'a rest tile',
-    event: 'an event', start: 'the trailhead',
-    'forge-basic': 'the forge', 'forge-fine': 'the deeper forge', boss: 'the boss'
+    event: 'an event', start: 'the trailhead', boss: 'the boss'
   }[n.type]) || 'a tile';
 }
 function Legend({ glyph, label }) {
@@ -3185,32 +3153,6 @@ function summarizeEffects(effects, power, cost, stats, effect) {
     if (fxBits.length) bits.push(`${k}: ${fxBits.join(', ')}`);
   }
   return bits.join(' · ');
-}
-
-function ForgeScreen({ tier, slot, piece, alreadyHas, onChoose }) {
-  if (!piece) return null;
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
-      <h2 className="font-display text-3xl text-gold-300">A Roadside Forge</h2>
-      <p className="font-quill italic text-parchment-200 text-center">
-        Fires already kindled. You could claim a {tier} {SLOT_LABEL[slot]} here — or push deeper for better.
-      </p>
-      <div className="parchment-card-strong p-4 w-full">
-        <div className="font-display text-xl text-gold-300">{piece.name}</div>
-        <div className="text-xs uppercase text-parchment-300">{tier} {SLOT_LABEL[slot]}</div>
-        <div className="text-sm mt-2">{piece.desc}</div>
-      </div>
-      <div className="flex flex-col gap-2 w-full">
-        <button onClick={() => onChoose(true)} disabled={alreadyHas}
-          className={`btn ${alreadyHas ? 'btn-ink opacity-60 cursor-not-allowed' : 'btn-gold'}`}>
-          {alreadyHas ? `You already wield a ${SLOT_LABEL[slot]}` : `Forge the ${piece.name}`}
-        </button>
-        <button onClick={() => onChoose(false)} className="btn btn-ink">
-          Push deeper (skip this forge)
-        </button>
-      </div>
-    </div>
-  );
 }
 
 function ActClearedScreen({ act, equipment, isFinalAct, onContinue }) {
