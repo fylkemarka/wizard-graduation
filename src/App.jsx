@@ -630,8 +630,8 @@ const ENEMIES = [
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4' },
-      { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
+      { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
@@ -642,9 +642,10 @@ const ENEMIES = [
   { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
+      { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
@@ -657,17 +658,18 @@ const ENEMIES = [
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4' },
+      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
-      { kind: 'vulnerable', value: 3, weight: 1, telegraph: '🌀 Vuln 3' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
     ] },
 
   // ===== ACT 2 — The Thread Path =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
-      { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
+      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
+      { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
@@ -684,23 +686,23 @@ const ENEMIES = [
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
+      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
-      { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
-      { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
+      { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9' },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 68, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11' },
+      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
     ] },
 
@@ -714,8 +716,9 @@ const ENEMIES = [
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
     behaviors: [
-      { kind: 'attack-multi', value: 2, count: 4, weight: 3, telegraph: '⚔ 2×4' },
-      { kind: 'weak',   value: 1, weight: 1, telegraph: '🌀 Weak 1' },
+      { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
+      { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.3, physical: 1.2 },
@@ -726,24 +729,24 @@ const ENEMIES = [
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
-      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10' },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 3, telegraph: '⚔ 13' },
+      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
-      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln 1' },
+      { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14' },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13' },
+      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 4, weight: 1, telegraph: '⚔ 5×4' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
     ] },
 
   // ===== ACT 4 — The Forge Path =====
@@ -756,38 +759,39 @@ const ENEMIES = [
   { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
-      { kind: 'attack-multi', value: 4, count: 4, weight: 3, telegraph: '⚔ 4×4' },
-      { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
+      { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
     ] },
   { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
-      { kind: 'vulnerable', value: 2, weight: 2, telegraph: '🌀 Vuln 2' },
-      { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8' },
+      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'vulnerable', value: 2, weight: 2, telegraph: '🩸 Vuln 2' },
+      { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8 + ⛧ Weak 1', riders: { weak: 1 } },
     ] },
   { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
-      { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
+      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
-      { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
+      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1 + 🩸 Vuln 1', riders: { weak: 1, vulnerable: 1 } },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
+      { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
       { kind: 'attack-multi', value: 3, count: 4, weight: 1, telegraph: '⚔ 3×4' },
     ] },
   { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 100, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     behaviors: [
       { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4' },
+      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'block',  value: 14, weight: 1, telegraph: '🛡 14' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
+      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
     ] },
 
   // ===== TUTORIAL =====
@@ -842,14 +846,18 @@ const EQUIPMENT = {
 };
 
 // Events. `effects` keys handled by resolveEventChoice.
+// Severity pass: every upside option carries a real, often-permanent cost
+// (max HP loss, big HP scratch, a random card culled from the deck). The
+// "walk away" option is intentionally a pittance or nothing — its value is
+// situational. When you're already at 8 HP, "decline" IS the play.
 const EVENTS = [
   {
     id: 'ev-old-tome',
     title: 'An Old Tome',
     flavor: 'A leather-bound book lies open on a rock. The page reads, in fading copperplate: BORROWED — RETURN BY THE EQUINOX OR FACE THE STACK CRONE. There is no further explanation, which is somehow more concerning.',
     choices: [
-      { label: 'Read on. (gain a random Common card)', effects: { gainCommonCard: 1 } },
-      { label: 'Tear the page out. Pocket it. (+4 HP — felt powerful)', effects: { heal: 4 } },
+      { label: 'Read on. The pages bite back. (gain a Rare card, -2 max HP)', effects: { gainRareCard: 1, maxHp: -2 } },
+      { label: 'Tear a page out. Pocket it. (gain a Common card, -5 HP)', effects: { gainCommonCard: 1, loseHp: 5 } },
       { label: 'Pretend you saw nothing.', effects: {} },
     ],
   },
@@ -858,8 +866,8 @@ const EVENTS = [
     title: 'Quiet Spring',
     flavor: 'A small spring bubbles between two stones. The water is cold, clear, and almost certainly not deliberately enchanted.',
     choices: [
-      { label: 'Drink deeply. (+8 HP)', effects: { heal: 8 } },
-      { label: 'Fill a flask carefully. (+4 HP, +1 max HP)', effects: { heal: 4, maxHp: 1 } },
+      { label: 'Drink to the last drop. (heal to full, -3 max HP)', effects: { healFull: true, maxHp: -3 } },
+      { label: 'Fill a flask. The flask leaks something else. (+8 HP, lose a random card)', effects: { heal: 8, loseRandomCard: true } },
       { label: 'Leave it for the next traveller.', effects: {} },
     ],
   },
@@ -868,8 +876,8 @@ const EVENTS = [
     title: 'The Stranger',
     flavor: 'A figure in slightly-too-grey robes waits at a fork in the path. They produce a card from a satchel with the air of someone who has rehearsed this. Twice.',
     choices: [
-      { label: 'Accept the card. (gain a random Uncommon card)', effects: { gainUncommonCard: 1 } },
-      { label: 'Bargain. They look you up and down. (-5 HP, gain a random Rare card)', effects: { loseHp: 5, gainRareCard: 1 } },
+      { label: 'Accept the card. The price is small, until it isn\'t. (gain Uncommon, -6 HP)', effects: { gainUncommonCard: 1, loseHp: 6 } },
+      { label: 'Bargain hard. They take it out of your bones. (gain Rare, -3 max HP)', effects: { gainRareCard: 1, maxHp: -3 } },
       { label: 'Refuse politely. They expected this.', effects: {} },
     ],
   },
@@ -878,9 +886,9 @@ const EVENTS = [
     title: 'Roadside Shrine',
     flavor: 'A weathered stone shrine to no god in particular. The donations bowl has been emptied recently. The donations bowl is, you suspect, emptied daily.',
     choices: [
-      { label: 'Pray sincerely. (heal 5)', effects: { heal: 5 } },
-      { label: 'Pray sarcastically. (+2 max HP, -3 HP)', effects: { maxHp: 2, loseHp: 3 } },
-      { label: 'Walk on without looking. (Surely fine.)', effects: {} },
+      { label: 'Pray sincerely. The god takes a memory. (heal 10, lose a random card)', effects: { heal: 10, loseRandomCard: true } },
+      { label: 'Pray sarcastically. The god is petty AND powerful. (+3 max HP, -10 HP)', effects: { maxHp: 3, loseHp: 10 } },
+      { label: 'Walk on without looking.', effects: {} },
     ],
   },
   {
@@ -888,8 +896,8 @@ const EVENTS = [
     title: 'Coiled Adder',
     flavor: 'A small green snake watches you pass. Its eyes are bright, deliberate, and noticeably more focused than yours have been all morning.',
     choices: [
-      { label: 'Pick it up. (-4 HP, gain a Rare card)', effects: { loseHp: 4, gainRareCard: 1 } },
-      { label: 'Offer it a crumb. (+3 HP)', effects: { heal: 3 } },
+      { label: 'Pick it up. It teaches you the hard way. (gain Rare, -8 HP)', effects: { gainRareCard: 1, loseHp: 8 } },
+      { label: 'Offer it a crumb. It remembers your face. (gain Common, -1 max HP)', effects: { gainCommonCard: 1, maxHp: -1 } },
       { label: 'Step around it, politely.', effects: {} },
     ],
   },
@@ -898,8 +906,8 @@ const EVENTS = [
     title: 'A Shard of Mirror',
     flavor: 'A piece of broken mirror, propped against a stump. The version of you in the glass is harder around the eyes. They are not exactly your eyes. You are pretty sure.',
     choices: [
-      { label: 'Study it carefully. (gain an Uncommon card)', effects: { gainUncommonCard: 1 } },
-      { label: 'Break it further. (+5 max HP, -2 HP)', effects: { maxHp: 5, loseHp: 2 } },
+      { label: 'Study it. The reflection takes your name. (gain Uncommon, lose a random card)', effects: { gainUncommonCard: 1, loseRandomCard: true } },
+      { label: 'Break it further. The breaking shatters something else. (+5 max HP, -8 HP)', effects: { maxHp: 5, loseHp: 8 } },
       { label: 'Leave the shard. Leave quickly.', effects: {} },
     ],
   },
@@ -908,8 +916,8 @@ const EVENTS = [
     title: 'Pilgrim on the Path',
     flavor: 'An old pilgrim sets out half a meal between you. "Eat," they say, "the path is longer than you think. Everybody\'s path is longer than they think. That\'s the trick of paths."',
     choices: [
-      { label: 'Eat with gratitude. (+10 HP)', effects: { heal: 10 } },
-      { label: 'Trade words instead. (gain a Common card)', effects: { gainCommonCard: 1 } },
+      { label: 'Eat. The road takes back what it gives. (heal to full, -3 max HP)', effects: { healFull: true, maxHp: -3 } },
+      { label: 'Trade words. The pilgrim\'s wisdom cuts. (gain Uncommon, -6 HP)', effects: { gainUncommonCard: 1, loseHp: 6 } },
       { label: 'Decline politely and continue.', effects: {} },
     ],
   },
@@ -918,8 +926,8 @@ const EVENTS = [
     title: 'A Vow Offered',
     flavor: 'A stone altar, carved with a single grand line: STRENGTH FOR STILLNESS. Beneath it, in much smaller letters: TERMS APPLY. CONSULT THE STELE.',
     choices: [
-      { label: 'Take the vow. (-6 HP, +1 max HP, gain a Rare card)', effects: { loseHp: 6, maxHp: 1, gainRareCard: 1 } },
-      { label: 'Read the small print, decline. (gain an Uncommon card)', effects: { gainUncommonCard: 1 } },
+      { label: 'Take the full vow. (gain Rare, +2 max HP, -8 HP, lose a random card)', effects: { gainRareCard: 1, maxHp: 2, loseHp: 8, loseRandomCard: true } },
+      { label: 'Read the small print, decline most. (gain Common, -2 max HP)', effects: { gainCommonCard: 1, maxHp: -2 } },
       { label: 'Walk away. The altar is unmoved.', effects: {} },
     ],
   },
@@ -2653,6 +2661,7 @@ export default function App() {
   function applyEnemyIntent(intent) {
     const e = enemy;
     if (!e) return;
+    let playerDied = false;
     if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
       // Enemy outgoing damage multiplier (old weak/vuln replacement).
@@ -2675,10 +2684,7 @@ export default function App() {
       setBlock(wBlock);
       setHp(wHp);
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
-      if (wHp <= 0) {
-        if (tutorialActive) { setHp(maxHp); return; }
-        setTimeout(() => setStage('defeat'), 200);
-      }
+      if (wHp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
@@ -2690,6 +2696,21 @@ export default function App() {
       // Enemy applies weak to player → player spells weaker.
       adjustPlayerDmg(-0.25 * intent.value);
       pushLog(`👹 ${e.name}: 💢 −${25*intent.value}% to your spell potency.`);
+    }
+    // Riders: a combo intent can attach extra side-effects that fire AFTER
+    // the main effect. Keys: weak (player potency down), vulnerable (player
+    // damage taken up), block (enemy gains block). Riders apply even on
+    // lethal attacks — that's flavor, not bug. Keep telegraphs honest: the
+    // intent.telegraph string above should already advertise the rider.
+    if (intent.riders) {
+      const r = intent.riders;
+      if (r.weak) adjustPlayerDmg(-0.25 * r.weak);
+      if (r.vulnerable) adjustEnemyDmg(+0.25 * r.vulnerable);
+      if (r.block) setEnemyBlock(b => b + r.block);
+    }
+    if (playerDied) {
+      if (tutorialActive) { setHp(maxHp); return; }
+      setTimeout(() => setStage('defeat'), 200);
     }
   }
 
@@ -2825,18 +2846,39 @@ export default function App() {
   function resolveEventChoice(choice) {
     const fx = choice.effects || {};
     const logBits = [`📜 ${activeEvent.title}: ${choice.label}`];
+    if (fx.healFull) {
+      setHp(maxHp);
+      logBits.push(`+full HP`);
+    }
     if (fx.heal) {
       setHp(h => clamp(h + fx.heal, 0, maxHp));
       logBits.push(`+${fx.heal} HP`);
     }
     if (fx.loseHp) {
-      setHp(h => clamp(h - fx.loseHp, 0, maxHp));
+      // Events can't KO you outright — you'd just walk into the next combat
+      // at 1 HP, which is the real punishment. Clamp at 1.
+      setHp(h => Math.max(1, h - fx.loseHp));
       logBits.push(`-${fx.loseHp} HP`);
     }
     if (fx.maxHp) {
-      setMaxHp(m => m + fx.maxHp);
-      setHp(h => h + fx.maxHp);
-      logBits.push(`+${fx.maxHp} max HP`);
+      setMaxHp(m => Math.max(1, m + fx.maxHp));
+      // On a max-HP loss, clamp current HP DOWN to the new ceiling but don't
+      // heal the player; on a gain, also heal so the new room counts as real.
+      setHp(h => fx.maxHp < 0 ? Math.max(1, Math.min(h, maxHp + fx.maxHp)) : h + fx.maxHp);
+      logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
+    }
+    // Lose a random non-starter card from the deck. Starters are protected so
+    // the cost is always a real one (you actually built up to that card).
+    if (fx.loseRandomCard) {
+      setDeck(d => {
+        const candidates = d
+          .map((c, i) => ({ c, i }))
+          .filter(({ c }) => !STARTER_DECK.includes(c.id));
+        if (candidates.length === 0) return d;
+        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        logBits.push(`− ${pick.c.name}`);
+        return d.filter((_, i) => i !== pick.i);
+      });
     }
     const grantedCards = [];
     if (fx.gainCommonCard) {

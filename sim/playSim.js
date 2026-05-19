@@ -181,7 +181,7 @@ const ENEMIES = [
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 4, weight: 3 },
+      { kind: 'attack', value: 4, weight: 3, riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2 },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
@@ -193,9 +193,10 @@ const ENEMIES = [
   { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 8, weight: 3 },
+      { kind: 'attack', value: 8, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
       { kind: 'block',  value: 7, weight: 1 },
+      { kind: 'attack', value: 8, weight: 1 },
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
@@ -208,16 +209,17 @@ const ENEMIES = [
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 15, weight: 2 },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2 },
+      { kind: 'attack-multi', value: 5, count: 4, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'block',  value: 16, weight: 1 },
-      { kind: 'vulnerable', value: 3, weight: 1 },
+      { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
   // ACT 2
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 5, weight: 3 },
-      { kind: 'weak',   value: 1, weight: 2 },
+      { kind: 'attack', value: 5, weight: 2, riders: { weak: 1 } },
+      { kind: 'attack', value: 6, weight: 2 },
+      { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
@@ -234,21 +236,21 @@ const ENEMIES = [
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 8, weight: 2 },
+      { kind: 'attack', value: 8, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
-      { kind: 'vulnerable', value: 2, weight: 1 },
+      { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
-      { kind: 'block',  value: 8, weight: 2 },
-      { kind: 'attack', value: 7, weight: 2 },
-      { kind: 'weak',   value: 2, weight: 1 },
+      { kind: 'block',  value: 8, weight: 2, riders: { weak: 1 } },
+      { kind: 'attack', value: 7, weight: 2, riders: { weak: 1 } },
+      { kind: 'attack', value: 9, weight: 1 },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 68, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 11, weight: 2 },
+      { kind: 'attack', value: 11, weight: 2, riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
       { kind: 'vulnerable', value: 2, weight: 1 },
       { kind: 'block',  value: 10, weight: 1 },
@@ -263,7 +265,8 @@ const ENEMIES = [
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
     behaviors: [
-      { kind: 'attack-multi', value: 2, count: 4, weight: 3 },
+      { kind: 'attack-multi', value: 2, count: 4, weight: 2, riders: { weak: 1 } },
+      { kind: 'attack-multi', value: 2, count: 4, weight: 1 },
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
@@ -275,21 +278,21 @@ const ENEMIES = [
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2 },
-      { kind: 'block',  value: 10, weight: 2 },
+      { kind: 'attack', value: 9, weight: 2, riders: { vulnerable: 1 } },
+      { kind: 'block',  value: 10, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 3 },
+      { kind: 'attack', value: 13, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1 },
-      { kind: 'vulnerable', value: 1, weight: 1 },
+      { kind: 'attack', value: 14, weight: 1 },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 2 },
+      { kind: 'attack', value: 13, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 4, weight: 1 },
       { kind: 'block',  value: 12, weight: 1 },
       { kind: 'vulnerable', value: 2, weight: 1 },
@@ -304,27 +307,28 @@ const ENEMIES = [
   { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
-      { kind: 'attack-multi', value: 4, count: 4, weight: 3 },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 1 },
       { kind: 'weak',   value: 2, weight: 1 },
     ] },
   { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 12, weight: 2 },
+      { kind: 'attack', value: 12, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'vulnerable', value: 2, weight: 2 },
-      { kind: 'block',  value: 8, weight: 1 },
+      { kind: 'block',  value: 8, weight: 1, riders: { weak: 1 } },
     ] },
   { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 12, weight: 2 },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
-      { kind: 'block',  value: 12, weight: 1 },
+      { kind: 'attack', value: 12, weight: 2, riders: { vulnerable: 1 } },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
+      { kind: 'block',  value: 12, weight: 1, riders: { vulnerable: 1 } },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 11, weight: 2 },
+      { kind: 'attack', value: 11, weight: 2, riders: { weak: 1, vulnerable: 1 } },
       { kind: 'vulnerable', value: 2, weight: 1 },
       { kind: 'weak',   value: 2, weight: 1 },
       { kind: 'attack-multi', value: 3, count: 4, weight: 1 },
@@ -333,7 +337,7 @@ const ENEMIES = [
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     behaviors: [
       { kind: 'attack', value: 14, weight: 2 },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2 },
+      { kind: 'attack-multi', value: 5, count: 4, weight: 2, riders: { weak: 1 } },
       { kind: 'block',  value: 14, weight: 1 },
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
@@ -940,6 +944,12 @@ function applyIntent(state, combat, intent) {
     combat.enemyDmgMult  = Math.min(1.5, combat.enemyDmgMult  + 0.25 * intent.value);
   } else if (intent.kind === 'weak') {
     combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * intent.value);
+  }
+  if (intent.riders) {
+    const r = intent.riders;
+    if (r.weak)       combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * r.weak);
+    if (r.vulnerable) combat.enemyDmgMult  = Math.min(1.5, combat.enemyDmgMult  + 0.25 * r.vulnerable);
+    if (r.block)      combat.enemyBlock += r.block;
   }
 }
 
