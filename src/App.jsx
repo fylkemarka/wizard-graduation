@@ -131,27 +131,27 @@ const CARDS = [
   // ---- BASIC (starter) ----
   { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
     effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } },
+              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 2 } },
     phrase: '…and so, surely, the matter is settled.',
     upgrade: { effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 2 + Wit×2 Composure. Resonates: rhetorical, academic.',
+              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 2 + Wit×2 Composure. Resonates: rhetorical, academic, formal.',
     flavor: 'You have brought receipts.' },
   { id: 'e-bluster', name: 'Bluster', cost: 1, type: 'effect', rarity: 'basic',
     effect: { scaleBy: 'chutzpah', base: 2, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 2 } },
+              resonatesWith: ['booming', 'threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
     phrase: '…and that is FINAL.',
     upgrade: { effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 2 + Chutzpah×2 Composure. Resonates: booming, threatening.',
+              resonatesWith: ['booming', 'threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 2 + Chutzpah×2 Composure. Resonates: booming, threatening, dismissive.',
     flavor: 'You said it with your whole chest.' },
   { id: 'e-bewilder', name: 'Bewilder', cost: 1, type: 'effect', rarity: 'basic',
     effect: { scaleBy: 'jnsq', base: 2, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } },
+              resonatesWith: ['absurd', 'mystical', 'chaotic'], resonanceBonus: { perTag: 2 } },
     phrase: '…and the moon, of course, is a kind of biscuit.',
     upgrade: { effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 2 + Jnsq×2 Composure. Resonates: absurd, mystical.',
+              resonatesWith: ['absurd', 'mystical', 'chaotic'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 2 + Jnsq×2 Composure. Resonates: absurd, mystical, chaotic.',
     flavor: 'They\'re thinking about it. They shouldn\'t be.' },
 
   // ---- COMMON ----
@@ -216,20 +216,20 @@ const CARDS = [
 
   // ---- PHYSICAL EFFECT CARDS — for wizards who still want to throw something ----
   { id: 'e-spark', name: 'Spark', cost: 0, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'physical',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 1, damageType: 'physical',
               resonatesWith: ['chaotic'], resonanceBonus: { perTag: 2 } },
     phrase: '(a small sharp light leaves your fingertips)',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'physical',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 2, damageType: 'physical',
               resonatesWith: ['chaotic'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 3 + Jnsq physical damage. Resonates: chaotic.',
+    desc: 'Cast: 4 + Jnsq physical damage. Resonates: chaotic.',
     flavor: 'It is not very impressive. It is also not very pleasant.' },
   { id: 'e-magic-missile', name: 'Magic Missile', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 9, multiplier: 2, damageType: 'physical',
+    effect: { scaleBy: 'jnsq', base: 11, multiplier: 3, damageType: 'physical',
               resonatesWith: ['mystical'], resonanceBonus: { perTag: 2 } },
     phrase: '(the air parts in a straight line ahead of you)',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 12, multiplier: 3, damageType: 'physical',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 14, multiplier: 4, damageType: 'physical',
               resonatesWith: ['mystical'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 9 + Jnsq×2 physical damage. Resonates: mystical.',
+    desc: 'Cast: 11 + Jnsq×3 physical damage. Resonates: mystical.',
     flavor: 'It always misses the bookshelves. Always.' },
   { id: 'e-sword-logic', name: 'Sword Logic', cost: 1, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'physical',
@@ -542,13 +542,17 @@ const FAMILIARS = [
 const FAMILIARS_BY_ID = Object.fromEntries(FAMILIARS.map(f => [f.id, f]));
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
-// 9-card starter. One word per stat (chutzpah / wit / jnsq), one effect
-// per stat (Bluster / Persuade / Bewilder), three Defends. With 5-card
-// hands you'll see at least one effect ~95% of turns; fizzling is real
-// when you draw all three effects with no words to feed them.
+// 11-card starter. One word per stat (chutzpah / wit / jnsq), one
+// composure effect per stat (Bluster / Persuade / Bewilder), Spark for
+// a guaranteed physical option against verbal-immune enemies, Channel
+// for tempo/draw cycling, and three Defends. The starter word tags
+// (formal / sarcastic / dismissive / chaotic) intentionally overlap
+// with the basic effects' widened resonance lists so resonance can
+// fire even before the player picks up reward cards.
 const STARTER_DECK = [
   'w-respect', 'w-frankly', 'w-erm',
   'e-persuade', 'e-bluster', 'e-bewilder',
+  'e-spark', 'c-channel',
   'c-defend', 'c-defend', 'c-defend',
 ];
 
@@ -648,11 +652,11 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 3 — The Stone Path =====
-  { id: 'e3-geode-crab', act: 3, name: 'Geode Crab', composureMax: 999, hpMax: 36, tier: 'normal',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.0 },
+  { id: 'e3-geode-crab', act: 3, name: 'Geode Crab', composureMax: 999, hpMax: 28, tier: 'normal',
+    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
-      { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12' },
+      { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7' },
+      { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
     ] },
   { id: 'e3-glow-mite', act: 3, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
@@ -660,11 +664,11 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 4, weight: 3, telegraph: '⚔ 3×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 3, name: 'Crystal Beetle', composureMax: 999, hpMax: 34, tier: 'normal',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.0 },
+  { id: 'e3-crystal-beetle', act: 3, name: 'Crystal Beetle', composureMax: 999, hpMax: 26, tier: 'normal',
+    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
     behaviors: [
-      { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
-      { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14' },
+      { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
+      { kind: 'attack', value: 11, weight: 1, telegraph: '⚔ 11' },
     ] },
   { id: 'e3-quartz-sentinel', act: 3, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
@@ -874,34 +878,57 @@ const EVENTS = [
 // as the old Arcane Workshop grove system). Stats here are placeholder
 // signals that the crafting minigame (Commit 3) will roll into the
 // final equipment card's per-slot mechanic.
+// Each material's `stats` keys correspond DIRECTLY to fields the
+// crafting factory (`buildCraftedEquipment`) consumes for that slot.
+// No dead stats — picking a material always changes the equipment.
+// Stat semantics by slot:
+//   STAFF (one-shot Effect):
+//     chutzpah → base + multiplier (always primary)
+//     defense  → rider Block on cast + 'formal' resonance tag
+//     regen    → rider HP heal on cast
+//     draw     → rider Draw on cast
+//     dot      → rider Weak on cast + 'threatening' resonance tag
+//     jnsq     → 'absurd' resonance tag
+//   ROBES (passive equipment):
+//     defense  → startBlock per combat
+//     regen    → HP heal per combat start
+//     draw     → +1 extra start hand
+//   RING (passive per-turn ticks):
+//     defense  → startBlock per combat
+//     energy   → +N permanent energy per turn
+//     draw     → extra start hand size
+//   HAT (Power-on-play, start-of-turn triggers):
+//     defense  → +N Block at start of every turn
+//     draw     → +N Draw at start of every turn
+//     vuln     → applies N Vulnerable to enemy at start of every turn
 const MATERIAL_TEMPLATES = {
   staff: [
     { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', flavor: 'Clean grain, predictable yield.',                stats: { chutzpah: 2 } },
     { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', flavor: 'Heavy in the hand; quietly self-important.',    stats: { chutzpah: 3 } },
-    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', flavor: "Smells of someone's grandmother.",              stats: { chutzpah: 1, defense: 1 } },
+    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', flavor: "Smells of someone's grandmother.",              stats: { chutzpah: 1, defense: 2 } },
     { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', flavor: 'Burnished red; reads the weather a bit too closely.', stats: { chutzpah: 3, jnsq: 1 } },
-    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', flavor: "Slightly off in a way you can't place.",         stats: { chutzpah: 2, dot: 1 } },
+    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', flavor: "Slightly off in a way you can't place.",         stats: { chutzpah: 2, dot: 2 } },
   ],
   robes: [
-    { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', flavor: 'Honest, plain, dependable.',                 stats: { defense: 2 } },
-    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted.',       stats: { wit: 2 } },
-    { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging.',                          stats: { defense: 1, regen: 1 } },
-    { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', flavor: 'Drinks the light. Mildly judgmental.',       stats: { wit: 1, draw: 1 } },
-    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', flavor: 'Itches by design.',                           stats: { defense: 3, jnsq: 1 } },
+    { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', flavor: 'Honest, plain, dependable.',                 stats: { defense: 3 } },
+    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted.',       stats: { defense: 1, regen: 1, draw: 1 } },
+    { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging.',                          stats: { defense: 1, regen: 2 } },
+    { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', flavor: 'Drinks the light. Mildly judgmental.',       stats: { defense: 2, draw: 1 } },
+    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', flavor: 'Itches by design.',                           stats: { defense: 4 } },
   ],
   ring: [
-    { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring',  flavor: 'Plain. Reliable. Slightly rusted in places.', stats: { defense: 1 } },
+    { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring',  flavor: 'Plain. Reliable. Slightly rusted in places.', stats: { defense: 2 } },
     { id: 'mat-copper',    name: 'Copper Ore',       slot: 'ring',  flavor: 'Conducts everything. Including embarrassment.', stats: { energy: 1 } },
-    { id: 'mat-silver',    name: 'Silver Ore',       slot: 'ring',  flavor: 'Bright, expensive, makes you feel watched.',  stats: { draw: 1 } },
-    { id: 'mat-cold-iron', name: 'Cold Iron',        slot: 'ring',  flavor: 'Black, heavy, uncharmed.',                    stats: { defense: 2 } },
-    { id: 'mat-mithril',   name: 'Mithril Filament', slot: 'ring',  flavor: 'Light as the idea of it. Suspiciously so.',   stats: { wit: 1, draw: 1 } },
+    { id: 'mat-silver',    name: 'Silver Ore',       slot: 'ring',  flavor: 'Bright, expensive, makes you feel watched.',  stats: { draw: 2 } },
+    { id: 'mat-cold-iron', name: 'Cold Iron',        slot: 'ring',  flavor: 'Black, heavy, uncharmed.',                    stats: { defense: 3 } },
+    { id: 'mat-mithril',   name: 'Mithril Filament', slot: 'ring',  flavor: 'Light as the idea of it. Suspiciously so.',   stats: { energy: 1, draw: 1 } },
   ],
   hat: [
     { id: 'mat-felt',          name: 'Felt',          slot: 'hat', flavor: 'Warm, forgiving, modestly opinionated.',          stats: { defense: 1 } },
-    { id: 'mat-suede',         name: 'Suede',         slot: 'hat', flavor: 'Stains if you look at it wrong.',                 stats: { chutzpah: 1, defense: 1 } },
-    { id: 'mat-tarred-canvas', name: 'Tarred Canvas', slot: 'hat', flavor: 'Waterproof, opinionated, smells of expedition.',  stats: { defense: 2 } },
-    { id: 'mat-brocade',       name: 'Brocade',       slot: 'hat', flavor: 'Heavy, ornate, deliberately ridiculous.',         stats: { wit: 2 } },
-    { id: 'mat-dragonwool',    name: 'Dragonwool',    slot: 'hat', flavor: 'Itches and shimmers and remembers the dragon.',   stats: { chutzpah: 2, jnsq: 1 } },
+    { id: 'mat-suede',         name: 'Suede',         slot: 'hat', flavor: 'Stains if you look at it wrong.',                 stats: { defense: 2 } },
+    { id: 'mat-tarred-canvas', name: 'Tarred Canvas', slot: 'hat', flavor: 'Waterproof, opinionated, smells of expedition.',  stats: { defense: 2, draw: 1 } },
+    { id: 'mat-brocade',       name: 'Brocade',       slot: 'hat', flavor: 'Heavy, ornate, deliberately ridiculous.',         stats: { defense: 1, draw: 2 } },
+    { id: 'mat-dragonwool',    name: 'Dragonwool',    slot: 'hat', flavor: 'Itches and shimmers and remembers the dragon.',   stats: { defense: 1, vuln: 1 } },
   ],
 };
 
@@ -1123,8 +1150,9 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
   const craftedMeta = { slot, materialId: material.id, quality, skill };
 
   if (slot === 'staff') {
-    // Drawable Effect card. Scales by chutzpah (the staff's primary).
-    // Resonance derives from material's flavor stats.
+    // Drawable Effect card. Scales by chutzpah; secondary material
+    // stats produce riders + resonance tags so each staff plays
+    // distinctly. See material stat semantics above MATERIAL_TEMPLATES.
     const baseAtk = mult(8 + (matStats.chutzpah || 0) * 2);
     const multAtk = mult(2 + (matStats.chutzpah || 0));
     const resonatesWith = [];
@@ -1133,6 +1161,16 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     if ((matStats.jnsq || 0)    >= 1)  resonatesWith.push('absurd');
     if ((matStats.dot || 0)     >= 1)  resonatesWith.push('threatening');
     if (resonatesWith.length === 0)    resonatesWith.push('dismissive');
+    const rider = {};
+    if ((matStats.defense || 0) > 0) rider.block = mult(matStats.defense * 2);
+    if ((matStats.regen || 0)   > 0) rider.hp    = mult(matStats.regen * 2);
+    if ((matStats.draw || 0)    > 0) rider.draw  = matStats.draw;
+    if ((matStats.dot || 0)     > 0) rider.weak  = matStats.dot;
+    const riderText = [];
+    if (rider.block) riderText.push(`Gain ${rider.block} Block`);
+    if (rider.hp)    riderText.push(`Heal ${rider.hp} HP`);
+    if (rider.draw)  riderText.push(`draw ${rider.draw}`);
+    if (rider.weak)  riderText.push(`apply ${rider.weak} Weak`);
     return {
       kind: 'card',
       card: {
@@ -1149,30 +1187,29 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
           resonatesWith,
           resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
           exhaust: false,
+          ...(Object.keys(rider).length ? { rider } : {}),
         },
         phrase: '…and that is what the Staff says, and the Staff does not say it twice.',
-        desc: `Cast: ${baseAtk} + Chutzpah×${multAtk} Composure.`,
+        desc: `Cast: ${baseAtk} + Chutzpah×${multAtk} Composure${riderText.length ? '. ' + riderText.join('. ') + '.' : '.'}`,
         flavor: material.flavor,
         crafted: craftedMeta,
       },
     };
   }
   if (slot === 'hat') {
-    // Drawable Power. Effects compound during the combat in which
-    // it's played. Material's primary stat shapes the bonus.
-    const startBlock = mult(2 + (matStats.defense || 0));
-    const turnDraw = (matStats.draw || 0) > 0 || quality === 'master' ? 1 : 0;
-    const witTick = mult(matStats.wit || 0);
+    // Drawable Power. Material stats drive start-of-turn triggers:
+    // defense → Block, draw → Draw, vuln → apply Vulnerable to enemy.
+    const startBlock = mult(1 + (matStats.defense || 0) * 2);
+    const turnDraw = (matStats.draw || 0) + (quality === 'master' ? 1 : 0);
+    const turnVuln = matStats.vuln || 0;
     const power = { startOfTurn: {} };
     if (startBlock > 0) power.startOfTurn.block = startBlock;
     if (turnDraw > 0)   power.startOfTurn.draw  = turnDraw;
-    // Wit-leaning hats grant an in-combat Power that adds Wit each turn
-    // to the spell tray via... we don't have a direct hook for that yet.
-    // For C3 the hat sticks to Block + Draw on turn start; richer
-    // hooks are easy to add later.
+    if (turnVuln > 0)   power.startOfTurn.vulnerable = turnVuln;
     const descParts = [];
     if (startBlock > 0) descParts.push(`+${startBlock} Block`);
     if (turnDraw > 0)   descParts.push(`draw +${turnDraw}`);
+    if (turnVuln > 0)   descParts.push(`apply ${turnVuln} Vulnerable`);
     return {
       kind: 'card',
       card: {
@@ -1189,14 +1226,17 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     };
   }
   if (slot === 'robes') {
-    // Permanent install via the existing equipment bonus shape. Block
-    // at combat start is the bread-and-butter; material adds riders.
+    // Permanent install. defense → startBlock, regen → combat-start
+    // heal, draw → +1 turn-1 hand. Master quality multiplies all.
     const startBlock = mult(4 + (matStats.defense || 0) * 2);
     const regen = matStats.regen || 0;
+    const drawN = matStats.draw || 0;
     const bonus = { startBlock };
     if (regen > 0) bonus.healOnCombatStart = mult(regen * 2);
+    if (drawN > 0) bonus.extraStartHand    = drawN + (quality === 'master' ? 1 : 0);
     const descParts = [`Gain ${startBlock} Block at the start of every combat`];
     if (bonus.healOnCombatStart) descParts.push(`Heal ${bonus.healOnCombatStart} HP`);
+    if (bonus.extraStartHand)    descParts.push(`draw +${bonus.extraStartHand} on turn 1`);
     return {
       kind: 'equipment',
       equipment: {
@@ -1210,15 +1250,12 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     };
   }
   if (slot === 'ring') {
-    // Per-turn stat tick via the existing energy / draw / start-block
-    // bonus keys. Material's primary stat picks which tick the ring
-    // emphasizes.
+    // Per-turn stat tick. energy → permanentEnergyBonus, draw →
+    // extraStartHand, defense → start-of-combat Block.
     const bonus = {};
-    if ((matStats.energy || 0) > 0)  bonus.permanentEnergyBonus = quality === 'master' ? 1 : 0;
-    if ((matStats.draw || 0)   > 0)  bonus.extraStartHand       = 1 + (quality === 'master' ? 1 : 0);
+    if ((matStats.energy || 0)  > 0) bonus.permanentEnergyBonus = matStats.energy;
+    if ((matStats.draw || 0)    > 0) bonus.extraStartHand       = matStats.draw + (quality === 'master' ? 1 : 0);
     if ((matStats.defense || 0) > 0) bonus.startBlock           = mult(2 + matStats.defense);
-    // If material had none of the above, fall back to a small block
-    // bonus so the ring isn't a dead slot.
     if (Object.keys(bonus).length === 0) bonus.startBlock = mult(3);
     const descParts = [];
     if (bonus.permanentEnergyBonus) descParts.push(`+${bonus.permanentEnergyBonus} Energy per turn (permanent)`);
@@ -3080,27 +3117,17 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           // Fog-of-war visibility per node:
           //   cleared : in clearedNodes — path you've already walked
           //   current : your current spot
-          //   next    : directly reachable from current — choose-from set
-          //   peek    : reachable from a 'next' node (2 steps away) — shape
-          //             visible as "?" silhouette, type masked
-          //   hidden  : further out — tiny faint dot only, no type or edge
-          // Player picks among 'next'. As they advance the window slides.
+          //   next    : directly reachable from current — clickable
+          //   visible : everything else, shown fully (STS-style — no fog)
+          // The player sees the entire act up front and can plan a route
+          // around the material/skill nodes they want.
           const reachableSet = new Set(reachable);
           const clearedSet = new Set(clearedNodes);
-          const peekSet = new Set();
-          for (const nextId of reachable) {
-            for (const beyondId of (map.edges[nextId] || [])) {
-              if (!reachableSet.has(beyondId) && !clearedSet.has(beyondId) && beyondId !== currentNodeId) {
-                peekSet.add(beyondId);
-              }
-            }
-          }
           const visibilityOf = (nodeId) => {
             if (clearedSet.has(nodeId))   return 'cleared';
             if (nodeId === currentNodeId) return 'current';
             if (reachableSet.has(nodeId)) return 'next';
-            if (peekSet.has(nodeId))      return 'peek';
-            return 'hidden';
+            return 'visible';
           };
           return (
             <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-3xl">
@@ -3111,17 +3138,11 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                   if (!from || !to) return null;
                   const fromVis = visibilityOf(fromId);
                   const toVis   = visibilityOf(toId);
-                  // Edges between two hidden nodes — render barely-there or
-                  // skip. Between a visible node and a hidden one — faint.
-                  const bothHidden = fromVis === 'hidden' && toVis === 'hidden';
-                  if (bothHidden) return null;
-                  const someHidden = fromVis === 'hidden' || toVis === 'hidden';
                   const cleared = fromVis === 'cleared' && toVis === 'cleared';
                   const onCurrentPath = currentNodeId === fromId;
                   let stroke, strokeWidth, opacity;
                   if (cleared)               { stroke = '#5d7e3f'; strokeWidth = 1.5; opacity = 0.55; }
                   else if (onCurrentPath)    { stroke = '#c79d44'; strokeWidth = 3;   opacity = 1;    }
-                  else if (someHidden)       { stroke = '#2b2418'; strokeWidth = 1;   opacity = 0.2;  }
                   else                       { stroke = '#3d3325'; strokeWidth = 1.5; opacity = 0.7;  }
                   return (
                     <line key={`${fromId}->${toId}`}
@@ -3136,43 +3157,33 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
               })}
               {map.nodes.map(n => {
                 const vis = visibilityOf(n.id);
-                // Hidden node: tiny faint dot, no interaction.
-                if (vis === 'hidden') {
-                  return (
-                    <circle key={n.id} cx={xScale(n.x)} cy={yScale(n.y)} r={2}
-                      fill="#5a4d3a" opacity={0.4} />
-                  );
-                }
-                // Peek node: medium "?" silhouette, no type info, no click.
-                if (vis === 'peek') {
-                  return (
-                    <g key={n.id}>
-                      <circle cx={xScale(n.x)} cy={yScale(n.y)} r={14}
-                        fill="#241b10" stroke="#5a4d3a" strokeWidth={1.5}
-                        opacity={0.78} />
-                      <text x={xScale(n.x)} y={yScale(n.y) + 4} textAnchor="middle"
-                        className="select-none" fill="#a8895a" fontSize={14}
-                        opacity={0.85}>?</text>
-                    </g>
-                  );
-                }
-                // Cleared / current / next: full type-color circle.
+                // All nodes show their type up front (STS-style, no fog).
+                // Reachable nodes get a gold halo + clickability; cleared
+                // nodes desaturate; everything else renders fully but
+                // inert until the path reaches it.
                 const isCurrent   = vis === 'current';
                 const isCleared   = vis === 'cleared';
                 const isReachable = vis === 'next';
+                const isFuture    = vis === 'visible';
                 const fill   = nodeColor(n.type, isCleared, isCurrent);
-                const stroke = isReachable ? '#dbb45f' : isCurrent ? '#c79d44' : '#5a4d3a';
+                const stroke = isReachable ? '#dbb45f'
+                             : isCurrent   ? '#c79d44'
+                             :               '#5a4d3a';
                 const strokeWidth = isReachable ? 3 : isCurrent ? 2.5 : 1.5;
+                const opacity = isCleared ? 0.55
+                              : isFuture ? 0.85
+                              :            1;
                 return (
                   <g key={n.id}
                     style={{ cursor: isReachable ? 'pointer' : 'default' }}
                     onClick={() => isReachable && onPick(n.id)}>
                     <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
                       fill={fill} stroke={stroke} strokeWidth={strokeWidth}
-                      opacity={isCleared ? 0.55 : 1} />
+                      opacity={opacity} />
                     <text x={xScale(n.x)} y={yScale(n.y) + 5} textAnchor="middle"
                       className="select-none" fill="#f7eed3"
-                      fontSize={n.type === 'boss' ? 18 : 14}>
+                      fontSize={n.type === 'boss' ? 18 : 14}
+                      opacity={isFuture ? 0.9 : 1}>
                       {nodeGlyph(n.type)}
                     </text>
                   </g>
@@ -3190,7 +3201,6 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           <Legend glyph="🛠" label="Skill" />
           <Legend glyph="👑" label="Boss" />
           <Legend glyph="·" label="Start" />
-          <Legend glyph="?" label="Glimpsed" />
         </div>
         {!currentNodeId && (
           <div className="mt-2 text-sm text-gold-300 italic">Pick a starting trail. The path beyond is hearsay.</div>
