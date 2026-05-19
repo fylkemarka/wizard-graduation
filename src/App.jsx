@@ -568,39 +568,39 @@ const STARTER_DECK = [
 // behaviors[*]: { kind, value, weight, telegraph, count? } — unchanged.
 const ENEMIES = [
   // ===== ACT 1 — The Staff Path =====
-  { id: 'e1-acolyte', act: 1, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
+  { id: 'e1-acolyte', act: 4, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
     ] },
-  { id: 'e1-imp', act: 1, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
+  { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4' },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e1-shrine-rat', act: 1, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
+  { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
     ] },
-  { id: 'e1-tutor', act: 1, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
+  { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
     ] },
-  { id: 'e1-thicket', act: 1, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
+  { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
     ] },
-  { id: 'e1-boss-thornlord', act: 1, name: 'The Thornlord', composureMax: 60, hpMax: 80, tier: 'boss',
+  { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 60, hpMax: 80, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11' },
@@ -610,39 +610,39 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Thread Path =====
-  { id: 'e2-hollow-weaver', act: 2, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7' },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e2-silk-wraith', act: 2, name: 'Silk Wraith', composureMax: 22, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack-multi', value: 3, count: 3, weight: 3, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
     ] },
-  { id: 'e2-loom-familiar', act: 2, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
     ] },
-  { id: 'e2-pattern-maker', act: 2, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10' },
       { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
-  { id: 'e2-silent-spinner', act: 2, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12' },
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
       { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
     ] },
-  { id: 'e2-boss-tapestry', act: 2, name: 'The Tapestry Walker', composureMax: 80, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 80, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
@@ -652,39 +652,39 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 3 — The Stone Path =====
-  { id: 'e3-geode-crab', act: 3, name: 'Geode Crab', composureMax: 999, hpMax: 28, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 28, tier: 'normal',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7' },
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
     ] },
-  { id: 'e3-glow-mite', act: 3, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
+  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
     behaviors: [
       { kind: 'attack-multi', value: 3, count: 4, weight: 3, telegraph: '⚔ 3×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '🌀 Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 3, name: 'Crystal Beetle', composureMax: 999, hpMax: 26, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
       { kind: 'attack', value: 11, weight: 1, telegraph: '⚔ 11' },
     ] },
-  { id: 'e3-quartz-sentinel', act: 3, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
       { kind: 'block',  value: 15, weight: 2, telegraph: '🛡 15' },
       { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
     ] },
-  { id: 'e3-vein-devourer', act: 3, name: 'Vein Devourer', composureMax: 999, hpMax: 62, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 62, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 3, telegraph: '⚔ 13' },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🌀 Vuln 2' },
     ] },
-  { id: 'e3-boss-anvil', act: 3, name: 'The Anvil-Forged', composureMax: 100, hpMax: 100, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 100, hpMax: 100, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13' },
@@ -694,33 +694,33 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 4 — The Forge Path =====
-  { id: 'e4-apprentice-shade', act: 4, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
+  { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 10, weight: 3, telegraph: '⚔ 10' },
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10' },
     ] },
-  { id: 'e4-failed-initiate', act: 4, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
+  { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack-multi', value: 4, count: 4, weight: 3, telegraph: '⚔ 4×4' },
       { kind: 'weak',   value: 2, weight: 1, telegraph: '🌀 Weak 2' },
     ] },
-  { id: 'e4-mirror-past', act: 4, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
+  { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
       { kind: 'vulnerable', value: 2, weight: 2, telegraph: '🌀 Vuln 2' },
       { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8' },
     ] },
-  { id: 'e4-forgotten-master', act: 4, name: 'The Forgotten Master', composureMax: 70, hpMax: 999, tier: 'elite',
+  { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 70, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4' },
       { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
     ] },
-  { id: 'e4-test-wraith', act: 4, name: 'The Test Wraith', composureMax: 64, hpMax: 999, tier: 'elite',
+  { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 64, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
@@ -728,7 +728,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 3, weight: 1, telegraph: '🌀 Weak 3' },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
     ] },
-  { id: 'e4-boss-headmasters-hat', act: 4, name: "The Headmaster's Hat", composureMax: 130, hpMax: 999, tier: 'boss',
+  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 130, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     behaviors: [
       { kind: 'attack', value: 16, weight: 2, telegraph: '⚔ 16' },
@@ -1043,32 +1043,33 @@ const SKILL_EVENTS = [
 
 // Acts — four paths, one per equipment slot, with escalating
 // difficulty. All four are ~15 rows long because Material and Skill
-// nodes (Commit 2) need room to compete with combat for the player's
-// path budget. Slot order: staff → robes → ring → hat.
+// nodes need room to compete with combat for the player's path
+// budget. Slot order: robes → ring → hat → STAFF (the staff is the
+// run's capstone item, crafted in the final act).
 const ACTS = [
-  { id: 1, slot: 'staff', name: 'The Staff Path',
-    flavor: 'You set out to claim your staff. The further you push, the better the wood.',
-    rows: 15, width: 4,
-    bossId: 'e1-boss-thornlord',
-    craft: 'whittling',
-  },
-  { id: 2, slot: 'robes', name: 'The Thread Path',
+  { id: 1, slot: 'robes', name: 'The Thread Path',
     flavor: 'Threads, looms, and the things that walk between them. The right robes find the right wearer.',
     rows: 15, width: 4,
     bossId: 'e2-boss-tapestry',
     craft: 'weaving',
   },
-  { id: 3, slot: 'ring',  name: 'The Forge Path',
+  { id: 2, slot: 'ring',  name: 'The Forge Path',
     flavor: 'Coal, anvil, and a metal with opinions of its own. A ring earned at the forge fits no other hand.',
     rows: 15, width: 4,
     bossId: 'e3-boss-anvil',
     craft: 'smithing',
   },
-  { id: 4, slot: 'hat',   name: "The Milliner's Path",
-    flavor: "The hat does not, in itself, want to be worn. It does, however, have very specific opinions about by whom. The school will know if you return bareheaded.",
+  { id: 3, slot: 'hat',   name: "The Milliner's Path",
+    flavor: "The hat does not, in itself, want to be worn. It does, however, have very specific opinions about by whom.",
     rows: 15, width: 4,
     bossId: 'e4-boss-headmasters-hat',
     craft: 'blocking',
+  },
+  { id: 4, slot: 'staff', name: 'The Staff Path',
+    flavor: 'The capstone. You walk into the deepest wood to claim a staff fit to graduate with. The school will know if you return without it.',
+    rows: 15, width: 4,
+    bossId: 'e1-boss-thornlord',
+    craft: 'whittling',
   },
 ];
 
@@ -3086,9 +3087,13 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
 
 function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, reachable, player, onPick, log }) {
   if (!map || !act) return null;
-  const W = 600, H = 480, padding = 40;
+  // Map viewBox sized so 15-row acts have ~60 px between rows. Old
+  // H=480 jammed nodes 28 px apart at radius 18 — paths weren't legible.
+  const W = 600, padding = 40;
   const rows = act.rows;
   const cols = act.width;
+  const ROW_SPACING = 60;
+  const H = padding * 2 + Math.max(1, rows - 1) * ROW_SPACING;
   const xScale = (x) => padding + (x * (W - 2 * padding)) / cols;
   const yScale = (y) => padding + (y * (H - 2 * padding)) / (rows - 1);
 
@@ -3130,7 +3135,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
             return 'visible';
           };
           return (
-            <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-3xl">
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-2xl" preserveAspectRatio="xMidYMid meet">
               {Object.entries(map.edges).map(([fromId, tos]) => {
                 const from = map.nodes.find(n => n.id === fromId);
                 return tos.map(toId => {
@@ -3498,7 +3503,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         </div>
       )}
 
-      <div className="flex gap-3 flex-wrap min-h-[240px] items-center justify-center">
+      <div className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
         {hand.map((card, i) => {
           const playable = card.cost <= energy;
           // Card frame tint by type — word = iris, effect = ember,
@@ -3507,14 +3512,20 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                      : card.type === 'effect' ? 'border-ember-500'
                      : card.type === 'power'  ? 'border-gold-500'
                      :                          'border-moss-500';
+          const dmgType = card.type === 'effect' ? card.effect?.damageType : null;
+          const dmgLabel = dmgType === 'physical' ? 'Physical dmg'
+                         : dmgType === 'composure' ? 'Composure dmg'
+                         : null;
+          const dmgChip = dmgType === 'physical' ? 'text-ember-700 bg-ember-100'
+                        :                          'text-iris-700 bg-iris-100';
           const tagOrResonance =
             card.type === 'word' && card.tags && card.tags.length > 0
-              ? <div className="text-sm text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
+              ? <div className="text-[11px] text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
                   ✦ {card.tags.join(' · ')}
                 </div>
               : card.type === 'effect' && card.effect?.resonatesWith && card.effect.resonatesWith.length > 0
-              ? <div className="text-sm text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
-                  ✦ resonates: {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0})</span>
+              ? <div className="text-[11px] text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
+                  ✦ {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0})</span>
                 </div>
               : null;
           return (
@@ -3522,45 +3533,46 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
               onClick={() => onPlayCard(i)} disabled={!playable}
-              className={`w-56 h-80 rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg transition-all ${
+              className={`w-[180px] h-72 shrink-0 rounded-lg border-2 p-2.5 text-left flex flex-col gap-1.5 shadow-lg transition-all ${
                 playable
                   ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
               <div className="flex justify-between items-start gap-1">
-                <div className="font-display text-lg leading-tight">{card.name}</div>
-                <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-lg ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
+                <div className="font-display text-[15px] leading-tight">{card.name}</div>
+                <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
                   {card.cost}
                 </div>
               </div>
-              <div className="text-xs uppercase tracking-wider text-ink-400">
-                {card.type}
-                {card.type === 'effect' && card.effect?.damageType === 'physical' && <span className="ml-1 text-ember-700">phys</span>}
-              </div>
+              <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
               {/* Word stats */}
               {card.type === 'word' && card.stats && (
-                <div className="flex gap-1 flex-wrap text-sm font-mono">
+                <div className="flex gap-1 flex-wrap text-xs font-mono">
                   {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
                   {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
                   {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
                 </div>
               )}
-              {/* Effect formula */}
+              {/* Effect formula + damage-type chip on its own row */}
               {card.type === 'effect' && card.effect && (
-                <div className="text-sm font-mono text-ink-700">
-                  {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
-                  <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
-                    {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
-                  </span>
-                </div>
+                <>
+                  <div className="text-sm font-mono text-ink-700">
+                    {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
+                  </div>
+                  {dmgLabel && (
+                    <div className={`text-[10px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 self-start ${dmgChip}`}>
+                      {dmgLabel}
+                    </div>
+                  )}
+                </>
               )}
-              <div className="text-base flex-1 font-quill leading-snug">{card.desc}</div>
-              {card.flavor && <div className="text-sm italic text-ink-500 leading-tight">"{card.flavor}"</div>}
-              {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-xs italic text-ember-700">Exhaust</div>}
+              <div className="text-sm flex-1 font-quill leading-snug">{card.desc}</div>
+              {card.flavor && <div className="text-[11px] italic text-ink-500 leading-tight">"{card.flavor}"</div>}
+              {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
               {/* Resonance / tag row — separated visually so it reads as
                   meta-info, not as part of the card's main effect. */}
               {tagOrResonance && (
-                <div className="mt-1 pt-2 border-t border-ink-300">
+                <div className="mt-auto pt-1.5 border-t border-ink-300">
                   {tagOrResonance}
                 </div>
               )}

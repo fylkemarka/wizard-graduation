@@ -153,39 +153,39 @@ const STARTER_DECK = [
 // --- ENEMIES ---
 const ENEMIES = [
   // ACT 1
-  { id: 'e1-acolyte', act: 1, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
+  { id: 'e1-acolyte', act: 4, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 5, weight: 1 },
     ] },
-  { id: 'e1-imp', act: 1, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
+  { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 4, weight: 3 },
       { kind: 'weak',   value: 1, weight: 2 },
     ] },
-  { id: 'e1-shrine-rat', act: 1, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
+  { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 4, weight: 1 },
     ] },
-  { id: 'e1-tutor', act: 1, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
+  { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 8, weight: 3 },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
       { kind: 'block',  value: 7, weight: 1 },
     ] },
-  { id: 'e1-thicket', act: 1, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
+  { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 9, weight: 2 },
       { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
-  { id: 'e1-boss-thornlord', act: 1, name: 'The Thornlord', composureMax: 60, hpMax: 80, tier: 'boss',
+  { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 60, hpMax: 80, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2 },
@@ -194,39 +194,39 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
   // ACT 2
-  { id: 'e2-hollow-weaver', act: 2, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 7, weight: 3 },
       { kind: 'weak',   value: 1, weight: 2 },
     ] },
-  { id: 'e2-silk-wraith', act: 2, name: 'Silk Wraith', composureMax: 22, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack-multi', value: 3, count: 3, weight: 3 },
       { kind: 'block',  value: 6, weight: 1 },
     ] },
-  { id: 'e2-loom-familiar', act: 2, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 8, weight: 2 },
     ] },
-  { id: 'e2-pattern-maker', act: 2, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 10, weight: 2 },
       { kind: 'attack-multi', value: 4, count: 3, weight: 1 },
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
-  { id: 'e2-silent-spinner', act: 2, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'block',  value: 12, weight: 2 },
       { kind: 'attack', value: 9, weight: 2 },
       { kind: 'weak',   value: 2, weight: 1 },
     ] },
-  { id: 'e2-boss-tapestry', act: 2, name: 'The Tapestry Walker', composureMax: 80, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 80, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 9, weight: 2 },
@@ -235,39 +235,39 @@ const ENEMIES = [
       { kind: 'block',  value: 15, weight: 1 },
     ] },
   // ACT 3
-  { id: 'e3-geode-crab', act: 3, name: 'Geode Crab', composureMax: 999, hpMax: 28, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 28, tier: 'normal',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 7, weight: 3 },
       { kind: 'block',  value: 8, weight: 1 },
     ] },
-  { id: 'e3-glow-mite', act: 3, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
+  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
     behaviors: [
       { kind: 'attack-multi', value: 3, count: 4, weight: 3 },
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
-  { id: 'e3-crystal-beetle', act: 3, name: 'Crystal Beetle', composureMax: 999, hpMax: 26, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.3, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3 },
       { kind: 'attack', value: 11, weight: 1 },
     ] },
-  { id: 'e3-quartz-sentinel', act: 3, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 56, hpMax: 56, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2 },
       { kind: 'block',  value: 15, weight: 2 },
       { kind: 'attack-multi', value: 4, count: 3, weight: 1 },
     ] },
-  { id: 'e3-vein-devourer', act: 3, name: 'Vein Devourer', composureMax: 999, hpMax: 62, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 62, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 3 },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1 },
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
-  { id: 'e3-boss-anvil', act: 3, name: 'The Anvil-Forged', composureMax: 100, hpMax: 100, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 100, hpMax: 100, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 2 },
@@ -276,33 +276,33 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 3, weight: 1 },
     ] },
   // ACT 4
-  { id: 'e4-apprentice-shade', act: 4, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
+  { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 10, weight: 3 },
       { kind: 'block',  value: 10, weight: 2 },
     ] },
-  { id: 'e4-failed-initiate', act: 4, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
+  { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack-multi', value: 4, count: 4, weight: 3 },
       { kind: 'weak',   value: 2, weight: 1 },
     ] },
-  { id: 'e4-mirror-past', act: 4, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
+  { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2 },
       { kind: 'vulnerable', value: 2, weight: 2 },
       { kind: 'block',  value: 8, weight: 1 },
     ] },
-  { id: 'e4-forgotten-master', act: 4, name: 'The Forgotten Master', composureMax: 70, hpMax: 999, tier: 'elite',
+  { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 70, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 15, weight: 2 },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2 },
       { kind: 'block',  value: 16, weight: 1 },
     ] },
-  { id: 'e4-test-wraith', act: 4, name: 'The Test Wraith', composureMax: 64, hpMax: 999, tier: 'elite',
+  { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 64, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 14, weight: 2 },
@@ -310,7 +310,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 3, weight: 1 },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1 },
     ] },
-  { id: 'e4-boss-headmasters-hat', act: 4, name: "The Headmaster's Hat", composureMax: 130, hpMax: 999, tier: 'boss',
+  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 130, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     behaviors: [
       { kind: 'attack', value: 16, weight: 2 },
@@ -323,10 +323,10 @@ const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
 // --- ACTS ---
 const ACTS = [
-  { id: 1, slot: 'staff', name: 'The Staff Path',     rows: 15, bossId: 'e1-boss-thornlord',      craft: 'whittling' },
-  { id: 2, slot: 'robes', name: 'The Thread Path',    rows: 15, bossId: 'e2-boss-tapestry',       craft: 'weaving'   },
-  { id: 3, slot: 'ring',  name: 'The Forge Path',     rows: 15, bossId: 'e3-boss-anvil',          craft: 'smithing'  },
-  { id: 4, slot: 'hat',   name: "The Milliner's Path",rows: 15, bossId: 'e4-boss-headmasters-hat',craft: 'blocking'  },
+  { id: 1, slot: 'robes', name: 'The Thread Path',    rows: 15, bossId: 'e2-boss-tapestry',       craft: 'weaving'   },
+  { id: 2, slot: 'ring',  name: 'The Forge Path',     rows: 15, bossId: 'e3-boss-anvil',          craft: 'smithing'  },
+  { id: 3, slot: 'hat',   name: "The Milliner's Path",rows: 15, bossId: 'e4-boss-headmasters-hat',craft: 'blocking'  },
+  { id: 4, slot: 'staff', name: 'The Staff Path',     rows: 15, bossId: 'e1-boss-thornlord',      craft: 'whittling' },
 ];
 
 // --- MATERIALS ---
