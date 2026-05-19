@@ -1598,6 +1598,10 @@ export default function App() {
   // damage. The CombatScreen reads these and applies the hit-shake
   // class + renders damage-number floaters.
   const [enemyHitFlash, setEnemyHitFlash] = useState(0);
+  // Mirror of enemyHitFlash for the player HUD — flips when an enemy
+  // intent actually lands damage on either pool. Re-keys the player card
+  // so the same shake animation runs.
+  const [playerHitFlash, setPlayerHitFlash] = useState(0);
   const [dmgFloaters, setDmgFloaters] = useState([]);
 
   // Push a damage floater + trigger the enemy hit-shake. Auto-removes
@@ -2736,6 +2740,10 @@ export default function App() {
       setBlock(wBlock);
       setHp(wHp);
       setComposure(wComp);
+      // Hit-shake the player HUD if either pool actually moved. Block-only
+      // absorption (both pools unchanged) shouldn't shake — that beat is
+      // "the bracing worked," visually distinct from "you got hit."
+      if (wHp < hp || wComp < composure) setPlayerHitFlash(Date.now());
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
       if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
@@ -2925,15 +2933,17 @@ export default function App() {
       }
       logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
     }
-    // Lose a random non-starter card from the deck. Starters are protected so
-    // the cost is always a real one (you actually built up to that card).
+    // Lose a random card from the deck. We prefer non-starter cards (so the
+    // cost feels like sacrificing earned progress), but fall back to a
+    // starter if that's all you've got — otherwise the early-game cost
+    // silently does nothing and the labeled "lose a random card" is a lie.
     if (fx.loseRandomCard) {
       setDeck(d => {
-        const candidates = d
-          .map((c, i) => ({ c, i }))
-          .filter(({ c }) => !STARTER_DECK.includes(c.id));
-        if (candidates.length === 0) return d;
-        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        if (d.length === 0) return d;
+        const indexed = d.map((c, i) => ({ c, i }));
+        const nonStarters = indexed.filter(({ c }) => !STARTER_DECK.includes(c.id));
+        const pool = nonStarters.length > 0 ? nonStarters : indexed;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
         logBits.push(`− ${pick.c.name}`);
         return d.filter((_, i) => i !== pick.i);
       });
@@ -3112,7 +3122,7 @@ export default function App() {
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent}
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
-      enemyHitFlash={enemyHitFlash} dmgFloaters={dmgFloaters}
+      enemyHitFlash={enemyHitFlash} playerHitFlash={playerHitFlash} dmgFloaters={dmgFloaters}
       hp={hp} maxHp={maxHp}
       playerComposure={composure} playerComposureMax={composureMax}
       block={block} energy={energy} hand={hand}
@@ -3614,7 +3624,7 @@ function Legend({ glyph, label }) {
 
 function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        enemyDmgMult, playerDmgMult,
-                       enemyHitFlash, dmgFloaters,
+                       enemyHitFlash, playerHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
                        block, energy, energyMax, hand, deck, discard, tray,
                        amplifyPlaysThisCombat,
@@ -3772,7 +3782,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         </div>
       </div>
 
-      <div className="parchment-card p-3 flex justify-between items-center">
+      <div key={`player-hud-${playerHitFlash || 0}`}
+           className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
           <div>
             <div className="text-xs uppercase text-parchment-300">HP</div>

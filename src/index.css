@@ -26,6 +26,10 @@
   100% { transform: translateX(0); }
 }
 .enemy-hit-shake { animation: enemy-hit 240ms ease-out; }
+/* Same animation, neutral name — applied to the player HUD card when an
+   enemy intent lands damage. Identical timing/curve so the two beats feel
+   symmetric in playtest. */
+.hit-shake { animation: enemy-hit 240ms ease-out; }
 
 @keyframes float-up {
   0%   { transform: translate(-50%, 0) scale(1);   opacity: 1; }
