@@ -193,6 +193,136 @@ const RELICS = [
     flavor: 'Locked. Possibly empty. Definitely locked.' },
 ];
 const RELICS_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
+
+// Familiars — chosen at the familiar shop in town before the first map.
+// Each grants a passive `bonus` (same effect-shape as relics, plus three
+// new keys defined below) AND adds a signature `card` to the player's
+// deck. The player names the familiar afterward; the name appears in
+// chips, logs, and the run summary.
+//
+// New effect keys introduced by familiars (in addition to all the relic
+// keys: passiveStrikeBonus, permanentEnergyBonus, onCombatStart,
+// onEnemyDefeated, onCombatEnd, everyNthAttack, maxHp):
+//   damageReduction: N        — flat -N from each incoming attack (min 1
+//                               total damage taken, never reduces to 0)
+//   startOfTurnBlock: N       — gain N Block at the start of every player
+//                               turn (different from onCombatStart.block
+//                               which fires once per combat)
+//   startCombatVulnerable: N  — apply N Vulnerable to the enemy at combat
+//                               start
+const FAMILIARS = [
+  {
+    id: 'fam-raven', species: 'Raven', emoji: '🐦‍⬛',
+    desc: 'At the start of every combat, draw 1 extra card.',
+    flavor: 'It has read several of your books. Two of them.',
+    bonus: { onCombatStart: { draw: 1 } },
+    card: { id: 'f-quoth', name: 'Quoth', cost: 0, type: 'skill', rarity: 'basic',
+      effects: { draw: 2, exhaust: true },
+      upgrade: { effects: { draw: 3, exhaust: true } },
+      desc: 'Draw 2. Exhaust.',
+      flavor: 'It said something. You half-heard.' },
+  },
+  {
+    id: 'fam-cat', species: 'Cat', emoji: '🐈',
+    desc: 'At the start of every combat, gain 3 Block.',
+    flavor: 'The cat knows where it is. The cat refuses to discuss it.',
+    bonus: { onCombatStart: { block: 3 } },
+    card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'attack', rarity: 'basic',
+      effects: { attack: 5, weak: 1 },
+      upgrade: { effects: { attack: 7, weak: 2 } },
+      desc: 'Deal 5 damage. Apply 1 Weak.',
+      flavor: 'It is unimpressed.' },
+  },
+  {
+    id: 'fam-toad', species: 'Toad', emoji: '🐸',
+    desc: 'At the end of every combat you win, heal 3 HP.',
+    flavor: 'It hums when you cook. It hums anyway.',
+    bonus: { onCombatEnd: { heal: 3 } },
+    card: { id: 'f-sip', name: 'Sip', cost: 0, type: 'skill', rarity: 'basic',
+      effects: { hp: 2, energy: 1, exhaust: true },
+      upgrade: { effects: { hp: 4, energy: 1, exhaust: true } },
+      desc: '+2 HP. +1 Energy. Exhaust.',
+      flavor: 'The toad knows several recipes. You have learned one.' },
+  },
+  {
+    id: 'fam-mouse', species: 'Mouse', emoji: '🐭',
+    desc: '+1 Energy on turn 1 of every combat.',
+    flavor: 'Where there is a small space, there is a mouse. There is always a small space.',
+    bonus: { onCombatStart: { energy: 1 } },
+    card: { id: 'f-scurry', name: 'Scurry', cost: 0, type: 'skill', rarity: 'basic',
+      effects: { block: 4, draw: 1, exhaust: true },
+      upgrade: { effects: { block: 6, draw: 1, exhaust: true } },
+      desc: 'Gain 4 Block. Draw 1. Exhaust.',
+      flavor: 'It went under something. You did too.' },
+  },
+  {
+    id: 'fam-owl', species: 'Owl', emoji: '🦉',
+    desc: '+8 max HP.',
+    flavor: 'It judges your reading speed. Privately. At length.',
+    bonus: { maxHp: 8 },
+    card: { id: 'f-hoo', name: 'Hoo', cost: 1, type: 'skill', rarity: 'basic',
+      effects: { draw: 2 },
+      upgrade: { effects: { draw: 3 } },
+      desc: 'Draw 2.',
+      flavor: 'It is a question. It is always a question.' },
+  },
+  {
+    id: 'fam-beetle', species: 'Beetle', emoji: '🪲',
+    desc: 'Take 1 less damage from every incoming attack (combats always cost at least 1).',
+    flavor: 'It is on its third career. The first two were also waiting.',
+    bonus: { damageReduction: 1 },
+    card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'attack', rarity: 'basic',
+      effects: { attack: 3, block: 3 },
+      upgrade: { effects: { attack: 5, block: 4 } },
+      desc: 'Deal 3 damage. Gain 3 Block.',
+      flavor: 'The beetle is angry. In its way.' },
+  },
+  {
+    id: 'fam-hedgehog', species: 'Hedgehog', emoji: '🦔',
+    desc: 'At the start of every turn, gain 2 Block.',
+    flavor: 'It does not move when you call it. You have called it.',
+    bonus: { startOfTurnBlock: 2 },
+    card: { id: 'f-bristle', name: 'Bristle', cost: 1, type: 'skill', rarity: 'basic',
+      effects: { block: 5, vulnerable: 1 },
+      upgrade: { effects: { block: 7, vulnerable: 1 } },
+      desc: 'Gain 5 Block. Apply 1 Vulnerable.',
+      flavor: 'Touch at your own risk. Touching has been factored in.' },
+  },
+  {
+    id: 'fam-crow', species: 'Crow', emoji: '🦅',
+    desc: 'Whenever you defeat an enemy, heal 2 HP.',
+    flavor: 'It has a collection. The collection has a collection.',
+    bonus: { onEnemyDefeated: { heal: 2 } },
+    card: { id: 'f-pilfer', name: 'Pilfer', cost: 1, type: 'attack', rarity: 'basic',
+      effects: { attack: 4, draw: 1 },
+      upgrade: { effects: { attack: 6, draw: 1 } },
+      desc: 'Deal 4 damage. Draw 1.',
+      flavor: 'It brought you something. You did not ask.' },
+  },
+  {
+    id: 'fam-snake', species: 'Snake', emoji: '🐍',
+    desc: 'At the start of every combat, apply 2 Vulnerable to the enemy.',
+    flavor: 'It is patient. You are not. This is the arrangement.',
+    bonus: { startCombatVulnerable: 2 },
+    card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'attack', rarity: 'basic',
+      effects: { attack: 5, vulnerable: 1 },
+      upgrade: { effects: { attack: 7, vulnerable: 2 } },
+      desc: 'Deal 5 damage. Apply 1 Vulnerable.',
+      flavor: 'A small green warning.' },
+  },
+  {
+    id: 'fam-rabbit', species: 'Rabbit', emoji: '🐇',
+    desc: 'Your Strikes deal +1 damage.',
+    flavor: 'Direction was secondary. Speed was the trick.',
+    bonus: { passiveStrikeBonus: 1 },
+    card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'attack', rarity: 'basic',
+      effects: { attack: 4, exhaust: true },
+      upgrade: { effects: { attack: 6, exhaust: true } },
+      desc: 'Deal 4 damage. Exhaust.',
+      flavor: 'It was gone. So was the apple.' },
+  },
+];
+const FAMILIARS_BY_ID = Object.fromEntries(FAMILIARS.map(f => [f.id, f]));
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
 const STARTER_DECK = [
@@ -635,6 +765,14 @@ export default function App() {
   // kills / treasure nodes / events. Effects fire via the same hooks
   // dispatcher used by equipment + powers.
   const [relics, setRelics] = useState([]);
+  // Familiar + chosen name. Both selected during the town intro (supply
+  // shop → familiar shop → name screen) before the first map appears.
+  // familiar.bonus is treated as a permanent effect source like a relic.
+  const [familiar, setFamiliar] = useState(null);
+  const [familiarName, setFamiliarName] = useState('');
+  // Supply shop draft state. Cleared after exit.
+  const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
+  const [supplyPicks, setSupplyPicks] = useState([]);     // indices already picked (max 2)
   // Player debuffs (mirror of enemy ones). Tick down at end of turn.
   const [playerVulnerable, setPlayerVulnerable] = useState(0);
   const [playerWeak, setPlayerWeak] = useState(0);
@@ -670,11 +808,21 @@ export default function App() {
 
   const currentAct = ACTS[currentActIdx];
 
-  // Energy refill per turn — base + permanentEnergyBonus from equipment AND relics.
+  // All passive-effect sources (relics + familiar bonus) flattened into a
+  // single list of `{ effect, sourceName }` for the loops that read hooks.
+  // Use this everywhere a relic loop reads `r.effect.*`.
+  function effectSources() {
+    const arr = relics.map(r => ({ effect: r.effect, sourceName: r.name }));
+    if (familiar?.bonus) arr.push({ effect: familiar.bonus, sourceName: familiarName || familiar.species });
+    return arr;
+  }
+
+  // Energy refill per turn — base + permanentEnergyBonus from equipment +
+  // relics + familiar bonus.
   const energyPerTurnRefill = () => {
     return ENERGY_PER_TURN
       + equipment.reduce((s, eq) => s + (eq.bonus?.permanentEnergyBonus || 0), 0)
-      + relics.reduce((s, r) => s + (r.effect?.permanentEnergyBonus || 0), 0);
+      + effectSources().reduce((s, x) => s + (x.effect?.permanentEnergyBonus || 0), 0);
   };
 
   // ---------- RUN LIFECYCLE ----------
@@ -691,14 +839,73 @@ export default function App() {
     setEquipment([]);
     setPowers([]);
     setRelics([]);
+    setFamiliar(null);
+    setFamiliarName('');
     setPlayerVulnerable(0);
     setPlayerWeak(0);
     setAttackCount(0);
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
-    setMap(generateActMap(ACTS[0].rows, ACTS[0].width));
+    setMap(null);
     setCurrentNodeId(null);
+    // Roll 5 candidate cards for the supply shop (common-weighted, no dupes).
+    const supply = [];
+    const used = [];
+    while (supply.length < 5) {
+      const c = pickCardByRarity({ common: 4, uncommon: 1 }, used);
+      if (!c) break;
+      supply.push(c); used.push(c.id);
+    }
+    setSupplyChoices(supply);
+    setSupplyPicks([]);
+    setStage('supply-shop');
+    pushLog(`🏘 You set out from the school. Town first.`);
+  }
+
+  function pickSupplyCard(idx) {
+    if (supplyPicks.includes(idx)) return;     // already picked
+    if (supplyPicks.length >= 2) return;       // capped
+    const card = supplyChoices[idx];
+    if (!card) return;
+    setDeck(d => [...d, { ...card, uid: uid() }]);
+    pushLog(`🛒 Bought: ${card.name}.`);
+    setSupplyPicks(prev => {
+      const next = [...prev, idx];
+      // Auto-advance once two picks are made.
+      if (next.length >= 2) {
+        setTimeout(() => {
+          setSupplyChoices([]);
+          setSupplyPicks([]);
+          setStage('familiar-shop');
+        }, 300);
+      }
+      return next;
+    });
+  }
+
+  function pickFamiliar(familiarId) {
+    const fam = FAMILIARS_BY_ID[familiarId];
+    if (!fam) return;
+    setFamiliar(fam);
+    // Familiar's signature card joins the deck.
+    setDeck(d => [...d, { ...fam.card, uid: uid() }]);
+    // Apply maxHp bonus immediately if present.
+    if (fam.bonus?.maxHp) {
+      setMaxHp(m => m + fam.bonus.maxHp);
+      setHp(h => h + fam.bonus.maxHp);
+    }
+    pushLog(`🐾 You choose the ${fam.species}. ${fam.card.name} added to deck.`);
+    setStage('familiar-name');
+  }
+
+  function confirmFamiliarName(name) {
+    const trimmed = (name || '').trim();
+    const final = trimmed || familiar?.species || 'Familiar';
+    setFamiliarName(final);
+    pushLog(`🐾 You name your ${familiar?.species || 'familiar'} ${final}.`);
+    // Now spin up the Act 1 map and begin.
+    setMap(generateActMap(ACTS[0].rows, ACTS[0].width));
     setStage('map');
     pushLog(`🌅 ${ACTS[0].name} begins.`);
   }
@@ -804,17 +1011,30 @@ export default function App() {
       if (eq.bonus?.extraStartHand)      startHandBonus       += eq.bonus.extraStartHand;
       if (eq.bonus?.healOnCombatStart)   healOnStart          += eq.bonus.healOnCombatStart;
     }
-    for (const r of relics) {
-      const oc = r.effect?.onCombatStart;
-      if (!oc) continue;
-      if (oc.block)  startBlockTotal += oc.block;
-      if (oc.draw)   startDrawBonus  += oc.draw;
-      if (oc.energy) startEnergyBonus += oc.energy;
-      if (oc.hp)     healOnStart     += oc.hp;
+    let startCombatVulnTotal = 0;
+    for (const { effect } of effectSources()) {
+      const oc = effect?.onCombatStart;
+      if (oc) {
+        if (oc.block)  startBlockTotal += oc.block;
+        if (oc.draw)   startDrawBonus  += oc.draw;
+        if (oc.energy) startEnergyBonus += oc.energy;
+        if (oc.hp)     healOnStart     += oc.hp;
+      }
+      if (effect?.startCombatVulnerable) startCombatVulnTotal += effect.startCombatVulnerable;
     }
+    // Apply familiar startOfTurnBlock for turn 1 as well — every-turn means
+    // also turn 1. (Per-turn application happens in endTurn's working block.)
+    const startTurnBlockTotal = effectSources().reduce(
+      (s, x) => s + (x.effect?.startOfTurnBlock || 0), 0);
+    startBlockTotal += startTurnBlockTotal;
+
     if (healOnStart > 0) {
       setHp(h => clamp(h + healOnStart, 0, maxHp));
       pushLog(`💚 +${healOnStart} HP (start of combat).`);
+    }
+    if (startCombatVulnTotal > 0) {
+      setEnemyVulnerable(startCombatVulnTotal);
+      pushLog(`🌀 ${e.name} starts Vulnerable +${startCombatVulnTotal}.`);
     }
     setBlock(startBlockTotal);
     setEnergy(energyPerTurnRefill() + startEnergyBonus);
@@ -845,22 +1065,21 @@ export default function App() {
 
   function strikeBonusTotal() {
     return equipment.reduce((s, eq) => s + (eq.bonus?.strikeBonus || 0), 0)
-         + relics.reduce((s, r) => s + (r.effect?.passiveStrikeBonus || 0), 0);
+         + effectSources().reduce((s, x) => s + (x.effect?.passiveStrikeBonus || 0), 0);
   }
 
-  // Returns the extra flat damage to add this attack from relic-everyN
-  // triggers. Advances the global attackCount in the process. Called from
-  // playCard right before damage is computed.
+  // Returns the extra flat damage to add this attack from everyNth-attack
+  // triggers across all effect sources. Advances the global attackCount.
   function consumeEveryNthAttackBonus() {
     const nextCount = attackCount + 1;
     setAttackCount(nextCount);
     let bonus = 0;
-    for (const r of relics) {
-      const every = r.effect?.everyNthAttack;
+    for (const { effect, sourceName } of effectSources()) {
+      const every = effect?.everyNthAttack;
       if (!every) continue;
       if (nextCount % every.n === 0) {
         bonus += every.extraDamage || 0;
-        pushLog(`📿 ${r.name}: +${every.extraDamage} damage.`);
+        pushLog(`📿 ${sourceName}: +${every.extraDamage} damage.`);
       }
     }
     return bonus;
@@ -1094,6 +1313,11 @@ export default function App() {
     let wEnemyWeak = enemyWeak;        // power triggers haven't fired yet;
                                        // decay will happen via the setters
                                        // above; powers add ON TOP after decay
+    // Familiar-style startOfTurnBlock (e.g. Hedgehog): fires every turn,
+    // including turn 1 (handled separately in enterFight's startBlockTotal).
+    for (const { effect } of effectSources()) {
+      if (effect?.startOfTurnBlock) wBlock += effect.startOfTurnBlock;
+    }
     // Apply start-of-turn power triggers in working locals.
     for (const p of powers) {
       const trig = p.power?.startOfTurn;
@@ -1165,6 +1389,11 @@ export default function App() {
   function applyDamageToPlayer(damage) {
     let remaining = damage;
     if (playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
+    // Flat damageReduction from effect sources (Beetle familiar etc.).
+    // Floored so a hit always deals at least 1 — Beetle is meant to chip,
+    // not no-sell encounters.
+    const reduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0);
+    if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
     let newBlock = block;
     let newHp = hp;
     if (newBlock > 0) {
@@ -1183,22 +1412,22 @@ export default function App() {
     // Fire relic onEnemyDefeated triggers (heal etc.). Not for bosses —
     // bosses already give a richer reward path.
     if (!isBoss) {
-      for (const r of relics) {
-        const ed = r.effect?.onEnemyDefeated;
+      for (const { effect, sourceName } of effectSources()) {
+        const ed = effect?.onEnemyDefeated;
         if (!ed) continue;
         if (ed.heal) {
           setHp(h => clamp(h + ed.heal, 0, maxHp));
-          pushLog(`📿 ${r.name}: +${ed.heal} HP.`);
+          pushLog(`📿 ${sourceName}: +${ed.heal} HP.`);
         }
       }
     }
-    // Fire relic onCombatEnd triggers (heal etc.) for all kills incl. boss.
-    for (const r of relics) {
-      const ce = r.effect?.onCombatEnd;
+    // Fire onCombatEnd triggers (heal etc.) for all kills incl. boss.
+    for (const { effect, sourceName } of effectSources()) {
+      const ce = effect?.onCombatEnd;
       if (!ce) continue;
       if (ce.heal) {
         setHp(h => clamp(h + ce.heal, 0, maxHp));
-        pushLog(`📿 ${r.name}: +${ce.heal} HP.`);
+        pushLog(`📿 ${sourceName}: +${ce.heal} HP.`);
       }
     }
     if (isBoss) {
@@ -1357,7 +1586,11 @@ export default function App() {
   // ---------- RENDER ----------
   if (stage === 'menu')       return <MenuScreen onStart={startRun} />;
   if (stage === 'defeat')     return <EndScreen win={false} onRetry={startRun} />;
-  if (stage === 'graduation') return <GraduationScreen equipment={equipment} onRetry={startRun} />;
+  if (stage === 'graduation') return <GraduationScreen equipment={equipment} familiar={familiar} familiarName={familiarName} onRetry={startRun} />;
+
+  if (stage === 'supply-shop')   return <SupplyShopScreen choices={supplyChoices} picks={supplyPicks} onPick={pickSupplyCard} />;
+  if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
+  if (stage === 'familiar-name') return <FamiliarNameScreen familiar={familiar} onConfirm={confirmFamiliarName} />;
 
   if (stage === 'act-cleared') {
     return <ActClearedScreen act={currentAct} equipment={equipment}
@@ -1384,7 +1617,7 @@ export default function App() {
       map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
       currentNodeId={currentNodeId} clearedNodes={clearedNodes}
       reachable={reachableFromCurrent()}
-      player={{ hp, maxHp, equipment, relics, deckSize: deck.length }}
+      player={{ hp, maxHp, equipment, relics, deckSize: deck.length, familiar, familiarName }}
       onPick={pickNode} log={log} />;
   }
 
@@ -1396,6 +1629,7 @@ export default function App() {
     deck={deck} discard={discard}
     energyMax={energyPerTurnRefill()}
     equipment={equipment} powers={powers} relics={relics}
+    familiar={familiar} familiarName={familiarName}
     playerVulnerable={playerVulnerable} playerWeak={playerWeak}
     onPlayCard={playCard} onEndTurn={endTurn}
     log={log}
@@ -1416,7 +1650,114 @@ function MenuScreen({ onStart }) {
         a trial worthier than the last.
       </p>
       <button onClick={onStart} className="btn btn-gold text-lg px-8 py-3">Begin the Path</button>
-      <p className="text-xs text-parchment-400">MVP 3 — 4 acts, escalating difficulty, full equipment ladder.</p>
+      <p className="text-xs text-parchment-400">MVP 4 — town intro, fog of war, powers + relics, full ladder.</p>
+    </div>
+  );
+}
+
+// ---- TOWN INTRO ----
+
+function SupplyShopScreen({ choices, picks, onPick }) {
+  const remaining = 2 - picks.length;
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-5 max-w-5xl mx-auto">
+      <h2 className="font-display text-4xl text-gold-300">The Supply Shop</h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-2xl">
+        A long table covered in cards. The proprietor sucks his teeth in the
+        manner of a man who has done so professionally. "Pick two," he says.
+        "You're an apprentice. <i>Two.</i>"
+      </p>
+      <div className="text-sm text-gold-300">
+        Picked: {picks.length} / 2 {remaining > 0 ? `(choose ${remaining} more)` : '— off to the familiar shop'}
+      </div>
+      <div className="flex gap-3 flex-wrap justify-center">
+        {choices.map((card, i) => {
+          const picked = picks.includes(i);
+          const disabled = picked || picks.length >= 2;
+          return (
+            <button key={i} onClick={() => onPick(i)} disabled={disabled}
+              className={`w-48 min-h-[260px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg transition ${
+                picked
+                  ? 'bg-moss-700 text-parchment-50 border-moss-400 cursor-default'
+                  : disabled
+                    ? 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50'
+                    : 'bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer'
+              }`}>
+              <div className="flex justify-between items-center">
+                <div className="font-display text-base leading-tight">{card.name}</div>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">
+                  {card.cost}
+                </div>
+              </div>
+              <div className="text-[10px] uppercase tracking-wider opacity-70">{card.type} · {card.rarity}</div>
+              <div className="text-xs font-quill">{card.desc}</div>
+              {card.flavor && (
+                <div className="text-[11px] italic opacity-70 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
+              )}
+              {picked && <div className="text-xs italic text-moss-300 mt-1">— bought —</div>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FamiliarShopScreen({ onPick }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-5 max-w-6xl mx-auto">
+      <h2 className="font-display text-4xl text-gold-300">The Familiar Shop</h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-2xl">
+        A narrow shop with a low door, smelling of straw and disagreement. Ten
+        creatures occupy ten various surfaces. The proprietor is asleep, or
+        pretending to be. Either way, the cat is in charge.
+      </p>
+      <p className="text-sm text-gold-300">Pick one familiar. (You can name it next.)</p>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 w-full">
+        {FAMILIARS.map(fam => (
+          <button key={fam.id} onClick={() => onPick(fam.id)}
+            className="rounded-lg border-2 border-ink-500 bg-ink-700 hover:border-gold-500 hover:bg-ink-600 transition p-3 text-left flex flex-col gap-2 cursor-pointer">
+            <div className="flex items-center gap-2">
+              <span className="text-3xl leading-none">{fam.emoji}</span>
+              <div className="font-display text-lg text-gold-300">{fam.species}</div>
+            </div>
+            <div className="text-xs text-parchment-200">{fam.desc}</div>
+            <div className="text-[11px] italic text-parchment-400">"{fam.flavor}"</div>
+            <div className="mt-1 pt-2 border-t border-ink-500">
+              <div className="text-[10px] uppercase tracking-widest text-gold-400">Signature card</div>
+              <div className="text-xs"><b className="text-parchment-50">{fam.card.name}</b> <span className="text-parchment-300">({fam.card.cost}⚡) — {fam.card.desc}</span></div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FamiliarNameScreen({ familiar, onConfirm }) {
+  const [name, setName] = useState('');
+  if (!familiar) return null;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
+      <h2 className="font-display text-4xl text-gold-300">A Naming</h2>
+      <div className="text-7xl">{familiar.emoji}</div>
+      <p className="font-quill italic text-parchment-200 text-center">
+        Your {familiar.species.toLowerCase()} looks at you with an expression that
+        is either expectant or hungry, or possibly both at once. A name would
+        help with the paperwork.
+      </p>
+      <input
+        type="text" value={name} onChange={e => setName(e.target.value)}
+        placeholder={`(default: ${familiar.species})`}
+        maxLength={24}
+        className="w-full px-3 py-2 rounded-md bg-parchment-50 text-ink-800 border-2 border-gold-500 font-quill text-lg"
+        autoFocus
+        onKeyDown={e => { if (e.key === 'Enter') onConfirm(name); }}
+      />
+      <div className="flex gap-2 w-full">
+        <button onClick={() => onConfirm(name)} className="btn btn-gold flex-1">Confirm</button>
+        <button onClick={() => onConfirm('')} className="btn btn-ink flex-1">Use "{familiar.species}"</button>
+      </div>
     </div>
   );
 }
@@ -1436,7 +1777,13 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           <h1 className="font-display text-xl text-gold-300">{act.name}</h1>
           <div className="text-[10px] uppercase text-parchment-400 tracking-widest">Act {actIdx + 1} of {totalActs} · prize: master {SLOT_LABEL[act.slot]}</div>
         </div>
-        <div className="text-xs flex gap-4">
+        <div className="text-xs flex gap-4 items-center">
+          {player.familiar && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400">
+              <span className="text-base leading-none">{player.familiar.emoji}</span>
+              <span className="text-gold-300">{player.familiarName || player.familiar.species}</span>
+            </span>
+          )}
           <span>❤️ {player.hp} / {player.maxHp}</span>
           <span>📜 {player.deckSize} cards</span>
           <span>⚜ {player.equipment.length} equipment</span>
@@ -1621,7 +1968,8 @@ function Legend({ glyph, label }) {
 
 function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
                        hp, maxHp, block, energy, energyMax, hand, deck, discard,
-                       equipment, powers, relics, playerVulnerable, playerWeak,
+                       equipment, powers, relics, familiar, familiarName,
+                       playerVulnerable, playerWeak,
                        onPlayCard, onEndTurn, log }) {
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
@@ -1666,6 +2014,13 @@ function CombatScreen({ enemy, enemyHp, enemyBlock, enemyIntent, enemyVulnerable
             <div className="text-[10px] uppercase text-parchment-300">Deck</div>
             <div className="text-sm font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
           </div>
+          {familiar && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-xs"
+                  title={familiar.desc}>
+              <span className="text-base leading-none">{familiar.emoji}</span>
+              <span className="text-gold-300">{familiarName || familiar.species}</span>
+            </span>
+          )}
           {equipment.length > 0 && (
             <div className="text-[10px] flex gap-2 flex-wrap ml-2">
               {equipment.map(eq => (
@@ -1926,7 +2281,7 @@ function ActClearedScreen({ act, equipment, isFinalAct, onContinue }) {
   );
 }
 
-function GraduationScreen({ equipment, onRetry }) {
+function GraduationScreen({ equipment, familiar, familiarName, onRetry }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-2xl mx-auto">
       <h2 className="font-display text-6xl text-gold-300 tracking-widest text-center">Graduation Achieved</h2>
@@ -1946,6 +2301,18 @@ function GraduationScreen({ equipment, onRetry }) {
           ))}
         </ul>
       </div>
+      {familiar && (
+        <div className="parchment-card-strong p-4 w-full">
+          <div className="text-xs uppercase text-parchment-300 mb-2 tracking-widest">Loyal Familiar</div>
+          <div className="flex items-center gap-3">
+            <div className="text-4xl">{familiar.emoji}</div>
+            <div className="text-sm font-quill">
+              <div><span className="text-gold-300">{familiarName || familiar.species}</span> <span className="text-parchment-300">the {familiar.species}</span></div>
+              <div className="text-parchment-300 text-xs">{familiar.desc}</div>
+            </div>
+          </div>
+        </div>
+      )}
       <button onClick={onRetry} className="btn btn-gold text-lg px-8 py-3">Walk the Path Again</button>
     </div>
   );
