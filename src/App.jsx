@@ -2889,7 +2889,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         </div>
       )}
 
-      <div className="flex gap-3 flex-wrap min-h-[200px] items-center justify-center">
+      <div className="flex gap-3 flex-wrap min-h-[240px] items-center justify-center">
         {hand.map((card, i) => {
           const playable = card.cost <= energy;
           // Card frame tint by type — word = iris, effect = ember,
@@ -2898,19 +2898,29 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                      : card.type === 'effect' ? 'border-ember-500'
                      : card.type === 'power'  ? 'border-gold-500'
                      :                          'border-moss-500';
+          const tagOrResonance =
+            card.type === 'word' && card.tags && card.tags.length > 0
+              ? <div className="text-sm text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
+                  ✦ {card.tags.join(' · ')}
+                </div>
+              : card.type === 'effect' && card.effect?.resonatesWith && card.effect.resonatesWith.length > 0
+              ? <div className="text-sm text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
+                  ✦ resonates: {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0})</span>
+                </div>
+              : null;
           return (
             <motion.button key={card.uid}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
               onClick={() => onPlayCard(i)} disabled={!playable}
-              className={`w-48 h-64 rounded-lg border-2 p-3 text-left flex flex-col gap-1.5 shadow-lg transition-all ${
+              className={`w-56 h-80 rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg transition-all ${
                 playable
                   ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
               <div className="flex justify-between items-start gap-1">
-                <div className="font-display text-base leading-tight">{card.name}</div>
-                <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
+                <div className="font-display text-lg leading-tight">{card.name}</div>
+                <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-lg ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
                   {card.cost}
                 </div>
               </div>
@@ -2918,40 +2928,33 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 {card.type}
                 {card.type === 'effect' && card.effect?.damageType === 'physical' && <span className="ml-1 text-ember-700">phys</span>}
               </div>
-              {/* Word stat row + tag row */}
+              {/* Word stats */}
               {card.type === 'word' && card.stats && (
-                <>
-                  <div className="flex gap-1 flex-wrap text-xs font-mono">
-                    {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                    {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                    {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-                  </div>
-                  {card.tags && card.tags.length > 0 && (
-                    <div className="text-xs text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
-                      ✦ {card.tags.join(' · ')}
-                    </div>
-                  )}
-                </>
+                <div className="flex gap-1 flex-wrap text-sm font-mono">
+                  {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                  {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                  {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                </div>
               )}
-              {/* Effect formula + resonance row */}
+              {/* Effect formula */}
               {card.type === 'effect' && card.effect && (
-                <>
-                  <div className="text-xs font-mono text-ink-700">
-                    {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
-                    <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
-                      {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
-                    </span>
-                  </div>
-                  {card.effect.resonatesWith && card.effect.resonatesWith.length > 0 && (
-                    <div className="text-xs text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
-                      ✦ resonates: {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0})</span>
-                    </div>
-                  )}
-                </>
+                <div className="text-sm font-mono text-ink-700">
+                  {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
+                  <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
+                    {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
+                  </span>
+                </div>
               )}
-              <div className="text-sm flex-1 font-quill leading-snug">{card.desc}</div>
-              {card.flavor && <div className="text-xs italic text-ink-500 leading-tight">"{card.flavor}"</div>}
+              <div className="text-base flex-1 font-quill leading-snug">{card.desc}</div>
+              {card.flavor && <div className="text-sm italic text-ink-500 leading-tight">"{card.flavor}"</div>}
               {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-xs italic text-ember-700">Exhaust</div>}
+              {/* Resonance / tag row — separated visually so it reads as
+                  meta-info, not as part of the card's main effect. */}
+              {tagOrResonance && (
+                <div className="mt-1 pt-2 border-t border-ink-300">
+                  {tagOrResonance}
+                </div>
+              )}
             </motion.button>
           );
         })}
