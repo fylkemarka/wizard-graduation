@@ -453,23 +453,25 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     }};
   }
   if (slot === 'hat') {
-    const startBlock = mult(1 + (matStats.defense || 0) * 2);
+    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
     const turnDraw = (matStats.draw || 0) + (quality === 'master' ? 1 : 0);
     const turnVuln = matStats.vuln || 0;
     const power = { startOfTurn: {} };
-    if (startBlock > 0) power.startOfTurn.block = startBlock;
     if (turnDraw > 0)   power.startOfTurn.draw  = turnDraw;
     if (turnVuln > 0)   power.startOfTurn.vulnerable = turnVuln;
-    return { kind: 'card', card: {
+    const card = {
       id: `eq-hat-${material.id}-${quality}`, name: `${namePrefix} Hat`,
       cost: 1, type: 'power', rarity: 'rare', crafted: meta, power,
-    }};
+    };
+    if (def > 0) card.bonus = { damageReduction: def };
+    return { kind: 'card', card };
   }
   if (slot === 'robes') {
-    const startBlock = mult(4 + (matStats.defense || 0) * 2);
+    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
     const regen = matStats.regen || 0;
     const drawN = matStats.draw || 0;
-    const bonus = { startBlock };
+    const bonus = {};
+    if (def > 0)   bonus.damageReduction  = def;
     if (regen > 0) bonus.healOnCombatStart = mult(regen * 2);
     if (drawN > 0) bonus.extraStartHand    = drawN + (quality === 'master' ? 1 : 0);
     return { kind: 'equipment', equipment: {
@@ -481,8 +483,8 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     const bonus = {};
     if ((matStats.energy || 0)  > 0) bonus.permanentEnergyBonus = matStats.energy;
     if ((matStats.draw || 0)    > 0) bonus.extraStartHand       = matStats.draw + (quality === 'master' ? 1 : 0);
-    if ((matStats.defense || 0) > 0) bonus.startBlock           = mult(2 + matStats.defense);
-    if (Object.keys(bonus).length === 0) bonus.startBlock = mult(3);
+    if ((matStats.defense || 0) > 0) bonus.damageReduction      = Math.max(0, Math.round((matStats.defense || 0) * q));
+    if (Object.keys(bonus).length === 0) bonus.damageReduction = 1;
     return { kind: 'equipment', equipment: {
       id: `eq-ring-${material.id}-${quality}`, name: `${namePrefix} Ring`,
       bonus, crafted: meta,
@@ -893,11 +895,16 @@ function applyIntent(state, combat, intent) {
     const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
     let raw = intent.value;
     if (combat.enemyWeak > 0) raw = Math.floor(raw * 0.75);
+    // Defense (damage reduction) per-hit, min 1 damage. Sums equipment
+    // bonuses + familiar/relic damageReduction. Capped at 2 so stacking
+    // doesn't trivialize multi-attacks.
+    const defense = Math.min(2, state.equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0));
     let wBlock = state.block;
     let wHp = state.hp;
     for (let i = 0; i < hits; i++) {
       let remaining = raw;
       if (combat.playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
+      if (defense > 0 && remaining > 0) remaining = Math.max(1, remaining - defense);
       if (wBlock > 0) {
         const absorbed = Math.min(wBlock, remaining);
         wBlock -= absorbed; remaining -= absorbed;

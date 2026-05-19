@@ -969,6 +969,11 @@ const MATERIAL_TEMPLATES = {
 // whose act is still AHEAD of the player (you don't learn whittling
 // the act after you've already built your staff). Resolver supports
 // `fx.skill: { whittling: N }` etc. — see resolveEventChoice.
+// Skill events use a "safe / risky / skip-with-bait" pattern. Every
+// choice has a real trade so no option is dominated:
+//   Safe pick   — +2 skill, no cost
+//   Risky pick  — +4 skill but -1 MAX HP (permanent, not rest-healed)
+//   Skip pick   — no skill but a real upside (HP heal, card, etc.)
 const SKILL_EVENTS = [
   {
     id: 'skill-whittling-1',
@@ -976,9 +981,9 @@ const SKILL_EVENTS = [
     title: 'A Mossy Whittling Block',
     flavor: 'A sturdy stump, a half-finished blank, and a knife with sentimental fingerprints. Someone left, presumably, before they were finished.',
     choices: [
-      { label: 'Practice the long curve. (+2 Whittling)',           effects: { skill: { whittling: 2 } } },
-      { label: 'Try once, badly. (+1 Whittling, -2 HP)',            effects: { skill: { whittling: 1 }, loseHp: 2 } },
-      { label: 'Leave the knife where it is.',                       effects: {} },
+      { label: 'Practice the long curve. (+2 Whittling)',                    effects: { skill: { whittling: 2 } } },
+      { label: 'Carve until your hands cramp. (+4 Whittling, -1 max HP)',    effects: { skill: { whittling: 4 }, maxHp: -1 } },
+      { label: 'Pocket the knife. Walk on. (+6 HP)',                          effects: { heal: 6 } },
     ],
   },
   {
@@ -987,9 +992,9 @@ const SKILL_EVENTS = [
     title: "Old Greb the Whittler",
     flavor: 'An old man sits beside the path, working a length of yew into a shape that does not declare itself. "Sit a while," he says. "I\'ll show you the trick. The trick is not what you think it is."',
     choices: [
-      { label: 'Sit for a long lesson. (+3 Whittling, -3 HP)',      effects: { skill: { whittling: 3 }, loseHp: 3 } },
-      { label: 'Watch politely, briefly. (+1 Whittling)',           effects: { skill: { whittling: 1 } } },
-      { label: "Decline. He isn't really there, you think.",         effects: {} },
+      { label: 'Watch the trick. (+2 Whittling)',                            effects: { skill: { whittling: 2 } } },
+      { label: 'Sit for a long lesson. (+4 Whittling, -1 max HP)',           effects: { skill: { whittling: 4 }, maxHp: -1 } },
+      { label: 'Decline. Old Greb gives you something instead. (+1 Common card)', effects: { gainCommonCard: 1 } },
     ],
   },
   {
@@ -998,9 +1003,9 @@ const SKILL_EVENTS = [
     title: 'A Roadside Loom',
     flavor: 'It hums. Looms are not supposed to hum. This one is, apparently, an exception.',
     choices: [
-      { label: 'Sit and practice. (+2 Weaving)',                    effects: { skill: { weaving: 2 } } },
-      { label: 'Try the difficult cross-warp. (+3 Weaving, -2 HP)', effects: { skill: { weaving: 3 }, loseHp: 2 } },
-      { label: 'Step around it carefully. It is still humming.',     effects: {} },
+      { label: 'Sit and practice. (+2 Weaving)',                             effects: { skill: { weaving: 2 } } },
+      { label: 'Try the difficult cross-warp. (+4 Weaving, -1 max HP)',      effects: { skill: { weaving: 4 }, maxHp: -1 } },
+      { label: 'Step around it carefully. (+5 HP, it was warmer than it looked)', effects: { heal: 5 } },
     ],
   },
   {
@@ -1009,9 +1014,9 @@ const SKILL_EVENTS = [
     title: 'The Sewing Circle',
     flavor: 'Three women sit on a fence in a row. None of them speak. All of them sew. It is an enormous sock and they appear to be on the third foot.',
     choices: [
-      { label: 'Join in. (+2 Weaving)',                              effects: { skill: { weaving: 2 } } },
-      { label: 'Ask whose foot it is. (+1 Weaving, gain an Uncommon card from sheer awkwardness)', effects: { skill: { weaving: 1 }, gainUncommonCard: 1 } },
-      { label: 'Continue on. They appear not to notice.',            effects: {} },
+      { label: 'Join in. (+2 Weaving)',                                      effects: { skill: { weaving: 2 } } },
+      { label: 'Stay until the fourth foot. (+4 Weaving, -1 max HP)',        effects: { skill: { weaving: 4 }, maxHp: -1 } },
+      { label: 'Ask whose foot it is. (+1 Uncommon card)',                   effects: { gainUncommonCard: 1 } },
     ],
   },
   {
@@ -1020,9 +1025,9 @@ const SKILL_EVENTS = [
     title: 'A Travelling Forge',
     flavor: 'Coal smoke and a stranger pounding a hot bar into a shape you cannot, in the moment, identify. "Hold this," they say, before you have agreed to anything.',
     choices: [
-      { label: 'Hold it. Carefully. (+2 Smithing)',                  effects: { skill: { smithing: 2 } } },
-      { label: 'Try the hammer yourself. (+3 Smithing, -3 HP)',     effects: { skill: { smithing: 3 }, loseHp: 3 } },
-      { label: 'Politely decline. They are unfazed.',                effects: {} },
+      { label: 'Hold it. Carefully. (+2 Smithing)',                          effects: { skill: { smithing: 2 } } },
+      { label: 'Try the hammer yourself. (+4 Smithing, -1 max HP)',          effects: { skill: { smithing: 4 }, maxHp: -1 } },
+      { label: 'Politely decline. (+1 Common card from the cart)',           effects: { gainCommonCard: 1 } },
     ],
   },
   {
@@ -1031,9 +1036,9 @@ const SKILL_EVENTS = [
     title: 'A Cooling Anvil',
     flavor: 'An anvil sits alone in a clearing, faintly warm. Around it: tongs, hammers, a kettle, and a brief note: BACK SHORTLY. PLEASE NO BANGING.',
     choices: [
-      { label: 'Bang on it once, quietly. (+1 Smithing)',           effects: { skill: { smithing: 1 } } },
-      { label: 'Read the note. Use the kettle. (+2 Smithing, +3 HP)', effects: { skill: { smithing: 2 }, heal: 3 } },
-      { label: 'Honour the note. Move on.',                          effects: {} },
+      { label: 'Bang on it once, quietly. (+2 Smithing)',                    effects: { skill: { smithing: 2 } } },
+      { label: 'Bang loudly. Take the consequences. (+4 Smithing, -1 max HP)', effects: { skill: { smithing: 4 }, maxHp: -1 } },
+      { label: 'Read the note. Use the kettle. (+8 HP)',                     effects: { heal: 8 } },
     ],
   },
   {
@@ -1042,9 +1047,9 @@ const SKILL_EVENTS = [
     title: "A Milliner's Block",
     flavor: 'A wooden hat-block sits on a stump, slightly damp, alarmingly head-shaped. There are pins around it in the manner of a small ritual.',
     choices: [
-      { label: 'Try a quick brimming exercise. (+2 Blocking)',       effects: { skill: { blocking: 2 } } },
-      { label: 'Block a felt with serious intent. (+3 Blocking, -2 HP — pinprick)', effects: { skill: { blocking: 3 }, loseHp: 2 } },
-      { label: 'Tip your invisible hat at it. Walk on.',              effects: {} },
+      { label: 'Try a quick brimming exercise. (+2 Blocking)',               effects: { skill: { blocking: 2 } } },
+      { label: 'Block a felt with serious intent. (+4 Blocking, -1 max HP)', effects: { skill: { blocking: 4 }, maxHp: -1 } },
+      { label: 'Tip your invisible hat at it. (+1 Common card)',             effects: { gainCommonCard: 1 } },
     ],
   },
   {
@@ -1053,22 +1058,25 @@ const SKILL_EVENTS = [
     title: 'The Old Hatter',
     flavor: '"It\'s about the brim," he tells you, before you have asked. "Everyone gets the crown right. The brim is where the wizard is."',
     choices: [
-      { label: 'Study his brim work. (+2 Blocking)',                effects: { skill: { blocking: 2 } } },
-      { label: 'Argue about crowns. (+1 Blocking, gain a Common card from the row)', effects: { skill: { blocking: 1 }, gainCommonCard: 1 } },
-      { label: 'Step around him politely.',                          effects: {} },
+      { label: 'Study his brim work. (+2 Blocking)',                         effects: { skill: { blocking: 2 } } },
+      { label: 'Become an apprentice for the afternoon. (+4 Blocking, -1 max HP)', effects: { skill: { blocking: 4 }, maxHp: -1 } },
+      { label: 'Argue about crowns. He throws you a hat. (+1 Uncommon card)', effects: { gainUncommonCard: 1 } },
     ],
   },
-  // Cross-skill choice — picks one of two skills relevant to the player.
+  // Cross-skill choice — pick which craft you'd rather invest in.
+  // The "skip" path gives a real positive so it competes with the
+  // skill picks (which are all currently +2, no cost — making this
+  // the easy-mode skill node).
   {
     id: 'skill-crossroads',
     skill: 'any',
     title: 'A Crossroads Workshop',
     flavor: 'A tarp, a folding chair, and a sign: HALF AN HOUR\'S TUITION — PICK A CRAFT. The proprietor is asleep.',
     choices: [
-      { label: '(Practice your weaving, if still relevant)',         effects: { skill: { weaving: 2 } } },
-      { label: '(Practice your smithing, if still relevant)',        effects: { skill: { smithing: 2 } } },
-      { label: '(Practice your blocking, if still relevant)',        effects: { skill: { blocking: 2 } } },
-      { label: 'Leave the proprietor to it.',                        effects: {} },
+      { label: '(Practice your weaving, if still relevant) (+2 Weaving)',  effects: { skill: { weaving: 2 } } },
+      { label: '(Practice your smithing, if still relevant) (+2 Smithing)', effects: { skill: { smithing: 2 } } },
+      { label: '(Practice your blocking, if still relevant) (+2 Blocking)', effects: { skill: { blocking: 2 } } },
+      { label: 'Leave the proprietor to it. (+6 HP, +1 Common card)',      effects: { heal: 6, gainCommonCard: 1 } },
     ],
   },
 ];
@@ -1231,44 +1239,45 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
   }
   if (slot === 'hat') {
     // Drawable Power. Material stats drive start-of-turn triggers:
-    // defense → Block, draw → Draw, vuln → apply Vulnerable to enemy.
-    const startBlock = mult(1 + (matStats.defense || 0) * 2);
+    // defense → permanent Defense (damage reduction), draw → Draw,
+    // vuln → apply Vulnerable to enemy.
+    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
     const turnDraw = (matStats.draw || 0) + (quality === 'master' ? 1 : 0);
     const turnVuln = matStats.vuln || 0;
     const power = { startOfTurn: {} };
-    if (startBlock > 0) power.startOfTurn.block = startBlock;
     if (turnDraw > 0)   power.startOfTurn.draw  = turnDraw;
     if (turnVuln > 0)   power.startOfTurn.vulnerable = turnVuln;
     const descParts = [];
-    if (startBlock > 0) descParts.push(`+${startBlock} Block`);
-    if (turnDraw > 0)   descParts.push(`draw +${turnDraw}`);
-    if (turnVuln > 0)   descParts.push(`apply ${turnVuln} Vulnerable`);
-    return {
-      kind: 'card',
-      card: {
-        id: `eq-hat-${material.id}-${quality}`,
-        name: `${namePrefix} Hat`,
-        cost: 1,
-        type: 'power',
-        rarity: 'rare',
-        power,
-        desc: `At the start of each turn: ${descParts.join(', ') || 'nothing happens (this is a Rough hat)'}.`,
-        flavor: material.flavor,
-        crafted: craftedMeta,
-      },
+    if (def > 0)       descParts.push(`+${def} Defense (passive)`);
+    if (turnDraw > 0)  descParts.push(`+${turnDraw} draw/turn`);
+    if (turnVuln > 0)  descParts.push(`apply ${turnVuln} Vulnerable/turn`);
+    const card = {
+      id: `eq-hat-${material.id}-${quality}`,
+      name: `${namePrefix} Hat`,
+      cost: 1,
+      type: 'power',
+      rarity: 'rare',
+      power,
+      desc: descParts.join('. ') || 'A Rough hat. Does very little.',
+      flavor: material.flavor,
+      crafted: craftedMeta,
     };
+    if (def > 0) card.bonus = { damageReduction: def };
+    return { kind: 'card', card };
   }
   if (slot === 'robes') {
-    // Permanent install. defense → startBlock, regen → combat-start
-    // heal, draw → +1 turn-1 hand. Master quality multiplies all.
-    const startBlock = mult(4 + (matStats.defense || 0) * 2);
+    // Permanent install. defense → permanent Defense (per-hit -N
+    // damage), regen → combat-start heal, draw → +1 turn-1 hand.
+    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
     const regen = matStats.regen || 0;
     const drawN = matStats.draw || 0;
-    const bonus = { startBlock };
+    const bonus = {};
+    if (def > 0)   bonus.damageReduction  = def;
     if (regen > 0) bonus.healOnCombatStart = mult(regen * 2);
     if (drawN > 0) bonus.extraStartHand    = drawN + (quality === 'master' ? 1 : 0);
-    const descParts = [`Gain ${startBlock} Block at the start of every combat`];
-    if (bonus.healOnCombatStart) descParts.push(`Heal ${bonus.healOnCombatStart} HP`);
+    const descParts = [];
+    if (bonus.damageReduction)   descParts.push(`+${bonus.damageReduction} Defense (-${bonus.damageReduction} per incoming hit, min 1)`);
+    if (bonus.healOnCombatStart) descParts.push(`Heal ${bonus.healOnCombatStart} HP at combat start`);
     if (bonus.extraStartHand)    descParts.push(`draw +${bonus.extraStartHand} on turn 1`);
     return {
       kind: 'equipment',
@@ -1284,16 +1293,16 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
   }
   if (slot === 'ring') {
     // Per-turn stat tick. energy → permanentEnergyBonus, draw →
-    // extraStartHand, defense → start-of-combat Block.
+    // extraStartHand, defense → permanent Defense (damage reduction).
     const bonus = {};
     if ((matStats.energy || 0)  > 0) bonus.permanentEnergyBonus = matStats.energy;
     if ((matStats.draw || 0)    > 0) bonus.extraStartHand       = matStats.draw + (quality === 'master' ? 1 : 0);
-    if ((matStats.defense || 0) > 0) bonus.startBlock           = mult(2 + matStats.defense);
-    if (Object.keys(bonus).length === 0) bonus.startBlock = mult(3);
+    if ((matStats.defense || 0) > 0) bonus.damageReduction      = Math.max(0, Math.round((matStats.defense || 0) * q));
+    if (Object.keys(bonus).length === 0) bonus.damageReduction = 1;
     const descParts = [];
     if (bonus.permanentEnergyBonus) descParts.push(`+${bonus.permanentEnergyBonus} Energy per turn (permanent)`);
     if (bonus.extraStartHand)       descParts.push(`draw +${bonus.extraStartHand} on turn 1`);
-    if (bonus.startBlock)           descParts.push(`+${bonus.startBlock} Block at combat start`);
+    if (bonus.damageReduction)      descParts.push(`+${bonus.damageReduction} Defense (passive)`);
     return {
       kind: 'equipment',
       equipment: {
@@ -1866,6 +1875,11 @@ export default function App() {
     if (fx.loseHp) {
       setHp(h => clamp(h - fx.loseHp, 0, maxHp));
       logBits.push(`-${fx.loseHp} HP`);
+    }
+    if (fx.maxHp) {
+      setMaxHp(m => Math.max(1, m + fx.maxHp));
+      setHp(h => fx.maxHp < 0 ? Math.max(1, Math.min(h, maxHp + fx.maxHp)) : h + fx.maxHp);
+      logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
     }
     const granted = [];
     if (fx.gainCommonCard) {
@@ -2562,7 +2576,13 @@ export default function App() {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
       let raw = intent.value;
       if (enemyWeak > 0) raw = Math.floor(raw * 0.75);
-      const reduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0);
+      // Defense (per-hit damage reduction). Sources: Beetle familiar +
+      // any equipment with `bonus.damageReduction`. Capped at 2
+      // so stacking robes + ring + hat doesn't trivialize multi-attacks
+      // (the per-hit floor of min-1-damage still applies).
+      const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
+                         + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
+      const reduction = Math.min(2, rawReduction);
       // Apply all hits in one batched pass over local working state.
       // Earlier this used applyDamageToPlayer in a for-loop, but each
       // call read block/hp from the closure — so subsequent hits saw
@@ -3551,8 +3571,22 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           </div>
           <div>
             <div className="text-xs uppercase text-parchment-300">Block</div>
-            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
+            <div className="text-2xl font-mono text-iris-300" title="Block absorbs incoming damage. Resets to 0 at end of turn.">🛡 {block}</div>
           </div>
+          {(() => {
+            const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
+                          + (familiar?.bonus?.damageReduction || 0);
+            const def = Math.min(2, rawDef);
+            return rawDef > 0 ? (
+              <div>
+                <div className="text-xs uppercase text-parchment-300">Defense</div>
+                <div className="text-2xl font-mono text-moss-200"
+                  title={`Defense reduces every incoming hit by ${def} (min 1 damage taken). Capped at 2 — additional equipment Defense provides no further benefit.`}>
+                  🛡✦ {def}{rawDef > def ? <span className="text-xs text-parchment-400 align-top">/{rawDef}</span> : null}
+                </div>
+              </div>
+            ) : null;
+          })()}
           <div>
             <div className="text-xs uppercase text-parchment-300">Energy</div>
             <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
@@ -3800,6 +3834,24 @@ function EventScreen({ event, onChoose }) {
   );
 }
 
+// Friendly label + tooltip for a raw material-stat key. Material
+// data uses internal keys (`defense`, `regen`, `chutzpah`, etc.);
+// the UI shows what the player will actually get when crafted.
+function materialStatChip(key, value) {
+  const labels = {
+    defense:  { label: 'Defense',  tip: `+${value} Defense — reduces every incoming hit by ${value} (min 1 damage taken).` },
+    regen:    { label: 'Regen',    tip: `Heals ${value * 2} HP at the start of every combat.` },
+    draw:     { label: 'Draw',     tip: `+${value} card drawn on turn 1 of every combat (or per turn for hats).` },
+    energy:   { label: 'Energy',   tip: `+${value} permanent Energy per turn (rings only).` },
+    chutzpah: { label: 'Chutzpah', tip: `Material flavor stat. On a Staff: scales the spell's base and multiplier.` },
+    wit:      { label: 'Wit',      tip: `Material flavor stat. (Currently unused in equipment outputs.)` },
+    jnsq:     { label: 'Jnsq',     tip: `Material flavor stat. On a Staff: adds the 'absurd' resonance tag.` },
+    dot:      { label: 'DoT',      tip: `On a Staff: cast applies ${value} Weak as a rider.` },
+    vuln:     { label: 'Vulnerable', tip: `On a Hat: applies ${value} Vulnerable to the enemy at start of every turn.` },
+  };
+  return labels[key] || { label: key, tip: `${key} +${value}` };
+}
+
 // Material chooser — shown when the player visits a Material node.
 // Three random variants of the current act's slot pool. The player
 // picks one; the material lands in their inventory and is consumed
@@ -3830,11 +3882,14 @@ function MaterialChooseScreen({ prompt, onPick, onSkip }) {
             <div className="font-display text-lg">{m.name}</div>
             <div className="text-xs uppercase tracking-wider text-ink-400">{SLOT_LABEL[m.slot] || m.slot} material</div>
             <div className="flex flex-wrap gap-1 text-xs font-mono">
-              {Object.entries(m.stats || {}).map(([k, v]) => (
-                <span key={k} className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">
-                  {k} +{v}
-                </span>
-              ))}
+              {Object.entries(m.stats || {}).map(([k, v]) => {
+                const c = materialStatChip(k, v);
+                return (
+                  <span key={k} className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800" title={c.tip}>
+                    {c.label} +{v}
+                  </span>
+                );
+              })}
             </div>
             <div className="text-sm font-quill italic text-ink-500 mt-auto pt-2 border-t border-ink-300">"{m.flavor}"</div>
           </button>
@@ -3923,11 +3978,14 @@ function CraftingChooseMaterial({ materials, onPick }) {
             <div className="font-display text-lg">{m.name}</div>
             <div className="text-xs uppercase tracking-wider text-ink-400">{SLOT_LABEL[m.slot] || m.slot} material</div>
             <div className="flex flex-wrap gap-1 text-xs font-mono">
-              {Object.entries(m.stats || {}).map(([k, v]) => (
-                <span key={k} className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">
-                  {k} +{v}
-                </span>
-              ))}
+              {Object.entries(m.stats || {}).map(([k, v]) => {
+                const c = materialStatChip(k, v);
+                return (
+                  <span key={k} className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800" title={c.tip}>
+                    {c.label} +{v}
+                  </span>
+                );
+              })}
             </div>
             <div className="text-sm font-quill italic text-ink-500 mt-auto pt-2 border-t border-ink-300">"{m.flavor}"</div>
           </button>
