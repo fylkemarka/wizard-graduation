@@ -345,32 +345,32 @@ const ACTS = [
 // --- MATERIALS ---
 const MATERIAL_TEMPLATES = {
   staff: [
-    { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', stats: { chutzpah: 2 } },
-    { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', stats: { chutzpah: 3 } },
-    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', stats: { chutzpah: 1, defense: 2 } },
-    { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', stats: { chutzpah: 3, jnsq: 1 } },
-    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', stats: { chutzpah: 2, dot: 2 } },
+    { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', stats: { chutzpah: 3 } },
+    { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', stats: { chutzpah: 4, loseHp: 3 } },
+    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', stats: { chutzpah: 2, defense: 2 } },
+    { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', stats: { chutzpah: 3, chance: 1, jnsq: 1 } },
+    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', stats: { chutzpah: 2, dot: 3 } },
   ],
   robes: [
-    { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', stats: { defense: 3 } },
-    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', stats: { defense: 1, regen: 1, draw: 1 } },
-    { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', stats: { defense: 1, regen: 2 } },
-    { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', stats: { defense: 2, draw: 1 } },
-    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', stats: { defense: 3 } },
+    { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', stats: { defense: 4 } },
+    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', stats: { regen: 3, draw: 1 } },
+    { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', stats: { defense: 1, regen: 1, draw: 1 } },
+    { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', stats: { draw: 3 } },
+    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', stats: { defense: 2, vuln: 1 } },
   ],
   ring: [
     { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring', stats: { defense: 2 } },
     { id: 'mat-copper',    name: 'Copper Ore',       slot: 'ring', stats: { energy: 1 } },
     { id: 'mat-silver',    name: 'Silver Ore',       slot: 'ring', stats: { draw: 2 } },
-    { id: 'mat-cold-iron', name: 'Cold Iron',        slot: 'ring', stats: { defense: 3 } },
+    { id: 'mat-cold-iron', name: 'Cold Iron',        slot: 'ring', stats: { weak: 1, defense: 1 } },
     { id: 'mat-mithril',   name: 'Mithril Filament', slot: 'ring', stats: { energy: 1, draw: 1 } },
   ],
   hat: [
-    { id: 'mat-felt',          name: 'Felt',          slot: 'hat', stats: { defense: 1 } },
-    { id: 'mat-suede',         name: 'Suede',         slot: 'hat', stats: { defense: 2 } },
-    { id: 'mat-tarred-canvas', name: 'Tarred Canvas', slot: 'hat', stats: { defense: 2, draw: 1 } },
-    { id: 'mat-brocade',       name: 'Brocade',       slot: 'hat', stats: { defense: 1, draw: 2 } },
-    { id: 'mat-dragonwool',    name: 'Dragonwool',    slot: 'hat', stats: { defense: 1, vuln: 1 } },
+    { id: 'mat-felt',          name: 'Felt',          slot: 'hat', stats: { block: 3 } },
+    { id: 'mat-suede',         name: 'Suede',         slot: 'hat', stats: { energy: 1 } },
+    { id: 'mat-tarred-canvas', name: 'Tarred Canvas', slot: 'hat', stats: { block: 2, draw: 1 } },
+    { id: 'mat-brocade',       name: 'Brocade',       slot: 'hat', stats: { draw: 2 } },
+    { id: 'mat-dragonwool',    name: 'Dragonwool',    slot: 'hat', stats: { vuln: 1 } },
   ],
 };
 
@@ -434,46 +434,56 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     const baseAtk = mult(8 + (matStats.chutzpah || 0) * 2);
     const multAtk = mult(2 + (matStats.chutzpah || 0));
     const resonatesWith = [];
-    if ((matStats.chutzpah || 0) >= 2) resonatesWith.push('booming');
-    if ((matStats.defense || 0) >= 1)  resonatesWith.push('formal');
-    if ((matStats.jnsq || 0)    >= 1)  resonatesWith.push('absurd');
-    if ((matStats.dot || 0)     >= 1)  resonatesWith.push('threatening');
+    if ((matStats.chutzpah || 0) >= 3) resonatesWith.push('booming');
+    if ((matStats.loseHp || 0)   >= 1) resonatesWith.push('threatening');
+    if ((matStats.defense || 0)  >= 1) resonatesWith.push('formal');
+    if ((matStats.jnsq || 0)     >= 1) resonatesWith.push('absurd');
+    if ((matStats.dot || 0)      >= 1) resonatesWith.push('threatening');
+    if ((matStats.chance || 0)   >= 1) resonatesWith.push('chaotic');
     if (resonatesWith.length === 0)    resonatesWith.push('dismissive');
+    const effect = {
+      scaleBy: 'chutzpah', base: baseAtk, multiplier: multAtk, damageType: 'composure',
+      resonatesWith: Array.from(new Set(resonatesWith)),
+      resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
+    };
     const rider = {};
     if ((matStats.defense || 0) > 0) rider.block = mult(matStats.defense * 2);
-    if ((matStats.regen || 0)   > 0) rider.hp    = mult(matStats.regen * 2);
-    if ((matStats.draw || 0)    > 0) rider.draw  = matStats.draw;
     if ((matStats.dot || 0)     > 0) rider.weak  = matStats.dot;
-    return { kind: 'card', card: {
-      id: `eq-staff-${material.id}-${quality}`, name: `${namePrefix} Staff`,
-      cost: 2, type: 'effect', rarity: 'rare', crafted: meta,
-      effect: { scaleBy: 'chutzpah', base: baseAtk, multiplier: multAtk, damageType: 'composure',
-                resonatesWith, resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
-                ...(Object.keys(rider).length ? { rider } : {}) },
-    }};
-  }
-  if (slot === 'hat') {
-    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
-    const turnDraw = (matStats.draw || 0) + (quality === 'master' ? 1 : 0);
-    const turnVuln = matStats.vuln || 0;
-    const power = { startOfTurn: {} };
-    if (turnDraw > 0)   power.startOfTurn.draw  = turnDraw;
-    if (turnVuln > 0)   power.startOfTurn.vulnerable = turnVuln;
+    if (Object.keys(rider).length) effect.rider = rider;
+    if ((matStats.loseHp || 0) > 0)  effect.loseHpOnPlay = matStats.loseHp;
+    if ((matStats.chance || 0) > 0)  effect.chance = { prob: 0.5, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } };
     const card = {
-      id: `eq-hat-${material.id}-${quality}`, name: `${namePrefix} Hat`,
-      cost: 1, type: 'power', rarity: 'rare', crafted: meta, power,
+      id: `eq-staff-${material.id}-${quality}`, name: `${namePrefix} Staff`,
+      cost: 2, type: 'effect', rarity: 'rare', crafted: meta, effect,
     };
-    if (def > 0) card.bonus = { damageReduction: def };
+    if ((matStats.defense || 0) > 0) card.bonus = { damageReduction: Math.max(0, Math.round(matStats.defense * q / 2)) };
     return { kind: 'card', card };
   }
+  if (slot === 'hat') {
+    const turnBlock  = mult(matStats.block || 0);
+    const turnEnergy = matStats.energy || 0;
+    const turnDraw   = matStats.draw || 0;
+    const turnVuln   = matStats.vuln || 0;
+    const power = { startOfTurn: {} };
+    if (turnBlock > 0)  power.startOfTurn.block      = turnBlock;
+    if (turnEnergy > 0) power.startOfTurn.energy     = turnEnergy + (quality === 'master' ? 1 : 0);
+    if (turnDraw > 0)   power.startOfTurn.draw       = turnDraw + (quality === 'master' ? 1 : 0);
+    if (turnVuln > 0)   power.startOfTurn.vulnerable = turnVuln + (quality === 'master' ? 1 : 0);
+    return { kind: 'card', card: {
+      id: `eq-hat-${material.id}-${quality}`, name: `${namePrefix} Hat`,
+      cost: 1, type: 'power', rarity: 'rare', crafted: meta, power,
+    }};
+  }
   if (slot === 'robes') {
-    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
+    const def = Math.max(0, Math.round((matStats.defense || 0) * q / 2));
     const regen = matStats.regen || 0;
     const drawN = matStats.draw || 0;
+    const vuln = matStats.vuln || 0;
     const bonus = {};
-    if (def > 0)   bonus.damageReduction  = def;
-    if (regen > 0) bonus.healOnCombatStart = mult(regen * 2);
-    if (drawN > 0) bonus.extraStartHand    = drawN + (quality === 'master' ? 1 : 0);
+    if (def > 0)   bonus.damageReduction       = def;
+    if (regen > 0) bonus.healOnCombatStart     = mult(regen * 2);
+    if (drawN > 0) bonus.extraStartHand        = drawN + (quality === 'master' ? 1 : 0);
+    if (vuln > 0)  bonus.startCombatVulnerable = vuln + (quality === 'master' ? 1 : 0);
     return { kind: 'equipment', equipment: {
       id: `eq-robes-${material.id}-${quality}`, name: `${namePrefix} Robes`,
       bonus, crafted: meta,
@@ -483,7 +493,8 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     const bonus = {};
     if ((matStats.energy || 0)  > 0) bonus.permanentEnergyBonus = matStats.energy;
     if ((matStats.draw || 0)    > 0) bonus.extraStartHand       = matStats.draw + (quality === 'master' ? 1 : 0);
-    if ((matStats.defense || 0) > 0) bonus.damageReduction      = Math.max(0, Math.round((matStats.defense || 0) * q));
+    if ((matStats.defense || 0) > 0) bonus.damageReduction      = Math.max(0, Math.round((matStats.defense || 0) * q / 2));
+    if ((matStats.weak || 0)    > 0) bonus.startCombatWeak      = matStats.weak + (quality === 'master' ? 1 : 0);
     if (Object.keys(bonus).length === 0) bonus.damageReduction = 1;
     return { kind: 'equipment', equipment: {
       id: `eq-ring-${material.id}-${quality}`, name: `${namePrefix} Ring`,
@@ -527,13 +538,18 @@ function combatStart(state, enemyId) {
   };
   // Equipment-driven combat-start effects.
   let startBlock = 0, healOnStart = 0, startHandBonus = 0, startEnergyBonus = 0;
+  let startVuln = 0, startWeak = 0;
   for (const eq of state.equipment) {
-    if (eq.bonus?.startBlock)          startBlock       += eq.bonus.startBlock;
-    if (eq.bonus?.energyOnCombatStart) startEnergyBonus += eq.bonus.energyOnCombatStart;
-    if (eq.bonus?.extraStartHand)      startHandBonus   += eq.bonus.extraStartHand;
-    if (eq.bonus?.healOnCombatStart)   healOnStart      += eq.bonus.healOnCombatStart;
+    if (eq.bonus?.startBlock)              startBlock       += eq.bonus.startBlock;
+    if (eq.bonus?.energyOnCombatStart)     startEnergyBonus += eq.bonus.energyOnCombatStart;
+    if (eq.bonus?.extraStartHand)          startHandBonus   += eq.bonus.extraStartHand;
+    if (eq.bonus?.healOnCombatStart)       healOnStart      += eq.bonus.healOnCombatStart;
+    if (eq.bonus?.startCombatVulnerable)   startVuln        += eq.bonus.startCombatVulnerable;
+    if (eq.bonus?.startCombatWeak)         startWeak        += eq.bonus.startCombatWeak;
   }
   if (healOnStart > 0) state.hp = clamp(state.hp + healOnStart, 0, state.maxHp);
+  if (startVuln > 0)   combat.enemyVulnerable += startVuln;
+  if (startWeak > 0)   combat.enemyWeak += startWeak;
   state.block = startBlock;
   state.energy = energyPerTurnRefill(state) + startEnergyBonus;
 
@@ -1045,24 +1061,27 @@ function simAct(state, act, runStats) {
         if (slot === 'ring') {
           return (st.energy || 0) * 5
                + (st.draw   || 0) * 3
+               + (st.weak   || 0) * 3
                + (st.defense || 0) * 0.5;
         }
         if (slot === 'robes') {
           return (st.defense || 0) * 1.5
                + (st.regen   || 0) * 1.5
-               + (st.draw    || 0) * 2;
+               + (st.draw    || 0) * 2
+               + (st.vuln    || 0) * 3;
         }
         if (slot === 'hat') {
-          return (st.defense || 0) * 1.5
-               + (st.draw    || 0) * 2
+          return (st.block   || 0) * 1.5
+               + (st.energy  || 0) * 5
+               + (st.draw    || 0) * 3
                + (st.vuln    || 0) * 3;
         }
         if (slot === 'staff') {
           return (st.chutzpah || 0) * 2
+               + (st.loseHp   || 0) * -0.5   // small penalty (cost)
                + (st.defense  || 0) * 1
-               + (st.regen    || 0) * 1
-               + (st.draw     || 0) * 1.5
                + (st.dot      || 0) * 1.5
+               + (st.chance   || 0) * 1
                + (st.jnsq     || 0) * 0.5;
         }
         return Object.values(st).reduce((s, v) => s + v, 0);

@@ -910,57 +910,101 @@ const EVENTS = [
 // as the old Arcane Workshop grove system). Stats here are placeholder
 // signals that the crafting minigame (Commit 3) will roll into the
 // final equipment card's per-slot mechanic.
-// Each material's `stats` keys correspond DIRECTLY to fields the
-// crafting factory (`buildCraftedEquipment`) consumes for that slot.
-// No dead stats — picking a material always changes the equipment.
-// Stat semantics by slot:
-//   STAFF (one-shot Effect):
+// Each material has a UNIQUE mechanical identity within its slot —
+// not a linear "more of the same stat" variant. Picking one is an
+// archetype commitment, not a number comparison.
+//
+// Stat semantics by slot (buildCraftedEquipment consumes these):
+//   STAFF (one-shot Effect card):
 //     chutzpah → base + multiplier (always primary)
-//     defense  → rider Block on cast + 'formal' resonance tag
-//     regen    → rider HP heal on cast
-//     draw     → rider Draw on cast
-//     dot      → rider Weak on cast + 'threatening' resonance tag
+//     loseHp   → loseHpOnPlay on the cast (Chutzpah lever)
+//     defense  → rider Block AND equipment bonus.damageReduction
+//     dot      → rider Weak on cast + 'threatening' resonance
+//     chance   → 50% bonus Vuln vs 50% self-Weak (Jnsq gamble)
 //     jnsq     → 'absurd' resonance tag
 //   ROBES (passive equipment):
-//     defense  → startBlock per combat
-//     regen    → HP heal per combat start
-//     draw     → +1 extra start hand
-//   RING (passive per-turn ticks):
-//     defense  → startBlock per combat
-//     energy   → +N permanent energy per turn
-//     draw     → extra start hand size
-//   HAT (Power-on-play, start-of-turn triggers):
-//     defense  → +N Block at start of every turn
-//     draw     → +N Draw at start of every turn
-//     vuln     → applies N Vulnerable to enemy at start of every turn
+//     defense  → permanent damageReduction (engine caps total at 2)
+//     regen    → healOnCombatStart
+//     draw     → extraStartHand on turn 1
+//     vuln     → applies N enemy Vulnerable at combat start
+//   RING (passive per-combat triggers):
+//     defense  → permanent damageReduction
+//     energy   → permanentEnergyBonus (+N per turn)
+//     draw     → extraStartHand on turn 1
+//     weak     → applies N enemy Weak at combat start
+//   HAT (Power card → start-of-turn triggers):
+//     block    → +N Block every turn
+//     energy   → +N Energy every turn
+//     draw     → +N Draw every turn
+//     vuln     → applies N enemy Vulnerable every turn
 const MATERIAL_TEMPLATES = {
   staff: [
-    { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', flavor: 'Clean grain, predictable yield.',                stats: { chutzpah: 2 } },
-    { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', flavor: 'Heavy in the hand; quietly self-important.',    stats: { chutzpah: 3 } },
-    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', flavor: "Smells of someone's grandmother.",              stats: { chutzpah: 1, defense: 2 } },
-    { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', flavor: 'Burnished red; reads the weather a bit too closely.', stats: { chutzpah: 3, jnsq: 1 } },
-    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', flavor: "Slightly off in a way you can't place.",         stats: { chutzpah: 2, dot: 2 } },
+    // The Workhorse — pure damage, no rider. Predictable, reliable.
+    { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', flavor: 'Clean grain, predictable yield.',
+      stats: { chutzpah: 3 } },
+    // The Glass Cannon — biggest damage in the game, but it COSTS.
+    { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', flavor: 'Heavy in the hand; quietly self-important. Every swing takes something from you.',
+      stats: { chutzpah: 4, loseHp: 3 } },
+    // The Shield — mid damage + cast Block rider + permanent Defense.
+    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', flavor: "Smells of someone's grandmother. Smells of protection.",
+      stats: { chutzpah: 2, defense: 2 } },
+    // The Chaos — moderate damage + chance rider (50% bonus Vuln, 50% self-Weak).
+    { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', flavor: 'Burnished red. Reads the weather. Sometimes hits the wrong target.',
+      stats: { chutzpah: 3, chance: 1, jnsq: 1 } },
+    // The Slow Burn — low damage, punishing Weak rider.
+    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', flavor: "Slightly off in a way you can't place. The enemy noticed first.",
+      stats: { chutzpah: 2, dot: 3 } },
   ],
   robes: [
-    { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', flavor: 'Honest, plain, dependable.',                 stats: { defense: 3 } },
-    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted.',       stats: { defense: 1, regen: 1, draw: 1 } },
-    { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging.',                          stats: { defense: 1, regen: 2 } },
-    { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', flavor: 'Drinks the light. Mildly judgmental.',       stats: { defense: 2, draw: 1 } },
-    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', flavor: 'Itches by design.',                           stats: { defense: 3 } },
+    // Pure defensive baseline — damageReduction only.
+    { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', flavor: 'Honest, plain, dependable. A robe that knows what a robe is for.',
+      stats: { defense: 4 } },
+    // Endurance tank — heals every combat, no DR.
+    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted. It remembers the moth.',
+      stats: { regen: 3, draw: 1 } },
+    // Balanced hybrid — modest of everything.
+    { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging. Mildly photosynthetic.',
+      stats: { defense: 1, regen: 1, draw: 1 } },
+    // Card engine — heavy turn-1 draw, no defense.
+    { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', flavor: 'Drinks the light. Drinks several other things.',
+      stats: { draw: 3 } },
+    // Aggressive defender — DR + applies enemy Vuln at combat start.
+    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', flavor: 'Itches by design. The enemy will itch worse, eventually.',
+      stats: { defense: 2, vuln: 1 } },
   ],
   ring: [
-    { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring',  flavor: 'Plain. Reliable. Slightly rusted in places.', stats: { defense: 2 } },
-    { id: 'mat-copper',    name: 'Copper Ore',       slot: 'ring',  flavor: 'Conducts everything. Including embarrassment.', stats: { energy: 1 } },
-    { id: 'mat-silver',    name: 'Silver Ore',       slot: 'ring',  flavor: 'Bright, expensive, makes you feel watched.',  stats: { draw: 2 } },
-    { id: 'mat-cold-iron', name: 'Cold Iron',        slot: 'ring',  flavor: 'Black, heavy, uncharmed.',                    stats: { defense: 3 } },
-    { id: 'mat-mithril',   name: 'Mithril Filament', slot: 'ring',  flavor: 'Light as the idea of it. Suspiciously so.',   stats: { energy: 1, draw: 1 } },
+    // Passive DR ring — fits a defender build.
+    { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring',  flavor: 'Plain. Reliable. Slightly rusted in places.',
+      stats: { defense: 2 } },
+    // Energy ring — +1 mana per turn (long-game compounder).
+    { id: 'mat-copper',    name: 'Copper Ore',       slot: 'ring',  flavor: 'Conducts everything. Including embarrassment.',
+      stats: { energy: 1 } },
+    // Draw ring — +2 turn-1 hand size (combo enabler).
+    { id: 'mat-silver',    name: 'Silver Ore',       slot: 'ring',  flavor: 'Bright, expensive, makes you feel watched.',
+      stats: { draw: 2 } },
+    // Debuff ring — applies enemy Weak at combat start + small DR.
+    { id: 'mat-cold-iron', name: 'Cold Iron',        slot: 'ring',  flavor: 'Black, heavy, uncharmed. The fey would rather not.',
+      stats: { weak: 1, defense: 1 } },
+    // Combo ring — small bit of everything.
+    { id: 'mat-mithril',   name: 'Mithril Filament', slot: 'ring',  flavor: 'Light as the idea of it. Suspiciously so.',
+      stats: { energy: 1, draw: 1 } },
   ],
   hat: [
-    { id: 'mat-felt',          name: 'Felt',          slot: 'hat', flavor: 'Warm, forgiving, modestly opinionated.',          stats: { defense: 1 } },
-    { id: 'mat-suede',         name: 'Suede',         slot: 'hat', flavor: 'Stains if you look at it wrong.',                 stats: { defense: 2 } },
-    { id: 'mat-tarred-canvas', name: 'Tarred Canvas', slot: 'hat', flavor: 'Waterproof, opinionated, smells of expedition.',  stats: { defense: 2, draw: 1 } },
-    { id: 'mat-brocade',       name: 'Brocade',       slot: 'hat', flavor: 'Heavy, ornate, deliberately ridiculous.',         stats: { defense: 1, draw: 2 } },
-    { id: 'mat-dragonwool',    name: 'Dragonwool',    slot: 'hat', flavor: 'Itches and shimmers and remembers the dragon.',   stats: { defense: 1, vuln: 1 } },
+    // Per-turn block hat — defensive turn-by-turn.
+    { id: 'mat-felt',          name: 'Felt',          slot: 'hat', flavor: 'Warm, forgiving, modestly opinionated.',
+      stats: { block: 3 } },
+    // Per-turn energy hat — the long-game power. Bigger spells every turn.
+    { id: 'mat-suede',         name: 'Suede',         slot: 'hat', flavor: 'Stains if you look at it wrong. Apparently, magic.',
+      stats: { energy: 1 } },
+    // Hybrid hat — small block + small draw.
+    { id: 'mat-tarred-canvas', name: 'Tarred Canvas', slot: 'hat', flavor: 'Waterproof, opinionated, smells of expedition.',
+      stats: { block: 2, draw: 1 } },
+    // Heavy draw hat — Wit-archetype enabler.
+    { id: 'mat-brocade',       name: 'Brocade',       slot: 'hat', flavor: 'Heavy, ornate, deliberately ridiculous.',
+      stats: { draw: 2 } },
+    // Aggressive hat — applies enemy Vulnerable every turn.
+    { id: 'mat-dragonwool',    name: 'Dragonwool',    slot: 'hat', flavor: 'Itches and shimmers and remembers the dragon. The enemy will, too.',
+      stats: { vuln: 1 } },
   ],
 };
 
@@ -1191,66 +1235,72 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
   const craftedMeta = { slot, materialId: material.id, quality, skill };
 
   if (slot === 'staff') {
-    // Drawable Effect card. Scales by chutzpah; secondary material
-    // stats produce riders + resonance tags so each staff plays
-    // distinctly. See material stat semantics above MATERIAL_TEMPLATES.
+    // Drawable Effect card. Material's stat profile shapes both the
+    // numbers AND the card's "feel" — Rosewood is glass-cannon,
+    // Cedar is defensive, Madrone is chaos, Hemlock is control.
     const baseAtk = mult(8 + (matStats.chutzpah || 0) * 2);
     const multAtk = mult(2 + (matStats.chutzpah || 0));
     const resonatesWith = [];
-    if ((matStats.chutzpah || 0) >= 2) resonatesWith.push('booming');
-    if ((matStats.defense || 0) >= 1)  resonatesWith.push('formal');
-    if ((matStats.jnsq || 0)    >= 1)  resonatesWith.push('absurd');
-    if ((matStats.dot || 0)     >= 1)  resonatesWith.push('threatening');
+    if ((matStats.chutzpah || 0) >= 3) resonatesWith.push('booming');
+    if ((matStats.loseHp || 0)   >= 1) resonatesWith.push('threatening');
+    if ((matStats.defense || 0)  >= 1) resonatesWith.push('formal');
+    if ((matStats.jnsq || 0)     >= 1) resonatesWith.push('absurd');
+    if ((matStats.dot || 0)      >= 1) resonatesWith.push('threatening');
+    if ((matStats.chance || 0)   >= 1) resonatesWith.push('chaotic');
     if (resonatesWith.length === 0)    resonatesWith.push('dismissive');
+    const effect = {
+      scaleBy: 'chutzpah',
+      base: baseAtk,
+      multiplier: multAtk,
+      damageType: 'composure',
+      resonatesWith: Array.from(new Set(resonatesWith)),
+      resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
+      exhaust: false,
+    };
     const rider = {};
     if ((matStats.defense || 0) > 0) rider.block = mult(matStats.defense * 2);
-    if ((matStats.regen || 0)   > 0) rider.hp    = mult(matStats.regen * 2);
-    if ((matStats.draw || 0)    > 0) rider.draw  = matStats.draw;
     if ((matStats.dot || 0)     > 0) rider.weak  = matStats.dot;
+    if (Object.keys(rider).length) effect.rider = rider;
+    if ((matStats.loseHp || 0) > 0)  effect.loseHpOnPlay = matStats.loseHp;
+    if ((matStats.chance || 0) > 0)  effect.chance = { prob: 0.5, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } };
     const riderText = [];
-    if (rider.block) riderText.push(`Gain ${rider.block} Block`);
-    if (rider.hp)    riderText.push(`Heal ${rider.hp} HP`);
-    if (rider.draw)  riderText.push(`draw ${rider.draw}`);
-    if (rider.weak)  riderText.push(`apply ${rider.weak} Weak`);
-    return {
-      kind: 'card',
-      card: {
-        id: `eq-staff-${material.id}-${quality}`,
-        name: `${namePrefix} Staff`,
-        cost: 2,
-        type: 'effect',
-        rarity: 'rare',
-        effect: {
-          scaleBy: 'chutzpah',
-          base: baseAtk,
-          multiplier: multAtk,
-          damageType: 'composure',
-          resonatesWith,
-          resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
-          exhaust: false,
-          ...(Object.keys(rider).length ? { rider } : {}),
-        },
-        phrase: '…and that is what the Staff says, and the Staff does not say it twice.',
-        desc: `Cast: ${baseAtk} + Chutzpah×${multAtk} Composure${riderText.length ? '. ' + riderText.join('. ') + '.' : '.'}`,
-        flavor: material.flavor,
-        crafted: craftedMeta,
-      },
+    if (rider.block)         riderText.push(`Gain ${rider.block} Block`);
+    if (rider.weak)          riderText.push(`apply ${rider.weak} Weak`);
+    if (effect.loseHpOnPlay) riderText.push(`lose ${effect.loseHpOnPlay} HP`);
+    if (effect.chance)       riderText.push(`50%: +2 Vuln / 50%: gain 1 Weak`);
+    const card = {
+      id: `eq-staff-${material.id}-${quality}`,
+      name: `${namePrefix} Staff`,
+      cost: 2,
+      type: 'effect',
+      rarity: 'rare',
+      effect,
+      phrase: '…and that is what the Staff says, and the Staff does not say it twice.',
+      desc: `Cast: ${baseAtk} + Chutzpah×${multAtk} Composure${riderText.length ? '. ' + riderText.join('. ') + '.' : '.'}`,
+      flavor: material.flavor,
+      crafted: craftedMeta,
     };
+    // Cedar also confers passive Defense (the staff has a guard).
+    if ((matStats.defense || 0) > 0) card.bonus = { damageReduction: Math.max(0, Math.round(matStats.defense * q / 2)) };
+    return { kind: 'card', card };
   }
   if (slot === 'hat') {
-    // Drawable Power. Material stats drive start-of-turn triggers:
-    // defense → permanent Defense (damage reduction), draw → Draw,
-    // vuln → apply Vulnerable to enemy.
-    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
-    const turnDraw = (matStats.draw || 0) + (quality === 'master' ? 1 : 0);
-    const turnVuln = matStats.vuln || 0;
+    // Drawable Power. Material stats map directly to startOfTurn keys.
+    // No more "defense → DR" on hats — hats are turn-based effects.
+    const turnBlock  = mult(matStats.block || 0);
+    const turnEnergy = matStats.energy || 0; // integer, no quality scaling
+    const turnDraw   = matStats.draw || 0;
+    const turnVuln   = matStats.vuln || 0;
     const power = { startOfTurn: {} };
-    if (turnDraw > 0)   power.startOfTurn.draw  = turnDraw;
-    if (turnVuln > 0)   power.startOfTurn.vulnerable = turnVuln;
+    if (turnBlock > 0)  power.startOfTurn.block      = turnBlock;
+    if (turnEnergy > 0) power.startOfTurn.energy     = turnEnergy + (quality === 'master' ? 1 : 0);
+    if (turnDraw > 0)   power.startOfTurn.draw       = turnDraw + (quality === 'master' ? 1 : 0);
+    if (turnVuln > 0)   power.startOfTurn.vulnerable = turnVuln + (quality === 'master' ? 1 : 0);
     const descParts = [];
-    if (def > 0)       descParts.push(`+${def} Defense (passive)`);
-    if (turnDraw > 0)  descParts.push(`+${turnDraw} draw/turn`);
-    if (turnVuln > 0)  descParts.push(`apply ${turnVuln} Vulnerable/turn`);
+    if (power.startOfTurn.block)      descParts.push(`+${power.startOfTurn.block} Block`);
+    if (power.startOfTurn.energy)     descParts.push(`+${power.startOfTurn.energy} Energy`);
+    if (power.startOfTurn.draw)       descParts.push(`+${power.startOfTurn.draw} draw`);
+    if (power.startOfTurn.vulnerable) descParts.push(`apply ${power.startOfTurn.vulnerable} Vulnerable`);
     const card = {
       id: `eq-hat-${material.id}-${quality}`,
       name: `${namePrefix} Hat`,
@@ -1258,27 +1308,29 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
       type: 'power',
       rarity: 'rare',
       power,
-      desc: descParts.join('. ') || 'A Rough hat. Does very little.',
+      desc: `At the start of each turn: ${descParts.join(', ') || 'nothing (a Rough hat is mostly hat).'}`,
       flavor: material.flavor,
       crafted: craftedMeta,
     };
-    if (def > 0) card.bonus = { damageReduction: def };
     return { kind: 'card', card };
   }
   if (slot === 'robes') {
-    // Permanent install. defense → permanent Defense (per-hit -N
-    // damage), regen → combat-start heal, draw → +1 turn-1 hand.
-    const def = Math.max(0, Math.round((matStats.defense || 0) * q));
+    // Permanent install. defense→DR, regen→combat-start heal,
+    // draw→turn-1 hand, vuln→applies enemy Vulnerable at combat start.
+    const def   = Math.max(0, Math.round((matStats.defense || 0) * q / 2));
     const regen = matStats.regen || 0;
     const drawN = matStats.draw || 0;
+    const vuln  = matStats.vuln || 0;
     const bonus = {};
     if (def > 0)   bonus.damageReduction  = def;
     if (regen > 0) bonus.healOnCombatStart = mult(regen * 2);
     if (drawN > 0) bonus.extraStartHand    = drawN + (quality === 'master' ? 1 : 0);
+    if (vuln > 0)  bonus.startCombatVulnerable = vuln + (quality === 'master' ? 1 : 0);
     const descParts = [];
-    if (bonus.damageReduction)   descParts.push(`+${bonus.damageReduction} Defense (-${bonus.damageReduction} per incoming hit, min 1)`);
-    if (bonus.healOnCombatStart) descParts.push(`Heal ${bonus.healOnCombatStart} HP at combat start`);
-    if (bonus.extraStartHand)    descParts.push(`draw +${bonus.extraStartHand} on turn 1`);
+    if (bonus.damageReduction)        descParts.push(`+${bonus.damageReduction} Defense`);
+    if (bonus.healOnCombatStart)      descParts.push(`Heal ${bonus.healOnCombatStart} HP at combat start`);
+    if (bonus.extraStartHand)         descParts.push(`draw +${bonus.extraStartHand} on turn 1`);
+    if (bonus.startCombatVulnerable)  descParts.push(`apply ${bonus.startCombatVulnerable} Vulnerable to enemy at combat start`);
     return {
       kind: 'equipment',
       equipment: {
@@ -1292,17 +1344,19 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     };
   }
   if (slot === 'ring') {
-    // Per-turn stat tick. energy → permanentEnergyBonus, draw →
-    // extraStartHand, defense → permanent Defense (damage reduction).
+    // Per-combat triggers. defense→DR, energy→permanent energy,
+    // draw→turn-1 hand, weak→applies enemy Weak at combat start.
     const bonus = {};
     if ((matStats.energy || 0)  > 0) bonus.permanentEnergyBonus = matStats.energy;
     if ((matStats.draw || 0)    > 0) bonus.extraStartHand       = matStats.draw + (quality === 'master' ? 1 : 0);
-    if ((matStats.defense || 0) > 0) bonus.damageReduction      = Math.max(0, Math.round((matStats.defense || 0) * q));
+    if ((matStats.defense || 0) > 0) bonus.damageReduction      = Math.max(0, Math.round((matStats.defense || 0) * q / 2));
+    if ((matStats.weak || 0)    > 0) bonus.startCombatWeak      = matStats.weak + (quality === 'master' ? 1 : 0);
     if (Object.keys(bonus).length === 0) bonus.damageReduction = 1;
     const descParts = [];
-    if (bonus.permanentEnergyBonus) descParts.push(`+${bonus.permanentEnergyBonus} Energy per turn (permanent)`);
+    if (bonus.permanentEnergyBonus) descParts.push(`+${bonus.permanentEnergyBonus} Energy per turn`);
     if (bonus.extraStartHand)       descParts.push(`draw +${bonus.extraStartHand} on turn 1`);
-    if (bonus.damageReduction)      descParts.push(`+${bonus.damageReduction} Defense (passive)`);
+    if (bonus.damageReduction)      descParts.push(`+${bonus.damageReduction} Defense`);
+    if (bonus.startCombatWeak)      descParts.push(`apply ${bonus.startCombatWeak} Weak to enemy at combat start`);
     return {
       kind: 'equipment',
       equipment: {
@@ -1953,13 +2007,18 @@ export default function App() {
     let startHandBonus = 0;
     let healOnStart = 0;
     let startDrawBonus = 0;
-    for (const eq of equipment) {
-      if (eq.bonus?.startBlock)          startBlockTotal      += eq.bonus.startBlock;
-      if (eq.bonus?.energyOnCombatStart) startEnergyBonus     += eq.bonus.energyOnCombatStart;
-      if (eq.bonus?.extraStartHand)      startHandBonus       += eq.bonus.extraStartHand;
-      if (eq.bonus?.healOnCombatStart)   healOnStart          += eq.bonus.healOnCombatStart;
-    }
     let startCombatVulnTotal = 0;
+    let startCombatWeakTotal = 0;
+    for (const eq of equipment) {
+      if (eq.bonus?.startBlock)              startBlockTotal       += eq.bonus.startBlock;
+      if (eq.bonus?.energyOnCombatStart)     startEnergyBonus      += eq.bonus.energyOnCombatStart;
+      if (eq.bonus?.extraStartHand)          startHandBonus        += eq.bonus.extraStartHand;
+      if (eq.bonus?.healOnCombatStart)       healOnStart           += eq.bonus.healOnCombatStart;
+      // Material-driven combat-start enemy debuffs (Burrgrass robes,
+      // Cold Iron ring, etc.).
+      if (eq.bonus?.startCombatVulnerable)   startCombatVulnTotal  += eq.bonus.startCombatVulnerable;
+      if (eq.bonus?.startCombatWeak)         startCombatWeakTotal  += eq.bonus.startCombatWeak;
+    }
     for (const { effect } of effectSources()) {
       const oc = effect?.onCombatStart;
       if (oc) {
@@ -1969,6 +2028,7 @@ export default function App() {
         if (oc.hp)     healOnStart     += oc.hp;
       }
       if (effect?.startCombatVulnerable) startCombatVulnTotal += effect.startCombatVulnerable;
+      if (effect?.startCombatWeak)       startCombatWeakTotal += effect.startCombatWeak;
     }
     // Apply familiar startOfTurnBlock for turn 1 as well — every-turn means
     // also turn 1. (Per-turn application happens in endTurn's working block.)
@@ -1983,6 +2043,10 @@ export default function App() {
     if (startCombatVulnTotal > 0) {
       setEnemyVulnerable(startCombatVulnTotal);
       pushLog(`🌀 ${e.name} starts Vulnerable +${startCombatVulnTotal}.`);
+    }
+    if (startCombatWeakTotal > 0) {
+      setEnemyWeak(startCombatWeakTotal);
+      pushLog(`🌀 ${e.name} starts Weak +${startCombatWeakTotal}.`);
     }
     setBlock(startBlockTotal);
     setEnergy(energyPerTurnRefill() + startEnergyBonus);
@@ -3839,15 +3903,19 @@ function EventScreen({ event, onChoose }) {
 // the UI shows what the player will actually get when crafted.
 function materialStatChip(key, value) {
   const labels = {
-    defense:  { label: 'Defense',  tip: `+${value} Defense — reduces every incoming hit by ${value} (min 1 damage taken).` },
-    regen:    { label: 'Regen',    tip: `Heals ${value * 2} HP at the start of every combat.` },
-    draw:     { label: 'Draw',     tip: `+${value} card drawn on turn 1 of every combat (or per turn for hats).` },
-    energy:   { label: 'Energy',   tip: `+${value} permanent Energy per turn (rings only).` },
-    chutzpah: { label: 'Chutzpah', tip: `Material flavor stat. On a Staff: scales the spell's base and multiplier.` },
+    chutzpah: { label: 'Chutzpah', tip: `On a Staff: scales the spell's base and multiplier (more raw damage).` },
+    loseHp:   { label: 'Risk',     tip: `On a Staff: cast costs ${value} HP (Chutzpah glass-cannon archetype).` },
+    defense:  { label: 'Defense',  tip: `Permanent damage reduction (-${value} per incoming hit, engine caps total at 2, min 1 damage taken). On a Staff: also adds rider Block on cast.` },
+    regen:    { label: 'Regen',    tip: `On Robes: heals ${value * 2} HP at the start of every combat.` },
+    draw:     { label: 'Draw',     tip: `On Robes/Ring: +${value} card drawn on turn 1. On a Hat: +${value} card every turn.` },
+    energy:   { label: 'Energy',   tip: `On a Ring: +${value} permanent Energy per turn. On a Hat: +${value} Energy every turn.` },
+    block:    { label: 'Block',    tip: `On a Hat: +${value} Block at the start of every turn.` },
+    dot:      { label: 'Weak rider', tip: `On a Staff: cast applies ${value} Weak to the enemy (control archetype).` },
+    chance:   { label: 'Chance',   tip: `On a Staff: cast has a 50% chance to apply 2 Vuln; 50% chance you gain 1 Weak (Jnsq gamble).` },
+    vuln:     { label: 'Vulnerable', tip: `On Robes: applies ${value} Vulnerable to the enemy at combat start. On a Hat: applies it every turn.` },
+    weak:     { label: 'Weak',     tip: `On a Ring: applies ${value} Weak to the enemy at combat start.` },
+    jnsq:     { label: 'Jnsq',     tip: `On a Staff: adds the 'absurd' resonance tag.` },
     wit:      { label: 'Wit',      tip: `Material flavor stat. (Currently unused in equipment outputs.)` },
-    jnsq:     { label: 'Jnsq',     tip: `Material flavor stat. On a Staff: adds the 'absurd' resonance tag.` },
-    dot:      { label: 'DoT',      tip: `On a Staff: cast applies ${value} Weak as a rider.` },
-    vuln:     { label: 'Vulnerable', tip: `On a Hat: applies ${value} Vulnerable to the enemy at start of every turn.` },
   };
   return labels[key] || { label: key, tip: `${key} +${value}` };
 }
