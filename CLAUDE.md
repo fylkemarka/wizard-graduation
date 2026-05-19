@@ -140,6 +140,41 @@ wizard-graduation/
 - **Intent is rolled at start of enemy turn** (= immediately after a player
   ends turn) so the player sees what's coming on their next turn
 
+## 4¼. Stat identities — the three playstyles
+
+The three combat stats are not interchangeable. Each has a
+distinct playstyle that all new card design routes through.
+
+**Chutzpah — the Ironclad.** Risk damage to deal damage. Trade HP
+for output. "All-in" energy; bravado, posturing. Mechanical
+levers: `loseHp` on play, low-HP scaling, drop-block-for-attack,
+double-down riders that punish if the spell didn't kill. Reward
+profile: huge damage if it lands.
+
+**Wit — the defender.** Play safe, get out clean. Build slow,
+finish strong. Card text: rhetorical, elaborate, footnoted.
+Mechanical levers: block on effect, card draw / cycling, scaling
+that grows with the length of the spell played this turn,
+late-spell payoff. Reward profile: small early hits, big hits if
+you string words together.
+
+**Je ne sais quoi — the drunken wizard.** Lean into variance.
+Coin-flip outcomes, but with dice loaded in the player's favour.
+Card text: chaos-magic, non-sequiturs, "this might be a spell,
+who can say". Mechanical levers: random outcomes, weighted
+gambles (70/30 with a real downside), random stat boosts,
+future-payment costs ("borrow tomorrow's confidence"). Reward
+profile: variance high, EV slightly positive.
+
+New effect keys this framework will need: `loseHp`,
+`bonusPerWordThisTurn`, `chance: { prob, success, failure }`,
+`randomStatBonus`. Add to the `applyEffects` / `playCard`
+dispatcher when the first card using each key lands.
+
+Don't design stat-agnostic filler. Every new card should commit
+to one of these three identities — that's where the strategy
+comes from.
+
 ## 4½. Tone — Terry Pratchett wizard humor
 
 The flavor target for this game is **Pratchett, leaning Unseen
