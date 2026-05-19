@@ -136,6 +136,12 @@ const CARDS = [
     effects: { draw: 3, exhaust: true } },
   { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
     effects: { block: 16 } },
+  { id: 'c-sap', name: 'Sap', cost: 1, type: 'skill', rarity: 'common',
+    effects: { enemyDmgMod: -0.25 } },
+  { id: 'c-amplify', name: 'Amplify', cost: 1, type: 'skill', rarity: 'common',
+    effects: { playerDmgMod: +0.25 } },
+  { id: 'c-dispel', name: 'Dispel', cost: 0, type: 'skill', rarity: 'uncommon',
+    effects: { enemyDmgMod: -0.25, playerDmgMod: +0.25, exhaust: true } },
 
   // ---- POWERS ----
   { id: 'p-borrowed-confidence', name: 'Borrowed Confidence', cost: 1, type: 'power', rarity: 'common',
@@ -338,7 +344,7 @@ const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 const ACTS = [
   { id: 1, slot: 'robes', name: 'The Thread Path',    rows: 15, bossId: 'e2-boss-tapestry',       craft: 'weaving'   },
   { id: 2, slot: 'ring',  name: 'The Forge Path',     rows: 15, bossId: 'e3-boss-anvil',          craft: 'smithing'  },
-  { id: 3, slot: 'hat',   name: "The Milliner's Path",rows: 15, bossId: 'e4-boss-headmasters-hat',craft: 'blocking'  },
+  { id: 3, slot: 'hat',   name: "The Milliner's Path",rows: 15, bossId: 'e4-boss-headmasters-hat',craft: 'felting'  },
   { id: 4, slot: 'staff', name: 'The Staff Path',     rows: 15, bossId: 'e1-boss-thornlord',      craft: 'whittling' },
 ];
 
@@ -521,12 +527,10 @@ function combatStart(state, enemyId) {
     enemyComposure: enemy.composureMax,
     enemyHp: enemy.hpMax,
     enemyBlock: 0,
-    enemyVulnerable: 0,
-    enemyWeak: 0,
+    enemyDmgMult: 1.0,
+    playerDmgMult: 1.0,
     enemyIntent: rollIntent(enemy),
     powers: [],
-    playerVulnerable: 0,
-    playerWeak: 0,
     tray: { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false },
     turn: 0,
     // Per-combat stats
@@ -548,8 +552,8 @@ function combatStart(state, enemyId) {
     if (eq.bonus?.startCombatWeak)         startWeak        += eq.bonus.startCombatWeak;
   }
   if (healOnStart > 0) state.hp = clamp(state.hp + healOnStart, 0, state.maxHp);
-  if (startVuln > 0)   combat.enemyVulnerable += startVuln;
-  if (startWeak > 0)   combat.enemyWeak += startWeak;
+  if (startVuln > 0)   combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * startVuln);
+  if (startWeak > 0)   combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * startWeak);
   state.block = startBlock;
   state.energy = energyPerTurnRefill(state) + startEnergyBonus;
 
@@ -600,8 +604,7 @@ function previewCastDamage(state, combat, effectCard) {
   const matchedTags = (combat.tray.tags || []).filter(t => rWith.includes(t));
   const resonanceBonus = matchedTags.length * perTag;
   if (resonanceBonus > 0) dmg += resonanceBonus;
-  if (combat.playerWeak > 0) dmg = Math.floor(dmg * 0.75);
-  if (combat.enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+  dmg = Math.round(dmg * combat.playerDmgMult);
   return { dmg, dmgType, resonanceBonus, matchedCount: matchedTags.length };
 }
 
@@ -628,15 +631,18 @@ function stageEffect(state, combat, handIdx) {
 
 function applySideEffects(state, combat, fx) {
   if (fx.block)      state.block += fx.block;
-  if (fx.vulnerable) combat.enemyVulnerable += fx.vulnerable;
-  if (fx.weak)       combat.enemyWeak += fx.weak;
+  if (fx.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * fx.vulnerable);
+  if (fx.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * fx.weak);
   if (fx.energy)     state.energy += fx.energy;
   if (fx.hp)         state.hp = clamp(state.hp + fx.hp, 0, state.maxHp);
   if (fx.draw)       drawCards(state, fx.draw);
   // Cycle-4 archetype additions:
   if (fx.loseHp)         state.hp = clamp(state.hp - fx.loseHp, 0, state.maxHp);
-  if (fx.selfWeak)       combat.playerWeak += fx.selfWeak;
-  if (fx.enemyVulnerable) combat.enemyVulnerable += fx.enemyVulnerable;
+  if (fx.selfWeak)       combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * fx.selfWeak);
+  if (fx.enemyVulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * fx.enemyVulnerable);
+  // Direct multiplier ops (Sap / Amplify / Dispel + future modifier cards).
+  if (fx.enemyDmgMod)  combat.enemyDmgMult  = Math.max(0.5, Math.min(1.5, combat.enemyDmgMult  + fx.enemyDmgMod));
+  if (fx.playerDmgMod) combat.playerDmgMult = Math.max(0.5, Math.min(1.5, combat.playerDmgMult + fx.playerDmgMod));
 }
 
 function applyChance(state, combat, chanceBlock) {
@@ -676,8 +682,7 @@ function castSpell(state, combat) {
   const matchedTags = (combat.tray.tags || []).filter(t => rWith.includes(t));
   const resonanceBonus = matchedTags.length * perTag;
   if (resonanceBonus > 0) { dmg += resonanceBonus; combat.castsResonated++; }
-  if (combat.playerWeak > 0) dmg = Math.floor(dmg * 0.75);
-  if (combat.enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+  dmg = Math.round(dmg * combat.playerDmgMult);
 
   // Apply damage with enemy block absorbing first.
   let remaining = dmg;
@@ -694,8 +699,8 @@ function castSpell(state, combat) {
 
   // Riders.
   const rider = eff.rider || {};
-  if (rider.weak)       combat.enemyWeak += rider.weak;
-  if (rider.vulnerable) combat.enemyVulnerable += rider.vulnerable;
+  if (rider.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * rider.weak);
+  if (rider.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * rider.vulnerable);
   if (rider.block)      state.block += rider.block;
   if (rider.draw)       drawCards(state, rider.draw);
   // Cycle-4 archetype-card payloads.
@@ -715,8 +720,8 @@ function castSpell(state, combat) {
   for (const p of combat.powers) {
     const trig = p.power?.onEffectCardPlayed;
     if (!trig) continue;
-    if (trig.vulnerable) combat.enemyVulnerable += trig.vulnerable;
-    if (trig.weak)       combat.enemyWeak += trig.weak;
+    if (trig.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * trig.vulnerable);
+    if (trig.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * trig.weak);
   }
 }
 
@@ -747,8 +752,8 @@ function aiTurn(state, combat) {
     if (!trig) continue;
     if (trig.block)  state.block += trig.block;
     if (trig.energy) state.energy += trig.energy;
-    if (trig.vulnerable) combat.enemyVulnerable += trig.vulnerable;
-    if (trig.weak)       combat.enemyWeak += trig.weak;
+    if (trig.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * trig.vulnerable);
+    if (trig.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * trig.weak);
     if (trig.draw)       drawCards(state, trig.draw);
   }
   drawCards(state, HAND_SIZE);
@@ -817,18 +822,17 @@ function aiTurn(state, combat) {
         combat.enemyComposure = Math.max(0, combat.enemyComposure - dmg);
         combat.totalDamageDealt += dmg;
       }
-      if (trig.vulnerable) combat.enemyVulnerable += trig.vulnerable;
-      if (trig.weak)       combat.enemyWeak += trig.weak;
+      if (trig.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * trig.vulnerable);
+      if (trig.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * trig.weak);
     }
     // Enemy intent
     if (combat.enemyComposure > 0 && combat.enemyHp > 0) {
       applyIntent(state, combat, combat.enemyIntent);
     }
     // Decay debuffs
-    combat.enemyVulnerable = Math.max(0, combat.enemyVulnerable - 1);
-    combat.enemyWeak = Math.max(0, combat.enemyWeak - 1);
-    combat.playerVulnerable = Math.max(0, combat.playerVulnerable - 1);
-    combat.playerWeak = Math.max(0, combat.playerWeak - 1);
+    // Multiplier drift: shift toward 1.0 by 0.25 per turn.
+    combat.enemyDmgMult  = combat.enemyDmgMult  > 1 ? Math.max(1, combat.enemyDmgMult  - 0.5) : combat.enemyDmgMult  < 1 ? Math.min(1, combat.enemyDmgMult  + 0.5) : combat.enemyDmgMult;
+    combat.playerDmgMult = combat.playerDmgMult > 1 ? Math.max(1, combat.playerDmgMult - 0.5) : combat.playerDmgMult < 1 ? Math.min(1, combat.playerDmgMult + 0.5) : combat.playerDmgMult;
     // Discard hand
     for (const c of state.hand) state.discard.push(c);
     state.hand = [];
@@ -839,7 +843,7 @@ function aiTurn(state, combat) {
 function adjustIncoming(state, combat, raw) {
   if (raw === 0) return 0;
   let r = raw;
-  if (combat.playerVulnerable > 0) r = Math.ceil(r * 1.5);
+  r = Math.round(r * combat.enemyDmgMult);
   return r;
 }
 
@@ -910,7 +914,7 @@ function applyIntent(state, combat, intent) {
   if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
     const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
     let raw = intent.value;
-    if (combat.enemyWeak > 0) raw = Math.floor(raw * 0.75);
+    let raw0 = raw; raw = Math.round(raw0 * combat.enemyDmgMult);
     // Defense (damage reduction) per-hit, min 1 damage. Sums equipment
     // bonuses + familiar/relic damageReduction. Capped at 2 so stacking
     // doesn't trivialize multi-attacks.
@@ -919,7 +923,6 @@ function applyIntent(state, combat, intent) {
     let wHp = state.hp;
     for (let i = 0; i < hits; i++) {
       let remaining = raw;
-      if (combat.playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
       if (defense > 0 && remaining > 0) remaining = Math.max(1, remaining - defense);
       if (wBlock > 0) {
         const absorbed = Math.min(wBlock, remaining);
@@ -934,9 +937,9 @@ function applyIntent(state, combat, intent) {
   } else if (intent.kind === 'block') {
     combat.enemyBlock += intent.value;
   } else if (intent.kind === 'vulnerable') {
-    combat.playerVulnerable += intent.value;
+    combat.enemyDmgMult  = Math.min(1.5, combat.enemyDmgMult  + 0.25 * intent.value);
   } else if (intent.kind === 'weak') {
-    combat.playerWeak += intent.value;
+    combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * intent.value);
   }
 }
 
@@ -983,7 +986,7 @@ function makeRunState() {
     equipment: [],
     powers: [],
     inventory: { staff: [], robes: [], ring: [], hat: [] },
-    skills: { whittling: 0, weaving: 0, smithing: 0, blocking: 0 },
+    skills: { whittling: 0, weaving: 0, smithing: 0, felting: 0 },
     relics: [],
   };
 }
@@ -1301,11 +1304,11 @@ function aggregate(results) {
   const winnerFinalHpPct = results.filter(r => r.won).map(r => r.finalHp / r.finalMaxHp);
 
   // Skill levels at run end
-  const skillMaxFreq = { whittling: 0, weaving: 0, smithing: 0, blocking: 0 };
+  const skillMaxFreq = { whittling: 0, weaving: 0, smithing: 0, felting: 0 };
   for (const r of results) for (const [s, v] of Object.entries(r.finalSkills || {})) {
     if (v >= SKILL_MAX) skillMaxFreq[s]++;
   }
-  const meanSkill = { whittling: 0, weaving: 0, smithing: 0, blocking: 0 };
+  const meanSkill = { whittling: 0, weaving: 0, smithing: 0, felting: 0 };
   for (const sk of Object.keys(meanSkill)) {
     meanSkill[sk] = mean(results.map(r => r.finalSkills?.[sk] || 0));
   }
@@ -1382,7 +1385,7 @@ function buildReport(agg) {
   lines.push(`- Salvaged-Scrap fallbacks: ${agg.salvagedCount}`);
   lines.push('');
   lines.push(`## Skill levels at run end`);
-  for (const sk of ['whittling','weaving','smithing','blocking']) {
+  for (const sk of ['whittling','weaving','smithing','felting']) {
     lines.push(`- ${sk}: mean ${agg.meanSkill[sk].toFixed(2)} (max-cap reached in ${agg.skillMaxFreq[sk]} runs)`);
   }
   lines.push('');

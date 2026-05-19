@@ -335,6 +335,27 @@ const CARDS = [
     effects: { block: 16 }, upgrade: { effects: { block: 21 } },
     desc: 'Gain 16 Block.' },
 
+  // ---- MODIFIER SKILLS — stacking toward [0.5, 1.5] caps ----
+  // Dedicated stack-builders for the multiplier system that replaced
+  // Weak/Vulnerable. Each application shifts a multiplier by 0.25;
+  // two stacks reach the cap. Drift toward 1.0 by 0.5/turn keeps
+  // things bounded.
+  { id: 'c-sap', name: 'Sap', cost: 1, type: 'skill', rarity: 'common',
+    effects: { enemyDmgMod: -0.25 },
+    upgrade: { effects: { enemyDmgMod: -0.25, draw: 1 } },
+    desc: 'Reduce enemy attack damage by 25% (stacks; caps at −50%).',
+    flavor: 'You did not finish your sentence. They did not finish theirs, either.' },
+  { id: 'c-amplify', name: 'Amplify', cost: 1, type: 'skill', rarity: 'common',
+    effects: { playerDmgMod: +0.25 },
+    upgrade: { effects: { playerDmgMod: +0.25, draw: 1 } },
+    desc: 'Increase your spell potency by 25% (stacks; caps at +50%).',
+    flavor: 'You feel taller. It is, demonstrably, a feeling.' },
+  { id: 'c-dispel', name: 'Dispel', cost: 0, type: 'skill', rarity: 'uncommon',
+    effects: { enemyDmgMod: -0.25, playerDmgMod: +0.25, exhaust: true },
+    upgrade: { effects: { enemyDmgMod: -0.5, playerDmgMod: +0.5, exhaust: true } },
+    desc: 'Enemy attack −25%, your potency +25%. Exhaust.',
+    flavor: 'You wave a hand. Several small certainties fall out of the air.' },
+
   // =============================================================================
   // POWERS — install on the field, trigger via turn hooks.
   // =============================================================================
@@ -1086,24 +1107,24 @@ const SKILL_EVENTS = [
     ],
   },
   {
-    id: 'skill-blocking-1',
-    skill: 'blocking',
+    id: 'skill-felting-1',
+    skill: 'felting',
     title: "A Milliner's Block",
     flavor: 'A wooden hat-block sits on a stump, slightly damp, alarmingly head-shaped. There are pins around it in the manner of a small ritual.',
     choices: [
-      { label: 'Try a quick brimming exercise. (+2 Blocking)',               effects: { skill: { blocking: 2 } } },
-      { label: 'Block a felt with serious intent. (+4 Blocking, -1 max HP)', effects: { skill: { blocking: 4 }, maxHp: -1 } },
+      { label: 'Try a quick brimming exercise. (+2 Felting)',               effects: { skill: { felting: 2 } } },
+      { label: 'Block a felt with serious intent. (+4 Felting, -1 max HP)', effects: { skill: { felting: 4 }, maxHp: -1 } },
       { label: 'Tip your invisible hat at it. (+1 Common card)',             effects: { gainCommonCard: 1 } },
     ],
   },
   {
-    id: 'skill-blocking-2',
-    skill: 'blocking',
+    id: 'skill-felting-2',
+    skill: 'felting',
     title: 'The Old Hatter',
     flavor: '"It\'s about the brim," he tells you, before you have asked. "Everyone gets the crown right. The brim is where the wizard is."',
     choices: [
-      { label: 'Study his brim work. (+2 Blocking)',                         effects: { skill: { blocking: 2 } } },
-      { label: 'Become an apprentice for the afternoon. (+4 Blocking, -1 max HP)', effects: { skill: { blocking: 4 }, maxHp: -1 } },
+      { label: 'Study his brim work. (+2 Felting)',                         effects: { skill: { felting: 2 } } },
+      { label: 'Become an apprentice for the afternoon. (+4 Felting, -1 max HP)', effects: { skill: { felting: 4 }, maxHp: -1 } },
       { label: 'Argue about crowns. He throws you a hat. (+1 Uncommon card)', effects: { gainUncommonCard: 1 } },
     ],
   },
@@ -1119,7 +1140,7 @@ const SKILL_EVENTS = [
     choices: [
       { label: '(Practice your weaving, if still relevant) (+2 Weaving)',  effects: { skill: { weaving: 2 } } },
       { label: '(Practice your smithing, if still relevant) (+2 Smithing)', effects: { skill: { smithing: 2 } } },
-      { label: '(Practice your blocking, if still relevant) (+2 Blocking)', effects: { skill: { blocking: 2 } } },
+      { label: '(Practice your felting, if still relevant) (+2 Felting)', effects: { skill: { felting: 2 } } },
       { label: 'Leave the proprietor to it. (+6 HP, +1 Common card)',      effects: { heal: 6, gainCommonCard: 1 } },
     ],
   },
@@ -1147,7 +1168,7 @@ const ACTS = [
     flavor: "The hat does not, in itself, want to be worn. It does, however, have very specific opinions about by whom.",
     rows: 15, width: 4,
     bossId: 'e4-boss-headmasters-hat',
-    craft: 'blocking',
+    craft: 'felting',
   },
   { id: 4, slot: 'staff', name: 'The Staff Path',
     flavor: 'The capstone. You walk into the deepest wood to claim a staff fit to graduate with. The school will know if you return without it.',
@@ -1158,7 +1179,7 @@ const ACTS = [
 ];
 
 const SLOT_LABEL = { staff: 'Staff', robes: 'Robes', ring: 'Ring', hat: 'Hat', gem: 'Gem' };
-const CRAFT_LABEL = { whittling: 'Whittling', weaving: 'Weaving', smithing: 'Smithing', blocking: 'Blocking' };
+const CRAFT_LABEL = { whittling: 'Whittling', weaving: 'Weaving', smithing: 'Smithing', felting: 'Felting' };
 
 // =============================================================================
 // 2. HELPERS
@@ -1531,8 +1552,10 @@ export default function App() {
   const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
   const [supplyPicks, setSupplyPicks] = useState([]);     // indices already picked (max 2)
   // Player debuffs (mirror of enemy ones). Tick down at end of turn.
-  const [playerVulnerable, setPlayerVulnerable] = useState(0);
-  const [playerWeak, setPlayerWeak] = useState(0);
+  // Damage multipliers replace the old Weak/Vulnerable; see combat
+  // state declarations below. Helpers clamp to [0.5, 1.5].
+  function adjustEnemyDmg(delta)  { setEnemyDmgMult(m  => Math.max(0.5, Math.min(1.5, m + delta))); }
+  function adjustPlayerDmg(delta) { setPlayerDmgMult(m => Math.max(0.5, Math.min(1.5, m + delta))); }
   // Attack counter for everyNthAttack relic hooks (resets each combat).
   // Count of effect cards cast this run (drives everyNthEffect relic).
   const [effectCount, setEffectCount] = useState(0);
@@ -1549,8 +1572,14 @@ export default function App() {
   const [enemyHp, setEnemyHp] = useState(0);
   const [enemyBlock, setEnemyBlock] = useState(0);
   const [enemyIntent, setEnemyIntent] = useState(null);
-  const [enemyVulnerable, setEnemyVulnerable] = useState(0);
-  const [enemyWeak, setEnemyWeak] = useState(0);
+  // Damage multipliers — replace the old discrete Weak/Vulnerable
+  // status. Each modifier card / enemy intent shifts the multiplier
+  // by ±0.25, clamped to [0.5, 1.5]. Drifts 0.25 toward 1.0 each
+  // end-of-turn so stacks don't lock the fight.
+  //   enemyDmgMult  — applied to enemy outgoing damage (was: playerVuln +50%, enemyWeak -25%)
+  //   playerDmgMult — applied to player outgoing spell damage (was: enemyVuln +50%, playerWeak -25%)
+  const [enemyDmgMult, setEnemyDmgMult] = useState(1.0);
+  const [playerDmgMult, setPlayerDmgMult] = useState(1.0);
   // Visceral feedback — short-lived state flipped when the enemy takes
   // damage. The CombatScreen reads these and applies the hit-shake
   // class + renders damage-number floaters.
@@ -1600,7 +1629,7 @@ export default function App() {
   // Skill levels — earned at Skill nodes. Persistent across acts but
   // only EARNED while the relevant act is still ahead (see
   // isSkillRelevant). Caps at SKILL_MAX.
-  const [skills, setSkills] = useState({ whittling: 0, weaving: 0, smithing: 0, blocking: 0 });
+  const [skills, setSkills] = useState({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
   // The chooser shown at a Material node: 3 randomly-rolled variants
   // of the current act's slot. null = no chooser open.
   const [materialChoices, setMaterialChoices] = useState(null);
@@ -1654,12 +1683,10 @@ export default function App() {
     setRelics([]);
     setFamiliar(null);
     setFamiliarName('');
-    setPlayerVulnerable(0);
-    setPlayerWeak(0);
     setEffectCount(0);
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
     setInventory({ staff: [], robes: [], ring: [], hat: [] });
-    setSkills({ whittling: 0, weaving: 0, smithing: 0, blocking: 0 });
+    setSkills({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
     setMaterialChoices(null);
     setActiveSkillEvent(null);
     setClearedNodes([]);
@@ -1706,12 +1733,10 @@ export default function App() {
     setRelics([]);
     setFamiliar(null);
     setFamiliarName('');
-    setPlayerVulnerable(0);
-    setPlayerWeak(0);
     setEffectCount(0);
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
     setInventory({ staff: [], robes: [], ring: [], hat: [] });
-    setSkills({ whittling: 0, weaving: 0, smithing: 0, blocking: 0 });
+    setSkills({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
     setMaterialChoices(null);
     setActiveSkillEvent(null);
     setClearedNodes([]);
@@ -1989,16 +2014,14 @@ export default function App() {
     setEnemyComposure(e.composureMax);
     setEnemyHp(e.hpMax);
     setEnemyBlock(0);
-    setEnemyVulnerable(0);
-    setEnemyWeak(0);
     setEnemyHitFlash(0);
     setDmgFloaters([]);
+    setEnemyDmgMult(1.0);
+    setPlayerDmgMult(1.0);
     setEnemyIntent(rollIntent(e));
     // Powers don't persist between combats.
     setPowers([]);
     // Reset per-combat counters and player debuffs.
-    setPlayerVulnerable(0);
-    setPlayerWeak(0);
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
 
     // Apply start-of-combat effects from equipment AND relics.
@@ -2041,12 +2064,12 @@ export default function App() {
       pushLog(`💚 +${healOnStart} HP (start of combat).`);
     }
     if (startCombatVulnTotal > 0) {
-      setEnemyVulnerable(startCombatVulnTotal);
-      pushLog(`🌀 ${e.name} starts Vulnerable +${startCombatVulnTotal}.`);
+      adjustPlayerDmg(+0.25 * startCombatVulnTotal);
+      pushLog(`💫 +${25*startCombatVulnTotal}% potency vs ${e.name} (start of combat).`);
     }
     if (startCombatWeakTotal > 0) {
-      setEnemyWeak(startCombatWeakTotal);
-      pushLog(`🌀 ${e.name} starts Weak +${startCombatWeakTotal}.`);
+      adjustEnemyDmg(-0.25 * startCombatWeakTotal);
+      pushLog(`💢 ${e.name}: −${25*startCombatWeakTotal}% atk (start of combat).`);
     }
     setBlock(startBlockTotal);
     setEnergy(energyPerTurnRefill() + startEnergyBonus);
@@ -2241,8 +2264,7 @@ export default function App() {
     const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
     const resonanceBonus = matchedTags.length * perTag;
     if (resonanceBonus > 0) dmg += resonanceBonus;
-    if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
-    if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+    dmg = Math.round(dmg * playerDmgMult);
 
     const phrase = [...tray.phrases, card.phrase || ''].filter(Boolean).join(' ');
     if (phrase) pushLog(`✨ "${phrase}"`);
@@ -2259,8 +2281,8 @@ export default function App() {
     pushLog(`🎯 ${(card.name || '').toUpperCase()} — ${dmgTag}`);
 
     const rider = eff.rider || {};
-    if (rider.weak)       { setEnemyWeak(w => w + rider.weak);       pushLog(`🌀 +${rider.weak} Weak`); }
-    if (rider.vulnerable) { setEnemyVulnerable(v => v + rider.vulnerable); pushLog(`🌀 +${rider.vulnerable} Vuln`); }
+    if (rider.weak)       { adjustEnemyDmg(-0.25 * rider.weak);  pushLog(`💢 enemy −${25*rider.weak}% atk`); }
+    if (rider.vulnerable) { adjustPlayerDmg(+0.25 * rider.vulnerable); pushLog(`💫 +${25*rider.vulnerable}% potency`); }
     if (rider.block)      { setBlock(b => b + rider.block);          pushLog(`🛡 +${rider.block}`); }
     if (rider.draw)       { drawCards(rider.draw);                   pushLog(`+${rider.draw} draw`); }
     // Chutzpah-archetype effects: pay HP to cast.
@@ -2314,8 +2336,7 @@ export default function App() {
     const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
     const resonanceBonus = matchedTags.length * perTag;
     if (resonanceBonus > 0) dmg += resonanceBonus;
-    if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
-    if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+    dmg = Math.round(dmg * playerDmgMult);
     return { dmg, dmgType, resonanceBonus, matchedTags, eff_mult, phys_mult, base, trayVal, multiplier: eff.multiplier || 0, stat };
   }
 
@@ -2327,12 +2348,23 @@ export default function App() {
       logBits.push(`🛡 +${fx.block}`);
     }
     if (fx.vulnerable) {
-      setEnemyVulnerable(v => v + fx.vulnerable);
-      logBits.push(`🌀 +${fx.vulnerable} Vuln`);
+      adjustPlayerDmg(+0.25 * fx.vulnerable);
+      logBits.push(`💫 +${25*fx.vulnerable}% potency`);
+    }
+    // Direct multiplier ops (Sap / Amplify / Dispel and any new modifier card).
+    if (fx.enemyDmgMod) {
+      adjustEnemyDmg(fx.enemyDmgMod);
+      const pct = Math.round(fx.enemyDmgMod * 100);
+      logBits.push(`💢 enemy ${pct > 0 ? '+' : ''}${pct}% atk`);
+    }
+    if (fx.playerDmgMod) {
+      adjustPlayerDmg(fx.playerDmgMod);
+      const pct = Math.round(fx.playerDmgMod * 100);
+      logBits.push(`💫 ${pct > 0 ? '+' : ''}${pct}% potency`);
     }
     if (fx.weak) {
-      setEnemyWeak(w => w + fx.weak);
-      logBits.push(`🌀 +${fx.weak} Weak`);
+      adjustEnemyDmg(-0.25 * fx.weak);
+      logBits.push(`💢 enemy −${25*fx.weak}% atk`);
     }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
@@ -2353,14 +2385,14 @@ export default function App() {
     }
     // Player-side debuff (e.g., Cantrip Roulette failure).
     if (fx.selfWeak) {
-      setPlayerWeak(w => w + fx.selfWeak);
-      logBits.push(`🌀 +${fx.selfWeak} Weak (self)`);
+      adjustPlayerDmg(-0.25 * fx.selfWeak);
+      logBits.push(`💢 self −${25*fx.selfWeak}% potency`);
     }
     // Apply Vulnerable to the enemy from a side-effect path (used by
     // chance.success in some Jnsq effects).
     if (fx.enemyVulnerable) {
-      setEnemyVulnerable(v => v + fx.enemyVulnerable);
-      logBits.push(`🌀 +${fx.enemyVulnerable} Vuln`);
+      adjustPlayerDmg(+0.25 * fx.enemyVulnerable);
+      logBits.push(`💫 +${25*fx.enemyVulnerable}% potency`);
     }
   }
 
@@ -2389,8 +2421,7 @@ export default function App() {
     if (effects.composure) {
       const eff_mult = enemy?.effectiveness?.wit ?? 1.0;
       let dmg = Math.round(effects.composure * eff_mult);
-      if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
-      if (enemyVulnerable > 0) dmg = Math.ceil(dmg * 1.5);
+      dmg = Math.round(dmg * playerDmgMult);
       const after = applyDamageToEnemyComposure(dmg);
       bits.push(`✨ ${dmg} comp → ${after}`);
     }
@@ -2399,12 +2430,12 @@ export default function App() {
       bits.push(`🛡 +${effects.block}`);
     }
     if (effects.vulnerable) {
-      setEnemyVulnerable(v => v + effects.vulnerable);
-      bits.push(`🌀 +${effects.vulnerable} Vuln`);
+      adjustPlayerDmg(+0.25 * effects.vulnerable);
+      bits.push(`💫 +${25*effects.vulnerable}% potency`);
     }
     if (effects.weak) {
-      setEnemyWeak(w => w + effects.weak);
-      bits.push(`🌀 +${effects.weak} Weak`);
+      adjustEnemyDmg(-0.25 * effects.weak);
+      bits.push(`💢 enemy −${25*effects.weak}% atk`);
     }
     if (effects.energy) {
       setEnergy(e => e + effects.energy);
@@ -2436,26 +2467,28 @@ export default function App() {
     let wComposure = enemyComposure;
     let wHp = enemyHp;
     let wEnemyBlock = enemyBlock;
-    let wEnemyVuln = enemyVulnerable;
-    let wEnemyWeak = enemyWeak;
+    let wEnemyDmg  = enemyDmgMult;
+    let wPlayerDmg = playerDmgMult;
     let wPlayerBlock = block;
+    const clamp01 = (m) => Math.max(0.5, Math.min(1.5, m));
     for (const p of powers) {
       const trig = p.power?.endOfTurn;
       if (!trig) continue;
       const bits = [`📿 ${p.name}`];
       if (trig.composure) {
         const eff_mult = enemy?.effectiveness?.wit ?? 1.0;
-        let dmg = Math.round(trig.composure * eff_mult);
-        if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
-        if (wEnemyVuln > 0) dmg = Math.ceil(dmg * 1.5);
+        // Power-trigger composure damage uses the live player potency.
+        let dmg = Math.round(trig.composure * eff_mult * wPlayerDmg);
         const absorbed = Math.min(wEnemyBlock, dmg);
         wEnemyBlock -= absorbed; dmg -= absorbed;
         wComposure = Math.max(0, wComposure - dmg);
         bits.push(`✨ → ${wComposure} comp`);
       }
       if (trig.block) { wPlayerBlock += trig.block; bits.push(`🛡 +${trig.block}`); }
-      if (trig.vulnerable) { wEnemyVuln += trig.vulnerable; bits.push(`🌀 +${trig.vulnerable} Vuln`); }
-      if (trig.weak)       { wEnemyWeak += trig.weak;       bits.push(`🌀 +${trig.weak} Weak`); }
+      // Old vuln/weak power triggers shift the multipliers (player-side
+      // potency for vuln, enemy-side attack for weak).
+      if (trig.vulnerable) { wPlayerDmg = clamp01(wPlayerDmg + 0.25 * trig.vulnerable); bits.push(`💫 +${25*trig.vulnerable}% potency`); }
+      if (trig.weak)       { wEnemyDmg  = clamp01(wEnemyDmg  - 0.25 * trig.weak);       bits.push(`💢 enemy −${25*trig.weak}% atk`); }
       pushLog(bits.join(' · '));
       if (wComposure <= 0 || wHp <= 0) break;
     }
@@ -2463,8 +2496,8 @@ export default function App() {
     setEnemyBlock(wEnemyBlock);
     setEnemyComposure(wComposure);
     setEnemyHp(wHp);
-    setEnemyVulnerable(wEnemyVuln);
-    setEnemyWeak(wEnemyWeak);
+    setEnemyDmgMult(wEnemyDmg);
+    setPlayerDmgMult(wPlayerDmg);
     if (wComposure <= 0 || wHp <= 0) {
       setTimeout(() => onEnemyDefeated(), 200);
       return true;
@@ -2563,10 +2596,9 @@ export default function App() {
     if (hp <= 0) return;
 
     // 3. Debuff decay.
-    setEnemyVulnerable(v => Math.max(0, v - 1));
-    setEnemyWeak(w => Math.max(0, w - 1));
-    setPlayerVulnerable(v => Math.max(0, v - 1));
-    setPlayerWeak(w => Math.max(0, w - 1));
+    // Multiplier drift: shift toward 1.0 by 0.25 per turn.
+    setEnemyDmgMult(m  => m > 1 ? Math.max(1, m - 0.5) : m < 1 ? Math.min(1, m + 0.5) : m);
+    setPlayerDmgMult(m => m > 1 ? Math.max(1, m - 0.5) : m < 1 ? Math.min(1, m + 0.5) : m);
 
     // 4-5. Compose the new turn's piles + start-of-turn triggers
     //      synchronously, then commit all related state in one pass.
@@ -2577,24 +2609,21 @@ export default function App() {
     const wHand   = [...drawn.hand];
     let wEnergy   = energyPerTurnRefill();
     let wBlock    = 0;
-    let wEnemyVuln = enemyVulnerable;  // not the decayed value, but the
-    let wEnemyWeak = enemyWeak;        // power triggers haven't fired yet;
-                                       // decay will happen via the setters
-                                       // above; powers add ON TOP after decay
     // Familiar-style startOfTurnBlock (e.g. Hedgehog): fires every turn,
     // including turn 1 (handled separately in enterFight's startBlockTotal).
     for (const { effect } of effectSources()) {
       if (effect?.startOfTurnBlock) wBlock += effect.startOfTurnBlock;
     }
-    // Apply start-of-turn power triggers in working locals.
+    // Apply start-of-turn power triggers in working locals. Multiplier
+    // shifts dispatch live via adjustEnemyDmg/adjustPlayerDmg.
     for (const p of powers) {
       const trig = p.power?.startOfTurn;
       if (!trig) continue;
       const bits = [`📿 ${p.name}`];
       if (trig.block)      { wBlock += trig.block;   bits.push(`🛡 +${trig.block}`); }
       if (trig.energy)     { wEnergy += trig.energy; bits.push(`+${trig.energy} Energy`); }
-      if (trig.vulnerable) { wEnemyVuln += trig.vulnerable; bits.push(`🌀 +${trig.vulnerable} Vuln`); }
-      if (trig.weak)       { wEnemyWeak += trig.weak; bits.push(`🌀 +${trig.weak} Weak`); }
+      if (trig.vulnerable) { adjustPlayerDmg(+0.25 * trig.vulnerable); bits.push(`💫 +${25*trig.vulnerable}% potency`); }
+      if (trig.weak)       { adjustEnemyDmg(-0.25 * trig.weak);        bits.push(`💢 enemy −${25*trig.weak}% atk`); }
       if (trig.draw) {
         for (let i = 0; i < trig.draw; i++) {
           if (wDeck.length === 0) {
@@ -2616,18 +2645,6 @@ export default function App() {
     setHand(wHand);
     setBlock(wBlock);
     setEnergy(wEnergy);
-    // Power triggers' Vuln/Weak adds — the decay setters above used the
-    // CURRENT enemyVulnerable closure, so they decay correctly; the power
-    // additions are stacked on top via these direct setters (read inside
-    // the next render). Net: decayed-current + power-additions.
-    if (wEnemyVuln !== enemyVulnerable) {
-      const stackedFromPowers = wEnemyVuln - enemyVulnerable;
-      setEnemyVulnerable(v => Math.max(0, v - 1) + stackedFromPowers);
-    }
-    if (wEnemyWeak !== enemyWeak) {
-      const stackedFromPowers = wEnemyWeak - enemyWeak;
-      setEnemyWeak(w => Math.max(0, w - 1) + stackedFromPowers);
-    }
 
     // 6. New intent.
     if (enemy) setEnemyIntent(rollIntent(enemy));
@@ -2638,26 +2655,15 @@ export default function App() {
     if (!e) return;
     if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
-      let raw = intent.value;
-      if (enemyWeak > 0) raw = Math.floor(raw * 0.75);
-      // Defense (per-hit damage reduction). Sources: Beetle familiar +
-      // any equipment with `bonus.damageReduction`. Capped at 2
-      // so stacking robes + ring + hat doesn't trivialize multi-attacks
-      // (the per-hit floor of min-1-damage still applies).
+      // Enemy outgoing damage multiplier (old weak/vuln replacement).
+      let raw = Math.round(intent.value * enemyDmgMult);
       const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
                          + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
       const reduction = Math.min(2, rawReduction);
-      // Apply all hits in one batched pass over local working state.
-      // Earlier this used applyDamageToPlayer in a for-loop, but each
-      // call read block/hp from the closure — so subsequent hits saw
-      // the pre-attack state and only one hit effectively landed
-      // against blocked / armored players. Multi-attack bosses now
-      // resolve correctly.
       let wBlock = block;
       let wHp = hp;
       for (let i = 0; i < hits; i++) {
         let remaining = raw;
-        if (playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
         if (wBlock > 0) {
           const absorbed = Math.min(wBlock, remaining);
@@ -2677,11 +2683,13 @@ export default function App() {
       setEnemyBlock(b => b + intent.value);
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
     } else if (intent.kind === 'vulnerable') {
-      setPlayerVulnerable(v => v + intent.value);
-      pushLog(`👹 ${e.name}: 🌀 You're Vulnerable +${intent.value}.`);
+      // Enemy applies vulnerable to player → enemy hits harder.
+      adjustEnemyDmg(+0.25 * intent.value);
+      pushLog(`👹 ${e.name}: 💢 +${25*intent.value}% to incoming dmg.`);
     } else if (intent.kind === 'weak') {
-      setPlayerWeak(w => w + intent.value);
-      pushLog(`👹 ${e.name}: 🌀 You're Weak +${intent.value}.`);
+      // Enemy applies weak to player → player spells weaker.
+      adjustPlayerDmg(-0.25 * intent.value);
+      pushLog(`👹 ${e.name}: 💢 −${25*intent.value}% to your spell potency.`);
     }
   }
 
@@ -2690,8 +2698,7 @@ export default function App() {
   // attacks resolve inline in applyEnemyIntent to avoid the closure-
   // stale-state bug; if you call this in a loop you'll get the same bug.
   function applyDamageToPlayer(damage) {
-    let remaining = damage;
-    if (playerVulnerable > 0) remaining = Math.ceil(remaining * 1.5);
+    let remaining = Math.round(damage * enemyDmgMult);
     const reduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0);
     if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
     let newBlock = block;
@@ -3004,14 +3011,13 @@ export default function App() {
     <CombatScreen
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent}
-      enemyVulnerable={enemyVulnerable} enemyWeak={enemyWeak}
+      enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyHitFlash={enemyHitFlash} dmgFloaters={dmgFloaters}
       hp={hp} maxHp={maxHp} block={block} energy={energy} hand={hand}
       deck={deck} discard={discard} tray={tray}
       energyMax={energyPerTurnRefill()}
       equipment={equipment} powers={powers} relics={relics}
       familiar={familiar} familiarName={familiarName}
-      playerVulnerable={playerVulnerable} playerWeak={playerWeak}
       onPlayCard={playCard} onEndTurn={endTurn}
       onUnstage={unstageCard} onCast={castStagedSpell}
       castPreview={previewCastDamage()}
@@ -3479,11 +3485,11 @@ function Legend({ glyph, label }) {
   return <span><span className="mr-1">{glyph}</span>{label}</span>;
 }
 
-function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, enemyVulnerable, enemyWeak,
+function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
+                       enemyDmgMult, playerDmgMult,
                        enemyHitFlash, dmgFloaters,
                        hp, maxHp, block, energy, energyMax, hand, deck, discard, tray,
                        equipment, powers, relics, familiar, familiarName,
-                       playerVulnerable, playerWeak,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
@@ -3538,8 +3544,18 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent</div>
             <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
           </div>
-          {enemyVulnerable > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-sm">🌀 Vuln {enemyVulnerable}</span>}
-          {enemyWeak > 0 && <span className="px-2 py-1 bg-iris-700 text-parchment-50 rounded text-sm">🌀 Weak {enemyWeak}</span>}
+          {enemyDmgMult !== 1.0 && (
+            <span className={`px-2 py-1 rounded text-sm ${enemyDmgMult > 1 ? 'bg-ember-700 text-parchment-50' : 'bg-iris-700 text-parchment-50'}`}
+              title={`Enemy attack damage ×${enemyDmgMult.toFixed(2)} (drifts toward 1.00 by 0.25/turn).`}>
+              💢 Atk ×{enemyDmgMult.toFixed(2)}
+            </span>
+          )}
+          {playerDmgMult !== 1.0 && (
+            <span className={`px-2 py-1 rounded text-sm ${playerDmgMult > 1 ? 'bg-iris-700 text-parchment-50' : 'bg-ember-700 text-parchment-50'}`}
+              title={`Your spell potency ×${playerDmgMult.toFixed(2)} (drifts toward 1.00 by 0.25/turn).`}>
+              💫 Spell ×{playerDmgMult.toFixed(2)}
+            </span>
+          )}
           <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 Chutz {eff_label(eff.chutzpah ?? 1)}</span>
           <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ Wit {eff_label(eff.wit ?? 1)}</span>
           <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 Jnsq {eff_label(eff.jnsq ?? 1)}</span>
@@ -3672,12 +3688,6 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 <span key={eq.id} className="text-gold-300" title={eq.desc}>⚜ {eq.name}</span>
               ))}
             </div>
-          )}
-          {playerVulnerable > 0 && (
-            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-sm" title="You take +50% damage from incoming attacks.">🌀 Vuln {playerVulnerable}</span>
-          )}
-          {playerWeak > 0 && (
-            <span className="px-2 py-1 bg-ember-700 text-parchment-50 rounded text-sm" title="Your attacks deal -25% damage.">🌀 Weak {playerWeak}</span>
           )}
         </div>
         <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
