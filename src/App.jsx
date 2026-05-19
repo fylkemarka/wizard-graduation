@@ -868,6 +868,152 @@ const EVENTS = [
   },
 ];
 
+// Materials — gathered at Material nodes during an act. Each slot has
+// its own family. When the player visits a material node, three random
+// variants from that slot's pool are rolled into a chooser (same shape
+// as the old Arcane Workshop grove system). Stats here are placeholder
+// signals that the crafting minigame (Commit 3) will roll into the
+// final equipment card's per-slot mechanic.
+const MATERIAL_TEMPLATES = {
+  staff: [
+    { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', flavor: 'Clean grain, predictable yield.',                stats: { chutzpah: 2 } },
+    { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', flavor: 'Heavy in the hand; quietly self-important.',    stats: { chutzpah: 3 } },
+    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', flavor: "Smells of someone's grandmother.",              stats: { chutzpah: 1, defense: 1 } },
+    { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', flavor: 'Burnished red; reads the weather a bit too closely.', stats: { chutzpah: 3, jnsq: 1 } },
+    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', flavor: "Slightly off in a way you can't place.",         stats: { chutzpah: 2, dot: 1 } },
+  ],
+  robes: [
+    { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', flavor: 'Honest, plain, dependable.',                 stats: { defense: 2 } },
+    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted.',       stats: { wit: 2 } },
+    { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging.',                          stats: { defense: 1, regen: 1 } },
+    { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', flavor: 'Drinks the light. Mildly judgmental.',       stats: { wit: 1, draw: 1 } },
+    { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', flavor: 'Itches by design.',                           stats: { defense: 3, jnsq: 1 } },
+  ],
+  ring: [
+    { id: 'mat-iron',      name: 'Iron Ore',         slot: 'ring',  flavor: 'Plain. Reliable. Slightly rusted in places.', stats: { defense: 1 } },
+    { id: 'mat-copper',    name: 'Copper Ore',       slot: 'ring',  flavor: 'Conducts everything. Including embarrassment.', stats: { energy: 1 } },
+    { id: 'mat-silver',    name: 'Silver Ore',       slot: 'ring',  flavor: 'Bright, expensive, makes you feel watched.',  stats: { draw: 1 } },
+    { id: 'mat-cold-iron', name: 'Cold Iron',        slot: 'ring',  flavor: 'Black, heavy, uncharmed.',                    stats: { defense: 2 } },
+    { id: 'mat-mithril',   name: 'Mithril Filament', slot: 'ring',  flavor: 'Light as the idea of it. Suspiciously so.',   stats: { wit: 1, draw: 1 } },
+  ],
+  hat: [
+    { id: 'mat-felt',          name: 'Felt',          slot: 'hat', flavor: 'Warm, forgiving, modestly opinionated.',          stats: { defense: 1 } },
+    { id: 'mat-suede',         name: 'Suede',         slot: 'hat', flavor: 'Stains if you look at it wrong.',                 stats: { chutzpah: 1, defense: 1 } },
+    { id: 'mat-tarred-canvas', name: 'Tarred Canvas', slot: 'hat', flavor: 'Waterproof, opinionated, smells of expedition.',  stats: { defense: 2 } },
+    { id: 'mat-brocade',       name: 'Brocade',       slot: 'hat', flavor: 'Heavy, ornate, deliberately ridiculous.',         stats: { wit: 2 } },
+    { id: 'mat-dragonwool',    name: 'Dragonwool',    slot: 'hat', flavor: 'Itches and shimmers and remembers the dragon.',   stats: { chutzpah: 2, jnsq: 1 } },
+  ],
+};
+
+// Skill events — found at Skill nodes on the map. Each event's `skill`
+// field declares which craft it bumps; the map gen filters to skills
+// whose act is still AHEAD of the player (you don't learn whittling
+// the act after you've already built your staff). Resolver supports
+// `fx.skill: { whittling: N }` etc. — see resolveEventChoice.
+const SKILL_EVENTS = [
+  {
+    id: 'skill-whittling-1',
+    skill: 'whittling',
+    title: 'A Mossy Whittling Block',
+    flavor: 'A sturdy stump, a half-finished blank, and a knife with sentimental fingerprints. Someone left, presumably, before they were finished.',
+    choices: [
+      { label: 'Practice the long curve. (+2 Whittling)',           effects: { skill: { whittling: 2 } } },
+      { label: 'Try once, badly. (+1 Whittling, -2 HP)',            effects: { skill: { whittling: 1 }, loseHp: 2 } },
+      { label: 'Leave the knife where it is.',                       effects: {} },
+    ],
+  },
+  {
+    id: 'skill-whittling-2',
+    skill: 'whittling',
+    title: "Old Greb the Whittler",
+    flavor: 'An old man sits beside the path, working a length of yew into a shape that does not declare itself. "Sit a while," he says. "I\'ll show you the trick. The trick is not what you think it is."',
+    choices: [
+      { label: 'Sit for a long lesson. (+3 Whittling, -3 HP)',      effects: { skill: { whittling: 3 }, loseHp: 3 } },
+      { label: 'Watch politely, briefly. (+1 Whittling)',           effects: { skill: { whittling: 1 } } },
+      { label: "Decline. He isn't really there, you think.",         effects: {} },
+    ],
+  },
+  {
+    id: 'skill-weaving-1',
+    skill: 'weaving',
+    title: 'A Roadside Loom',
+    flavor: 'It hums. Looms are not supposed to hum. This one is, apparently, an exception.',
+    choices: [
+      { label: 'Sit and practice. (+2 Weaving)',                    effects: { skill: { weaving: 2 } } },
+      { label: 'Try the difficult cross-warp. (+3 Weaving, -2 HP)', effects: { skill: { weaving: 3 }, loseHp: 2 } },
+      { label: 'Step around it carefully. It is still humming.',     effects: {} },
+    ],
+  },
+  {
+    id: 'skill-weaving-2',
+    skill: 'weaving',
+    title: 'The Sewing Circle',
+    flavor: 'Three women sit on a fence in a row. None of them speak. All of them sew. It is an enormous sock and they appear to be on the third foot.',
+    choices: [
+      { label: 'Join in. (+2 Weaving)',                              effects: { skill: { weaving: 2 } } },
+      { label: 'Ask whose foot it is. (+1 Weaving, gain an Uncommon card from sheer awkwardness)', effects: { skill: { weaving: 1 }, gainUncommonCard: 1 } },
+      { label: 'Continue on. They appear not to notice.',            effects: {} },
+    ],
+  },
+  {
+    id: 'skill-smithing-1',
+    skill: 'smithing',
+    title: 'A Travelling Forge',
+    flavor: 'Coal smoke and a stranger pounding a hot bar into a shape you cannot, in the moment, identify. "Hold this," they say, before you have agreed to anything.',
+    choices: [
+      { label: 'Hold it. Carefully. (+2 Smithing)',                  effects: { skill: { smithing: 2 } } },
+      { label: 'Try the hammer yourself. (+3 Smithing, -3 HP)',     effects: { skill: { smithing: 3 }, loseHp: 3 } },
+      { label: 'Politely decline. They are unfazed.',                effects: {} },
+    ],
+  },
+  {
+    id: 'skill-smithing-2',
+    skill: 'smithing',
+    title: 'A Cooling Anvil',
+    flavor: 'An anvil sits alone in a clearing, faintly warm. Around it: tongs, hammers, a kettle, and a brief note: BACK SHORTLY. PLEASE NO BANGING.',
+    choices: [
+      { label: 'Bang on it once, quietly. (+1 Smithing)',           effects: { skill: { smithing: 1 } } },
+      { label: 'Read the note. Use the kettle. (+2 Smithing, +3 HP)', effects: { skill: { smithing: 2 }, heal: 3 } },
+      { label: 'Honour the note. Move on.',                          effects: {} },
+    ],
+  },
+  {
+    id: 'skill-blocking-1',
+    skill: 'blocking',
+    title: "A Milliner's Block",
+    flavor: 'A wooden hat-block sits on a stump, slightly damp, alarmingly head-shaped. There are pins around it in the manner of a small ritual.',
+    choices: [
+      { label: 'Try a quick brimming exercise. (+2 Blocking)',       effects: { skill: { blocking: 2 } } },
+      { label: 'Block a felt with serious intent. (+3 Blocking, -2 HP — pinprick)', effects: { skill: { blocking: 3 }, loseHp: 2 } },
+      { label: 'Tip your invisible hat at it. Walk on.',              effects: {} },
+    ],
+  },
+  {
+    id: 'skill-blocking-2',
+    skill: 'blocking',
+    title: 'The Old Hatter',
+    flavor: '"It\'s about the brim," he tells you, before you have asked. "Everyone gets the crown right. The brim is where the wizard is."',
+    choices: [
+      { label: 'Study his brim work. (+2 Blocking)',                effects: { skill: { blocking: 2 } } },
+      { label: 'Argue about crowns. (+1 Blocking, gain a Common card from the row)', effects: { skill: { blocking: 1 }, gainCommonCard: 1 } },
+      { label: 'Step around him politely.',                          effects: {} },
+    ],
+  },
+  // Cross-skill choice — picks one of two skills relevant to the player.
+  {
+    id: 'skill-crossroads',
+    skill: 'any',
+    title: 'A Crossroads Workshop',
+    flavor: 'A tarp, a folding chair, and a sign: HALF AN HOUR\'S TUITION — PICK A CRAFT. The proprietor is asleep.',
+    choices: [
+      { label: '(Practice your weaving, if still relevant)',         effects: { skill: { weaving: 2 } } },
+      { label: '(Practice your smithing, if still relevant)',        effects: { skill: { smithing: 2 } } },
+      { label: '(Practice your blocking, if still relevant)',        effects: { skill: { blocking: 2 } } },
+      { label: 'Leave the proprietor to it.',                        effects: {} },
+    ],
+  },
+];
+
 // Acts — four paths, one per equipment slot, with escalating
 // difficulty. All four are ~15 rows long because Material and Skill
 // nodes (Commit 2) need room to compete with combat for the player's
@@ -978,8 +1124,10 @@ function pickRelicByRarity(rarityWeights = { common: 3, uncommon: 2, rare: 1 }, 
   return pool[0];
 }
 
-// STS-style branching DAG generator. See MVP2 commit message for full
-// rationale; behavior unchanged. Forge tier names use the act's slot now.
+// STS-style branching DAG generator. Material + skill nodes are
+// injected at fixed rows (3/7/11 = material, 5/9 = skill) so the
+// player's route choice is deterministic at the strategic level —
+// you can see "row 3 has the wood gather, route accordingly".
 function generateActMap(rows, width) {
   const nodes = [];
   const rng = Math.random;
@@ -988,11 +1136,19 @@ function generateActMap(rows, width) {
     nodes.push({ id: `n-0-${c}`, row: 0, col: c, type: 'start',
       x: spacedX(c, startCount, width), y: rowY(0, rows) });
   }
+  const materialRows = new Set([3, 7, 11]);
+  const skillRows    = new Set([5, 9]);
   for (let r = 1; r < rows - 1; r++) {
     const w = 2 + Math.floor(rng() * 2);
     for (let c = 0; c < w; c++) {
+      // Material / skill rows override the normal pickNodeType roll
+      // for every column in that row — the player MUST grab one of
+      // the materials at row 3 (which one they choose is the question).
+      const t = materialRows.has(r) ? 'material'
+              : skillRows.has(r)    ? 'skill'
+              :                       pickNodeType(r, rows);
       nodes.push({ id: `n-${r}-${c}`, row: r, col: c,
-        type: pickNodeType(r, rows),
+        type: t,
         x: spacedX(c, w, width), y: rowY(r, rows) });
     }
   }
@@ -1048,6 +1204,9 @@ function generateActMap(rows, width) {
 // =============================================================================
 
 const STARTING_MAX_HP = 70;
+// Each craft skill caps at this level. C3's crafting minigame reads
+// the current level and widens the gauge / softens the chooser.
+const SKILL_MAX = 5;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
 // Heal a fraction of max HP between acts (STS-style act transition heal).
@@ -1130,6 +1289,22 @@ export default function App() {
   // events / shops that hand the player cards silently. Shape:
   // { cards: [...card objects...], title?, body? } — null means no modal.
   const [cardGrantPrompt, setCardGrantPrompt] = useState(null);
+
+  // ---- Crafting state (Commit 2: gather; Commit 3: craft) ----
+  // Inventory of raw materials gathered per slot during this act and
+  // carried forward. Each entry is a full material template (id, name,
+  // slot, flavor, stats). At end-of-act crafting time (Commit 3) the
+  // current act's slot is read out and used in the minigame.
+  const [inventory, setInventory] = useState({ staff: [], robes: [], ring: [], hat: [] });
+  // Skill levels — earned at Skill nodes. Persistent across acts but
+  // only EARNED while the relevant act is still ahead (see
+  // isSkillRelevant). Caps at SKILL_MAX.
+  const [skills, setSkills] = useState({ whittling: 0, weaving: 0, smithing: 0, blocking: 0 });
+  // The chooser shown at a Material node: 3 randomly-rolled variants
+  // of the current act's slot. null = no chooser open.
+  const [materialChoices, setMaterialChoices] = useState(null);
+  // The skill event currently being resolved. null = not on a skill node.
+  const [activeSkillEvent, setActiveSkillEvent] = useState(null);
   // Card-upgrade picker at rest sites. When set, shows the deck and lets
   // the player pick one non-upgraded card to upgrade.
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -1176,6 +1351,10 @@ export default function App() {
     setPlayerWeak(0);
     setEffectCount(0);
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+    setInventory({ staff: [], robes: [], ring: [], hat: [] });
+    setSkills({ whittling: 0, weaving: 0, smithing: 0, blocking: 0 });
+    setMaterialChoices(null);
+    setActiveSkillEvent(null);
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -1224,6 +1403,10 @@ export default function App() {
     setPlayerWeak(0);
     setEffectCount(0);
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+    setInventory({ staff: [], robes: [], ring: [], hat: [] });
+    setSkills({ whittling: 0, weaving: 0, smithing: 0, blocking: 0 });
+    setMaterialChoices(null);
+    setActiveSkillEvent(null);
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -1339,7 +1522,129 @@ export default function App() {
       const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
       setActiveEvent(ev); setStage('event'); return;
     }
+    if (node.type === 'material')      return enterMaterialNode();
+    if (node.type === 'skill')         return enterSkillNode();
     if (node.type === 'boss')          return enterFight(currentAct.bossId);
+  }
+
+  // Material node — roll 3 random variants from the current act's
+  // slot pool and open the chooser screen. The player picks one;
+  // the chosen material lands in inventory[slot].
+  function enterMaterialNode() {
+    const slot = currentAct.slot;
+    const pool = MATERIAL_TEMPLATES[slot] || [];
+    if (pool.length === 0) { pushLog('Nothing of use here.'); return; }
+    // Pick up to 3 distinct candidates.
+    const shuffled = shuffle(pool);
+    const choices = shuffled.slice(0, Math.min(3, shuffled.length));
+    setMaterialChoices({ slot, choices });
+    setStage('material-choose');
+  }
+
+  function claimMaterial(materialId) {
+    if (!materialChoices) return;
+    const m = materialChoices.choices.find(c => c.id === materialId);
+    if (!m) return;
+    setInventory(prev => ({ ...prev, [m.slot]: [...prev[m.slot], m] }));
+    pushLog(`🪵 You gather ${m.name}.`);
+    setMaterialChoices(null);
+    returnToMap();
+  }
+
+  function skipMaterial() {
+    pushLog('You leave the material where it is.');
+    setMaterialChoices(null);
+    returnToMap();
+  }
+
+  // Skill node — pick a skill event from the pool, filtered to skills
+  // whose act is still ahead OR is the current act. Skills you've moved
+  // past don't show events (you've already crafted that piece).
+  function enterSkillNode() {
+    const eligibleSkills = new Set();
+    for (let i = currentActIdx; i < ACTS.length; i++) {
+      const c = ACTS[i]?.craft;
+      if (c) eligibleSkills.add(c);
+    }
+    // Filter events: skill === 'any' is OK (it's a chooser), otherwise
+    // the event's primary skill must be in the eligible set.
+    const pool = SKILL_EVENTS.filter(e => e.skill === 'any' || eligibleSkills.has(e.skill));
+    if (pool.length === 0) {
+      pushLog('No craft worth practicing on the road here.');
+      returnToMap();
+      return;
+    }
+    // For the 'any' cross-skill event, filter its choices to relevant
+    // skills only so the player doesn't pick a dead one.
+    const picked = pool[Math.floor(Math.random() * pool.length)];
+    const filtered = picked.skill === 'any'
+      ? { ...picked, choices: picked.choices.filter(c => {
+          const sk = c.effects?.skill;
+          if (!sk) return true;
+          return Object.keys(sk).some(k => eligibleSkills.has(k));
+        }) }
+      : picked;
+    setActiveSkillEvent(filtered);
+    setStage('skill-event');
+  }
+
+  // Resolves a skill-event choice the same way resolveEventChoice does
+  // regular events, but the modal lives on its own stage so we don't
+  // mash the two flows together.
+  function resolveSkillChoice(choice) {
+    const fx = choice.effects || {};
+    const logBits = [`🛠 ${activeSkillEvent.title}: ${choice.label}`];
+    if (fx.skill) {
+      // Apply each skill bump, capped at SKILL_MAX, and gated by
+      // "is this skill still relevant?" (act ahead or current).
+      const eligibleSkills = new Set();
+      for (let i = currentActIdx; i < ACTS.length; i++) {
+        const c = ACTS[i]?.craft;
+        if (c) eligibleSkills.add(c);
+      }
+      setSkills(prev => {
+        const next = { ...prev };
+        for (const [skill, bump] of Object.entries(fx.skill)) {
+          if (!eligibleSkills.has(skill)) continue;
+          next[skill] = Math.min(SKILL_MAX, (next[skill] || 0) + bump);
+        }
+        return next;
+      });
+      for (const [skill, bump] of Object.entries(fx.skill)) {
+        if (!eligibleSkills.has(skill)) continue;
+        logBits.push(`+${bump} ${CRAFT_LABEL[skill] || skill}`);
+      }
+    }
+    if (fx.heal) {
+      setHp(h => clamp(h + fx.heal, 0, maxHp));
+      logBits.push(`+${fx.heal} HP`);
+    }
+    if (fx.loseHp) {
+      setHp(h => clamp(h - fx.loseHp, 0, maxHp));
+      logBits.push(`-${fx.loseHp} HP`);
+    }
+    const granted = [];
+    if (fx.gainCommonCard) {
+      const c = pickCardByRarity({ common: 1 });
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); granted.push(c); }
+    }
+    if (fx.gainUncommonCard) {
+      const c = pickCardByRarity({ uncommon: 1 });
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); granted.push(c); }
+    }
+    if (fx.gainRareCard) {
+      const c = pickCardByRarity({ rare: 1 });
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); granted.push(c); }
+    }
+    pushLog(logBits.join(' · '));
+    const title = activeSkillEvent.title;
+    setActiveSkillEvent(null);
+    if (granted.length > 0) {
+      setCardGrantPrompt({ cards: granted, title: `${title} — added to your deck` });
+      setStage('card-grant');
+      return;
+    }
+    returnToMap();
   }
 
   function pickActEnemyId(tier) {
@@ -2239,6 +2544,8 @@ export default function App() {
   }
   if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward} />;
   if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
+  if (stage === 'material-choose') return <MaterialChooseScreen prompt={materialChoices} onPick={claimMaterial} onSkip={skipMaterial} />;
+  if (stage === 'skill-event') return <SkillEventScreen event={activeSkillEvent} skills={skills} onChoose={resolveSkillChoice} />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
@@ -2247,7 +2554,7 @@ export default function App() {
       map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
       currentNodeId={currentNodeId} clearedNodes={clearedNodes}
       reachable={reachableFromCurrent()}
-      player={{ hp, maxHp, equipment, relics, deckSize: deck.length, familiar, familiarName }}
+      player={{ hp, maxHp, equipment, relics, deckSize: deck.length, familiar, familiarName, inventory, skills }}
       onPick={pickNode} log={log} />;
   }
 
@@ -2650,6 +2957,8 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           <Legend glyph="☠" label="Elite" />
           <Legend glyph="🛏" label="Rest" />
           <Legend glyph="📜" label="Event" />
+          <Legend glyph="🪵" label="Material" />
+          <Legend glyph="🛠" label="Skill" />
           <Legend glyph="👑" label="Boss" />
           <Legend glyph="·" label="Start" />
           <Legend glyph="?" label="Glimpsed" />
@@ -2680,6 +2989,39 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
         </div>
       )}
 
+      {/* Inventory + skill summary — visible so the player can plan
+          route choices around what they still need for the act's
+          crafting screen at the boss. */}
+      {(player.inventory || player.skills) && (
+        <div className="parchment-card p-3 flex flex-col gap-1.5">
+          {player.inventory && Object.values(player.inventory).some(arr => arr.length > 0) && (
+            <div className="text-xs flex gap-2 flex-wrap items-center">
+              <span className="uppercase text-parchment-300">Gathered:</span>
+              {Object.entries(player.inventory).map(([slot, mats]) =>
+                mats.length > 0 ? (
+                  <span key={slot} className="text-gold-300" title={mats.map(m => m.name).join(', ')}>
+                    {slot === 'staff' ? '🪵' : slot === 'robes' ? '🧵' : slot === 'ring' ? '⚒' : '🎩'}{' '}
+                    {mats.map(m => m.name).join(', ')}
+                  </span>
+                ) : null
+              )}
+            </div>
+          )}
+          {player.skills && Object.values(player.skills).some(v => v > 0) && (
+            <div className="text-xs flex gap-2 flex-wrap items-center">
+              <span className="uppercase text-parchment-300">Skills:</span>
+              {Object.entries(player.skills).map(([sk, lvl]) =>
+                lvl > 0 ? (
+                  <span key={sk} className="text-moss-300">
+                    🛠 {sk[0].toUpperCase() + sk.slice(1)} {lvl}
+                  </span>
+                ) : null
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="parchment-card p-3 max-h-40 overflow-y-auto text-sm font-quill text-parchment-200 space-y-0.5">
         {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}
       </div>
@@ -2693,19 +3035,23 @@ function nodeColor(type, isCleared, isCurrent) {
   if (type === 'elite') return '#a8412f';
   if (type === 'rest') return '#43622c';
   if (type === 'event') return '#523a8b';
+  if (type === 'material') return '#7c5e2e';
+  if (type === 'skill') return '#5a6e2a';
   if (type === 'start') return '#3d3325';
   return '#2b2418';
 }
 function nodeGlyph(type) {
   return {
     combat: '⚔', elite: '☠', rest: '🛏', event: '📜',
+    material: '🪵', skill: '🛠',
     boss: '👑', start: '·',
   }[type] || '?';
 }
 function nodeLabel(n) {
   return ({
     combat: 'a combat tile', elite: 'an elite tile', rest: 'a rest tile',
-    event: 'an event', start: 'the trailhead', boss: 'the boss'
+    event: 'an event', start: 'the trailhead', boss: 'the boss',
+    material: 'a gather', skill: 'a craft lesson',
   }[n.type]) || 'a tile';
 }
 function Legend({ glyph, label }) {
@@ -3082,6 +3428,78 @@ function EventScreen({ event, onChoose }) {
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-2xl mx-auto">
       <h2 className="font-display text-3xl text-iris-300">{event.title}</h2>
       <p className="font-quill italic text-parchment-200 text-center max-w-xl">"{event.flavor}"</p>
+      <div className="flex flex-col gap-2 w-full max-w-md">
+        {event.choices.map((c, i) => (
+          <button key={i} onClick={() => onChoose(c)}
+            className="btn bg-ink-600 hover:bg-ink-500 text-parchment-100 text-left">{c.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Material chooser — shown when the player visits a Material node.
+// Three random variants of the current act's slot pool. The player
+// picks one; the material lands in their inventory and is consumed
+// at the act's crafting screen (Commit 3).
+const SLOT_HEADLINE = {
+  staff: 'A clearing of timber',
+  robes: 'A rack of threads',
+  ring:  'A cache of ore',
+  hat:   'A press of felts',
+};
+const SLOT_EMOJI = { staff: '🪵', robes: '🧵', ring: '⚒', hat: '🎩' };
+
+function MaterialChooseScreen({ prompt, onPick, onSkip }) {
+  if (!prompt) return null;
+  const { slot, choices } = prompt;
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-5 max-w-4xl mx-auto">
+      <h2 className="font-display text-4xl text-gold-300 text-center">
+        {SLOT_EMOJI[slot]} {SLOT_HEADLINE[slot] || 'A gather'}
+      </h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-xl">
+        Three things you might take from here. The act's crafting screen will use whatever you've gathered when the boss falls — bring back what feels right.
+      </p>
+      <div className="flex gap-4 flex-wrap justify-center">
+        {choices.map((m) => (
+          <button key={m.id} onClick={() => onPick(m.id)}
+            className="w-56 min-h-[14rem] rounded-lg border-2 border-gold-500 bg-parchment-50 text-ink-800 p-3 text-left hover:scale-105 hover:shadow-2xl transition flex flex-col gap-2">
+            <div className="font-display text-lg">{m.name}</div>
+            <div className="text-xs uppercase tracking-wider text-ink-400">{SLOT_LABEL[m.slot] || m.slot} material</div>
+            <div className="flex flex-wrap gap-1 text-xs font-mono">
+              {Object.entries(m.stats || {}).map(([k, v]) => (
+                <span key={k} className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">
+                  {k} +{v}
+                </span>
+              ))}
+            </div>
+            <div className="text-sm font-quill italic text-ink-500 mt-auto pt-2 border-t border-ink-300">"{m.flavor}"</div>
+          </button>
+        ))}
+      </div>
+      <button onClick={onSkip} className="btn btn-ink mt-2">Take none. Push on.</button>
+    </div>
+  );
+}
+
+// Skill event — same shape as a regular event but lives on its own
+// stage so the skill bumps are visually distinct from the generic
+// event pool. Shows the player's current skill levels at the top for
+// context.
+function SkillEventScreen({ event, skills, onChoose }) {
+  if (!event) return null;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-2xl mx-auto">
+      <h2 className="font-display text-3xl text-moss-300">🛠 {event.title}</h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-xl">"{event.flavor}"</p>
+      <div className="text-xs text-parchment-300 flex gap-3 flex-wrap justify-center">
+        {Object.entries(skills || {}).map(([sk, lvl]) => (
+          <span key={sk} className={lvl > 0 ? 'text-moss-300' : 'text-parchment-400'}>
+            {sk}: {lvl}
+          </span>
+        ))}
+      </div>
       <div className="flex flex-col gap-2 w-full max-w-md">
         {event.choices.map((c, i) => (
           <button key={i} onClick={() => onChoose(c)}

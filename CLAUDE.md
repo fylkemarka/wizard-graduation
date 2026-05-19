@@ -68,8 +68,11 @@ Mechanics **dropped** vs Arcane Workshop:
 - **Card rewards** — 3-card draft after non-boss combat; elite combats
   weight toward uncommon + rare; skip is allowed
 - **Branching DAG map** per act — `generateActMap(rows, width)` makes a new
-  one per act. Node types: combat / elite / rest / event / boss / start.
-  Forge nodes were removed — equipment is now boss-only.
+  one per act. Node types: combat / elite / rest / event / material / skill /
+  boss / start. Material nodes seed at rows 3/7/11 and skill nodes at rows
+  5/9 (the rest of the rows roll through `pickNodeType`). Forge nodes were
+  removed — equipment now comes from the crafting screen (Commit 3 of the
+  crafting system; until then, boss kills auto-grant Master placeholder).
 - **Equipment system** — `EQUIPMENT[slot][tier]` for staff / robes / gem /
   ring. Bonus payload keys: `strikeBonus`, `startBlock`, `maxHp`,
   `healOnCombatStart`, `extraStartHand`, `energyOnCombatStart`,
