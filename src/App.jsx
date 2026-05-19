@@ -3087,12 +3087,14 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
 
 function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, reachable, player, onPick, log }) {
   if (!map || !act) return null;
-  // Map viewBox sized so 15-row acts have ~60 px between rows. Old
-  // H=480 jammed nodes 28 px apart at radius 18 — paths weren't legible.
-  const W = 600, padding = 40;
+  // Map viewBox: ~90 viewBox-units between rows so nodes (r=18) have a
+  // generous gap that survives CSS scaling. W bumped to 900 so the
+  // aspect ratio stays workable (taller maps stretched too vertically
+  // at W=600).
+  const W = 900, padding = 40;
   const rows = act.rows;
   const cols = act.width;
-  const ROW_SPACING = 60;
+  const ROW_SPACING = 90;
   const H = padding * 2 + Math.max(1, rows - 1) * ROW_SPACING;
   const xScale = (x) => padding + (x * (W - 2 * padding)) / cols;
   const yScale = (y) => padding + (y * (H - 2 * padding)) / (rows - 1);
@@ -3135,7 +3137,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
             return 'visible';
           };
           return (
-            <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-2xl" preserveAspectRatio="xMidYMid meet">
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-3xl" preserveAspectRatio="xMidYMid meet">
               {Object.entries(map.edges).map(([fromId, tos]) => {
                 const from = map.nodes.find(n => n.id === fromId);
                 return tos.map(toId => {
