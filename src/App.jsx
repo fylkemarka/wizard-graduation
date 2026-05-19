@@ -51,71 +51,71 @@ const CARDS = [
   // =============================================================================
   // ---- BASIC (starter) ----
   { id: 'w-respect', name: 'With all due respect,', cost: 0, type: 'word', rarity: 'basic',
-    stats: { wit: 1 }, phrase: 'with all due respect,',
+    stats: { wit: 1 }, tags: ['formal', 'sarcastic'], phrase: 'with all due respect,',
     upgrade: { stats: { wit: 2 } },
     desc: '+1 Wit to your spell.',
     flavor: 'Almost none of it is due.' },
   { id: 'w-frankly', name: 'Frankly,', cost: 0, type: 'word', rarity: 'basic',
-    stats: { chutzpah: 1 }, phrase: 'frankly,',
+    stats: { chutzpah: 1 }, tags: ['dismissive', 'sarcastic'], phrase: 'frankly,',
     upgrade: { stats: { chutzpah: 2 } },
     desc: '+1 Chutzpah to your spell.',
     flavor: 'The word is doing a lot of work.' },
   { id: 'w-erm', name: 'Erm…', cost: 0, type: 'word', rarity: 'basic',
-    stats: { jnsq: 1 }, phrase: 'erm…',
+    stats: { jnsq: 1 }, tags: ['chaotic'], phrase: 'erm…',
     upgrade: { stats: { jnsq: 2 } },
     desc: '+1 Jnsq to your spell.',
     flavor: 'You haven\'t worked out the next bit yet.' },
 
   // ---- COMMON ----
   { id: 'w-actually', name: 'Actually,', cost: 0, type: 'word', rarity: 'common',
-    stats: { wit: 1, chutzpah: 1 }, phrase: 'actually,',
+    stats: { wit: 1, chutzpah: 1 }, tags: ['sarcastic', 'dismissive'], phrase: 'actually,',
     upgrade: { stats: { wit: 2, chutzpah: 1 } },
     desc: '+1 Wit, +1 Chutzpah.',
     flavor: 'Slightly louder than the surrounding sentence.' },
   { id: 'w-look-here', name: 'Look here,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 2 }, phrase: 'look here,',
+    stats: { chutzpah: 2 }, tags: ['booming', 'threatening'], phrase: 'look here,',
     upgrade: { stats: { chutzpah: 3 } },
     desc: '+2 Chutzpah.',
     flavor: 'Don\'t actually look. The room behind you is more important.' },
   { id: 'w-suppose', name: 'Suppose, hypothetically,', cost: 1, type: 'word', rarity: 'common',
-    stats: { wit: 3 }, phrase: 'suppose, hypothetically,',
+    stats: { wit: 3 }, tags: ['academic', 'rhetorical'], phrase: 'suppose, hypothetically,',
     upgrade: { stats: { wit: 4 } },
     desc: '+3 Wit.',
     flavor: 'It is never hypothetically.' },
   { id: 'w-mutters', name: 'Mutters dark Latin', cost: 0, type: 'word', rarity: 'common',
-    stats: { jnsq: 2 }, phrase: '(mutters dark Latin)',
+    stats: { jnsq: 2 }, tags: ['mystical', 'chaotic'], phrase: '(mutters dark Latin)',
     upgrade: { stats: { jnsq: 3 } },
     desc: '+2 Jnsq.',
     flavor: 'You half-recognise the verb. It is not encouraging.' },
   { id: 'w-stares', name: 'Stares', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 1, jnsq: 1 }, phrase: '(stares)',
+    stats: { chutzpah: 1, jnsq: 1 }, tags: ['threatening', 'theatrical'], phrase: '(stares)',
     upgrade: { stats: { chutzpah: 2, jnsq: 1 } },
     desc: '+1 Chutzpah, +1 Jnsq.',
     flavor: 'For longer than is socially comfortable.' },
   { id: 'w-footnote', name: 'A Lengthy Footnote', cost: 1, type: 'word', rarity: 'common',
-    stats: { wit: 2, jnsq: 1 }, phrase: '— see footnote 17 —',
+    stats: { wit: 2, jnsq: 1 }, tags: ['academic', 'rhetorical'], phrase: '— see footnote 17 —',
     upgrade: { stats: { wit: 3, jnsq: 1 } },
     desc: '+2 Wit, +1 Jnsq.',
     flavor: 'Footnote 17 was always the dangerous one.' },
 
   // ---- UNCOMMON ----
   { id: 'w-rhetorical', name: 'A Rhetorical Question', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { wit: 4 }, phrase: 'but is it really, though?',
+    stats: { wit: 4 }, tags: ['rhetorical', 'academic'], phrase: 'but is it really, though?',
     upgrade: { stats: { wit: 5 } },
     desc: '+4 Wit.',
     flavor: 'It does not require an answer. It demands one.' },
   { id: 'w-thundering', name: 'Thundering Aside', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 4 }, phrase: 'and FURTHERMORE,',
+    stats: { chutzpah: 4 }, tags: ['booming', 'formal'], phrase: 'and FURTHERMORE,',
     upgrade: { stats: { chutzpah: 5 } },
     desc: '+4 Chutzpah.',
     flavor: 'It was supposed to be quieter than that.' },
   { id: 'w-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { jnsq: 4 }, phrase: 'speaking of cheese,',
+    stats: { jnsq: 4 }, tags: ['absurd', 'chaotic'], phrase: 'speaking of cheese,',
     upgrade: { stats: { jnsq: 5 } },
     desc: '+4 Jnsq.',
     flavor: 'No one was speaking of cheese.' },
   { id: 'w-dramatic-pause', name: 'Dramatic Pause', cost: 0, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 1, wit: 1, jnsq: 1 }, phrase: '…',
+    stats: { chutzpah: 1, wit: 1, jnsq: 1 }, tags: ['theatrical', 'mystical'], phrase: '…',
     effects: { draw: 1 },
     upgrade: { effects: { draw: 2 }, stats: { chutzpah: 1, wit: 1, jnsq: 1 } },
     desc: '+1 to each stat. Draw 1.',
@@ -130,108 +130,140 @@ const CARDS = [
   // =============================================================================
   // ---- BASIC (starter) ----
   { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
-    effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } },
     phrase: '…and so, surely, the matter is settled.',
-    upgrade: { effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure' } },
-    desc: 'Cast: 2 + Wit×2 Composure.',
+    upgrade: { effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 2 + Wit×2 Composure. Resonates: rhetorical, academic.',
     flavor: 'You have brought receipts.' },
   { id: 'e-bluster', name: 'Bluster', cost: 1, type: 'effect', rarity: 'basic',
-    effect: { scaleBy: 'chutzpah', base: 2, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'chutzpah', base: 2, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 2 } },
     phrase: '…and that is FINAL.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure' } },
-    desc: 'Cast: 2 + Chutzpah×2 Composure.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 2 + Chutzpah×2 Composure. Resonates: booming, threatening.',
     flavor: 'You said it with your whole chest.' },
   { id: 'e-bewilder', name: 'Bewilder', cost: 1, type: 'effect', rarity: 'basic',
-    effect: { scaleBy: 'jnsq', base: 2, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'jnsq', base: 2, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } },
     phrase: '…and the moon, of course, is a kind of biscuit.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure' } },
-    desc: 'Cast: 2 + Jnsq×2 Composure.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 2 + Jnsq×2 Composure. Resonates: absurd, mystical.',
     flavor: 'They\'re thinking about it. They shouldn\'t be.' },
 
   // ---- COMMON ----
   { id: 'e-convince', name: 'Convince', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } },
     phrase: '…which, logically, you must accept.',
-    upgrade: { effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' } },
-    desc: 'Cast: 4 + Wit×2 Composure.',
+    upgrade: { effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 4 + Wit×2 Composure. Resonates: rhetorical, academic.',
     flavor: 'They nod before they realise.' },
   { id: 'e-intimidate', name: 'Intimidate', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure', rider: { weak: 1 } },
+    effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure',
+              rider: { weak: 1 }, resonatesWith: ['threatening', 'booming'], resonanceBonus: { perTag: 2 } },
     phrase: '…or what, exactly, would you do about it?',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure', rider: { weak: 1 } } },
-    desc: 'Cast: 4 + Chutzpah×2 Composure. Apply 1 Weak.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure',
+              rider: { weak: 1 }, resonatesWith: ['threatening', 'booming'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 4 + Chutzpah×2 Composure. Apply 1 Weak. Resonates: threatening, booming.',
     flavor: 'You are taller than you ought to be.' },
   { id: 'e-misdirect', name: 'Misdirect', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure', rider: { vulnerable: 1 } },
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
+              rider: { vulnerable: 1 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } },
     phrase: '…and look — a falling pigeon.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } } },
-    desc: 'Cast: 4 + Jnsq×2 Composure. Apply 1 Vulnerable.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 3, damageType: 'composure',
+              rider: { vulnerable: 1 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 4 + Jnsq×2 Composure. Apply 1 Vulnerable. Resonates: chaotic, absurd.',
     flavor: 'It is not, but the look is enough.' },
   { id: 'e-strike', name: 'Strike', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure' },
+    effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure',
+              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
     phrase: '*pokes them, verbally, in the chest*',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 9, multiplier: 1, damageType: 'composure' } },
-    desc: 'Cast: 6 + Chutzpah Composure.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 9, multiplier: 1, damageType: 'composure',
+              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 6 + Chutzpah Composure. Resonates: dismissive, petty.',
     flavor: 'A simple closing remark.' },
 
   // ---- UNCOMMON ----
   { id: 'e-refute', name: 'Refute', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } },
     phrase: '…you appear to be misremembering your own earlier words.',
-    upgrade: { effect: { scaleBy: 'wit', base: 10, multiplier: 4, damageType: 'composure' } },
-    desc: 'Cast: 8 + Wit×3 Composure.',
+    upgrade: { effect: { scaleBy: 'wit', base: 10, multiplier: 4, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 8 + Wit×3 Composure. Resonates: rhetorical, academic.',
     flavor: 'They turn pale. Or maybe always were.' },
   { id: 'e-cutting-remark', name: 'A Cutting Remark', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
     phrase: '…and the hat does not suit you.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure' } },
-    desc: 'Cast: 8 + Chutzpah×3 Composure.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure',
+              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 8 + Chutzpah×3 Composure. Resonates: dismissive, petty.',
     flavor: 'It is a perfectly normal hat.' },
   { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } },
     phrase: '…the third inflection is the most important.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 10, multiplier: 4, damageType: 'composure' } },
-    desc: 'Cast: 8 + Jnsq×3 Composure.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 10, multiplier: 4, damageType: 'composure',
+              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 8 + Jnsq×3 Composure. Resonates: absurd, mystical.',
     flavor: 'There were no inflections. There still aren\'t.' },
 
   // ---- PHYSICAL EFFECT CARDS — for wizards who still want to throw something ----
   { id: 'e-spark', name: 'Spark', cost: 0, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'physical' },
+    effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'physical',
+              resonatesWith: ['chaotic'], resonanceBonus: { perTag: 2 } },
     phrase: '(a small sharp light leaves your fingertips)',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'physical' } },
-    desc: 'Cast: 3 + Jnsq physical damage.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'physical',
+              resonatesWith: ['chaotic'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 3 + Jnsq physical damage. Resonates: chaotic.',
     flavor: 'It is not very impressive. It is also not very pleasant.' },
   { id: 'e-magic-missile', name: 'Magic Missile', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 9, multiplier: 2, damageType: 'physical' },
+    effect: { scaleBy: 'jnsq', base: 9, multiplier: 2, damageType: 'physical',
+              resonatesWith: ['mystical'], resonanceBonus: { perTag: 2 } },
     phrase: '(the air parts in a straight line ahead of you)',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 12, multiplier: 3, damageType: 'physical' } },
-    desc: 'Cast: 9 + Jnsq×2 physical damage.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 12, multiplier: 3, damageType: 'physical',
+              resonatesWith: ['mystical'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 9 + Jnsq×2 physical damage. Resonates: mystical.',
     flavor: 'It always misses the bookshelves. Always.' },
   { id: 'e-sword-logic', name: 'Sword Logic', cost: 1, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'physical' },
+    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'physical',
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
     phrase: '(hits them, mid-sentence)',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 8, multiplier: 2, damageType: 'physical' } },
-    desc: 'Cast: 5 + Chutzpah×2 physical damage.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 8, multiplier: 2, damageType: 'physical',
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 5 + Chutzpah×2 physical damage. Resonates: threatening, dismissive.',
     flavor: 'The argument was won earlier, in a closet, with a board.' },
 
   // ---- RARE EFFECT CARDS ----
   { id: 'e-devastating', name: 'Devastating Truth', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 3 } },
     phrase: '…and that is what your tutor used to say about you, isn\'t it?',
-    upgrade: { effect: { scaleBy: 'wit', base: 16, multiplier: 4, damageType: 'composure' } },
-    desc: 'Cast: 12 + Wit×3 Composure.',
+    upgrade: { effect: { scaleBy: 'wit', base: 16, multiplier: 4, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 3 } } },
+    desc: 'Cast: 12 + Wit×3 Composure. Resonates: rhetorical, academic (+3).',
     flavor: 'You found it in the library. It found you first.' },
   { id: 'e-coup-de-grace', name: 'Coup de Grâce', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'chutzpah', base: 14, multiplier: 3, damageType: 'composure', exhaust: true },
+    effect: { scaleBy: 'chutzpah', base: 14, multiplier: 3, damageType: 'composure', exhaust: true,
+              resonatesWith: ['dismissive', 'formal'], resonanceBonus: { perTag: 3 } },
     phrase: '…and frankly that should have settled it ten minutes ago.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 18, multiplier: 4, damageType: 'composure', exhaust: true } },
-    desc: 'Cast: 14 + Chutzpah×3 Composure. Exhaust.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 18, multiplier: 4, damageType: 'composure', exhaust: true,
+              resonatesWith: ['dismissive', 'formal'], resonanceBonus: { perTag: 3 } } },
+    desc: 'Cast: 14 + Chutzpah×3 Composure. Exhaust. Resonates: dismissive, formal (+3).',
     flavor: 'You walk away mid-syllable. They notice eventually.' },
   { id: 'e-paradox', name: 'A Functional Paradox', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'jnsq', base: 6, multiplier: 4, damageType: 'composure', rider: { vulnerable: 2 } },
+    effect: { scaleBy: 'jnsq', base: 6, multiplier: 4, damageType: 'composure',
+              rider: { vulnerable: 2 }, resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 3 } },
     phrase: '…the door is also, in this case, the question.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 8, multiplier: 5, damageType: 'composure', rider: { vulnerable: 2 } } },
-    desc: 'Cast: 6 + Jnsq×4 Composure. Apply 2 Vulnerable.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 8, multiplier: 5, damageType: 'composure',
+              rider: { vulnerable: 2 }, resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 3 } } },
+    desc: 'Cast: 6 + Jnsq×4 Composure. Apply 2 Vulnerable. Resonates: absurd, mystical (+3).',
     flavor: 'They are working on it. They will be for some time.' },
 
   // =============================================================================
@@ -398,10 +430,12 @@ const FAMILIARS = [
     flavor: 'The cat knows where it is. The cat refuses to discuss it.',
     bonus: { onCombatStart: { block: 3 } },
     card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure', rider: { weak: 1 } },
+      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure',
+                rider: { weak: 1 }, resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
       phrase: '(the cat refuses to be impressed)',
-      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 2, damageType: 'composure', rider: { weak: 2 } } },
-      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Weak.',
+      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 2, damageType: 'composure',
+                rider: { weak: 2 }, resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
+      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Weak. Resonates: dismissive, petty.',
       flavor: 'It is unimpressed.' },
   },
   {
@@ -443,10 +477,12 @@ const FAMILIARS = [
     flavor: 'It is on its third career. The first two were also waiting.',
     bonus: { damageReduction: 1 },
     card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'composure', rider: { block: 3 } },
+      effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'composure',
+                rider: { block: 3 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } },
       phrase: '(the beetle, briefly, expresses itself)',
-      upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'composure', rider: { block: 4 } } },
-      desc: 'Cast: 3 + Jnsq Composure. Gain 3 Block.',
+      upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'composure',
+                rider: { block: 4 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
+      desc: 'Cast: 3 + Jnsq Composure. Gain 3 Block. Resonates: chaotic, absurd.',
       flavor: 'The beetle is angry. In its way.' },
   },
   {
@@ -466,10 +502,12 @@ const FAMILIARS = [
     flavor: 'It has a collection. The collection has a collection.',
     bonus: { onEnemyDefeated: { heal: 2 } },
     card: { id: 'f-pilfer', name: 'Pilfer', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'jnsq', base: 4, multiplier: 1, damageType: 'composure', rider: { draw: 1 } },
+      effect: { scaleBy: 'jnsq', base: 4, multiplier: 1, damageType: 'composure',
+                rider: { draw: 1 }, resonatesWith: ['petty', 'chaotic'], resonanceBonus: { perTag: 2 } },
       phrase: '(the crow takes something while you talk)',
-      upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 1, damageType: 'composure', rider: { draw: 1 } } },
-      desc: 'Cast: 4 + Jnsq Composure. Draw 1.',
+      upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 1, damageType: 'composure',
+                rider: { draw: 1 }, resonatesWith: ['petty', 'chaotic'], resonanceBonus: { perTag: 2 } } },
+      desc: 'Cast: 4 + Jnsq Composure. Draw 1. Resonates: petty, chaotic.',
       flavor: 'It brought you something. You did not ask.' },
   },
   {
@@ -478,10 +516,12 @@ const FAMILIARS = [
     flavor: 'It is patient. You are not. This is the arrangement.',
     bonus: { startCombatVulnerable: 2 },
     card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure', rider: { vulnerable: 1 } },
+      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure',
+                rider: { vulnerable: 1 }, resonatesWith: ['threatening'], resonanceBonus: { perTag: 2 } },
       phrase: '(a small green warning slides into view)',
-      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 1, damageType: 'composure', rider: { vulnerable: 2 } } },
-      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Vulnerable.',
+      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 1, damageType: 'composure',
+                rider: { vulnerable: 2 }, resonatesWith: ['threatening'], resonanceBonus: { perTag: 2 } } },
+      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Vulnerable. Resonates: threatening.',
       flavor: 'A small green warning.' },
   },
   {
@@ -490,10 +530,12 @@ const FAMILIARS = [
     flavor: 'Direction was secondary. Speed was the trick.',
     bonus: { passiveStrikeBonus: 1 },
     card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'chutzpah', base: 4, multiplier: 1, damageType: 'composure', exhaust: true },
+      effect: { scaleBy: 'chutzpah', base: 4, multiplier: 1, damageType: 'composure', exhaust: true,
+                resonatesWith: ['petty'], resonanceBonus: { perTag: 2 } },
       phrase: '(it is gone — so is the apple)',
-      upgrade: { effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure', exhaust: true } },
-      desc: 'Cast: 4 + Chutzpah Composure. Exhaust.',
+      upgrade: { effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure', exhaust: true,
+                resonatesWith: ['petty'], resonanceBonus: { perTag: 2 } } },
+      desc: 'Cast: 4 + Chutzpah Composure. Exhaust. Resonates: petty.',
       flavor: 'It was gone. So was the apple.' },
   },
 ];
@@ -1048,7 +1090,7 @@ export default function App() {
   // `phrases` is the running list of fragment text; `effectFiredThisTurn`
   // tracks whether ANY effect card has resolved the tray (used to detect
   // fizzles at end-of-turn).
-  const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
+  const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -1107,7 +1149,7 @@ export default function App() {
     setPlayerVulnerable(0);
     setPlayerWeak(0);
     setEffectCount(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -1155,7 +1197,7 @@ export default function App() {
     setPlayerVulnerable(0);
     setPlayerWeak(0);
     setEffectCount(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -1314,7 +1356,7 @@ export default function App() {
     // Reset per-combat counters and player debuffs.
     setPlayerVulnerable(0);
     setPlayerWeak(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -1434,17 +1476,20 @@ export default function App() {
     // on-play side `effects` block (draw/block/etc.) like a skill.
     if (card.type === 'word') {
       const stats = card.stats || {};
+      const cardTags = card.tags || [];
       setTray(prev => ({
         chutzpah: prev.chutzpah + (stats.chutzpah || 0),
         wit:      prev.wit      + (stats.wit      || 0),
         jnsq:     prev.jnsq     + (stats.jnsq     || 0),
         phrases:  [...prev.phrases, card.phrase || card.name],
+        tags:     [...prev.tags, ...cardTags],
         effectFiredThisTurn: prev.effectFiredThisTurn,
       }));
       const sBits = [];
       if (stats.chutzpah) sBits.push(`+${stats.chutzpah} Chutzpah`);
       if (stats.wit)      sBits.push(`+${stats.wit} Wit`);
       if (stats.jnsq)     sBits.push(`+${stats.jnsq} Jnsq`);
+      if (cardTags.length) sBits.push(`✦ ${cardTags.join(', ')}`);
       if (sBits.length) logBits.push(sBits.join(' · '));
       // Side-effects (draw etc.) — same dispatch as skill.
       applySideEffects(card.effects || {}, logBits);
@@ -1474,6 +1519,16 @@ export default function App() {
       } else {
         dmg = Math.round(dmg * eff_mult);
       }
+      // Resonance bonus — count tag matches between tray and effect.
+      // Added AFTER effectiveness so a discovered combo always pays out,
+      // even against resistant enemies (the bonus is flat, the player
+      // earned it). Still subject to weak/vuln since those are global.
+      const rWith = eff.resonatesWith || [];
+      const perTag = eff.resonanceBonus?.perTag || 0;
+      const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
+      const resonanceMatches = matchedTags.length;
+      const resonanceBonus = resonanceMatches * perTag;
+      if (resonanceBonus > 0) dmg += resonanceBonus;
       // Player Weak still nerfs outgoing damage of any kind.
       if (playerWeak > 0) dmg = Math.floor(dmg * 0.75);
       // Enemy Vulnerable still amplifies damage of any kind.
@@ -1482,6 +1537,10 @@ export default function App() {
       // Read out the spell phrase before logging the resolution.
       const phrase = [...tray.phrases, card.phrase || ''].filter(Boolean).join(' ');
       if (phrase) pushLog(`✨ "${phrase}"`);
+      if (resonanceMatches > 0) {
+        const uniq = Array.from(new Set(matchedTags));
+        pushLog(`✦ Resonance ×${resonanceMatches} (${uniq.join(', ')}) → +${resonanceBonus} damage`);
+      }
 
       let after = 0;
       if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
@@ -1498,7 +1557,7 @@ export default function App() {
       if (rider.draw)       { drawCards(rider.draw);                   logBits.push(`+${rider.draw} draw`); }
 
       // Clear the tray and mark an effect as fired this turn.
-      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: true });
+      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: true });
 
       // Fire onEffectCardPlayed power triggers (Octarine Squint etc.).
       applyPowerTriggers('onEffectCardPlayed');
@@ -1718,7 +1777,7 @@ export default function App() {
     if (tray.phrases.length > 0 && !tray.effectFiredThisTurn) {
       pushLog(`💨 "${tray.phrases.join(' ')}" …trails off. The spell does not arrive.`);
     }
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], effectFiredThisTurn: false });
+    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], effectFiredThisTurn: false });
 
     // 1. End-of-turn power triggers.
     const killedByPowers = applyEndOfTurnPowerTriggers();
@@ -2147,17 +2206,12 @@ function TutorialOverlay({ step, onAdvance, onExit }) {
       waitsForAction: true,
     },
     {
-      title: 'Step 3 — Resistances, immunity, and fizzling.',
+      title: 'Step 3 — Resistances, themes, and fizzling.',
       body: (<>
-        <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar at top-right). Drain it to 0 and he concedes.</p>
-        <p className="mt-2">Now look at the four small badges next to his red <b>Intent</b> box — they're labelled <b>Chutz</b>, <b>Wit</b>, <b>Jnsq</b>, and <b>Phys</b>. Each shows how this specific enemy reacts to that kind of damage:</p>
-        <ul className="mt-1 ml-4 list-disc text-xs">
-          <li><b>×1</b> means baseline — your damage lands at full value. The Bursar is ×1 on all four (he's a fair sparring partner).</li>
-          <li><span className="text-moss-300">Green ×1.5 or ×2</span> — <b>susceptible</b>. Damage of that kind is amplified.</li>
-          <li><span className="text-ember-300">Red ×0.5</span> — <b>resistant</b>. Damage is halved.</li>
-          <li><span className="text-parchment-400">Grey ×0</span> — <b>immune</b>. That kind of damage does nothing. A Lich won't laugh; a stone Construct won't argue.</li>
-        </ul>
-        <p className="mt-2">Last lesson: if you play Word cards but never play an Effect, the spell <b>fizzles</b> at end of turn. You'll see a message like <i>"…trails off. The spell does not arrive."</i> The Wit you built up vanishes. Don't let it happen.</p>
+        <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar). Drain it to 0 and he concedes.</p>
+        <p className="mt-2"><b>Effectiveness badges</b> (next to his Intent) — <b>Chutz / Wit / Jnsq / Phys</b>. Each shows how he reacts: <b>×1</b> baseline · <span className="text-moss-300">×1.5–2 susceptible</span> · <span className="text-ember-300">×0.5 resistant</span> · <span className="text-parchment-400">×0 immune</span>. The Bursar is fair on everything; other enemies aren't.</p>
+        <p className="mt-2"><b>Themes ✦</b> — every Word card carries 1–2 themes (like <i>formal</i>, <i>academic</i>, <i>booming</i>). When you cast an Effect that <i>resonates</i> with themes in your tray, you get <b>flat bonus damage per match</b>. Look at any card — themes are listed under the stats with a ✦. The Spell Tray shows themes accumulating as you build.</p>
+        <p className="mt-2">Last lesson: if you play Word cards but never play an Effect, the spell <b>fizzles</b> at end of turn. The Wit you built up vanishes. Don't let it happen.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -2207,11 +2261,12 @@ function TutorialCompleteScreen({ onStart, onMenu }) {
       <div className="parchment-card-strong p-4 w-full">
         <div className="text-xs uppercase text-parchment-300 mb-2 tracking-widest">What you just learned</div>
         <ul className="text-sm font-quill text-parchment-100 space-y-1 list-disc list-inside">
-          <li><b>Word cards</b> add stat points to the Spell Tray.</li>
+          <li><b>Word cards</b> add stat points + themes to the Spell Tray.</li>
           <li><b>Effect cards</b> cast a spell scaling off one stat — damage = (base + stat × multiplier) × effectiveness.</li>
-          <li>Enemies have per-stat resistance/susceptibility/immunity. Check the chips.</li>
+          <li><b>Themes ✦</b> — match an Effect's resonance with words in your tray for a flat bonus per match. Build a "lawyer deck", a "drunkard deck", a "bully deck" — the LLM is in your corner.</li>
+          <li>Enemies have per-stat resistance / susceptibility / immunity. Check the badges.</li>
           <li>Play words without an Effect → spell <b>fizzles</b> at end of turn.</li>
-          <li>Most enemies are physical-immune by default; a few aren't (use Spark / Magic Missile / Sword Logic).</li>
+          <li>Most enemies are physical-immune by default; a few aren't (Spark / Magic Missile / Sword Logic).</li>
           <li>Block still works. Defend still defends.</li>
         </ul>
       </div>
@@ -2603,6 +2658,23 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             : <span>"{tray.phrases.join(' ')} <span className="text-iris-300 not-italic">…</span>"</span>
           }
         </div>
+        {/* Tag chip row — shows the theme the spell is taking on. When
+            you play an Effect that resonatesWith a tag here, you get a
+            flat damage bonus per match. Counts shown if >1. */}
+        {tray.tags && tray.tags.length > 0 && (() => {
+          const counts = {};
+          for (const t of tray.tags) counts[t] = (counts[t] || 0) + 1;
+          return (
+            <div className="mt-1 flex gap-1 flex-wrap text-[10px] font-mono">
+              <span className="text-iris-300">✦</span>
+              {Object.entries(counts).map(([tag, n]) => (
+                <span key={tag} className="px-1 rounded bg-iris-800 text-parchment-100">
+                  {tag}{n > 1 ? ` ×${n}` : ''}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="parchment-card p-3 flex justify-between items-center">
@@ -2705,22 +2777,36 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 {card.type}
                 {card.type === 'effect' && card.effect?.damageType === 'physical' && <span className="ml-1 text-ember-700">phys</span>}
               </div>
-              {/* Word stat row */}
+              {/* Word stat row + tag row */}
               {card.type === 'word' && card.stats && (
-                <div className="flex gap-1 flex-wrap text-[10px] font-mono">
-                  {card.stats.chutzpah ? <span className="px-1 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                  {card.stats.wit      ? <span className="px-1 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                  {card.stats.jnsq     ? <span className="px-1 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-                </div>
+                <>
+                  <div className="flex gap-1 flex-wrap text-[10px] font-mono">
+                    {card.stats.chutzpah ? <span className="px-1 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                    {card.stats.wit      ? <span className="px-1 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                    {card.stats.jnsq     ? <span className="px-1 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                  </div>
+                  {card.tags && card.tags.length > 0 && (
+                    <div className="text-[9px] text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
+                      ✦ {card.tags.join(' · ')}
+                    </div>
+                  )}
+                </>
               )}
-              {/* Effect formula */}
+              {/* Effect formula + resonance row */}
               {card.type === 'effect' && card.effect && (
-                <div className="text-[10px] font-mono text-ink-700">
-                  {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
-                  <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
-                    {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
-                  </span>
-                </div>
+                <>
+                  <div className="text-[10px] font-mono text-ink-700">
+                    {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
+                    <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
+                      {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
+                    </span>
+                  </div>
+                  {card.effect.resonatesWith && card.effect.resonatesWith.length > 0 && (
+                    <div className="text-[9px] text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
+                      ✦ resonates: {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0}/match)</span>
+                    </div>
+                  )}
+                </>
               )}
               <div className="text-xs flex-1 font-quill">{card.desc}</div>
               {card.flavor && <div className="text-[10px] italic text-ink-500 truncate">"{card.flavor}"</div>}
