@@ -138,6 +138,8 @@ const CARDS = [
     effects: { block: 16 } },
   { id: 'c-sap', name: 'Sap', cost: 1, type: 'skill', rarity: 'common',
     effects: { enemyDmgMod: -0.25 } },
+  // Amplify: cost escalates by +1 per prior play this combat. See
+  // effectiveCardCost() — counter lives on combat.amplifyPlays.
   { id: 'c-amplify', name: 'Amplify', cost: 1, type: 'skill', rarity: 'common',
     effects: { playerDmgMod: +0.25 } },
   { id: 'c-dispel', name: 'Dispel', cost: 0, type: 'skill', rarity: 'uncommon',
@@ -544,6 +546,7 @@ function combatStart(state, enemyId) {
     castsResonated: 0,
     totalDamageDealt: 0,
     totalDamageTaken: 0,
+    amplifyPlays: 0,
   };
   // Equipment-driven combat-start effects.
   let startBlock = 0, healOnStart = 0, startHandBonus = 0, startEnergyBonus = 0;
@@ -730,9 +733,15 @@ function castSpell(state, combat) {
   }
 }
 
+function effectiveCardCost(card, combat) {
+  if (card.id === 'c-amplify') return (card.cost || 0) + (combat?.amplifyPlays || 0);
+  return card.cost || 0;
+}
+
 function playSkillOrPower(state, combat, handIdx) {
   const card = state.hand[handIdx];
-  state.energy -= card.cost;
+  state.energy -= effectiveCardCost(card, combat);
+  if (card.id === 'c-amplify') combat.amplifyPlays++;
   if (card.type === 'power') {
     combat.powers.push(card);
     state.hand.splice(handIdx, 1);

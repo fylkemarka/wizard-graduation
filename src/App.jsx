@@ -348,7 +348,7 @@ const CARDS = [
   { id: 'c-amplify', name: 'Amplify', cost: 1, type: 'skill', rarity: 'common',
     effects: { playerDmgMod: +0.25 },
     upgrade: { effects: { playerDmgMod: +0.25, draw: 1 } },
-    desc: 'Increase your spell potency by 25% (stacks; caps at +50%).',
+    desc: 'Increase your spell potency by 25% (stacks; caps at +50%). Each play this combat costs +1 energy more than the last.',
     flavor: 'You feel taller. It is, demonstrably, a feeling.' },
   { id: 'c-dispel', name: 'Dispel', cost: 0, type: 'skill', rarity: 'uncommon',
     effects: { enemyDmgMod: -0.25, playerDmgMod: +0.25, exhaust: true },
@@ -1617,6 +1617,11 @@ export default function App() {
   // tracks whether ANY effect card has resolved the tray (used to detect
   // fizzles at end-of-turn).
   const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+  // Amplify escalates: 1st play costs base (1), every play after costs +1.
+  // Resets per combat. The cap on playerDmgMult (1.5) already limits how
+  // many times it does anything; the escalating cost stops you from cheaply
+  // spamming it to reach the cap.
+  const [amplifyPlaysThisCombat, setAmplifyPlaysThisCombat] = useState(0);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -2044,6 +2049,7 @@ export default function App() {
     setPowers([]);
     // Reset per-combat counters and player debuffs.
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+    setAmplifyPlaysThisCombat(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -2152,12 +2158,21 @@ export default function App() {
     return bonus;
   }
 
+  // Effective energy cost for a card right now. Most cards return card.cost
+  // unchanged; Amplify escalates by +1 for every prior play this combat.
+  function effectiveCardCost(card) {
+    if (card?.id === 'c-amplify') return (card.cost || 0) + amplifyPlaysThisCombat;
+    return card?.cost || 0;
+  }
+
   function playCard(handIdx) {
     if (stage !== 'combat') return;
     const card = hand[handIdx];
     if (!card) return;
-    if (card.cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
-    setEnergy(e => e - card.cost);
+    const cost = effectiveCardCost(card);
+    if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
+    setEnergy(e => e - cost);
+    if (card.id === 'c-amplify') setAmplifyPlaysThisCombat(n => n + 1);
     const logBits = [card.name];
 
     // Powers don't apply effects directly — they install themselves on the
@@ -3089,6 +3104,7 @@ export default function App() {
       hp={hp} maxHp={maxHp}
       playerComposure={composure} playerComposureMax={composureMax}
       block={block} energy={energy} hand={hand}
+      amplifyPlaysThisCombat={amplifyPlaysThisCombat}
       deck={deck} discard={discard} tray={tray}
       energyMax={energyPerTurnRefill()}
       equipment={equipment} powers={powers} relics={relics}
@@ -3565,6 +3581,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        enemyHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
                        block, energy, energyMax, hand, deck, discard, tray,
+                       amplifyPlaysThisCombat,
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log }) {
   const composureMax = enemy?.composureMax ?? 999;
@@ -3804,7 +3821,13 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
 
       <div className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
         {hand.map((card, i) => {
-          const playable = card.cost <= energy;
+          // Amplify gets +1 cost per prior play this combat. UI shows the
+          // current (escalated) cost so the player doesn't get surprised.
+          const effCost = card.id === 'c-amplify'
+            ? (card.cost || 0) + (amplifyPlaysThisCombat || 0)
+            : (card.cost || 0);
+          const playable = effCost <= energy;
+          const escalated = card.id === 'c-amplify' && amplifyPlaysThisCombat > 0;
           // Card frame tint by type — word = iris, effect = ember,
           // skill = moss, power = gold.
           const tint = card.type === 'word'   ? 'border-iris-500'
@@ -3839,8 +3862,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               }`}>
               <div className="flex justify-between items-start gap-1">
                 <div className="font-display text-[15px] leading-tight">{card.name}</div>
-                <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? 'bg-gold-500 text-ink-800' : 'bg-ink-500 text-parchment-300'}`}>
-                  {card.cost}
+                <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? (escalated ? 'bg-ember-500 text-parchment-50' : 'bg-gold-500 text-ink-800') : 'bg-ink-500 text-parchment-300'}`}
+                  title={escalated ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).` : undefined}>
+                  {effCost}
                 </div>
               </div>
               <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
