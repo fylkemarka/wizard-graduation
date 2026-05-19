@@ -3358,6 +3358,29 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
 }
 
 function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, reachable, player, onPick, log }) {
+  // Scroll the player's current node into the middle of the viewport
+  // whenever this screen mounts or the position changes. Otherwise the
+  // page lands at the top of the act and the player has to manually
+  // scroll down to find themselves after every combat/event.
+  // On row 0 (act start, before any pick) there's no current node — we
+  // fall back to scrolling to the top.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!currentNodeId) {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+    // requestAnimationFrame so the SVG has actually painted by the time
+    // we query it. Without this the lookup runs before the SVG mounts.
+    const id = requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-node-id="${currentNodeId}"]`);
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'auto', block: 'center' });
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [currentNodeId]);
+
   if (!map || !act) return null;
   // Map viewBox: ~90 viewBox-units between rows so nodes (r=18) have a
   // generous gap that survives CSS scaling. W bumped to 900 so the
@@ -3454,6 +3477,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                               :            1;
                 return (
                   <g key={n.id}
+                    data-node-id={n.id}
                     style={{ cursor: isReachable ? 'pointer' : 'default' }}
                     onClick={() => isReachable && onPick(n.id)}>
                     <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
