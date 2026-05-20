@@ -117,6 +117,31 @@ const CARDS = [
               chance: { prob: 0.7, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } },
               resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 2 } } },
 
+  // ---- SWAY / INSULT EFFECTS — present in App; sim castSpell treats
+  //      them as no-op damage so the AI doesn't crash on them. Sway/Insult
+  //      mechanics aren't modeled in sim (would need softSpot + word-pool
+  //      handling) but at least the card pool no longer drifts.
+  { id: 'e-lavish-praise',   name: 'Lavish Praise',   cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'wit', tactic: 'flattery',
+              tacticTags: ['formal', 'academic'],
+              resonatesWith: ['formal', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
+  { id: 'e-calmly-explain',  name: 'Calmly Explain',  cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'chutzpah', tactic: 'logic',
+              tacticTags: ['rhetorical', 'academic'],
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 } } },
+  { id: 'e-loom-over-them',  name: 'Loom Over Them',  cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'physical', tactic: 'threat',
+              tacticTags: ['booming', 'threatening'],
+              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 1 } } },
+  { id: 'e-mention-the-moon', name: 'Mention the Moon', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'jnsq', tactic: 'confusion',
+              tacticTags: ['chaotic', 'absurd', 'mystical'],
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 } } },
+  { id: 'e-cut-them-down',   name: 'Cut Them Down',   cost: 1, type: 'effect', rarity: 'common',
+    effect: { insult: true, playerComposureCost: 3, landDamage: 10, backfireDamage: 5 } },
+  { id: 'e-devastate',       name: 'Devastate',       cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { insult: true, playerComposureCost: 5, landDamage: 18, backfireDamage: 9 } },
+
   // ---- SKILL CARDS ----
   { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
     effects: { block: 5 } },
@@ -690,6 +715,20 @@ function castSpell(state, combat) {
   combat.castsAttempted++;
   const card = combat.tray.effectCard;
   const eff = card.effect || {};
+  // Sway / Insult cards: sim doesn't model the negotiation or word-pick
+  // mechanics. Treat as no-damage and just discharge the tray so the AI
+  // can keep playing. Insults at least pay their composure cost.
+  if (eff.sway || eff.insult) {
+    if (eff.insult && eff.playerComposureCost) {
+      // composure isn't tracked in sim state; effectively a no-op.
+    }
+    for (const w of combat.tray.words) {
+      if (w.effects?.exhaust) state.exiled.push(w); else state.discard.push(w);
+    }
+    if (eff.exhaust) state.exiled.push(card); else state.discard.push(card);
+    combat.tray = { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
+    return;
+  }
   const stat = eff.scaleBy || 'wit';
   let dmg = (eff.base || 0) + (combat.tray[stat] || 0) * (eff.multiplier || 0);
   const dmgType = eff.damageType || 'composure';

@@ -2943,13 +2943,18 @@ function generateActMap(rows, width) {
     if (roll < 0.92) return 'rest';
     return 'elite';
   }
-  function spacedX(c, w, totalCols) {
-    if (w === 1) return totalCols / 2;
-    const pad = 0.5;
-    return pad + (c * (totalCols - 1)) / (w - 1);
-  }
-  function rowY(r, totalRows) { return totalRows - 1 - r; }
 }
+
+// Module-level positioning helpers — hoisted out of generateActMap so
+// seedSidequestSpurs / spawnRemainingSpur can use the same math without
+// re-inlining it. Previously inlined twice and bit us once with a
+// rowY-scope ReferenceError.
+function spacedX(c, w, totalCols) {
+  if (w === 1) return totalCols / 2;
+  const pad = 0.5;
+  return pad + (c * (totalCols - 1)) / (w - 1);
+}
+function rowY(r, totalRows) { return totalRows - 1 - r; }
 
 // Add 0-1 sidequest hooks to a placed map. A "hook" is just the FIRST
 // node of a sidequest — placed at a normal row, looking like any other
@@ -2989,7 +2994,7 @@ function seedSidequestSpurs(map, actId, rows, cols) {
     col: -1,
     type: firstType,
     x: Math.min(cols - 0.3, maxX + 0.9),
-    y: (rows - 1) - startR, // inline rowY — generateActMap's helper isn't in scope here
+    y: rowY(startR, rows),
     sidequestRef: { templateId: sqId, nodeIdx: 0 },
     // No isSidequest flag — looks identical to a normal node.
   };
@@ -3444,18 +3449,16 @@ export default function App() {
     if (!card) return;
     setDeck(d => [...d, { ...card, uid: uid() }]);
     pushLog(`🛒 Bought: ${card.name}.`);
-    setSupplyPicks(prev => {
-      const next = [...prev, idx];
-      // Auto-advance once two picks are made.
-      if (next.length >= 2) {
-        setTimeout(() => {
-          setSupplyChoices([]);
-          setSupplyPicks([]);
-          setStage('familiar-shop');
-        }, 300);
-      }
-      return next;
-    });
+    // Pure updater + side-effects outside it ([[feedback_react_pure_updaters]]).
+    const next = [...supplyPicks, idx];
+    setSupplyPicks(next);
+    if (next.length >= 2) {
+      setTimeout(() => {
+        setSupplyChoices([]);
+        setSupplyPicks([]);
+        setStage('familiar-shop');
+      }, 300);
+    }
   }
 
   function pickFamiliar(familiarId) {
@@ -3871,53 +3874,57 @@ export default function App() {
   // the boss (boss-shortcut). Idempotent — only runs once per quest.
   function spawnRemainingSpur(tpl) {
     if (!tpl || tpl.nodes.length <= 1) return;
-    setMap(prev => {
-      if (!prev) return prev;
-      if (prev.nodes.some(n => n.id === `sq-${tpl.id}-1`)) return prev; // already spawned
-      const firstNode = prev.nodes.find(n => n.id === `sq-${tpl.id}-0`);
-      if (!firstNode) return prev;
-      const totalRows = currentAct?.rows || 15;
-      const newNodes = [];
-      for (let i = 1; i < tpl.nodes.length; i++) {
-        const r = firstNode.row + i;
-        if (r >= totalRows - 1) break; // ran out of rows before the boss row
-        const beat = tpl.nodes[i];
-        const type = beat.kind === 'combat' ? 'combat'
-                   : beat.kind === 'boss'   ? 'boss'
-                   :                          'event';
-        newNodes.push({
-          id: `sq-${tpl.id}-${i}`,
-          row: r,
-          col: -1,
-          type,
-          x: firstNode.x,
-          y: (totalRows - 1) - r,
-          sidequestRef: { templateId: tpl.id, nodeIdx: i },
-        });
-      }
-      const newEdges = { ...prev.edges };
-      newEdges[firstNode.id] = [...(newEdges[firstNode.id] || []), `sq-${tpl.id}-1`];
-      for (let i = 0; i < newNodes.length - 1; i++) {
-        newEdges[newNodes[i].id] = [newNodes[i + 1].id];
-      }
-      // Rejoin
-      const lastSpur = newNodes[newNodes.length - 1];
-      if (lastSpur) {
-        if (tpl.bossShortcut) {
-          const bossNode = prev.nodes.find(n => n.type === 'boss');
-          if (bossNode) newEdges[lastSpur.id] = [bossNode.id];
-        } else {
-          const rejoinRow = Math.min(totalRows - 2, lastSpur.row + 1);
-          const candidates = prev.nodes.filter(n =>
-            n.row === rejoinRow && !n.sidequestRef && n.type !== 'boss');
-          if (candidates.length > 0) {
-            const rejoin = candidates[Math.floor(Math.random() * candidates.length)];
-            newEdges[lastSpur.id] = [rejoin.id];
-          }
+    if (!map) return;
+    if (map.nodes.some(n => n.id === `sq-${tpl.id}-1`)) return; // idempotent
+    const firstNode = map.nodes.find(n => n.id === `sq-${tpl.id}-0`);
+    if (!firstNode) return;
+    const totalRows = currentAct?.rows || 15;
+    // Build everything OUTSIDE the setMap updater — no Math.random or
+    // outer-scope reads inside the updater body per [[feedback_react_pure_updaters]].
+    const newNodes = [];
+    for (let i = 1; i < tpl.nodes.length; i++) {
+      const r = firstNode.row + i;
+      if (r >= totalRows - 1) break; // ran out of rows before the boss row
+      const beat = tpl.nodes[i];
+      const type = beat.kind === 'combat' ? 'combat'
+                 : beat.kind === 'boss'   ? 'boss'
+                 :                          'event';
+      newNodes.push({
+        id: `sq-${tpl.id}-${i}`,
+        row: r,
+        col: -1,
+        type,
+        x: firstNode.x,
+        y: rowY(r, totalRows),
+        sidequestRef: { templateId: tpl.id, nodeIdx: i },
+      });
+    }
+    const newEdges = {};
+    newEdges[firstNode.id] = [...(map.edges[firstNode.id] || []), `sq-${tpl.id}-1`];
+    for (let i = 0; i < newNodes.length - 1; i++) {
+      newEdges[newNodes[i].id] = [newNodes[i + 1].id];
+    }
+    const lastSpur = newNodes[newNodes.length - 1];
+    if (lastSpur) {
+      if (tpl.bossShortcut) {
+        const bossNode = map.nodes.find(n => n.type === 'boss');
+        if (bossNode) newEdges[lastSpur.id] = [bossNode.id];
+      } else {
+        const rejoinRow = Math.min(totalRows - 2, lastSpur.row + 1);
+        const candidates = map.nodes.filter(n =>
+          n.row === rejoinRow && !n.sidequestRef && n.type !== 'boss');
+        if (candidates.length > 0) {
+          const rejoin = candidates[Math.floor(Math.random() * candidates.length)];
+          newEdges[lastSpur.id] = [rejoin.id];
         }
       }
-      return { ...prev, nodes: [...prev.nodes, ...newNodes], edges: newEdges };
-    });
+    }
+    // Pure updater: only merges precomputed nodes/edges.
+    setMap(prev => prev ? {
+      ...prev,
+      nodes: [...prev.nodes, ...newNodes],
+      edges: { ...prev.edges, ...newEdges },
+    } : prev);
   }
 
   function resolveSidequestChoice(choice) {
@@ -4327,6 +4334,20 @@ export default function App() {
              target: eff.swayTarget, tactic: eff.tactic, currentEff: enemy.effectiveness?.[eff.swayTarget] ?? 1 };
   }
 
+  // Route the staged tray to discard/exile after a cast. Honors each
+  // word's own exhaust flag AND the effect card's exhaust flag — so a
+  // non-exhaust word in a tray cast through an exhaust Effect lands in
+  // discard, not the void. (Previously they vanished — caught by the
+  // architect review 2026-05-20.)
+  function dischargeStagedCards(words, effectCard, effExhausts) {
+    const exhaustWords = words.filter(w =>  w.effects?.exhaust);
+    const discardWords = words.filter(w => !w.effects?.exhaust);
+    if (exhaustWords.length) setExiled(ex => [...ex, ...exhaustWords]);
+    if (discardWords.length) setDiscard(d => [...d, ...discardWords]);
+    if (effExhausts) setExiled(ex => [...ex, effectCard]);
+    else             setDiscard(d => [...d, effectCard]);
+  }
+
   function castStagedSpell() {
     if (stage !== 'combat') return;
     if (!tray.effectCard) { pushLog('No Effect staged — nothing to cast.'); return; }
@@ -4339,10 +4360,7 @@ export default function App() {
     // asynchronously from the prompt screen via finalizeInsult.
     if (eff.insult) {
       // Send staged cards to discard immediately (the cost is paid).
-      const wordsToDiscard = tray.words.filter(w => !w.effects?.exhaust);
-      const wordsToExile   = tray.words.filter(w =>  w.effects?.exhaust);
-      setDiscard(d => [...d, ...wordsToDiscard, card]);
-      if (wordsToExile.length) setExiled(ex => [...ex, ...wordsToExile]);
+      dischargeStagedCards(tray.words, card, false);
       // Sample 3 random words for each part of speech.
       const sample = (pool) => {
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -4387,10 +4405,7 @@ export default function App() {
         if (eff.failFlavor) pushLog(`"${eff.failFlavor}"`);
       }
       // Send staged cards to discard / exile (same rule as a normal cast).
-      const wordsToDiscard = tray.words.filter(w => !w.effects?.exhaust);
-      const wordsToExile   = tray.words.filter(w =>  w.effects?.exhaust);
-      if (eff.exhaust) setExiled(ex => [...ex, ...wordsToExile, card]);
-      else             { setDiscard(d => [...d, ...wordsToDiscard, card]); if (wordsToExile.length) setExiled(ex => [...ex, ...wordsToExile]); }
+      dischargeStagedCards(tray.words, card, !!eff.exhaust);
       setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
       applyPowerTriggers('onEffectCardPlayed');
       return;
@@ -4443,13 +4458,7 @@ export default function App() {
     }
 
     // Send all staged cards to discard / exile based on flags.
-    const wordsToDiscard = tray.words.filter(w => !w.effects?.exhaust);
-    const wordsToExile   = tray.words.filter(w =>  w.effects?.exhaust);
-    if (eff.exhaust) setExiled(ex => [...ex, ...wordsToExile, card]);
-    else             { setDiscard(d => [...d, ...wordsToDiscard, card]); if (wordsToExile.length) setExiled(ex => [...ex, ...wordsToExile]); }
-    if (!eff.exhaust && wordsToDiscard.length === tray.words.length) {
-      // already handled in the else branch above
-    }
+    dischargeStagedCards(tray.words, card, !!eff.exhaust);
 
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
     applyPowerTriggers('onEffectCardPlayed');
@@ -4520,12 +4529,14 @@ export default function App() {
         ? (INSULT_HINT_BY_TAG[vulns[0]] || 'A more cutting angle would have stuck.')
         : 'It does not appear to hear you. Or care.';
       pushLog(`Hint: ${hint}`);
-      // KO check on composure.
-      setComposure(c => {
-        const newC = Math.max(0, c);
-        if (newC <= 0) setTimeout(() => setStage('defeat'), 200);
-        return newC;
-      });
+      // KO check projected against the closure value — no side-effect
+      // inside a setState updater ([[feedback_react_pure_updaters]]).
+      const projected = Math.max(0, composure - cost - back);
+      if (projected <= 0) {
+        setTimeout(() => setStage('defeat'), 200);
+        setInsultPrompt(null);
+        return;
+      }
     }
 
     setInsultPrompt(null);
@@ -4976,27 +4987,6 @@ export default function App() {
     }
   }
 
-  // Single-hit incoming damage path — used by anything that's NOT an
-  // enemy intent (e.g., self-damage from loseHp event choices). Multi-
-  // attacks resolve inline in applyEnemyIntent to avoid the closure-
-  // stale-state bug; if you call this in a loop you'll get the same bug.
-  function applyDamageToPlayer(damage) {
-    let remaining = Math.round(damage * enemyDmgMult);
-    const reduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0);
-    if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
-    let newBlock = block;
-    let newHp = hp;
-    if (newBlock > 0) {
-      const absorbed = Math.min(newBlock, remaining);
-      newBlock -= absorbed; remaining -= absorbed;
-    }
-    newHp = Math.max(0, newHp - remaining);
-    setBlock(newBlock); setHp(newHp);
-    if (newHp <= 0) {
-      if (tutorialActive) { setHp(maxHp); return; }
-      setTimeout(() => setStage('defeat'), 200);
-    }
-  }
 
   function onEnemyDefeated() {
     if (!enemy) return;
@@ -6781,23 +6771,28 @@ function InsultPromptScreen({ insultPrompt, enemy, onPick }) {
   const samples = insultPrompt.samples?.[phaseKey] || [];
   const [secondsLeft, setSecondsLeft] = useState(TIMER_SECONDS);
 
-  // Re-arm the timer on every phase change.
+  // Re-arm the timer on every phase change. The auto-pick side-effect
+  // lives in the interval body (with a fired-ref guard) instead of inside
+  // a setSecondsLeft updater — pure updaters per the saved-feedback rule
+  // ([[feedback_react_pure_updaters]]).
+  const firedRef = useRef(false);
   useEffect(() => {
     setSecondsLeft(TIMER_SECONDS);
+    firedRef.current = false;
     const interval = setInterval(() => {
-      setSecondsLeft(s => {
-        if (s <= 0.1) {
-          clearInterval(interval);
-          // Time's up — auto-pick the first option as a penalty for hesitating.
-          onPick(samples[0]);
-          return 0;
-        }
-        return Math.max(0, s - 0.1);
-      });
+      setSecondsLeft(s => Math.max(0, s - 0.1));
     }, 100);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [insultPrompt.phase]);
+
+  // When the timer hits zero, fire the auto-pick exactly once.
+  useEffect(() => {
+    if (secondsLeft <= 0 && !firedRef.current && samples.length > 0) {
+      firedRef.current = true;
+      onPick(samples[0]);
+    }
+  }, [secondsLeft, samples, onPick]);
 
   const tBar = (secondsLeft / TIMER_SECONDS) * 100;
   const timerColor = secondsLeft > 2 ? 'bg-moss-500' : secondsLeft > 1 ? 'bg-gold-500' : 'bg-ember-500';
