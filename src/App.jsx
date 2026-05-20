@@ -2951,14 +2951,13 @@ function generateActMap(rows, width) {
   function rowY(r, totalRows) { return totalRows - 1 - r; }
 }
 
-// Add 0-1 sidequest spurs to a placed map. A spur is a chain of new
-// nodes (one per beat of the chosen sidequest) branching off from a
-// random main-map node in rows 1-4. The spur curves to one side of the
-// main column. After the last spur node, an edge rejoins the main map
-// at a forward row (or connects to the boss for boss-shortcut quests).
-// Each spur node is tagged with `sidequestRef: { templateId, nodeIdx }`
-// so resolveNodeEnter knows it's a sidequest beat. The map gen probability
-// is 60% per act; the spur is sampled from SIDEQUESTS_BY_ACT[actId].
+// Add 0-1 sidequest hooks to a placed map. A "hook" is just the FIRST
+// node of a sidequest — placed at a normal row, looking like any other
+// event/combat (no special visual). Reachable from at least one row-prior
+// main node. The REST of the sidequest chain spawns lazily on first
+// engagement via spawnRemainingSpur, so the player doesn't see the
+// chain until they commit. Each spur node consumes one row of progress,
+// keeping the sidequest path at the same boss-distance as the main path.
 function seedSidequestSpurs(map, actId, rows, cols) {
   if (!map) return map;
   if (Math.random() > 0.6) return map;
@@ -2969,68 +2968,41 @@ function seedSidequestSpurs(map, actId, rows, cols) {
   if (!tpl) return map;
   const spurLen = tpl.nodes.length;
 
-  // Pick a branch point — a main-map node in rows 1..4 that has at least
-  // one normal-type. Boss-shortcut spurs prefer earlier rows so the bypass
-  // is meaningful (skips more of the act).
-  const branchRowMax = tpl.bossShortcut ? 2 : 4;
-  const candidates = map.nodes.filter(n =>
-    n.row >= 1 && n.row <= branchRowMax && !n.sidequestRef && n.type !== 'boss');
-  if (candidates.length === 0) return map;
-  const branch = candidates[Math.floor(Math.random() * candidates.length)];
-  const goLeft = branch.x > cols / 2; // bend away from edge if branch is right of center
-  const sideMult = goLeft ? -1 : 1;
+  // Pick start row R. Boss shortcuts start earlier so the bypass meaningfully
+  // skips later-act content. Loop-back quests need (spurLen) rows ahead of R
+  // before hitting the pre-boss rest row.
+  const minR = 1;
+  const maxR = tpl.bossShortcut
+    ? Math.min(3, rows - 3)
+    : Math.max(minR, rows - 2 - spurLen);
+  if (maxR < minR) return map;
+  const startR = minR + Math.floor(Math.random() * (maxR - minR + 1));
 
-  // Build spur node positions in unit space. Curve out then back in.
-  const spurNodes = [];
-  for (let i = 0; i < spurLen; i++) {
-    const t = (i + 1) / (spurLen + 1); // 0..1 along the spur
-    // Curve: max bulge at t=0.5, narrowing near both ends
-    const bulge = Math.sin(t * Math.PI) * 1.2;
-    const xOffset = sideMult * (0.4 + bulge);
-    const yProgress = (i + 1) * 0.8;
-    const beat = tpl.nodes[i];
-    spurNodes.push({
-      id: `sq-${sqId}-${i}`,
-      row: -1, // off-grid; placed by explicit x,y
-      col: -1,
-      type: beat.kind === 'combat' ? 'combat'
-          : beat.kind === 'boss'   ? 'boss'
-          :                          'event',
-      x: branch.x + xOffset,
-      y: Math.max(0, branch.y - yProgress),
-      sidequestRef: { templateId: sqId, nodeIdx: i },
-      isSidequest: true,
-      sidequestTitle: tpl.title,
-    });
-  }
+  // First sidequest node: place at row R, right of the existing row R nodes.
+  const existingInRow = map.nodes.filter(n => n.row === startR);
+  const maxX = existingInRow.length > 0 ? Math.max(...existingInRow.map(n => n.x)) : (cols / 2);
+  const firstBeat = tpl.nodes[0];
+  const firstType = firstBeat.kind === 'combat' ? 'combat' : 'event';
+  const firstNode = {
+    id: `sq-${sqId}-0`,
+    row: startR,
+    col: -1,
+    type: firstType,
+    x: Math.min(cols - 0.3, maxX + 0.9),
+    y: rowY(startR, rows),
+    sidequestRef: { templateId: sqId, nodeIdx: 0 },
+    // No isSidequest flag — looks identical to a normal node.
+  };
 
-  // Build edges
+  // Connect from at least one row-(startR-1) main node, picking the
+  // rightmost so the visual flow makes geometric sense.
+  const prevRow = map.nodes.filter(n => n.row === startR - 1);
   const newEdges = { ...map.edges };
-  newEdges[branch.id] = [...(newEdges[branch.id] || []), spurNodes[0].id];
-  for (let i = 0; i < spurNodes.length - 1; i++) {
-    newEdges[spurNodes[i].id] = [spurNodes[i + 1].id];
+  if (prevRow.length > 0) {
+    const entry = prevRow.reduce((a, b) => (a.x > b.x ? a : b));
+    newEdges[entry.id] = [...(newEdges[entry.id] || []), firstNode.id];
   }
-  // Rejoin
-  if (tpl.bossShortcut) {
-    const bossNode = map.nodes.find(n => n.type === 'boss');
-    if (bossNode) newEdges[spurNodes[spurLen - 1].id] = [bossNode.id];
-  } else {
-    // Find a forward main-map row that exists, with at least one candidate.
-    // We pick the row branch.row + spurLen + 1 (capped at rows-2).
-    const desiredRow = Math.min(rows - 2, branch.row + spurLen);
-    let rejoinCandidates = map.nodes.filter(n =>
-      n.row === desiredRow && !n.sidequestRef && n.type !== 'boss');
-    if (rejoinCandidates.length === 0) {
-      // Fallback: any node strictly forward of branch.
-      rejoinCandidates = map.nodes.filter(n =>
-        n.row > branch.row && n.row < rows - 1 && !n.sidequestRef && n.type !== 'boss');
-    }
-    if (rejoinCandidates.length > 0) {
-      const rejoin = rejoinCandidates[Math.floor(Math.random() * rejoinCandidates.length)];
-      newEdges[spurNodes[spurLen - 1].id] = [rejoin.id];
-    }
-  }
-  return { ...map, nodes: [...map.nodes, ...spurNodes], edges: newEdges };
+  return { ...map, nodes: [...map.nodes, firstNode], edges: newEdges };
 }
 
 // =============================================================================
@@ -3878,6 +3850,11 @@ export default function App() {
     if (effects && Object.keys(effects).length > 0) {
       applyChoiceEffects(effects, active.tpl.title);
     }
+    // First beat of a sidequest: lazy-spawn the rest of the chain so
+    // the player sees the new path appear after engagement.
+    if (active.idx === 0 && !(effects && effects.endSpurEarly)) {
+      spawnRemainingSpur(active.tpl);
+    }
     // Early-exit option (e.g. Jazz Cafe "look away") — collapse the
     // remaining spur and reroute to the rejoin point.
     if (effects && effects.endSpurEarly && currentNodeId) {
@@ -3886,6 +3863,61 @@ export default function App() {
     setSidequestActive(null);
     setSidequestCombatActive(false);
     returnToMap();
+  }
+
+  // After first beat resolves, append the rest of the sidequest chain
+  // to the map. Each subsequent beat becomes a node one row forward.
+  // Last node connects to a rejoin main-row node (loop-back) or to
+  // the boss (boss-shortcut). Idempotent — only runs once per quest.
+  function spawnRemainingSpur(tpl) {
+    if (!tpl || tpl.nodes.length <= 1) return;
+    setMap(prev => {
+      if (!prev) return prev;
+      if (prev.nodes.some(n => n.id === `sq-${tpl.id}-1`)) return prev; // already spawned
+      const firstNode = prev.nodes.find(n => n.id === `sq-${tpl.id}-0`);
+      if (!firstNode) return prev;
+      const totalRows = currentAct?.rows || 15;
+      const newNodes = [];
+      for (let i = 1; i < tpl.nodes.length; i++) {
+        const r = firstNode.row + i;
+        if (r >= totalRows - 1) break; // ran out of rows before the boss row
+        const beat = tpl.nodes[i];
+        const type = beat.kind === 'combat' ? 'combat'
+                   : beat.kind === 'boss'   ? 'boss'
+                   :                          'event';
+        newNodes.push({
+          id: `sq-${tpl.id}-${i}`,
+          row: r,
+          col: -1,
+          type,
+          x: firstNode.x,
+          y: (totalRows - 1) - r,
+          sidequestRef: { templateId: tpl.id, nodeIdx: i },
+        });
+      }
+      const newEdges = { ...prev.edges };
+      newEdges[firstNode.id] = [...(newEdges[firstNode.id] || []), `sq-${tpl.id}-1`];
+      for (let i = 0; i < newNodes.length - 1; i++) {
+        newEdges[newNodes[i].id] = [newNodes[i + 1].id];
+      }
+      // Rejoin
+      const lastSpur = newNodes[newNodes.length - 1];
+      if (lastSpur) {
+        if (tpl.bossShortcut) {
+          const bossNode = prev.nodes.find(n => n.type === 'boss');
+          if (bossNode) newEdges[lastSpur.id] = [bossNode.id];
+        } else {
+          const rejoinRow = Math.min(totalRows - 2, lastSpur.row + 1);
+          const candidates = prev.nodes.filter(n =>
+            n.row === rejoinRow && !n.sidequestRef && n.type !== 'boss');
+          if (candidates.length > 0) {
+            const rejoin = candidates[Math.floor(Math.random() * candidates.length)];
+            newEdges[lastSpur.id] = [rejoin.id];
+          }
+        }
+      }
+      return { ...prev, nodes: [...prev.nodes, ...newNodes], edges: newEdges };
+    });
   }
 
   function resolveSidequestChoice(choice) {
@@ -5739,13 +5771,10 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                   const toVis   = visibilityOf(toId);
                   const cleared = fromVis === 'cleared' && toVis === 'cleared';
                   const onCurrentPath = currentNodeId === fromId;
-                  // Sidequest edge: either side of the edge is a spur node.
-                  const isSidequestEdge = from.isSidequest || to.isSidequest;
                   let stroke, strokeWidth, opacity, dash;
-                  if (cleared)                  { stroke = '#5d7e3f'; strokeWidth = 1.5; opacity = 0.55; dash = '6,3'; }
-                  else if (isSidequestEdge)     { stroke = '#7a9b3a'; strokeWidth = 2;   opacity = 0.85; dash = '4,4'; }
-                  else if (onCurrentPath)       { stroke = '#c79d44'; strokeWidth = 3;   opacity = 1;    dash = '0';   }
-                  else                          { stroke = '#3d3325'; strokeWidth = 1.5; opacity = 0.7;  dash = '0';   }
+                  if (cleared)               { stroke = '#5d7e3f'; strokeWidth = 1.5; opacity = 0.55; dash = '6,3'; }
+                  else if (onCurrentPath)    { stroke = '#c79d44'; strokeWidth = 3;   opacity = 1;    dash = '0';   }
+                  else                       { stroke = '#3d3325'; strokeWidth = 1.5; opacity = 0.7;  dash = '0';   }
                   return (
                     <line key={`${fromId}->${toId}`}
                       x1={xScale(from.x)} y1={yScale(from.y)}
@@ -5775,18 +5804,14 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                 const opacity = isCleared ? 0.55
                               : isFuture ? 0.85
                               :            1;
-                // Sidequest spur nodes get a moss outline + 🌿 badge so
-                // the player sees they're on a side path, not the main map.
-                const sqStroke = n.isSidequest && !isCurrent && !isReachable ? '#7a9b3a' : stroke;
-                const sqStrokeWidth = n.isSidequest && !isCurrent && !isReachable ? 2.5 : strokeWidth;
                 return (
                   <g key={n.id}
                     data-node-id={n.id}
                     style={{ cursor: isReachable ? 'pointer' : 'default' }}
                     onClick={() => isReachable && onPick(n.id)}>
-                    <title>{n.isSidequest ? `🌿 Sidequest: ${n.sidequestTitle || ''} — ${nodeTooltip(n.type)}` : nodeTooltip(n.type)}</title>
+                    <title>{nodeTooltip(n.type)}</title>
                     <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
-                      fill={fill} stroke={sqStroke} strokeWidth={sqStrokeWidth}
+                      fill={fill} stroke={stroke} strokeWidth={strokeWidth}
                       opacity={opacity} />
                     <text x={xScale(n.x)} y={yScale(n.y) + 5} textAnchor="middle"
                       className="select-none" fill="#f7eed3"
@@ -5795,13 +5820,6 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                       {/* Postcard penalty: fog hides node types until lifted. */}
                       {mapFog && !isCurrent && !isCleared ? '?' : nodeGlyph(n.type)}
                     </text>
-                    {n.isSidequest && (
-                      <text x={xScale(n.x) + 14} y={yScale(n.y) - 12} textAnchor="middle"
-                        className="select-none" fill="#7a9b3a"
-                        fontSize={11}>
-                        🌿
-                      </text>
-                    )}
                   </g>
                 );
               })}
