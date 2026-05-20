@@ -1466,15 +1466,18 @@ function pickRelicByRarity(rarityWeights = { common: 3, uncommon: 2, rare: 1 }, 
 function generateActMap(rows, width) {
   const nodes = [];
   const rng = Math.random;
-  const startCount = 2 + Math.floor(rng() * 2);
-  for (let c = 0; c < startCount; c++) {
-    nodes.push({ id: `n-0-${c}`, row: 0, col: c, type: 'start',
-      x: spacedX(c, startCount, width), y: rowY(0, rows) });
-  }
+  // Row 0 is one Town hub — three paths radiate outward into the act.
+  // Was 2-3 separate trailheads; collapsed per the Town + sidequests plan
+  // ([[wg-town-and-sidequests]]). Future slices add NPC offers + sidequest
+  // forks; for now the Town is purely the single shared starting node.
+  nodes.push({ id: `n-0-0`, row: 0, col: 0, type: 'town',
+    x: spacedX(0, 1, width), y: rowY(0, rows) });
   const materialRows = new Set([3, 7, 11]);
   const skillRows    = new Set([5, 9]);
   for (let r = 1; r < rows - 1; r++) {
-    const w = 2 + Math.floor(rng() * 2);
+    // Row 1 is the Town's immediate fanout — pinned at 3 so the player
+    // always sees three distinct first-step paths. Other rows vary 2-3.
+    const w = r === 1 ? 3 : (2 + Math.floor(rng() * 2));
     for (let c = 0; c < w; c++) {
       // Material / skill rows override the normal pickNodeType roll
       // for every column in that row — the player MUST grab one of
@@ -1498,9 +1501,17 @@ function generateActMap(rows, width) {
     const cur = byRow[r] || [];
     const next = byRow[r + 1] || [];
     for (const a of cur) {
-      const sorted = [...next].sort((x, y) => Math.abs(x.col - a.col) - Math.abs(y.col - a.col));
-      const links = sorted.slice(0, 1 + Math.floor(rng() * 2));
-      edges[a.id] = links.map(n => n.id);
+      // Town (row 0) fans out to ALL row-1 nodes so the player genuinely
+      // sees the three branching directions instead of a random 1-2 slice.
+      // Every other row keeps the random-fanout that gives the map its
+      // STS-style "pick a lane and ride it" feel.
+      if (a.type === 'town') {
+        edges[a.id] = next.map(n => n.id);
+      } else {
+        const sorted = [...next].sort((x, y) => Math.abs(x.col - a.col) - Math.abs(y.col - a.col));
+        const links = sorted.slice(0, 1 + Math.floor(rng() * 2));
+        edges[a.id] = links.map(n => n.id);
+      }
     }
   }
   for (let r = 1; r < rows; r++) {
@@ -1919,8 +1930,8 @@ export default function App() {
   }
 
   function resolveNodeEnter(node) {
-    if (node.type === 'start') {
-      pushLog(`You set out at ${nodeLabel(node)}.`);
+    if (node.type === 'town' || node.type === 'start') {
+      pushLog(`You set out from ${nodeLabel(node)}.`);
       return;
     }
     if (node.type === 'combat')        return enterFight(pickActEnemyId('normal'));
@@ -3581,8 +3592,8 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           <Legend glyph="📜" label="Event" />
           <Legend glyph="🪵" label="Material" />
           <Legend glyph="🛠" label="Skill" />
+          <Legend glyph="🏘" label="Town" />
           <Legend glyph="👑" label="Boss" />
-          <Legend glyph="·" label="Start" />
         </div>
         {!currentNodeId && (
           <div className="mt-2 text-sm text-gold-300 italic">Pick a starting trail. The path beyond is hearsay.</div>
@@ -3658,20 +3669,20 @@ function nodeColor(type, isCleared, isCurrent) {
   if (type === 'event') return '#523a8b';
   if (type === 'material') return '#7c5e2e';
   if (type === 'skill') return '#5a6e2a';
-  if (type === 'start') return '#3d3325';
+  if (type === 'start' || type === 'town') return '#5d4a2a';
   return '#2b2418';
 }
 function nodeGlyph(type) {
   return {
     combat: '⚔', elite: '☠', rest: '🛏', event: '📜',
     material: '🪵', skill: '🛠',
-    boss: '👑', start: '·',
+    boss: '👑', town: '🏘', start: '·',
   }[type] || '?';
 }
 function nodeLabel(n) {
   return ({
     combat: 'a combat tile', elite: 'an elite tile', rest: 'a rest tile',
-    event: 'an event', start: 'the trailhead', boss: 'the boss',
+    event: 'an event', start: 'the trailhead', town: 'the town', boss: 'the boss',
     material: 'a gather', skill: 'a craft lesson',
   }[n.type]) || 'a tile';
 }
@@ -3686,7 +3697,8 @@ function nodeTooltip(type) {
     material: '🪵 Gather — pick a raw material for this act\'s slot. Drives the end-of-act craft.',
     skill:    '🛠 Craft lesson — bump a craft skill. Safe pick: +2 skill, -8 HP. Risky pick: +4 skill, -8 max HP.',
     boss:     '👑 Boss — the act\'s final fight. Required to advance.',
-    start:    'Trailhead — pick which row-0 tile to start the act from.',
+    town:     '🏘 Town — the act\'s hub. Three paths radiate outward; pick a route. (Sidequests and NPC offers planned here in a later slice.)',
+    start:    'Trailhead — the starting point of the act.',
   }[type]) || 'A tile.';
 }
 function Legend({ glyph, label }) {
