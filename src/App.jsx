@@ -2179,6 +2179,88 @@ function generateActMap(rows, width) {
   function rowY(r, totalRows) { return totalRows - 1 - r; }
 }
 
+// Add 0-1 sidequest spurs to a placed map. A spur is a chain of new
+// nodes (one per beat of the chosen sidequest) branching off from a
+// random main-map node in rows 1-4. The spur curves to one side of the
+// main column. After the last spur node, an edge rejoins the main map
+// at a forward row (or connects to the boss for boss-shortcut quests).
+// Each spur node is tagged with `sidequestRef: { templateId, nodeIdx }`
+// so resolveNodeEnter knows it's a sidequest beat. The map gen probability
+// is 60% per act; the spur is sampled from SIDEQUESTS_BY_ACT[actId].
+function seedSidequestSpurs(map, actId, rows, cols) {
+  if (!map) return map;
+  if (Math.random() > 0.6) return map;
+  const pool = SIDEQUESTS_BY_ACT[actId] || [];
+  if (pool.length === 0) return map;
+  const sqId = pool[Math.floor(Math.random() * pool.length)];
+  const tpl = SIDEQUEST_TEMPLATES[sqId];
+  if (!tpl) return map;
+  const spurLen = tpl.nodes.length;
+
+  // Pick a branch point — a main-map node in rows 1..4 that has at least
+  // one normal-type. Boss-shortcut spurs prefer earlier rows so the bypass
+  // is meaningful (skips more of the act).
+  const branchRowMax = tpl.bossShortcut ? 2 : 4;
+  const candidates = map.nodes.filter(n =>
+    n.row >= 1 && n.row <= branchRowMax && !n.sidequestRef && n.type !== 'boss');
+  if (candidates.length === 0) return map;
+  const branch = candidates[Math.floor(Math.random() * candidates.length)];
+  const goLeft = branch.x > cols / 2; // bend away from edge if branch is right of center
+  const sideMult = goLeft ? -1 : 1;
+
+  // Build spur node positions in unit space. Curve out then back in.
+  const spurNodes = [];
+  for (let i = 0; i < spurLen; i++) {
+    const t = (i + 1) / (spurLen + 1); // 0..1 along the spur
+    // Curve: max bulge at t=0.5, narrowing near both ends
+    const bulge = Math.sin(t * Math.PI) * 1.2;
+    const xOffset = sideMult * (0.4 + bulge);
+    const yProgress = (i + 1) * 0.8;
+    const beat = tpl.nodes[i];
+    spurNodes.push({
+      id: `sq-${sqId}-${i}`,
+      row: -1, // off-grid; placed by explicit x,y
+      col: -1,
+      type: beat.kind === 'combat' ? 'combat'
+          : beat.kind === 'boss'   ? 'boss'
+          :                          'event',
+      x: branch.x + xOffset,
+      y: Math.max(0, branch.y - yProgress),
+      sidequestRef: { templateId: sqId, nodeIdx: i },
+      isSidequest: true,
+      sidequestTitle: tpl.title,
+    });
+  }
+
+  // Build edges
+  const newEdges = { ...map.edges };
+  newEdges[branch.id] = [...(newEdges[branch.id] || []), spurNodes[0].id];
+  for (let i = 0; i < spurNodes.length - 1; i++) {
+    newEdges[spurNodes[i].id] = [spurNodes[i + 1].id];
+  }
+  // Rejoin
+  if (tpl.bossShortcut) {
+    const bossNode = map.nodes.find(n => n.type === 'boss');
+    if (bossNode) newEdges[spurNodes[spurLen - 1].id] = [bossNode.id];
+  } else {
+    // Find a forward main-map row that exists, with at least one candidate.
+    // We pick the row branch.row + spurLen + 1 (capped at rows-2).
+    const desiredRow = Math.min(rows - 2, branch.row + spurLen);
+    let rejoinCandidates = map.nodes.filter(n =>
+      n.row === desiredRow && !n.sidequestRef && n.type !== 'boss');
+    if (rejoinCandidates.length === 0) {
+      // Fallback: any node strictly forward of branch.
+      rejoinCandidates = map.nodes.filter(n =>
+        n.row > branch.row && n.row < rows - 1 && !n.sidequestRef && n.type !== 'boss');
+    }
+    if (rejoinCandidates.length > 0) {
+      const rejoin = rejoinCandidates[Math.floor(Math.random() * rejoinCandidates.length)];
+      newEdges[spurNodes[spurLen - 1].id] = [rejoin.id];
+    }
+  }
+  return { ...map, nodes: [...map.nodes, ...spurNodes], edges: newEdges };
+}
+
 // =============================================================================
 // 3. App
 // =============================================================================
@@ -2238,15 +2320,12 @@ export default function App() {
   // performance instead of the deterministic effect.
   // Shape: { kind: 'trace-whittling', baseEffects: {...}, eventTitle: string }
   const [skillMinigame, setSkillMinigame] = useState(null);
-  // Sidequest state. `sidequestOffer` = open offer modal { templateId }.
-  // `sidequestActive` = in-progress quest { templateId, nodeIdx }.
-  // `sidequestOffered` = set of templateIds offered this run (so each
-  // quest only offers once per game). `sidequestCombatActive` =
-  // boolean flag used by onEnemyDefeated to route the win to the next
-  // sidequest node instead of the normal reward flow.
-  const [sidequestOffer, setSidequestOffer] = useState(null);
+  // Sidequest state. Spurs are now part of the placed map (see
+  // seedSidequestSpurs). When the player walks onto a spur node,
+  // resolveNodeEnter sets sidequestActive = { templateId, nodeIdx } and
+  // routes to the appropriate stage. sidequestCombatActive is the flag
+  // onEnemyDefeated reads to skip the normal reward flow.
   const [sidequestActive, setSidequestActive] = useState(null);
-  const [sidequestOffered, setSidequestOffered] = useState(new Set());
   const [sidequestCombatActive, setSidequestCombatActive] = useState(false);
   // Supply shop draft state. Cleared after exit.
   const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
@@ -2398,9 +2477,7 @@ export default function App() {
     setBlock(0);
     setEnergy(ENERGY_PER_TURN);
     setStartingPicksSelected([]);
-    setSidequestOffer(null);
     setSidequestActive(null);
-    setSidequestOffered(new Set());
     setSidequestCombatActive(false);
     setExiled([]);
     setEquipment([]);
@@ -2547,7 +2624,10 @@ export default function App() {
       .map(c => ({ ...c, uid: uid() }));
     setDeck(d => shuffle([...d, ...additions]));
     for (const c of additions) pushLog(`+ ${c.name} added to your starting deck.`);
-    setMap(generateActMap(ACTS[0].rows, ACTS[0].width));
+    {
+      const m0 = generateActMap(ACTS[0].rows, ACTS[0].width);
+      setMap(seedSidequestSpurs(m0, ACTS[0].id, ACTS[0].rows, ACTS[0].width));
+    }
     setStage('map');
     pushLog(`🌅 ${ACTS[0].name} begins.`);
   }
@@ -2567,7 +2647,10 @@ export default function App() {
     pushLog(`🌄 Between acts: +${healAmount} HP, +${compHeal} Composure.`);
     setCurrentActIdx(nextIdx);
     const nextAct = ACTS[nextIdx];
-    setMap(generateActMap(nextAct.rows, nextAct.width));
+    {
+      const m = generateActMap(nextAct.rows, nextAct.width);
+      setMap(seedSidequestSpurs(m, nextAct.id, nextAct.rows, nextAct.width));
+    }
     setCurrentNodeId(null);
     setClearedNodes([]);
     pushLog(`🌅 ${nextAct.name} begins.`);
@@ -2595,20 +2678,25 @@ export default function App() {
   function resolveNodeEnter(node) {
     if (node.type === 'town' || node.type === 'start') {
       pushLog(`You set out from ${nodeLabel(node)}.`);
-      // Town arrival can trigger a sidequest offer. One quest per act,
-      // sampled randomly from the current act's pool. Only offered once
-      // per template per run (sidequestOffered tracks the set).
-      const actNum = currentAct?.id;
-      const pool = (SIDEQUESTS_BY_ACT[actNum] || []).filter(qid => !sidequestOffered.has(qid));
-      if (pool.length > 0 && Math.random() < 0.75) {
-        const pick = pool[Math.floor(Math.random() * pool.length)];
-        setSidequestOffer({ templateId: pick });
-        setSidequestOffered(prev => {
-          const next = new Set(prev);
-          next.add(pick);
-          return next;
-        });
-        setStage('sidequest-offer');
+      return;
+    }
+    // Sidequest spur nodes: route to the relevant beat instead of the
+    // generic event/combat resolver. The map placed them; this fires them.
+    if (node.sidequestRef) {
+      const { templateId, nodeIdx } = node.sidequestRef;
+      const tpl = SIDEQUEST_TEMPLATES[templateId];
+      if (!tpl) return;
+      const beat = tpl.nodes[nodeIdx];
+      setSidequestActive({ templateId, nodeIdx });
+      if (beat.kind === 'combat') {
+        setSidequestCombatActive(true);
+        enterFight(beat.enemyId);
+      } else if (beat.kind === 'boss') {
+        pushLog(`🌿 The path delivers you to the act boss.`);
+        setSidequestActive(null);
+        enterFight(currentAct.bossId);
+      } else {
+        setStage('sidequest-node');
       }
       return;
     }
@@ -2776,79 +2864,65 @@ export default function App() {
   }
 
   // SIDEQUEST flow ----------------------------------------------------------
+  // Sidequests are now visible map spurs. Each beat is a real map node
+  // tagged with sidequestRef. Walking onto a spur node fires the beat;
+  // resolving the beat returns control to the map and the player walks
+  // forward to the next spur node. The last spur node connects back to
+  // the main map (or directly to the boss for shortcut quests).
 
-  function acceptSidequest() {
-    if (!sidequestOffer) return;
-    const tpl = SIDEQUEST_TEMPLATES[sidequestOffer.templateId];
-    if (!tpl) { setSidequestOffer(null); returnToMap(); return; }
-    pushLog(`🌿 ${tpl.title} begins.`);
-    setSidequestActive({ templateId: tpl.id, nodeIdx: 0 });
-    setSidequestOffer(null);
-    setStage('sidequest-node');
-  }
-
-  function declineSidequest() {
-    pushLog(`🌿 You decline the diversion.`);
-    setSidequestOffer(null);
-    returnToMap();
-  }
-
-  function getActiveSidequestNode() {
+  function getActiveSidequestBeat() {
     if (!sidequestActive) return null;
     const tpl = SIDEQUEST_TEMPLATES[sidequestActive.templateId];
     if (!tpl) return null;
     return { tpl, node: tpl.nodes[sidequestActive.nodeIdx], idx: sidequestActive.nodeIdx };
   }
 
-  function advanceSidequest(effects) {
-    if (!sidequestActive) return;
-    const tpl = SIDEQUEST_TEMPLATES[sidequestActive.templateId];
-    if (!tpl) { setSidequestActive(null); returnToMap(); return; }
+  // Resolve a beat. Apply any effects, mark the spur node as cleared,
+  // then return to the map. The player clicks the next spur node manually.
+  function resolveSidequestBeat(effects) {
+    const active = getActiveSidequestBeat();
+    if (!active) { returnToMap(); return; }
     if (effects && Object.keys(effects).length > 0) {
-      applyChoiceEffects(effects, tpl.title);
+      applyChoiceEffects(effects, active.tpl.title);
     }
-    const nextIdx = sidequestActive.nodeIdx + 1;
-    if (nextIdx >= tpl.nodes.length) {
-      // Quest complete.
-      pushLog(`🌿 ${tpl.title} resolves.`);
-      setSidequestActive(null);
-      returnToMap();
-      return;
-    }
-    setSidequestActive({ templateId: tpl.id, nodeIdx: nextIdx });
-    const nextNode = tpl.nodes[nextIdx];
-    if (nextNode.kind === 'combat') {
-      setSidequestCombatActive(true);
-      enterFight(nextNode.enemyId);
-    } else if (nextNode.kind === 'boss') {
-      // Boss-shortcut: jump straight to the act boss combat. Sidequest
-      // ends after the boss fight resolves (which is also act-end).
-      pushLog(`🌿 The path delivers you to the act boss.`);
-      setSidequestActive(null);
-      setSidequestCombatActive(false);
-      enterFight(currentAct.bossId);
-    } else {
-      setStage('sidequest-node');
-    }
+    setSidequestActive(null);
+    setSidequestCombatActive(false);
+    returnToMap();
   }
 
   function resolveSidequestChoice(choice) {
-    advanceSidequest(choice.effects || {});
+    resolveSidequestBeat(choice.effects || {});
   }
 
   function resolveSidequestNarrative() {
-    const active = getActiveSidequestNode();
+    const active = getActiveSidequestBeat();
     if (!active) return;
-    const fx = active.node?.next?.effects || {};
-    advanceSidequest(fx);
+    resolveSidequestBeat(active.node?.next?.effects || {});
   }
 
+  // Abandon: teleport the player off the spur to a rejoin main-map node.
+  // We look up the spur's last node in the placed map and use its outgoing
+  // edge as the rejoin target. If we can't find one, fall back to the
+  // current node (player just stays put with the sidequest cleared).
   function abandonSidequest() {
-    if (!sidequestActive) return;
-    const tpl = SIDEQUEST_TEMPLATES[sidequestActive.templateId];
-    pushLog(`🌿 You leave ${tpl?.title || 'the diversion'} unfinished.`);
+    const active = getActiveSidequestBeat();
+    if (!active) { returnToMap(); return; }
+    const tpl = active.tpl;
+    pushLog(`🌿 You leave ${tpl.title} unfinished.`);
+    // Find the last spur node for this template and follow its rejoin edge.
+    const lastIdx = tpl.nodes.length - 1;
+    const lastSpurId = `sq-${tpl.id}-${lastIdx}`;
+    const rejoinIds = map?.edges?.[lastSpurId] || [];
+    const rejoinId = rejoinIds[0];
     setSidequestActive(null);
     setSidequestCombatActive(false);
+    if (rejoinId) {
+      setCurrentNodeId(rejoinId);
+      const rejoinNode = map.nodes.find(n => n.id === rejoinId);
+      if (rejoinNode && !clearedNodes.includes(rejoinId)) {
+        setClearedNodes(prev => [...prev, rejoinId]);
+      }
+    }
     returnToMap();
   }
 
@@ -3799,12 +3873,19 @@ export default function App() {
       setStage('tutorial-complete');
       return;
     }
-    // Sidequest combat short-circuit: skip the reward draw and advance
-    // the sidequest to its next node.
+    // Sidequest combat short-circuit: skip the reward draw and return
+    // the player to the map. The current node is the spur combat node;
+    // the next click walks forward to the next spur node.
     if (sidequestCombatActive && sidequestActive) {
       pushLog(`✓ ${enemy.name} resolved.`);
       setSidequestCombatActive(false);
-      advanceSidequest({});
+      setSidequestActive(null);
+      // Combat resolution returns to map via existing post-fight path.
+      // Mark the combat node as cleared so the spur node turns 'spent'.
+      if (currentNodeId && !clearedNodes.includes(currentNodeId)) {
+        setClearedNodes(prev => [...prev, currentNodeId]);
+      }
+      returnToMap();
       return;
     }
     pushLog(`✓ ${enemy.name} defeated.`);
@@ -4109,9 +4190,6 @@ export default function App() {
   if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
   if (stage === 'material-choose') return <MaterialChooseScreen prompt={materialChoices} onPick={claimMaterial} onSkip={skipMaterial} />;
   if (stage === 'skill-event') return <SkillEventScreen event={activeSkillEvent} skills={skills} onChoose={resolveSkillChoice} />;
-  if (stage === 'sidequest-offer') return <SidequestOfferScreen
-    template={sidequestOffer ? SIDEQUEST_TEMPLATES[sidequestOffer.templateId] : null}
-    onAccept={acceptSidequest} onDecline={declineSidequest} />;
   if (stage === 'sidequest-node') {
     const active = sidequestActive ? { tpl: SIDEQUEST_TEMPLATES[sidequestActive.templateId], node: SIDEQUEST_TEMPLATES[sidequestActive.templateId]?.nodes[sidequestActive.nodeIdx], idx: sidequestActive.nodeIdx } : null;
     if (!active?.tpl || !active?.node) { returnToMap(); return null; }
@@ -4499,10 +4577,13 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                   const toVis   = visibilityOf(toId);
                   const cleared = fromVis === 'cleared' && toVis === 'cleared';
                   const onCurrentPath = currentNodeId === fromId;
-                  let stroke, strokeWidth, opacity;
-                  if (cleared)               { stroke = '#5d7e3f'; strokeWidth = 1.5; opacity = 0.55; }
-                  else if (onCurrentPath)    { stroke = '#c79d44'; strokeWidth = 3;   opacity = 1;    }
-                  else                       { stroke = '#3d3325'; strokeWidth = 1.5; opacity = 0.7;  }
+                  // Sidequest edge: either side of the edge is a spur node.
+                  const isSidequestEdge = from.isSidequest || to.isSidequest;
+                  let stroke, strokeWidth, opacity, dash;
+                  if (cleared)                  { stroke = '#5d7e3f'; strokeWidth = 1.5; opacity = 0.55; dash = '6,3'; }
+                  else if (isSidequestEdge)     { stroke = '#7a9b3a'; strokeWidth = 2;   opacity = 0.85; dash = '4,4'; }
+                  else if (onCurrentPath)       { stroke = '#c79d44'; strokeWidth = 3;   opacity = 1;    dash = '0';   }
+                  else                          { stroke = '#3d3325'; strokeWidth = 1.5; opacity = 0.7;  dash = '0';   }
                   return (
                     <line key={`${fromId}->${toId}`}
                       x1={xScale(from.x)} y1={yScale(from.y)}
@@ -4510,7 +4591,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                       stroke={stroke}
                       strokeWidth={strokeWidth}
                       opacity={opacity}
-                      strokeDasharray={cleared ? '6,3' : '0'} />
+                      strokeDasharray={dash} />
                   );
                 });
               })}
@@ -4532,14 +4613,18 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                 const opacity = isCleared ? 0.55
                               : isFuture ? 0.85
                               :            1;
+                // Sidequest spur nodes get a moss outline + 🌿 badge so
+                // the player sees they're on a side path, not the main map.
+                const sqStroke = n.isSidequest && !isCurrent && !isReachable ? '#7a9b3a' : stroke;
+                const sqStrokeWidth = n.isSidequest && !isCurrent && !isReachable ? 2.5 : strokeWidth;
                 return (
                   <g key={n.id}
                     data-node-id={n.id}
                     style={{ cursor: isReachable ? 'pointer' : 'default' }}
                     onClick={() => isReachable && onPick(n.id)}>
-                    <title>{nodeTooltip(n.type)}</title>
+                    <title>{n.isSidequest ? `🌿 Sidequest: ${n.sidequestTitle || ''} — ${nodeTooltip(n.type)}` : nodeTooltip(n.type)}</title>
                     <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
-                      fill={fill} stroke={stroke} strokeWidth={strokeWidth}
+                      fill={fill} stroke={sqStroke} strokeWidth={sqStrokeWidth}
                       opacity={opacity} />
                     <text x={xScale(n.x)} y={yScale(n.y) + 5} textAnchor="middle"
                       className="select-none" fill="#f7eed3"
@@ -4547,6 +4632,13 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                       opacity={isFuture ? 0.9 : 1}>
                       {nodeGlyph(n.type)}
                     </text>
+                    {n.isSidequest && (
+                      <text x={xScale(n.x) + 14} y={yScale(n.y) - 12} textAnchor="middle"
+                        className="select-none" fill="#7a9b3a"
+                        fontSize={11}>
+                        🌿
+                      </text>
+                    )}
                   </g>
                 );
               })}
