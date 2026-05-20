@@ -3133,9 +3133,14 @@ export default function App() {
 
   function resolveRestChoice(kind) {
     if (kind === 'heal') {
-      const amount = Math.floor(maxHp * 0.3);
-      setHp(h => clamp(h + amount, 0, maxHp));
-      pushLog(`🛏 Rest: +${amount} HP.`);
+      // Rest restores both pools at 30% of max. Composure recovers same
+      // ratio as HP so the inn-before-boss guarantee actually tops you
+      // off across both vital pools, not just physical health.
+      const hpAmount   = Math.floor(maxHp * 0.3);
+      const compAmount = Math.floor(composureMax * 0.3);
+      setHp(h => clamp(h + hpAmount, 0, maxHp));
+      setComposure(c => clamp(c + compAmount, 0, composureMax));
+      pushLog(`🛏 Rest: +${hpAmount} HP, +${compAmount} Composure.`);
       setRestNode(null);
       returnToMap();
       return;
@@ -3733,7 +3738,7 @@ function nodeTooltip(type) {
   return ({
     combat:   '⚔ Combat — face a normal enemy. Drop their composure or HP to win and pick a card reward.',
     elite:    '☠ Elite — tougher enemy with more behaviors. Higher-quality reward on victory.',
-    rest:     '🛏 Rest — heal a chunk of HP. Sometimes other small bonuses.',
+    rest:     '🛏 Rest — restore 30% of both HP and Composure, OR upgrade a card from your deck.',
     event:    '📜 Event — a story moment with 2-3 choices, usually a trade (heal/card/max-HP up for HP/max-HP/card down).',
     material: '🪵 Gather — pick a raw material for this act\'s slot. Drives the end-of-act craft.',
     skill:    '🛠 Craft lesson — bump a craft skill. Safe pick: +2 skill, -8 HP. Risky pick: +4 skill, -8 max HP.',
@@ -4586,7 +4591,7 @@ function RestScreen({ onChoose }) {
       <h2 className="font-display text-3xl text-moss-300">A Rest Site</h2>
       <p className="font-quill italic text-parchment-200 text-center">A small campfire, a flat rock, the unmistakable feeling that someone has Recently Camped Here. The path will still be there in the morning. It's that kind of path.</p>
       <div className="flex flex-col gap-2 w-full">
-        <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — heal 30% max HP</button>
+        <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — restore 30% HP and Composure</button>
         <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
       </div>
     </div>
