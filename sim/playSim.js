@@ -97,6 +97,12 @@ const CARDS = [
   { id: 'e-sword-logic', name: 'Sword Logic', cost: 1, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'physical',
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
+  { id: 'e-throw-the-book', name: 'Throw the Book', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'wit', base: 4, multiplier: 1, damageType: 'physical',
+              resonatesWith: ['academic', 'formal'], resonanceBonus: { perTag: 2 } } },
+  { id: 'e-flame-on', name: 'Flame On', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'physical',
+              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } } },
   // ---- EFFECT RARE ----
   { id: 'e-devastating', name: 'Devastating Truth', cost: 2, type: 'effect', rarity: 'rare',
     effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure',
@@ -188,12 +194,25 @@ const CARDS = [
 ];
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
+// Mirror the App's slim starter (no jnsq, no physical). Without this,
+// sim was running the old 11-card sampler and AI's reward picker
+// actively avoided physical cards (because it had spark + sword-logic
+// from the bad starter), masking real card-strategy data. Fix from
+// cycle 2 batch 1 audit.
 const STARTER_DECK = [
-  'w-respect', 'w-frankly', 'w-erm',
-  'e-persuade', 'e-bluster', 'e-bewilder',
-  'e-spark', 'e-sword-logic',
-  'c-channel',
-  'c-defend', 'c-defend',
+  'w-respect',                // wit ingredient
+  'w-frankly',                // chutzpah ingredient
+  'e-persuade',               // basic wit attack
+  'e-bluster',                // basic chutzpah attack
+  'c-channel',                // utility
+  'c-defend', 'c-defend',     // block
+];
+// Same pool the player's Starting Picks screen samples — two cards
+// added to the deck before the first map loads.
+const STARTING_PICKS_POOL = [
+  'w-frankly', 'e-strike',    // chutzpah pair
+  'w-respect', 'e-convince',  // wit pair
+  'w-erm',     'e-bewilder',  // jnsq pair (the branch-out)
 ];
 
 // --- ENEMIES ---
@@ -280,10 +299,10 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 2, riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 1 },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 68, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 60, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
-      { kind: 'attack', value: 11, weight: 2, riders: { weak: 1 } },
+      { kind: 'attack', value: 10, weight: 2, riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1 },
       { kind: 'block',  value: 10, weight: 1 },
@@ -318,7 +337,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { chutzpah: 0.3, wit: 0.3, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1 },
@@ -399,7 +418,7 @@ const MATERIAL_TEMPLATES = {
   ],
   robes: [
     { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', stats: { defense: 4 } },
-    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', stats: { regen: 3, draw: 1 } },
+    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', stats: { regen: 3 } },
     { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', stats: { defense: 1, regen: 1, draw: 1 } },
     { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', stats: { draw: 3 } },
     { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', stats: { defense: 2, vuln: 1 } },
@@ -715,12 +734,40 @@ function castSpell(state, combat) {
   combat.castsAttempted++;
   const card = combat.tray.effectCard;
   const eff = card.effect || {};
-  // Sway / Insult cards: sim doesn't model the negotiation or word-pick
-  // mechanics. Treat as no-damage and just discharge the tray so the AI
-  // can keep playing. Insults at least pay their composure cost.
-  if (eff.sway || eff.insult) {
-    if (eff.insult && eff.playerComposureCost) {
-      // composure isn't tracked in sim state; effectively a no-op.
+  // Sway: model as a 50% chance to boost the target effectiveness by
+  // +0.5 (cap 1.0). Crude approximation of the App's tactic + softSpot
+  // probability math; good enough to give the reward picker meaningful
+  // signal that these cards aren't dead weight.
+  if (eff.sway) {
+    if (Math.random() < 0.5) {
+      const dim = eff.swayTarget;
+      const before = combat.enemy?.effectiveness?.[dim] ?? 1;
+      const after = Math.min(1.0, before + 0.5);
+      if (after > before) combat.enemy.effectiveness = { ...combat.enemy.effectiveness, [dim]: after };
+    }
+    for (const w of combat.tray.words) {
+      if (w.effects?.exhaust) state.exiled.push(w); else state.discard.push(w);
+    }
+    if (eff.exhaust) state.exiled.push(card); else state.discard.push(card);
+    combat.tray = { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
+    return;
+  }
+  // Insult: model as 60% chance to land for landDamage*0.7 (accounts
+  // for soft-spot misses and partial alignment). Pay the composure
+  // cost regardless (composure isn't tracked in sim, so this just
+  // doesn't apply for now — flagged for cycle 3 if needed).
+  if (eff.insult) {
+    const landed = Math.random() < 0.6;
+    if (landed) {
+      const wit_mult = combat.enemy?.effectiveness?.wit ?? 1.0;
+      const dmg = Math.round((eff.landDamage || 10) * 0.7 * wit_mult * combat.playerDmgMult);
+      let remaining = dmg;
+      if (combat.enemyBlock > 0) {
+        const absorbed = Math.min(combat.enemyBlock, remaining);
+        combat.enemyBlock -= absorbed; remaining -= absorbed;
+      }
+      combat.enemyComposure = Math.max(0, combat.enemyComposure - remaining);
+      combat.totalDamageDealt += dmg;
     }
     for (const w of combat.tray.words) {
       if (w.effects?.exhaust) state.exiled.push(w); else state.discard.push(w);
@@ -840,10 +887,14 @@ function aiTurn(state, combat) {
       ? intent.value * (intent.count || 1)
       : 0;
     const expectedDamage = adjustIncoming(state, combat, incoming);
-    if (expectedDamage > state.block + 3) {
+    if (expectedDamage > state.block + 1) {
       const defendIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.block);
       if (defendIdx >= 0) { playSkillOrPower(state, combat, defendIdx); continue; }
     }
+    // Cycle 2 batch 5 ATTEMPTED an unwinnable-fight defense pivot. It
+    // turned quick deaths into slow stalls (player defends 60 turns, hits
+    // safety timer, still loses) — strictly worse than swinging for damage.
+    // Reverted; defense pivot stays purely turn-by-turn (block + 1 above).
 
     // Card-draw skills if hand small and we have energy.
     if (state.hand.length <= 2) {
@@ -1054,7 +1105,22 @@ function simCombat(state, enemyId) {
 // =============================================================================
 
 function makeRunState() {
+  // Slim starter + 2 picks from STARTING_PICKS_POOL (mirrors App's
+  // StartingPicksScreen). Greedy AI heuristic: prefer Jnsq pair to
+  // open the branch lane, since starter already covers Chutzpah + Wit
+  // shallowly. Falls back to random if pool is sampled out.
   const deck = STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() }));
+  const jnsqIds = STARTING_PICKS_POOL.filter(id => {
+    const c = CARDS_BY_ID[id];
+    if (!c) return false;
+    if (c.type === 'word') return !!c.stats?.jnsq;
+    if (c.type === 'effect') return c.effect?.scaleBy === 'jnsq';
+    return false;
+  });
+  for (const id of jnsqIds.slice(0, 2)) {
+    const c = CARDS_BY_ID[id];
+    if (c) deck.push({ ...c, uid: uid() });
+  }
   return {
     hp: STARTING_MAX_HP,
     maxHp: STARTING_MAX_HP,
@@ -1237,22 +1303,56 @@ function simAct(state, act, runStats) {
       // Inter-act heal (both pools).
       state.hp        = clamp(state.hp        + Math.floor(state.maxHp        * INTER_ACT_HEAL_RATIO), 0, state.maxHp);
       state.composure = clamp(state.composure + Math.floor(state.composureMax * INTER_ACT_HEAL_RATIO), 0, state.composureMax);
+      // Cycle 2 batch 5: forced physical-card injection if the player
+      // is about to enter Act 2 with no physical answer. Mirrors a
+      // hypothetical "you can pick a free physical at the act seam"
+      // structural mechanic — surfaces the pivot problem the agents
+      // flagged. (App-side equivalent deferred to a real UI design.)
+      const physicalCount = [...state.deck, ...state.hand, ...state.discard, ...state.exiled]
+        .filter(c => c.type === 'effect' && c.effect?.damageType === 'physical').length;
+      if (physicalCount === 0) {
+        const physPicks = ['e-throw-the-book', 'e-flame-on', 'e-sword-logic'];
+        const pickId = physPicks[Math.floor(Math.random() * physPicks.length)];
+        const picked = CARDS_BY_ID[pickId];
+        if (picked) state.discard.push({ ...picked, uid: uid() });
+      }
     }
   }
   return true;
 }
 
 function aiPickReward(state, candidates) {
-  // Smarter reward selection:
-  // 1. Effects > Powers > Words > Skills baseline
-  // 2. Physical effects are critical past act 1 (verbal-immune enemies).
-  //    Heavy weight if player has < 2 physical in deck.
-  // 3. Rarity bumps the score, but doesn't dominate.
-  // 4. Diminishing returns on 3rd+ copy of same card.
+  // Smarter reward selection. Cycle 2 batch 1 audit added the
+  // LANE-COMMITMENT heuristic — once the deck has ≥4 cards in a
+  // dominant stat, bias new picks toward that stat's synergy. This
+  // pushes the AI toward archetype commitment instead of sampler-deck.
   const allCards = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
   const counts = {};
   for (const c of allCards) counts[c.id] = (counts[c.id] || 0) + 1;
   const physicalInDeck = allCards.filter(c => c.type === 'effect' && c.effect?.damageType === 'physical').length;
+
+  // Compute the deck's "thesis" — which stat is it leaning into?
+  const statTotals = { chutzpah: 0, wit: 0, jnsq: 0 };
+  for (const c of allCards) {
+    if (c.type === 'word' && c.stats) {
+      statTotals.chutzpah += c.stats.chutzpah || 0;
+      statTotals.wit      += c.stats.wit      || 0;
+      statTotals.jnsq     += c.stats.jnsq     || 0;
+    }
+    if (c.type === 'effect' && c.effect?.scaleBy) {
+      statTotals[c.effect.scaleBy] = (statTotals[c.effect.scaleBy] || 0) + 2;
+    }
+  }
+  let dominantStat = null;
+  let dominantWeight = 0;
+  for (const [stat, total] of Object.entries(statTotals)) {
+    if (total > dominantWeight) { dominantWeight = total; dominantStat = stat; }
+  }
+  // Cycle 2 batch 3: lowered commitment threshold from (≥4 AND ≥2×) to
+  // (≥3 AND ≥1.5×) so the AI commits to a lane sooner. Previous threshold
+  // almost never triggered before Act 2.
+  const otherMax = Math.max(...Object.entries(statTotals).filter(([s]) => s !== dominantStat).map(([, v]) => v), 0);
+  const isCommitted = dominantWeight >= 3 && dominantWeight >= otherMax * 1.5;
 
   function score(card) {
     let s = 0;
@@ -1269,6 +1369,23 @@ function aiPickReward(state, candidates) {
       else if (physicalInDeck < 2) s += 5;
       else                         s -= 2; // already covered
     }
+    // LANE COMMITMENT: bias picks toward our dominant stat.
+    if (isCommitted) {
+      if (card.type === 'word' && card.stats?.[dominantStat])              s += 6;
+      if (card.type === 'effect' && card.effect?.scaleBy === dominantStat) s += 6;
+      // Penalize picks that scale by another stat — they widen the deck
+      // when we want depth.
+      if (card.type === 'effect' && card.effect?.scaleBy && card.effect.scaleBy !== dominantStat) s -= 3;
+    }
+    // Sway/Insult — modest baseline since their value is situational.
+    // When physical-shortage is acute (about to enter Act 2's stone-leaning
+    // enemies with no physical answer), Sway becomes the lever: it cracks
+    // the immunity that walls verbal-only decks.
+    if (card.effect?.sway) {
+      s += 2;
+      if (physicalInDeck === 0) s += 8; // Sway is the verbal-only escape valve
+    }
+    if (card.effect?.insult) s += 1;
     // Avoid stacking copies.
     const owned = counts[card.id] || 0;
     if (owned >= 2) s -= 5;

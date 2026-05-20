@@ -246,6 +246,24 @@ const CARDS = [
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
     desc: 'Cast: 5 + Chutzpah×2 physical damage. Resonates: threatening, dismissive.',
     flavor: 'The argument was won earlier, in a closet, with a board.' },
+  // Cycle 2 batch 2: more physical options so verbal-only decks have
+  // viable picks for Act 2's stone-leaning enemies.
+  { id: 'e-throw-the-book', name: 'Throw the Book', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'wit', base: 4, multiplier: 1, damageType: 'physical',
+              resonatesWith: ['academic', 'formal'], resonanceBonus: { perTag: 2 } },
+    phrase: '(it is a very heavy book)',
+    upgrade: { effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'physical',
+              resonatesWith: ['academic', 'formal'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 4 + Wit×1 physical damage. Resonates: academic, formal.',
+    flavor: 'The footnotes are weighted with regret.' },
+  { id: 'e-flame-on', name: 'Flame On', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'physical',
+              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } },
+    phrase: '(a small enthusiastic fire arrives)',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 7, multiplier: 2, damageType: 'physical',
+              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 5 + Jnsq×1 physical damage. Resonates: chaotic, mystical.',
+    flavor: 'It does not consume what you would expect it to.' },
 
   // ---- RARE EFFECT CARDS ----
   { id: 'e-devastating', name: 'Devastating Truth', cost: 2, type: 'effect', rarity: 'rare',
@@ -828,12 +846,12 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 68, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 60, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     behaviors: [
-      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (loom-song)' },
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
@@ -873,7 +891,10 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
+    // Cycle 2 batch 2: bumped chutzpah/wit 0 → 0.3 so verbal decks have
+    // at least a slow-grind option. Still "physical is the answer" but
+    // not an instant wall for a player without a physical card.
+    effectiveness: { chutzpah: 0.3, wit: 0.3, jnsq: 0.5, physical: 1.0 },
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
@@ -2401,7 +2422,7 @@ const MATERIAL_TEMPLATES = {
       stats: { defense: 4 } },
     // Endurance tank — heals every combat, no DR.
     { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted. It remembers the moth.',
-      stats: { regen: 3, draw: 1 } },
+      stats: { regen: 3 } },
     // Balanced hybrid — modest of everything.
     { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging. Mildly photosynthetic.',
       stats: { defense: 1, regen: 1, draw: 1 } },
