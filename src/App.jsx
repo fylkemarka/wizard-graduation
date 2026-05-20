@@ -3668,36 +3668,10 @@ export default function App() {
     if (!m) return;
     const fx = m.baseEffects || {};
     const logBits = [`🛠 ${m.eventTitle}: ${m.choiceLabel} → ${grade.toUpperCase()}`];
-    // Skill scaling by grade.
+    // Skill scaling by grade — Master full, Fine half, Rough quarter.
     const skillScale = grade === 'master' ? 1.0 : grade === 'fine' ? 0.5 : 0.25;
-    if (fx.skill) {
-      const eligibleSkills = new Set();
-      for (let i = currentActIdx; i < ACTS.length; i++) {
-        const c = ACTS[i]?.craft;
-        if (c) eligibleSkills.add(c);
-      }
-      setSkills(prev => {
-        const next = { ...prev };
-        for (const [skill, bump] of Object.entries(fx.skill)) {
-          if (!eligibleSkills.has(skill)) continue;
-          const scaled = Math.max(1, Math.ceil(bump * skillScale));
-          next[skill] = Math.min(SKILL_MAX, (next[skill] || 0) + scaled);
-        }
-        return next;
-      });
-      for (const [skill, bump] of Object.entries(fx.skill)) {
-        if (!eligibleSkills.has(skill)) continue;
-        const scaled = Math.max(1, Math.ceil(bump * skillScale));
-        logBits.push(`+${scaled} ${CRAFT_LABEL[skill] || skill}`);
-      }
-    }
-    // Max-HP cost always lands (you committed). Rough adds an extra -2 HP
-    // penalty for fumbling.
-    if (fx.maxHp) {
-      setMaxHp(m => Math.max(1, m + fx.maxHp));
-      if (fx.maxHp < 0) setHp(h => Math.max(1, Math.min(h, maxHp + fx.maxHp)));
-      logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
-    }
+    applyEffectsCore(fx, { logBits, skillScale });
+    // Rough adds an extra -2 HP penalty for fumbling (botch tax).
     if (grade === 'rough') {
       setHp(h => Math.max(1, h - 2));
       logBits.push(`-2 HP (botched)`);
@@ -3707,16 +3681,28 @@ export default function App() {
     returnToMap();
   }
 
-  // Apply a generic `effects` payload — reused by sidequest choices,
-  // sidequest narrative-node `next.effects`, etc. Same vocabulary as
-  // resolveEventChoice: heal, loseHp, maxHp, gainCommonCard, etc.
-  function applyChoiceEffects(fx, sourceLabel) {
-    const logBits = [`📜 ${sourceLabel}`];
+  // Unified choice-effects dispatcher. The four call sites (sidequest
+  // beats, skill events, skill-minigame finalize, story events) used to
+  // each re-implement this vocabulary with subtle log/modal divergences.
+  // Per ARCHITECTURE_REVIEW.md #6 — single core, thin wrappers per
+  // call site decide whether to open the card-grant modal.
+  //
+  // Returns { granted } — caller pushes its own preamble to logBits
+  // BEFORE calling, then commits the log itself.
+  //
+  // Options:
+  //   logBits  — array the core appends per-effect log fragments to
+  //   skillScale — multiplier on `fx.skill` bumps (1.0 default;
+  //                minigames pass 0.5/0.25 for Fine/Rough grades)
+  function applyEffectsCore(fx, { logBits, skillScale = 1.0 } = {}) {
+    const granted = [];
     if (fx.healFull) { setHp(maxHp); logBits.push(`+full HP`); }
     if (fx.heal)    { setHp(h => clamp(h + fx.heal, 0, maxHp)); logBits.push(`+${fx.heal} HP`); }
     if (fx.loseHp)  { setHp(h => Math.max(1, h - fx.loseHp)); logBits.push(`-${fx.loseHp} HP`); }
     if (fx.maxHp) {
       setMaxHp(m => Math.max(1, m + fx.maxHp));
+      // On loss: clamp current HP DOWN to the new ceiling.
+      // On gain: do NOT auto-heal — labeled cost would otherwise lie.
       if (fx.maxHp < 0) setHp(h => Math.max(1, Math.min(h, maxHp + fx.maxHp)));
       logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
     }
@@ -3731,17 +3717,36 @@ export default function App() {
         return d.filter((_, i) => i !== pick.i);
       });
     }
-    if (fx.gainCommonCard) {
-      const c = pickCardByRarity({ common: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
-    }
-    if (fx.gainUncommonCard) {
-      const c = pickCardByRarity({ uncommon: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
-    }
-    if (fx.gainRareCard) {
-      const c = pickCardByRarity({ rare: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
+    const grantCardOf = (rarity) => {
+      const c = pickCardByRarity({ [rarity]: 1 });
+      if (c) {
+        setDeck(d => [...d, { ...c, uid: uid() }]);
+        logBits.push(`+ ${c.name}`);
+        granted.push(c);
+      }
+    };
+    if (fx.gainCommonCard)   grantCardOf('common');
+    if (fx.gainUncommonCard) grantCardOf('uncommon');
+    if (fx.gainRareCard)     grantCardOf('rare');
+    if (fx.skill) {
+      const eligibleSkills = new Set();
+      for (let i = currentActIdx; i < ACTS.length; i++) {
+        const c = ACTS[i]?.craft;
+        if (c) eligibleSkills.add(c);
+      }
+      const scale = (bump) => skillScale === 1.0 ? bump : Math.max(1, Math.ceil(bump * skillScale));
+      setSkills(prev => {
+        const next = { ...prev };
+        for (const [skill, bump] of Object.entries(fx.skill)) {
+          if (!eligibleSkills.has(skill)) continue;
+          next[skill] = Math.min(SKILL_MAX, (next[skill] || 0) + scale(bump));
+        }
+        return next;
+      });
+      for (const [skill, bump] of Object.entries(fx.skill)) {
+        if (!eligibleSkills.has(skill)) continue;
+        logBits.push(`+${scale(bump)} ${CRAFT_LABEL[skill] || skill}`);
+      }
     }
     if (fx.grantPostcardPhrase) {
       const phrase = generatePostcardPhrase();
@@ -3751,6 +3756,15 @@ export default function App() {
       setNodesSincePostcard(0);
       logBits.push(`📮 phrase: "${phrase}"`);
     }
+    return { granted };
+  }
+
+  // Sidequest beat / narrative resolver. No card-grant modal — sidequest
+  // rewards land silently in the deck (kept from the pre-refactor
+  // behavior; sidequest pacing doesn't benefit from a modal interrupt).
+  function applyChoiceEffects(fx, sourceLabel) {
+    const logBits = [`📜 ${sourceLabel}`];
+    applyEffectsCore(fx, { logBits });
     pushLog(logBits.join(' · '));
   }
 
@@ -3981,58 +3995,7 @@ export default function App() {
       return;
     }
     const logBits = [`🛠 ${activeSkillEvent.title}: ${choice.label}`];
-    if (fx.skill) {
-      // Apply each skill bump, capped at SKILL_MAX, and gated by
-      // "is this skill still relevant?" (act ahead or current).
-      const eligibleSkills = new Set();
-      for (let i = currentActIdx; i < ACTS.length; i++) {
-        const c = ACTS[i]?.craft;
-        if (c) eligibleSkills.add(c);
-      }
-      setSkills(prev => {
-        const next = { ...prev };
-        for (const [skill, bump] of Object.entries(fx.skill)) {
-          if (!eligibleSkills.has(skill)) continue;
-          next[skill] = Math.min(SKILL_MAX, (next[skill] || 0) + bump);
-        }
-        return next;
-      });
-      for (const [skill, bump] of Object.entries(fx.skill)) {
-        if (!eligibleSkills.has(skill)) continue;
-        logBits.push(`+${bump} ${CRAFT_LABEL[skill] || skill}`);
-      }
-    }
-    if (fx.heal) {
-      setHp(h => clamp(h + fx.heal, 0, maxHp));
-      logBits.push(`+${fx.heal} HP`);
-    }
-    if (fx.loseHp) {
-      // Skill events can't KO outright — clamp at 1, same rule as events.
-      setHp(h => Math.max(1, h - fx.loseHp));
-      logBits.push(`-${fx.loseHp} HP`);
-    }
-    if (fx.maxHp) {
-      setMaxHp(m => Math.max(1, m + fx.maxHp));
-      // Loss path clamps current HP down to new ceiling; gain path raises
-      // the ceiling without auto-healing (parallels resolveEventChoice).
-      if (fx.maxHp < 0) {
-        setHp(h => Math.max(1, Math.min(h, maxHp + fx.maxHp)));
-      }
-      logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
-    }
-    const granted = [];
-    if (fx.gainCommonCard) {
-      const c = pickCardByRarity({ common: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); granted.push(c); }
-    }
-    if (fx.gainUncommonCard) {
-      const c = pickCardByRarity({ uncommon: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); granted.push(c); }
-    }
-    if (fx.gainRareCard) {
-      const c = pickCardByRarity({ rare: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); granted.push(c); }
-    }
+    const { granted } = applyEffectsCore(fx, { logBits });
     pushLog(logBits.join(' · '));
     const title = activeSkillEvent.title;
     setActiveSkillEvent(null);
@@ -5113,68 +5076,15 @@ export default function App() {
   function resolveEventChoice(choice) {
     const fx = choice.effects || {};
     const logBits = [`📜 ${activeEvent.title}: ${choice.label}`];
-    if (fx.healFull) {
-      setHp(maxHp);
-      logBits.push(`+full HP`);
-    }
-    if (fx.heal) {
-      setHp(h => clamp(h + fx.heal, 0, maxHp));
-      logBits.push(`+${fx.heal} HP`);
-    }
-    if (fx.loseHp) {
-      // Events can't KO you outright — you'd just walk into the next combat
-      // at 1 HP, which is the real punishment. Clamp at 1.
-      setHp(h => Math.max(1, h - fx.loseHp));
-      logBits.push(`-${fx.loseHp} HP`);
-    }
-    if (fx.maxHp) {
-      setMaxHp(m => Math.max(1, m + fx.maxHp));
-      // On loss: clamp current HP DOWN to the new ceiling.
-      // On gain: do NOT auto-heal — that would silently cancel the loseHp
-      // cost on options like "+6 max HP, -13 HP" and make the labeled cost
-      // a lie. Raising the ceiling is the benefit; the player heals through
-      // rest stops and inter-act recovery.
-      if (fx.maxHp < 0) {
-        setHp(h => Math.max(1, Math.min(h, maxHp + fx.maxHp)));
-      }
-      logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
-    }
-    // Lose a random card from the deck. We prefer non-starter cards (so the
-    // cost feels like sacrificing earned progress), but fall back to a
-    // starter if that's all you've got — otherwise the early-game cost
-    // silently does nothing and the labeled "lose a random card" is a lie.
-    if (fx.loseRandomCard) {
-      setDeck(d => {
-        if (d.length === 0) return d;
-        const indexed = d.map((c, i) => ({ c, i }));
-        const nonStarters = indexed.filter(({ c }) => !STARTER_DECK.includes(c.id));
-        const pool = nonStarters.length > 0 ? nonStarters : indexed;
-        const pick = pool[Math.floor(Math.random() * pool.length)];
-        logBits.push(`− ${pick.c.name}`);
-        return d.filter((_, i) => i !== pick.i);
-      });
-    }
-    const grantedCards = [];
-    if (fx.gainCommonCard) {
-      const c = pickCardByRarity({ common: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); grantedCards.push(c); }
-    }
-    if (fx.gainUncommonCard) {
-      const c = pickCardByRarity({ uncommon: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); grantedCards.push(c); }
-    }
-    if (fx.gainRareCard) {
-      const c = pickCardByRarity({ rare: 1 });
-      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); grantedCards.push(c); }
-    }
+    const { granted } = applyEffectsCore(fx, { logBits });
     pushLog(logBits.join(' · '));
     const eventTitle = activeEvent?.title;
     setActiveEvent(null);
     // If the event granted cards, queue them up in the modal and defer
     // returning to the map until the player acknowledges them.
-    if (grantedCards.length > 0) {
+    if (granted.length > 0) {
       setCardGrantPrompt({
-        cards: grantedCards,
+        cards: granted,
         title: `${eventTitle} — added to your deck`,
       });
       setStage('card-grant');
