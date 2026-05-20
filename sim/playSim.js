@@ -265,7 +265,7 @@ const ENEMIES = [
     ] },
   // ACT 3
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.5, physical: 1.2 },
+    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 8, weight: 1 },
@@ -279,7 +279,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.3, physical: 1.2 },
+    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3 },
       { kind: 'attack', value: 8, weight: 1 },
