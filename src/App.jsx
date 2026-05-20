@@ -2989,7 +2989,7 @@ function seedSidequestSpurs(map, actId, rows, cols) {
     col: -1,
     type: firstType,
     x: Math.min(cols - 0.3, maxX + 0.9),
-    y: rowY(startR, rows),
+    y: (rows - 1) - startR, // inline rowY — generateActMap's helper isn't in scope here
     sidequestRef: { templateId: sqId, nodeIdx: 0 },
     // No isSidequest flag — looks identical to a normal node.
   };
