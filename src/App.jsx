@@ -719,6 +719,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
+      { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
     ] },
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
@@ -726,6 +727,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
+      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
@@ -733,6 +735,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
+      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 (lunging)' },
     ] },
   { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
@@ -776,6 +779,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
+      { kind: 'vulnerable', value: 1, weight: 2, telegraph: '🩸 Vuln 1 (silken whisper)' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
@@ -783,6 +787,8 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
+      { kind: 'attack', value: 4, weight: 2, telegraph: '⚔ 4 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
+      { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
@@ -817,6 +823,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
+      { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
@@ -832,6 +839,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
       { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
+      { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (carapace)' },
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
@@ -866,6 +874,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 10, weight: 3, telegraph: '⚔ 10' },
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1 (resentful)', riders: { weak: 1 } },
     ] },
   { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
@@ -1738,6 +1747,11 @@ export default function App() {
   // Used to anti-repetition the next roll: if both are the same kind,
   // the next rollIntent excludes that kind. Reset per combat.
   const [lastIntentKinds, setLastIntentKinds] = useState([]);
+  // Increments every time a new intent rolls. Used as a render key so
+  // the intent box flashes empty-then-back even when the new intent is
+  // the same KIND as the previous (e.g. Block after Block) — was hard
+  // to tell anything had changed otherwise.
+  const [intentTick, setIntentTick] = useState(0);
   // Damage multipliers — replace the old discrete Weak/Vulnerable
   // status. Each modifier card / enemy intent shifts the multiplier
   // by ±0.25, clamped to [0.5, 1.5]. Drifts 0.25 toward 1.0 each
@@ -2228,6 +2242,7 @@ export default function App() {
     setPlayerDmgMult(1.0);
     setLastIntentKinds([]);
     setEnemyIntent(rollIntent(e));
+    setIntentTick(t => t + 1);
     // Powers don't persist between combats.
     setPowers([]);
     // Reset per-combat counters and player debuffs.
@@ -2953,7 +2968,10 @@ export default function App() {
     setLastIntentKinds(newHistory);
     const exclude = (newHistory.length === 2 && newHistory[0] === newHistory[1])
       ? [newHistory[0]] : [];
-    if (enemy) setEnemyIntent(rollIntent(enemy, exclude));
+    if (enemy) {
+      setEnemyIntent(rollIntent(enemy, exclude));
+      setIntentTick(t => t + 1);
+    }
   }
 
   function applyEnemyIntent(intent) {
@@ -3378,7 +3396,7 @@ export default function App() {
   return <>
     <CombatScreen
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
-      enemyBlock={enemyBlock} enemyIntent={enemyIntent}
+      enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyHitFlash={enemyHitFlash} playerHitFlash={playerHitFlash} dmgFloaters={dmgFloaters}
       hp={hp} maxHp={maxHp}
@@ -3906,7 +3924,7 @@ function Legend({ glyph, label }) {
   return <span><span className="mr-1">{glyph}</span>{label}</span>;
 }
 
-function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
+function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick,
                        enemyDmgMult, playerDmgMult,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
@@ -3999,7 +4017,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <div className="px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700 cursor-help"
+          <div key={`intent-${intentTick}`}
+               className="intent-flash px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700 cursor-help"
                title={intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.'}>
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
             <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>

@@ -31,6 +31,18 @@
    symmetric in playtest. */
 .hit-shake { animation: enemy-hit 240ms ease-out; }
 
+/* Intent reroll — every time the enemy rolls a new intent, the intent
+   box flashes briefly empty then fades back in. Re-keyed so this fires
+   even when the new intent is the same KIND as the previous one — which
+   was the user's specific ask (it used to look identical, so a Block
+   intent after another Block intent felt like nothing changed). */
+@keyframes intent-flash {
+  0%   { opacity: 0; transform: translateY(-4px); }
+  35%  { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.intent-flash { animation: intent-flash 320ms ease-out; }
+
 @keyframes float-up {
   0%   { transform: translate(-50%, 0) scale(1);   opacity: 1; }
   15%  { transform: translate(-50%, -10px) scale(1.15); opacity: 1; }

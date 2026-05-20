@@ -179,18 +179,21 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 5, weight: 1 },
+      { kind: 'attack', value: 3, weight: 2 },
     ] },
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2 },
+      { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 4, weight: 1 },
+      { kind: 'attack', value: 5, weight: 2 },
     ] },
   { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
@@ -228,12 +231,15 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 6, weight: 1 },
+      { kind: 'vulnerable', value: 1, weight: 2 },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 8, weight: 2 },
+      { kind: 'attack', value: 4, weight: 2, riders: { weak: 1 } },
+      { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
@@ -263,6 +269,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 8, weight: 1 },
+      { kind: 'attack', value: 7, weight: 1 },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
@@ -276,6 +283,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 6, weight: 3 },
       { kind: 'attack', value: 8, weight: 1 },
+      { kind: 'block',  value: 5, weight: 1 },
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
@@ -305,6 +313,7 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 10, weight: 3 },
       { kind: 'block',  value: 10, weight: 2 },
+      { kind: 'attack', value: 8, weight: 2, riders: { weak: 1 } },
     ] },
   { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
