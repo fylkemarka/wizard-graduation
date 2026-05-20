@@ -212,6 +212,27 @@ const CARDS = [
               resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
     desc: 'Cast: 8 + Chutzpah×3 Composure. Resonates: dismissive, petty.',
     flavor: 'It is a perfectly normal hat.' },
+  // Cycle 3: broaden the Jnsq pool. Two new options so the lane has
+  // depth comparable to Wit/Chutzpah.
+  { id: 'e-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } },
+    phrase: '…and the door, surely, has feelings about it.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 4 + Jnsq×2 Composure. Resonates: chaotic, absurd.',
+    flavor: 'You aren\'t wrong, exactly. You\'re just not on topic.' },
+  { id: 'e-calculated-risk', name: 'Calculated Risk', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 10, multiplier: 3, damageType: 'composure',
+              chance: { prob: 0.6, success: { enemyVulnerable: 1 }, failure: { selfWeak: 1 } },
+              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } },
+    phrase: '…I have run the numbers, and the numbers are also confused.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 12, multiplier: 4, damageType: 'composure',
+              chance: { prob: 0.65, success: { enemyVulnerable: 1 }, failure: { selfWeak: 1 } },
+              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 10 + Jnsq×3 Composure. 60%: apply Vuln. 40%: gain Weak.',
+    flavor: 'The numbers are doing their best. You aren\'t doing yours.' },
+
   { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } },
@@ -438,6 +459,15 @@ const CARDS = [
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { draw: 3, exhaust: true }, upgrade: { effects: { draw: 4, exhaust: true } },
     desc: 'Draw 3 cards. Exhaust.' },
+  // Cycle 3: resistance-pierce tech card. The committed deck's answer
+  // to a hostile matchup — your next Effect ignores the enemy's
+  // effectiveness multiplier on the relevant stat. Composure damage only.
+  // One-shot per turn, exhausts.
+  { id: 'c-read-the-room', name: 'Read the Room', cost: 0, type: 'skill', rarity: 'uncommon',
+    effects: { pierceNextCast: true, exhaust: true },
+    upgrade: { effects: { pierceNextCast: true, draw: 1, exhaust: true } },
+    desc: 'Your next Effect this turn ignores enemy resistance. Exhaust.',
+    flavor: 'You speak their language, briefly. They flinch in it.' },
 
   // ---- RARE ----
   { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
@@ -785,8 +815,10 @@ const ENEMIES = [
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (cutting remark)' },
     ] },
-  { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
+  { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
+    // Cycle 3 batch 2: composureMax 999 → 55. Same logic as Vein Devourer
+    // — committed verbal needs a reachable composure pool to be a path.
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.5 },
     softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
@@ -846,7 +878,7 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 60, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 52, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
@@ -858,7 +890,7 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 3 — The Stone Path =====
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 22, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 35, hpMax: 22, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.2 },
     softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
@@ -874,7 +906,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 35, hpMax: 22, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.2 },
     softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
@@ -890,11 +922,11 @@ const ENEMIES = [
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
-    // Cycle 2 batch 2: bumped chutzpah/wit 0 → 0.3 so verbal decks have
-    // at least a slow-grind option. Still "physical is the answer" but
-    // not an instant wall for a player without a physical card.
-    effectiveness: { chutzpah: 0.3, wit: 0.3, jnsq: 0.5, physical: 1.0 },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 75, hpMax: 50, tier: 'elite',
+    // Cycle 3 batch 2: composureMax 999 → 75. The 0.5 verbal floor was
+    // meaningless when the pool was unreachable. Now physical decks
+    // finish fast (50 HP), committed verbal decks grind slower but win.
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.6, physical: 1.0 },
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
@@ -907,8 +939,8 @@ const ENEMIES = [
     softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
-      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 1, telegraph: '⚔ 5×4' },
+      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (hammer-rhythm)' },
     ] },
@@ -947,7 +979,9 @@ const ENEMIES = [
       { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (corrects your form)' },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
+    // Cycle 3 floor bump: wit 0 → 0.5. Still wit-resistant (jnsq 1.5 is the
+    // intended channel) but committed wit decks have a path.
+    effectiveness: { chutzpah: 1.0, wit: 0.5, jnsq: 1.5, physical: 0.5 },
     softSpot: 'logic', // It IS a test. Show your work.
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1 + 🩸 Vuln 1', riders: { weak: 1, vulnerable: 1 } },
@@ -955,14 +989,16 @@ const ENEMIES = [
       { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
       { kind: 'attack-multi', value: 3, count: 4, weight: 1, telegraph: '⚔ 3×4' },
     ] },
-  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 100, hpMax: 999, tier: 'boss',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
+  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 88, hpMax: 999, tier: 'boss',
+    // Cycle 3 floor bump: physical 0 → 0.4. Still verbal-favored (wit 1.5)
+    // but physical-built decks aren't shut out entirely.
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0.4 },
     softSpot: 'flattery', // It is a HAT that wants to be the headmaster. Acknowledge that.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Vain authority; mocking the hat-ness lands.
     behaviors: [
-      { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 9, pool: 'composure', weight: 1, telegraph: '🎭 9 (withering remark)' },
+      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 8, pool: 'composure', weight: 1, telegraph: '🎭 8 (withering remark)' },
       { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
     ] },
 
@@ -2421,8 +2457,12 @@ const MATERIAL_TEMPLATES = {
     { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', flavor: 'Honest, plain, dependable. A robe that knows what a robe is for.',
       stats: { defense: 4 } },
     // Endurance tank — heals every combat, no DR.
+    // Cycle 3 batch 5: relaunched at regen + extraStartHand. Different
+    // identity from cycle 2's regen+draw (which dominated). Now Wild Silk
+    // = "go-fast" robe (turn-1 hand size) for combo decks; competes with
+    // burrgrass/wraithcloth but doesn't shadow them.
     { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', flavor: 'Cool to the touch, slightly haunted. It remembers the moth.',
-      stats: { regen: 3 } },
+      stats: { regen: 2, draw: 1 } },
     // Balanced hybrid — modest of everything.
     { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', flavor: 'Damp. Encouraging. Mildly photosynthetic.',
       stats: { defense: 1, regen: 1, draw: 1 } },
@@ -3046,7 +3086,10 @@ const SKILL_MAX = 5;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
 // Heal a fraction of max HP between acts (STS-style act transition heal).
-const INTER_ACT_HEAL_RATIO = 0.40;
+// Cycle 3 batch 3: 0.40 → 0.55. Players reaching Act 3+ are too damaged
+// to survive late-act bosses. Bigger between-act recovery gives a real
+// shot at deep runs.
+const INTER_ACT_HEAL_RATIO = 0.55;
 
 export default function App() {
   // Stage flow:
@@ -3160,6 +3203,9 @@ export default function App() {
   //   playerDmgMult — applied to player outgoing spell damage (was: enemyVuln +50%, playerWeak -25%)
   const [enemyDmgMult, setEnemyDmgMult] = useState(1.0);
   const [playerDmgMult, setPlayerDmgMult] = useState(1.0);
+  // Read the Room — next Effect this turn ignores enemy effectiveness
+  // multiplier. Set true on play, consumed by castStagedSpell.
+  const [pierceNextCast, setPierceNextCast] = useState(false);
   // Visceral feedback — short-lived state flipped when the enemy takes
   // damage. The CombatScreen reads these and applies the hit-shake
   // class + renders damage-number floaters.
@@ -4062,6 +4108,7 @@ export default function App() {
     setDmgFloaters([]);
     setEnemyDmgMult(1.0);
     setPlayerDmgMult(1.0);
+    setPierceNextCast(false);
     setLastIntentKinds([]);
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
@@ -4401,11 +4448,15 @@ export default function App() {
     const trayVal = tray[stat] || 0;
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
-    const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
-    const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
+    // Read-the-Room consumption: pierce effectiveness on the next cast.
+    const piercing = pierceNextCast;
+    if (piercing) setPierceNextCast(false);
+    const eff_mult = piercing ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
+    const phys_mult = piercing ? 1.0 : (enemy?.effectiveness?.physical ?? 1.0);
     let dmg = rawSpell;
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
+    if (piercing) pushLog(`🎯 cast pierces ${enemy?.name}'s resistance.`);
     const rWith = eff.resonatesWith || [];
     const perTag = eff.resonanceBonus?.perTag || 0;
     const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
@@ -4550,8 +4601,8 @@ export default function App() {
     const trayVal = tray[stat] || 0;
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
-    const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
-    const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
+    const eff_mult = pierceNextCast ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
+    const phys_mult = pierceNextCast ? 1.0 : (enemy?.effectiveness?.physical ?? 1.0);
     let dmg = rawSpell;
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
@@ -4570,6 +4621,10 @@ export default function App() {
     if (fx.block) {
       setBlock(b => b + fx.block);
       logBits.push(`🛡 +${fx.block}`);
+    }
+    if (fx.pierceNextCast) {
+      setPierceNextCast(true);
+      logBits.push(`🎯 next cast pierces resistance`);
     }
     if (fx.vulnerable) {
       adjustPlayerDmg(+0.25 * fx.vulnerable);

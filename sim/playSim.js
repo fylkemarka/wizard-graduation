@@ -87,6 +87,13 @@ const CARDS = [
   { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
+  { id: 'e-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
+  { id: 'e-calculated-risk', name: 'Calculated Risk', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 10, multiplier: 3, damageType: 'composure',
+              chance: { prob: 0.6, success: { enemyVulnerable: 1 }, failure: { selfWeak: 1 } },
+              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } } },
   // ---- PHYSICAL EFFECTS ----
   { id: 'e-spark', name: 'Spark', cost: 0, type: 'effect', rarity: 'common',
     effect: { scaleBy: 'jnsq', base: 4, multiplier: 1, damageType: 'physical',
@@ -163,6 +170,8 @@ const CARDS = [
     effects: { energy: 1, draw: 1, exhaust: true } },
   { id: 'c-warding', name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, vulnerable: 1 } },
+  { id: 'c-read-the-room', name: 'Read the Room', cost: 0, type: 'skill', rarity: 'uncommon',
+    effects: { pierceNextCast: true, exhaust: true } },
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { draw: 3, exhaust: true } },
   { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
@@ -247,8 +256,8 @@ const ENEMIES = [
       { kind: 'block',  value: 7, weight: 1 },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
     ] },
-  { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
-    effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
+  { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.5 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 9, weight: 2 },
@@ -299,7 +308,7 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 2, riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 1 },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 60, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 52, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, riders: { weak: 1 } },
@@ -308,7 +317,7 @@ const ENEMIES = [
       { kind: 'block',  value: 10, weight: 1 },
     ] },
   // ACT 3
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 22, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 35, hpMax: 22, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
@@ -322,7 +331,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 2, count: 4, weight: 1 },
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 35, hpMax: 22, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.2 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3 },
@@ -336,8 +345,8 @@ const ENEMIES = [
       { kind: 'block',  value: 10, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
-    effectiveness: { chutzpah: 0.3, wit: 0.3, jnsq: 0.5, physical: 1.0 },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 75, hpMax: 50, tier: 'elite',
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.6, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1 },
@@ -346,8 +355,8 @@ const ENEMIES = [
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
-      { kind: 'attack', value: 13, weight: 2, riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 1 },
+      { kind: 'attack', value: 11, weight: 2, riders: { vulnerable: 1 } },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 1 },
       { kind: 'block',  value: 12, weight: 1 },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
     ] },
@@ -381,19 +390,19 @@ const ENEMIES = [
       { kind: 'attack', value: 5, pool: 'composure', weight: 1 },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { chutzpah: 1.0, wit: 0.5, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, riders: { weak: 1, vulnerable: 1 } },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
       { kind: 'weak',   value: 2, weight: 1 },
       { kind: 'attack-multi', value: 3, count: 4, weight: 1 },
     ] },
-  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 100, hpMax: 999, tier: 'boss',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
+  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 88, hpMax: 999, tier: 'boss',
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0.4 },
     behaviors: [
-      { kind: 'attack', value: 14, weight: 2 },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, riders: { weak: 1 } },
-      { kind: 'attack', value: 9, pool: 'composure', weight: 1 },
+      { kind: 'attack', value: 12, weight: 2 },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
+      { kind: 'attack', value: 8, pool: 'composure', weight: 1 },
       { kind: 'vulnerable', value: 2, weight: 1 },
     ] },
 ];
@@ -418,7 +427,7 @@ const MATERIAL_TEMPLATES = {
   ],
   robes: [
     { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', stats: { defense: 4 } },
-    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', stats: { regen: 3 } },
+    { id: 'mat-wild-silk',   name: 'Wild Silk',    slot: 'robes', stats: { regen: 2, draw: 1 } },
     { id: 'mat-lichen',      name: 'Lichen Weave', slot: 'robes', stats: { defense: 1, regen: 1, draw: 1 } },
     { id: 'mat-wraithcloth', name: 'Wraithcloth',  slot: 'robes', stats: { draw: 3 } },
     { id: 'mat-burrgrass',   name: 'Burrgrass',    slot: 'robes', stats: { defense: 2, vuln: 1 } },
@@ -446,7 +455,7 @@ const SKILL_MAX = 5;
 const STARTING_MAX_HP = 70;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
-const INTER_ACT_HEAL_RATIO = 0.40;
+const INTER_ACT_HEAL_RATIO = 0.55;
 const STARTING_MAX_COMPOSURE = 30;
 
 // =============================================================================
@@ -694,6 +703,7 @@ function stageEffect(state, combat, handIdx) {
 }
 
 function applySideEffects(state, combat, fx) {
+  if (fx.pierceNextCast) combat.pierceNextCast = true;
   if (fx.block)      state.block += fx.block;
   if (fx.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * fx.vulnerable);
   if (fx.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * fx.weak);
@@ -779,8 +789,10 @@ function castSpell(state, combat) {
   const stat = eff.scaleBy || 'wit';
   let dmg = (eff.base || 0) + (combat.tray[stat] || 0) * (eff.multiplier || 0);
   const dmgType = eff.damageType || 'composure';
-  const eff_mult = combat.enemy?.effectiveness?.[stat] ?? 1.0;
-  const phys_mult = combat.enemy?.effectiveness?.physical ?? 1.0;
+  const piercing = !!combat.pierceNextCast;
+  if (piercing) combat.pierceNextCast = false;
+  const eff_mult = piercing ? 1.0 : (combat.enemy?.effectiveness?.[stat] ?? 1.0);
+  const phys_mult = piercing ? 1.0 : (combat.enemy?.effectiveness?.physical ?? 1.0);
   if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
   else                        dmg = Math.round(dmg * eff_mult);
   const rWith = eff.resonatesWith || [];
@@ -900,6 +912,18 @@ function aiTurn(state, combat) {
     if (state.hand.length <= 2) {
       const drawIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.draw);
       if (drawIdx >= 0) { playSkillOrPower(state, combat, drawIdx); continue; }
+    }
+
+    // Cycle 3: Read the Room — pierce the next cast against a hostile
+    // matchup. Trigger when enemy's best-effectiveness-to-our-deck stat
+    // is ≤0.6 (we'd otherwise hit at half damage).
+    if (!combat.pierceNextCast) {
+      const eff = combat.enemy?.effectiveness || {};
+      const bestForUs = Math.max(eff.chutzpah ?? 1, eff.wit ?? 1, eff.jnsq ?? 1);
+      if (bestForUs <= 0.6) {
+        const pierceIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.pierceNextCast);
+        if (pierceIdx >= 0) { playSkillOrPower(state, combat, pierceIdx); continue; }
+      }
     }
 
     // Try a cast.
@@ -1303,6 +1327,16 @@ function simAct(state, act, runStats) {
       // Inter-act heal (both pools).
       state.hp        = clamp(state.hp        + Math.floor(state.maxHp        * INTER_ACT_HEAL_RATIO), 0, state.maxHp);
       state.composure = clamp(state.composure + Math.floor(state.composureMax * INTER_ACT_HEAL_RATIO), 0, state.composureMax);
+      // Cycle 3 batch 5: passive +1 to the LOWEST skill at each act seam.
+      // Whittling/Felting are near-zero (~0.4/0.9) because skill nodes
+      // are rare and players die before late-act crafting matters. This
+      // floor surfaces the crafting content without forcing pickups.
+      const skills = state.skills || {};
+      let lowest = null, lowestVal = Infinity;
+      for (const k of Object.keys(skills)) {
+        if (skills[k] < lowestVal) { lowestVal = skills[k]; lowest = k; }
+      }
+      if (lowest) state.skills[lowest] = Math.min(5, (state.skills[lowest] || 0) + 1);
       // Cycle 2 batch 5: forced physical-card injection if the player
       // is about to enter Act 2 with no physical answer. Mirrors a
       // hypothetical "you can pick a free physical at the act seam"
@@ -1386,6 +1420,12 @@ function aiPickReward(state, candidates) {
       if (physicalInDeck === 0) s += 8; // Sway is the verbal-only escape valve
     }
     if (card.effect?.insult) s += 1;
+    // Cycle 3: Read the Room — pierce tech. High pickup value if we're
+    // committed to a single lane (we'll meet a resistant enemy eventually).
+    if (card.effects?.pierceNextCast) {
+      s += 4;
+      if (isCommitted) s += 4; // committed decks need the pierce to handle hostile matchups
+    }
     // Avoid stacking copies.
     const owned = counts[card.id] || 0;
     if (owned >= 2) s -= 5;
