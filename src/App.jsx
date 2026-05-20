@@ -601,12 +601,34 @@ const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 // (formal / sarcastic / dismissive / chaotic) intentionally overlap
 // with the basic effects' widened resonance lists so resonance can
 // fire even before the player picks up reward cards.
+// Slim, neutral starter — covers Chutzpah and Wit shallowly so the
+// player doesn't feel "already well-rounded" before deck-building begins.
+// Jnsq is intentionally NOT here — it's the branch-out direction the
+// player opens via the Starting Picks screen at game start (or via
+// reward picks later). Old starter had 11 cards spanning all three stats
+// + two physical effects; that made archetype commitment feel pointless
+// because the deck was already a sampler.
 const STARTER_DECK = [
-  'w-respect', 'w-frankly', 'w-erm',
-  'e-persuade', 'e-bluster', 'e-bewilder',
-  'e-spark', 'e-sword-logic',
-  'c-channel',
-  'c-defend', 'c-defend',
+  'w-respect',                // wit ingredient
+  'w-frankly',                // chutzpah ingredient
+  'e-persuade',               // basic wit attack
+  'e-bluster',                // basic chutzpah attack
+  'c-channel',                // utility
+  'c-defend', 'c-defend',     // block
+];
+
+// Six-card pool shown on the Starting Picks screen. Player chooses 2 to
+// add to their deck before the first map loads. Pairs of (word, effect)
+// per archetype: pick both jnsq to open that lane, pick within chutzpah/
+// wit to double down, or mix-and-match. Each is a small commitment, not
+// a build-defining card — early reward picks still shape the deck more.
+const STARTING_PICKS_POOL = [
+  'w-frankly',   // Chutzpah word
+  'e-strike',    // Chutzpah effect
+  'w-respect',   // Wit word
+  'e-convince',  // Wit effect
+  'w-erm',       // Jnsq word — opens the branch
+  'e-bewilder',  // Jnsq effect — opens the branch
 ];
 
 // Enemies. `act` filters which act they appear in. `tier` ∈ normal / elite / boss.
@@ -1562,6 +1584,9 @@ export default function App() {
   // familiar.bonus is treated as a permanent effect source like a relic.
   const [familiar, setFamiliar] = useState(null);
   const [familiarName, setFamiliarName] = useState('');
+  // Which two cards the player chose from STARTING_PICKS_POOL. Tracked as
+  // an array so toggle-to-deselect works; commit happens when length === 2.
+  const [startingPicksSelected, setStartingPicksSelected] = useState([]);
   // Supply shop draft state. Cleared after exit.
   const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
   const [supplyPicks, setSupplyPicks] = useState([]);     // indices already picked (max 2)
@@ -1702,6 +1727,7 @@ export default function App() {
     setComposure(STARTING_MAX_COMPOSURE);
     setBlock(0);
     setEnergy(ENERGY_PER_TURN);
+    setStartingPicksSelected([]);
     setExiled([]);
     setEquipment([]);
     setPowers([]);
@@ -1826,7 +1852,27 @@ export default function App() {
     const final = trimmed || familiar?.species || 'Familiar';
     setFamiliarName(final);
     pushLog(`🐾 You name your ${familiar?.species || 'familiar'} ${final}.`);
-    // Now spin up the Act 1 map and begin.
+    // Route through the Starting Picks screen before the first map loads.
+    // (Placeholder for the planned character-selection opening sequence.)
+    setStage('starting-picks');
+  }
+
+  function toggleStartingPick(cardId) {
+    setStartingPicksSelected(prev => {
+      if (prev.includes(cardId)) return prev.filter(id => id !== cardId);
+      if (prev.length >= 2) return prev; // already at cap — must deselect first
+      return [...prev, cardId];
+    });
+  }
+
+  function confirmStartingPicks() {
+    if (startingPicksSelected.length !== 2) return;
+    const additions = startingPicksSelected
+      .map(id => CARDS_BY_ID[id])
+      .filter(Boolean)
+      .map(c => ({ ...c, uid: uid() }));
+    setDeck(d => shuffle([...d, ...additions]));
+    for (const c of additions) pushLog(`+ ${c.name} added to your starting deck.`);
     setMap(generateActMap(ACTS[0].rows, ACTS[0].width));
     setStage('map');
     pushLog(`🌅 ${ACTS[0].name} begins.`);
@@ -3090,6 +3136,11 @@ export default function App() {
   if (stage === 'supply-shop')   return <SupplyShopScreen choices={supplyChoices} picks={supplyPicks} onPick={pickSupplyCard} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
   if (stage === 'familiar-name') return <FamiliarNameScreen familiar={familiar} onConfirm={confirmFamiliarName} />;
+  if (stage === 'starting-picks') return <StartingPicksScreen
+    pool={STARTING_PICKS_POOL}
+    selected={startingPicksSelected}
+    onToggle={toggleStartingPick}
+    onConfirm={confirmStartingPicks} />;
 
   if (stage === 'act-cleared') {
     return <ActClearedScreen act={currentAct} equipment={equipment}
@@ -4011,6 +4062,76 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       <div className="parchment-card p-3 max-h-40 overflow-y-auto text-sm font-quill text-parchment-200 space-y-0.5">
         {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}
       </div>
+    </div>
+  );
+}
+
+// Starting Picks — shown after familiar selection. Player taps two cards
+// from a fixed pool to seed their deck with archetype commitment. This
+// is a PLACEHOLDER for the planned character-selection opening sequence;
+// when that lands, the pool will be derived from the chosen character.
+function StartingPicksScreen({ pool, selected, onToggle, onConfirm }) {
+  const cards = pool.map(id => CARDS_BY_ID[id]).filter(Boolean);
+  const archetypeOf = (card) => {
+    if (card.type === 'word') {
+      if (card.stats?.chutzpah) return 'Chutzpah';
+      if (card.stats?.wit)      return 'Wit';
+      if (card.stats?.jnsq)     return 'Jnsq';
+    }
+    if (card.type === 'effect') {
+      const s = card.effect?.scaleBy;
+      if (s === 'chutzpah') return 'Chutzpah';
+      if (s === 'wit')      return 'Wit';
+      if (s === 'jnsq')     return 'Jnsq';
+    }
+    return '';
+  };
+  const archColor = (a) => a === 'Chutzpah' ? 'text-ember-600 border-ember-400'
+                       : a === 'Wit'      ? 'text-iris-700 border-iris-400'
+                       : a === 'Jnsq'     ? 'text-moss-700 border-moss-400'
+                       : 'text-ink-500 border-ink-300';
+  const ready = selected.length === 2;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-5xl mx-auto">
+      <h2 className="font-display text-3xl text-gold-300">Find Your Voice</h2>
+      <p className="text-sm text-parchment-300 italic max-w-2xl text-center">
+        Your starter deck covers the basics in <span className="text-ember-300">Chutzpah</span> and <span className="text-iris-200">Wit</span>.
+        Pick <b>2</b> more cards to seed your style — double down on a stat you know, or open <span className="text-moss-200">Jnsq</span> as a third lane.
+      </p>
+      <p className="text-xs text-parchment-400">
+        Selected: <span className={ready ? 'text-moss-300' : 'text-gold-300'}>{selected.length} / 2</span>
+      </p>
+      <div className="flex gap-4 flex-wrap justify-center">
+        {cards.map((card) => {
+          const arch = archetypeOf(card);
+          const isSelected = selected.includes(card.id);
+          const disabled = !isSelected && selected.length >= 2;
+          return (
+            <button key={card.id} onClick={() => onToggle(card.id)} disabled={disabled}
+              className={`w-48 min-h-[240px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg transition bg-parchment-50 text-ink-800 ${archColor(arch)} ${
+                isSelected ? 'scale-105 ring-4 ring-gold-400 shadow-2xl' :
+                disabled   ? 'opacity-40 cursor-not-allowed' :
+                'hover:scale-105 hover:shadow-2xl'
+              }`}>
+              <div className="flex justify-between items-center">
+                <div className="font-display text-base leading-tight">{card.name}</div>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-ink-400">
+                {card.type}{arch && <> · <span className={archColor(arch).split(' ')[0]}>{arch}</span></>}
+              </div>
+              <div className="text-xs font-quill">{card.desc}</div>
+              {card.flavor && (
+                <div className="text-[11px] italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <button onClick={onConfirm} disabled={!ready}
+        className={`btn text-base px-8 py-3 ${ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'}`}>
+        Begin Act 1
+      </button>
     </div>
   );
 }
