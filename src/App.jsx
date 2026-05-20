@@ -1227,14 +1227,21 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 let _uid = 0;
 const uid = () => `u${++_uid}`;
 
-function rollIntent(enemy) {
-  const total = enemy.behaviors.reduce((s, b) => s + (b.weight || 1), 0);
+// Roll a weighted-random intent from the enemy's behavior list. `excludeKinds`
+// is an optional list of intent kinds to skip — used by the anti-repetition
+// system so an enemy can't fire the same intent (e.g. 'block') 3+ turns in
+// a row. Falls back to the full behavior list if every option is excluded
+// (e.g. an enemy whose only behaviors share one kind).
+function rollIntent(enemy, excludeKinds = []) {
+  const filtered = enemy.behaviors.filter(b => !excludeKinds.includes(b.kind));
+  const pool = filtered.length > 0 ? filtered : enemy.behaviors;
+  const total = pool.reduce((s, b) => s + (b.weight || 1), 0);
   let roll = Math.random() * total;
-  for (const b of enemy.behaviors) {
+  for (const b of pool) {
     roll -= (b.weight || 1);
     if (roll <= 0) return { ...b };
   }
-  return { ...enemy.behaviors[0] };
+  return { ...pool[0] };
 }
 
 function buildStartingDeck() {
@@ -1622,6 +1629,10 @@ export default function App() {
   const [enemyHp, setEnemyHp] = useState(0);
   const [enemyBlock, setEnemyBlock] = useState(0);
   const [enemyIntent, setEnemyIntent] = useState(null);
+  // Track the last 2 intent kinds the enemy actually fired (in order).
+  // Used to anti-repetition the next roll: if both are the same kind,
+  // the next rollIntent excludes that kind. Reset per combat.
+  const [lastIntentKinds, setLastIntentKinds] = useState([]);
   // Damage multipliers — replace the old discrete Weak/Vulnerable
   // status. Each modifier card / enemy intent shifts the multiplier
   // by ±0.25, clamped to [0.5, 1.5]. Drifts 0.25 toward 1.0 each
@@ -2110,6 +2121,7 @@ export default function App() {
     setDmgFloaters([]);
     setEnemyDmgMult(1.0);
     setPlayerDmgMult(1.0);
+    setLastIntentKinds([]);
     setEnemyIntent(rollIntent(e));
     // Powers don't persist between combats.
     setPowers([]);
@@ -2766,8 +2778,17 @@ export default function App() {
     setBlock(wBlock);
     setEnergy(wEnergy);
 
-    // 6. New intent.
-    if (enemy) setEnemyIntent(rollIntent(enemy));
+    // 6. New intent. Track what just fired and force a switch if the
+    // enemy has already done the same kind twice in a row — saves the
+    // "spammed Block 15 turns in a row" mind-numbing fights.
+    const justFiredKind = enemyIntent?.kind;
+    const newHistory = justFiredKind
+      ? [...lastIntentKinds, justFiredKind].slice(-2)
+      : lastIntentKinds;
+    setLastIntentKinds(newHistory);
+    const exclude = (newHistory.length === 2 && newHistory[0] === newHistory[1])
+      ? [newHistory[0]] : [];
+    if (enemy) setEnemyIntent(rollIntent(enemy, exclude));
   }
 
   function applyEnemyIntent(intent) {

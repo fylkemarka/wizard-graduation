@@ -420,8 +420,10 @@ function pickWeighted(list, weightKey = 'weight') {
   }
   return list[0];
 }
-function rollIntent(enemy) {
-  return { ...pickWeighted(enemy.behaviors) };
+function rollIntent(enemy, excludeKinds = []) {
+  const filtered = enemy.behaviors.filter(b => !excludeKinds.includes(b.kind));
+  const pool = filtered.length > 0 ? filtered : enemy.behaviors;
+  return { ...pickWeighted(pool) };
 }
 function pickCardByRarity(rarityWeights, exclude = []) {
   const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id));
@@ -537,6 +539,7 @@ function combatStart(state, enemyId) {
     enemyDmgMult: 1.0,
     playerDmgMult: 1.0,
     enemyIntent: rollIntent(enemy),
+    lastIntentKinds: [],
     powers: [],
     tray: { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false },
     turn: 0,
@@ -853,7 +856,13 @@ function aiTurn(state, combat) {
     // Discard hand
     for (const c of state.hand) state.discard.push(c);
     state.hand = [];
-    combat.enemyIntent = rollIntent(combat.enemy);
+    // Anti-repetition: track last 2 kinds fired, exclude that kind on the
+    // next roll if both match (mirrors App.jsx — see endTurn).
+    const justFiredKind = combat.enemyIntent?.kind;
+    if (justFiredKind) combat.lastIntentKinds = [...combat.lastIntentKinds, justFiredKind].slice(-2);
+    const exclude = (combat.lastIntentKinds.length === 2 && combat.lastIntentKinds[0] === combat.lastIntentKinds[1])
+      ? [combat.lastIntentKinds[0]] : [];
+    combat.enemyIntent = rollIntent(combat.enemy, exclude);
   }
 }
 
