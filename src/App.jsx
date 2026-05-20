@@ -3507,6 +3507,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                     data-node-id={n.id}
                     style={{ cursor: isReachable ? 'pointer' : 'default' }}
                     onClick={() => isReachable && onPick(n.id)}>
+                    <title>{nodeTooltip(n.type)}</title>
                     <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
                       fill={fill} stroke={stroke} strokeWidth={strokeWidth}
                       opacity={opacity} />
@@ -3623,6 +3624,20 @@ function nodeLabel(n) {
     material: 'a gather', skill: 'a craft lesson',
   }[n.type]) || 'a tile';
 }
+// Plain-language tooltip body for a map node — appears on hover. Tells
+// the player exactly what will happen when they step on the tile.
+function nodeTooltip(type) {
+  return ({
+    combat:   '⚔ Combat — face a normal enemy. Drop their composure or HP to win and pick a card reward.',
+    elite:    '☠ Elite — tougher enemy with more behaviors. Higher-quality reward on victory.',
+    rest:     '🛏 Rest — heal a chunk of HP. Sometimes other small bonuses.',
+    event:    '📜 Event — a story moment with 2-3 choices, usually a trade (heal/card/max-HP up for HP/max-HP/card down).',
+    material: '🪵 Gather — pick a raw material for this act\'s slot. Drives the end-of-act craft.',
+    skill:    '🛠 Craft lesson — bump a craft skill. Safe pick: +2 skill, -8 HP. Risky pick: +4 skill, -8 max HP.',
+    boss:     '👑 Boss — the act\'s final fight. Required to advance.',
+    start:    'Trailhead — pick which row-0 tile to start the act from.',
+  }[type]) || 'A tile.';
+}
 function Legend({ glyph, label }) {
   return <span><span className="mr-1">{glyph}</span>{label}</span>;
 }
@@ -3645,6 +3660,42 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
   // Hit-shake: re-key on every enemyHitFlash change so the animation
   // restarts even on rapid consecutive hits.
   const shakeClass = enemyHitFlash ? 'enemy-hit-shake' : '';
+
+  // Build a plain-language tooltip for the enemy's intent box. The
+  // telegraph string ('🎭 5 (pattern-wrong)') is opaque on first read —
+  // this is what teaches the icon vocabulary on hover.
+  const intentTooltip = (intent) => {
+    if (!intent) return '';
+    const lines = [];
+    if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
+      const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+      const total = intent.value * hits;
+      const pool = intent.pool === 'composure' ? 'Composure' : 'HP';
+      const poolIcon = intent.pool === 'composure' ? '🎭' : '⚔';
+      if (hits > 1) {
+        lines.push(`${poolIcon} Attacks ${hits}× for ${intent.value} each (${total} total) — targets your ${pool}.`);
+      } else {
+        lines.push(`${poolIcon} Attacks for ${intent.value} damage — targets your ${pool}.`);
+      }
+      if (intent.pool === 'composure') {
+        lines.push('Composure attacks bypass HP. Lose all Composure and you fail by losing your nerve.');
+      }
+    } else if (intent.kind === 'block') {
+      lines.push(`🛡 Gains ${intent.value} Block — absorbs your damage to it until its next turn.`);
+    } else if (intent.kind === 'vulnerable') {
+      lines.push(`🩸 Applies Vulnerable ${intent.value} — its attacks deal +${25*intent.value}% damage to you next turns.`);
+    } else if (intent.kind === 'weak') {
+      lines.push(`⛧ Applies Weak ${intent.value} — your spell potency drops by ${25*intent.value}% next turns.`);
+    }
+    if (intent.riders) {
+      const r = intent.riders;
+      if (r.weak)       lines.push(`+ rider ⛧ Weak ${r.weak} — your spell potency also drops ${25*r.weak}%.`);
+      if (r.vulnerable) lines.push(`+ rider 🩸 Vulnerable ${r.vulnerable} — enemy will deal +${25*r.vulnerable}% more damage too.`);
+      if (r.block)      lines.push(`+ rider 🛡 ${r.block} — also gains Block.`);
+    }
+    lines.push('Block + Defense reduce attack damage to either pool. Debuffs drift back toward neutral by 0.25/turn.');
+    return lines.join('\n');
+  };
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
       <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-4 relative ${shakeClass}`}>
@@ -3684,8 +3735,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <div className="px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700">
-            <div className="text-xs uppercase text-ember-300 tracking-widest">Intent</div>
+          <div className="px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700 cursor-help"
+               title={intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.'}>
+            <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
             <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
           </div>
           {enemyDmgMult !== 1.0 && (
@@ -3790,17 +3842,17 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
-          <div>
-            <div className="text-xs uppercase text-parchment-300">HP</div>
+          <div title="HP — your physical health. Drops to 0 and you fail. Heals through rest stops + inter-act recovery.">
+            <div className="text-xs uppercase text-parchment-300">HP <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-moss-300">{hp} <span className="text-sm text-parchment-300">/ {maxHp}</span></div>
           </div>
-          <div>
-            <div className="text-xs uppercase text-parchment-300" title="Composure — your nerve. Drop to 0 and you lose your nerve, even at full HP.">Composure</div>
+          <div title="Composure — your nerve / verbal HP. Some enemies (🎭 attacks) target this instead of HP. Drop to 0 and you fail by losing your nerve, even at full HP.">
+            <div className="text-xs uppercase text-parchment-300">Composure <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
           </div>
-          <div>
-            <div className="text-xs uppercase text-parchment-300">Block</div>
-            <div className="text-2xl font-mono text-iris-300" title="Block absorbs incoming damage. Resets to 0 at end of turn.">🛡 {block}</div>
+          <div title="Block — absorbs incoming damage to either pool (HP or Composure). Resets to 0 at the start of your next turn. Powers / Felt-tier hats can re-grant it.">
+            <div className="text-xs uppercase text-parchment-300">Block <span className="text-parchment-500">ⓘ</span></div>
+            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
           </div>
           {(() => {
             const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
@@ -3816,11 +3868,11 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               </div>
             ) : null;
           })()}
-          <div>
-            <div className="text-xs uppercase text-parchment-300">Energy</div>
+          <div title="Energy — spent to play cards. Refills to the cap every turn. Some equipment / rings add to the cap.">
+            <div className="text-xs uppercase text-parchment-300">Energy <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
           </div>
-          <div>
+          <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
             <div className="text-xs uppercase text-parchment-300">Deck</div>
             <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
           </div>
