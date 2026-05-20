@@ -1481,17 +1481,27 @@ function generateActMap(rows, width) {
     x: spacedX(0, 1, width), y: rowY(0, rows) });
   const materialRows = new Set([3, 7, 11]);
   const skillRows    = new Set([5, 9]);
+  const preBossRow   = rows - 2; // Always rest before the boss, every path.
   for (let r = 1; r < rows - 1; r++) {
     // Row 1 is the Town's immediate fanout — pinned at 3 so the player
     // always sees three distinct first-step paths. Other rows vary 2-3.
     const w = r === 1 ? 3 : (2 + Math.floor(rng() * 2));
+    // Material/skill rows used to force EVERY column to be that type —
+    // 6-9 material nodes visible on the map but the player could only
+    // pick one per row. Now one column per material/skill row is the
+    // special tile and the rest are normal mix. Player's path may or
+    // may not cross the material; typical outcome is 2 materials per
+    // act with max 3 if the path is lucky.
+    const materialCol = materialRows.has(r) ? Math.floor(rng() * w) : -1;
+    const skillCol    = skillRows.has(r)    ? Math.floor(rng() * w) : -1;
     for (let c = 0; c < w; c++) {
-      // Material / skill rows override the normal pickNodeType roll
-      // for every column in that row — the player MUST grab one of
-      // the materials at row 3 (which one they choose is the question).
-      const t = materialRows.has(r) ? 'material'
-              : skillRows.has(r)    ? 'skill'
-              :                       pickNodeType(r, rows);
+      // Pre-boss row is ALL rest — every path lands at an inn before the
+      // boss so the player gets one HP/Composure top-off no matter how
+      // they routed through the act.
+      const t = r === preBossRow      ? 'rest'
+              : c === materialCol     ? 'material'
+              : c === skillCol        ? 'skill'
+              :                         pickNodeType(r, rows);
       nodes.push({ id: `n-${r}-${c}`, row: r, col: c,
         type: t,
         x: spacedX(c, w, width), y: rowY(r, rows) });
