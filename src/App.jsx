@@ -37,7 +37,7 @@
 //   healOnCombatStart      — +N HP at start of every combat
 //   extraStartHand         — +N to the turn-1 draw (per combat)
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 // =============================================================================
@@ -1181,7 +1181,7 @@ const SKILL_EVENTS = [
     flavor: 'A sturdy stump, a half-finished blank, and a knife with sentimental fingerprints. Someone left, presumably, before they were finished.',
     choices: [
       { label: 'Practice the long curve. (+2 Whittling, -8 HP)',             effects: { skill: { whittling: 2 }, loseHp: 8 } },
-      { label: 'Carve until your hands cramp. (+4 Whittling, -8 max HP)',    effects: { skill: { whittling: 4 }, maxHp: -8 } },
+      { label: 'Carve until your hands cramp. (Trace the cut — up to +4 Whittling, -8 max HP)',    effects: { skill: { whittling: 4 }, maxHp: -8, minigame: 'trace-whittling' } },
       { label: 'Pocket the knife. Walk on. (+6 HP)',                          effects: { heal: 6 } },
     ],
   },
@@ -1192,7 +1192,7 @@ const SKILL_EVENTS = [
     flavor: 'An old man sits beside the path, working a length of yew into a shape that does not declare itself. "Sit a while," he says. "I\'ll show you the trick. The trick is not what you think it is."',
     choices: [
       { label: 'Watch the trick. (+2 Whittling, -8 HP)',                     effects: { skill: { whittling: 2 }, loseHp: 8 } },
-      { label: 'Sit for a long lesson. (+4 Whittling, -8 max HP)',           effects: { skill: { whittling: 4 }, maxHp: -8 } },
+      { label: 'Sit for a long lesson. (Trace the cut — up to +4 Whittling, -8 max HP)',           effects: { skill: { whittling: 4 }, maxHp: -8, minigame: 'trace-whittling' } },
       { label: 'Decline. Old Greb gives you something instead. (+1 Common card)', effects: { gainCommonCard: 1 } },
     ],
   },
@@ -1719,6 +1719,12 @@ export default function App() {
   // Which two cards the player chose from STARTING_PICKS_POOL. Tracked as
   // an array so toggle-to-deselect works; commit happens when length === 2.
   const [startingPicksSelected, setStartingPicksSelected] = useState([]);
+  // Pending minigame prompt. Set when a skill-event choice carries a
+  // `minigame` field — the resolver defers the effect, fires the
+  // minigame, and applies a graded outcome based on the player's
+  // performance instead of the deterministic effect.
+  // Shape: { kind: 'trace-whittling', baseEffects: {...}, eventTitle: string }
+  const [skillMinigame, setSkillMinigame] = useState(null);
   // Supply shop draft state. Cleared after exit.
   const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
   const [supplyPicks, setSupplyPicks] = useState([]);     // indices already picked (max 2)
@@ -2140,8 +2146,71 @@ export default function App() {
   // Resolves a skill-event choice the same way resolveEventChoice does
   // regular events, but the modal lives on its own stage so we don't
   // mash the two flows together.
+  // Apply the graded outcome of a skill-event minigame. The player's
+  // grade scales the advertised skill bump (Master = full bump, Fine =
+  // half rounded up, Rough = 1 with extra HP penalty) while always
+  // applying the labeled max-HP cost (you committed by choosing it).
+  function finalizeSkillMinigame(grade) {
+    const m = skillMinigame;
+    if (!m) return;
+    const fx = m.baseEffects || {};
+    const logBits = [`🛠 ${m.eventTitle}: ${m.choiceLabel} → ${grade.toUpperCase()}`];
+    // Skill scaling by grade.
+    const skillScale = grade === 'master' ? 1.0 : grade === 'fine' ? 0.5 : 0.25;
+    if (fx.skill) {
+      const eligibleSkills = new Set();
+      for (let i = currentActIdx; i < ACTS.length; i++) {
+        const c = ACTS[i]?.craft;
+        if (c) eligibleSkills.add(c);
+      }
+      setSkills(prev => {
+        const next = { ...prev };
+        for (const [skill, bump] of Object.entries(fx.skill)) {
+          if (!eligibleSkills.has(skill)) continue;
+          const scaled = Math.max(1, Math.ceil(bump * skillScale));
+          next[skill] = Math.min(SKILL_MAX, (next[skill] || 0) + scaled);
+        }
+        return next;
+      });
+      for (const [skill, bump] of Object.entries(fx.skill)) {
+        if (!eligibleSkills.has(skill)) continue;
+        const scaled = Math.max(1, Math.ceil(bump * skillScale));
+        logBits.push(`+${scaled} ${CRAFT_LABEL[skill] || skill}`);
+      }
+    }
+    // Max-HP cost always lands (you committed). Rough adds an extra -2 HP
+    // penalty for fumbling.
+    if (fx.maxHp) {
+      setMaxHp(m => Math.max(1, m + fx.maxHp));
+      if (fx.maxHp < 0) setHp(h => Math.max(1, Math.min(h, maxHp + fx.maxHp)));
+      logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
+    }
+    if (grade === 'rough') {
+      setHp(h => Math.max(1, h - 2));
+      logBits.push(`-2 HP (botched)`);
+    }
+    pushLog(logBits.join(' · '));
+    setSkillMinigame(null);
+    returnToMap();
+  }
+
   function resolveSkillChoice(choice) {
     const fx = choice.effects || {};
+    // Minigame intercept: defer the effect until the player has played
+    // the minigame. The grade they achieve replaces the deterministic
+    // skill bump with a Master/Fine/Rough variant.
+    if (fx.minigame) {
+      const title = activeSkillEvent?.title || '';
+      setActiveSkillEvent(null);
+      setSkillMinigame({
+        kind: fx.minigame,
+        baseEffects: fx,
+        eventTitle: title,
+        choiceLabel: choice.label,
+      });
+      setStage('skill-minigame');
+      return;
+    }
     const logBits = [`🛠 ${activeSkillEvent.title}: ${choice.label}`];
     if (fx.skill) {
       // Apply each skill bump, capped at SKILL_MAX, and gated by
@@ -3374,6 +3443,10 @@ export default function App() {
   if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
   if (stage === 'material-choose') return <MaterialChooseScreen prompt={materialChoices} onPick={claimMaterial} onSkip={skipMaterial} />;
   if (stage === 'skill-event') return <SkillEventScreen event={activeSkillEvent} skills={skills} onChoose={resolveSkillChoice} />;
+  if (stage === 'skill-minigame' && skillMinigame?.kind === 'trace-whittling') return <TraceWhittlingMinigame
+    eventTitle={skillMinigame.eventTitle}
+    choiceLabel={skillMinigame.choiceLabel}
+    onComplete={finalizeSkillMinigame} />;
   if (stage === 'crafting') return <CraftingScreen
     prompt={craftingPrompt}
     onPickMaterial={craftingPickMaterial}
@@ -4636,6 +4709,193 @@ function SkillEventScreen({ event, skills, onChoose }) {
           <button key={i} onClick={() => onChoose(c)}
             className="btn bg-ink-600 hover:bg-ink-500 text-parchment-100 text-left">{c.label}</button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// TRACE-WHITTLING MINIGAME — slice 1 of skill-event minigames. Player
+// drags their cursor along a curved carve-line in an SVG. Tracks distance
+// from the line each frame, averages it at completion, maps to Master/
+// Fine/Rough. Grade fed back to finalizeSkillMinigame which scales the
+// skill bump and applies the labeled max-HP cost.
+function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
+  const VB_W = 720, VB_H = 220;
+  // Curve as a list of {x, y} control points. The drawn path uses smooth
+  // SVG curves between these. Discretized to fine samples for distance
+  // checks. Two curves to vary across reloads — picks one per mount.
+  const curves = useMemo(() => ([
+    [
+      { x: 50,  y: 110 },
+      { x: 180, y: 60  },
+      { x: 280, y: 150 },
+      { x: 410, y: 80  },
+      { x: 540, y: 140 },
+      { x: 670, y: 95  },
+    ],
+    [
+      { x: 50,  y: 140 },
+      { x: 200, y: 80  },
+      { x: 350, y: 130 },
+      { x: 500, y: 70  },
+      { x: 670, y: 130 },
+    ],
+  ]), []);
+  const controlPoints = useMemo(() => curves[Math.floor(Math.random() * curves.length)], [curves]);
+
+  // Discretize the control polyline into many small samples so the
+  // distance test is just "nearest sample" — cheap and good enough.
+  const pathSamples = useMemo(() => {
+    const samples = [];
+    const segs = 80;
+    for (let i = 0; i < controlPoints.length - 1; i++) {
+      const a = controlPoints[i];
+      const b = controlPoints[i + 1];
+      for (let s = 0; s < segs; s++) {
+        const t = s / segs;
+        samples.push({
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t,
+          idx: samples.length,
+        });
+      }
+    }
+    samples.push({ ...controlPoints[controlPoints.length - 1], idx: samples.length });
+    return samples;
+  }, [controlPoints]);
+
+  const svgRef = useRef(null);
+  const stateRef = useRef({
+    tracing: false,
+    totalError: 0,
+    samples: 0,
+    progressIdx: 0,
+    cursor: null,
+  });
+  const [tracing, setTracing] = useState(false);
+  const [cursor, setCursor] = useState(null);
+  const [progress, setProgress] = useState(0); // 0..1
+  const [errorBucket, setErrorBucket] = useState('fine'); // current proximity feedback
+
+  function svgPointFrom(e) {
+    if (!svgRef.current) return null;
+    const r = svgRef.current.getBoundingClientRect();
+    const sx = VB_W / r.width;
+    const sy = VB_H / r.height;
+    return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+  }
+
+  function findNearest(x, y) {
+    let best = Infinity, bestIdx = 0;
+    for (let i = 0; i < pathSamples.length; i++) {
+      const dx = pathSamples[i].x - x;
+      const dy = pathSamples[i].y - y;
+      const d = dx * dx + dy * dy;
+      if (d < best) { best = d; bestIdx = i; }
+    }
+    return { idx: bestIdx, dist: Math.sqrt(best) };
+  }
+
+  function onPointerDown(e) {
+    const p = svgPointFrom(e);
+    if (!p) return;
+    const start = pathSamples[0];
+    const startDist = Math.sqrt((p.x - start.x) ** 2 + (p.y - start.y) ** 2);
+    if (startDist > 60) return; // must start near the line's left endpoint
+    stateRef.current = { tracing: true, totalError: 0, samples: 0, progressIdx: 0, cursor: p };
+    setTracing(true);
+    setCursor(p);
+    setProgress(0);
+  }
+
+  function onPointerMove(e) {
+    if (!stateRef.current.tracing) return;
+    const p = svgPointFrom(e);
+    if (!p) return;
+    const near = findNearest(p.x, p.y);
+    // Progress only advances forward (don't reward going backward).
+    if (near.idx > stateRef.current.progressIdx) {
+      stateRef.current.progressIdx = near.idx;
+      setProgress(near.idx / (pathSamples.length - 1));
+    }
+    stateRef.current.totalError += near.dist;
+    stateRef.current.samples += 1;
+    stateRef.current.cursor = p;
+    setCursor(p);
+    setErrorBucket(near.dist < 12 ? 'master' : near.dist < 28 ? 'fine' : 'rough');
+  }
+
+  function finish() {
+    const s = stateRef.current;
+    if (!s.tracing) return;
+    s.tracing = false;
+    setTracing(false);
+    const avg = s.samples > 0 ? s.totalError / s.samples : 999;
+    const completion = s.progressIdx / (pathSamples.length - 1);
+    // Grading: must finish at least 75% to qualify above Rough.
+    let grade;
+    if (completion < 0.5)            grade = 'rough';
+    else if (completion >= 0.85 && avg < 14) grade = 'master';
+    else if (completion >= 0.70 && avg < 26) grade = 'fine';
+    else                              grade = 'rough';
+    // Tiny delay so the last cursor frame paints before the screen jumps.
+    setTimeout(() => onComplete(grade), 250);
+  }
+
+  function onPointerUp() { finish(); }
+  function onPointerLeave() { if (stateRef.current.tracing) finish(); }
+
+  const pathD = (() => {
+    const [first, ...rest] = controlPoints;
+    return `M ${first.x} ${first.y} ` + rest.map(p => `L ${p.x} ${p.y}`).join(' ');
+  })();
+
+  const proximityColor = errorBucket === 'master' ? '#7a9b3a'
+                       : errorBucket === 'fine'   ? '#c79d44'
+                       :                            '#a44a3f';
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 gap-4 max-w-4xl mx-auto">
+      <h2 className="font-display text-2xl text-moss-300">🛠 {eventTitle}</h2>
+      <p className="text-sm text-parchment-300 italic max-w-xl text-center">{choiceLabel}</p>
+      <p className="text-xs text-parchment-400 max-w-xl text-center">
+        Press and hold from the left end. Drag your cursor along the dotted line all the way to the right.
+        Stay close — the closer you stay, the better the cut.
+      </p>
+      <div className="parchment-card-strong p-3 select-none">
+        <svg ref={svgRef} viewBox={`0 0 ${VB_W} ${VB_H}`}
+             className="w-full max-w-3xl block cursor-crosshair touch-none"
+             onPointerDown={onPointerDown}
+             onPointerMove={onPointerMove}
+             onPointerUp={onPointerUp}
+             onPointerLeave={onPointerLeave}>
+          {/* Wood-grain background hint */}
+          <rect x={0} y={0} width={VB_W} height={VB_H} fill="#3a2d1c" />
+          {/* Safe band — the player should stay within this. */}
+          <path d={pathD} fill="none" stroke="#6b563a" strokeWidth={36} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />
+          {/* The actual carve line — dotted, the target. */}
+          <path d={pathD} fill="none" stroke="#dbb45f" strokeWidth={3} strokeDasharray="6 5" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Start marker */}
+          <circle cx={pathSamples[0].x} cy={pathSamples[0].y} r={10} fill="#5d7e3f" stroke="#dbb45f" strokeWidth={2} />
+          <text x={pathSamples[0].x} y={pathSamples[0].y + 28} fontSize={11} fill="#dbb45f" textAnchor="middle">START</text>
+          {/* End marker */}
+          <circle cx={pathSamples[pathSamples.length-1].x} cy={pathSamples[pathSamples.length-1].y} r={8} fill="#a44a3f" stroke="#dbb45f" strokeWidth={2} />
+          <text x={pathSamples[pathSamples.length-1].x} y={pathSamples[pathSamples.length-1].y - 16} fontSize={11} fill="#dbb45f" textAnchor="middle">END</text>
+          {/* Cursor halo while tracing */}
+          {tracing && cursor && (
+            <circle cx={cursor.x} cy={cursor.y} r={10} fill={proximityColor} fillOpacity={0.8} stroke={proximityColor} strokeWidth={2} />
+          )}
+        </svg>
+      </div>
+      <div className="flex gap-4 items-center">
+        <div className="text-xs text-parchment-300">Progress: <span className="font-mono text-gold-300">{Math.round(progress * 100)}%</span></div>
+        <div className="text-xs text-parchment-300">Cut quality: <span className="font-mono" style={{ color: proximityColor }}>{errorBucket.toUpperCase()}</span></div>
+        {!tracing && progress === 0 && (
+          <div className="text-xs text-parchment-400 italic">Click the green dot to start.</div>
+        )}
+        {!tracing && progress > 0 && (
+          <button className="btn btn-iris text-sm" onClick={finish}>Finish the cut</button>
+        )}
       </div>
     </div>
   );
