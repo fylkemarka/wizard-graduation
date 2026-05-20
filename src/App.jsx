@@ -352,6 +352,27 @@ const CARDS = [
               failFlavor: '…you have not blinked in some time. They have not, either.' } },
     desc: 'Sway: try to soften the enemy\'s Physical resistance by +0.5 (cap 1.0). Tactic: threat.',
     flavor: 'A threat works because the alternative remains specifically unstated.' },
+  // ---- INSULT EFFECTS — open a 3-pick word-prompt modal on cast. The
+  //      picked words are tag-classified and aligned against the enemy's
+  //      insultVulnerabilities. Land (≥50% match) deals heavy composure
+  //      damage to the enemy. Unfaze (25-49%) — no damage but you still
+  //      pay the player composure cost for the attempt. Backfire (<25%)
+  //      — extra composure damage to you from the enemy's retort.
+  { id: 'e-cut-them-down', name: 'Cut Them Down', cost: 1, type: 'effect', rarity: 'common',
+    effect: { insult: true, playerComposureCost: 3, landDamage: 10, backfireDamage: 5,
+              successFlavor: 'You said the thing. They felt the thing.',
+              failFlavor:    'Words slide off them. Words slide off you.' },
+    upgrade: { effect: { insult: true, playerComposureCost: 3, landDamage: 14, backfireDamage: 5 } },
+    desc: 'Insult: 3 word-picks (4s each). Costs 3 Composure to attempt; up to 10 enemy Composure on a landed insult.',
+    flavor: 'You will lose a little of yourself to do it. Worth it.' },
+  { id: 'e-devastate', name: 'Devastate', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { insult: true, playerComposureCost: 5, landDamage: 18, backfireDamage: 9,
+              successFlavor: 'The room contracts. They contract more.',
+              failFlavor:    'The room contracts. You contract more.' },
+    upgrade: { effect: { insult: true, playerComposureCost: 5, landDamage: 24, backfireDamage: 9 } },
+    desc: 'Insult: 3 word-picks. Costs 5 Composure; 18 enemy Composure on land; 9 to YOU on backfire.',
+    flavor: 'The trick is to mean it. The trouble is also that.' },
+
   { id: 'e-mention-the-moon', name: 'Mention the Moon', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { sway: true, swayTarget: 'jnsq', tactic: 'confusion',
               tacticTags: ['chaotic', 'absurd', 'mystical'],
@@ -757,6 +778,7 @@ const ENEMIES = [
   { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 100, hpMax: 120, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'flattery', // Apex predator; flatter the apex.
+    insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
       { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -809,6 +831,7 @@ const ENEMIES = [
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 68, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
+    insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
@@ -852,6 +875,7 @@ const ENEMIES = [
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
+    insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
@@ -860,6 +884,7 @@ const ENEMIES = [
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
+    insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 4, weight: 1, telegraph: '⚔ 5×4' },
@@ -912,6 +937,7 @@ const ENEMIES = [
   { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 100, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
     softSpot: 'flattery', // It is a HAT that wants to be the headmaster. Acknowledge that.
+    insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Vain authority; mocking the hat-ness lands.
     behaviors: [
       { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -927,6 +953,7 @@ const ENEMIES = [
   { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 60, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 0 },
     softSpot: 'logic',
+    insultVulnerabilities: ['dismissive', 'absurd'], // Pedant; absurdity destabilizes him most.
     behaviors: [
       { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (citing 1894 paper)', riders: { vulnerable: 1 } },
       { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (clearing throat audibly)' },
@@ -1562,6 +1589,99 @@ const SIDEQUEST_TEMPLATES = {
         next: { effects: { gainCommonCard: 1 } } },
     ] },
 };
+
+// =============================================================================
+// INSULT WORD POOLS — used by insult-type effect cards. On cast, the
+// player picks one noun, one verb, one adjective (3 choices each, 4s
+// timer per pick). Each word has pre-classified `tags`. Alignment
+// against the enemy's `insultVulnerabilities` decides outcome:
+//   ≥50% tag-match → LAND (heavy composure damage to enemy)
+//   25-49%         → UNFAZE (player loses base composure cost only)
+//   <25%           → BACKFIRE (enemy retorts — extra composure damage)
+// =============================================================================
+const INSULT_NOUNS = [
+  { word: 'wretch',          tags: ['dismissive'] },
+  { word: 'bore',            tags: ['dismissive', 'petty'] },
+  { word: 'thundering twit', tags: ['booming', 'dismissive'] },
+  { word: 'philosopher',     tags: ['academic', 'sarcastic'] },
+  { word: 'cheese-cousin',   tags: ['absurd'] },
+  { word: 'turnip',          tags: ['absurd', 'petty'] },
+  { word: 'parasite',        tags: ['threatening', 'dismissive'] },
+  { word: 'hat',             tags: ['absurd', 'dismissive'] },
+  { word: 'compostable',     tags: ['absurd', 'dismissive'] },
+  { word: 'small-clothes thief', tags: ['petty', 'absurd'] },
+  { word: 'ghoul',           tags: ['threatening', 'mystical'] },
+  { word: 'mistake',         tags: ['dismissive', 'petty'] },
+  { word: 'shape',           tags: ['absurd', 'dismissive'] },
+  { word: 'undercooked goose', tags: ['absurd', 'petty'] },
+  { word: 'discount oracle', tags: ['sarcastic', 'mystical'] },
+  { word: 'failed thesis',   tags: ['dismissive', 'academic'] },
+];
+
+const INSULT_VERBS = [
+  { word: 'mince',     tags: ['petty'] },
+  { word: 'splutter',  tags: ['absurd', 'petty'] },
+  { word: 'gibber',    tags: ['chaotic', 'absurd'] },
+  { word: 'bellow',    tags: ['booming'] },
+  { word: 'whine',     tags: ['petty'] },
+  { word: 'lecture',   tags: ['academic', 'formal'] },
+  { word: 'thunder',   tags: ['booming'] },
+  { word: 'simper',    tags: ['petty', 'sarcastic'] },
+  { word: 'preen',     tags: ['petty', 'sarcastic'] },
+  { word: 'wobble',    tags: ['petty', 'absurd'] },
+  { word: 'crumble',   tags: ['threatening', 'petty'] },
+  { word: 'pontificate', tags: ['academic', 'formal'] },
+  { word: 'cower',     tags: ['threatening', 'petty'] },
+  { word: 'rattle',    tags: ['booming', 'absurd'] },
+  { word: 'flounder',  tags: ['petty', 'absurd'] },
+  { word: 'demand',    tags: ['booming', 'rhetorical'] },
+];
+
+const INSULT_ADJECTIVES = [
+  { word: 'mediocre',    tags: ['dismissive'] },
+  { word: 'tedious',     tags: ['dismissive'] },
+  { word: 'pathetic',    tags: ['petty', 'dismissive'] },
+  { word: 'absurd',      tags: ['absurd'] },
+  { word: 'unconvincing', tags: ['dismissive'] },
+  { word: 'thunderous',  tags: ['booming'] },
+  { word: 'forgettable', tags: ['dismissive'] },
+  { word: 'damp',        tags: ['dismissive', 'absurd'] },
+  { word: 'embarrassing', tags: ['dismissive', 'petty'] },
+  { word: 'frankly humiliating', tags: ['dismissive', 'petty'] },
+  { word: 'eldritch',    tags: ['mystical'] },
+  { word: 'pungent',     tags: ['absurd', 'dismissive'] },
+  { word: 'derivative',  tags: ['academic', 'dismissive'] },
+  { word: 'minor',       tags: ['dismissive', 'petty'] },
+  { word: 'second-rate', tags: ['dismissive', 'petty'] },
+  { word: 'incoherent',  tags: ['chaotic', 'dismissive'] },
+  { word: 'shrill',      tags: ['booming', 'petty'] },
+  { word: 'shouting',    tags: ['booming'] },
+];
+
+// Generic comeback templates by which tag the enemy WANTS to be insulted in.
+// Used when the player's insult unfazes/backfires — gives the player a hint
+// at which tag-flavor of word would have actually landed.
+const INSULT_HINT_BY_TAG = {
+  dismissive:  'Calling me boring would have stung harder than that.',
+  petty:       'You\'d wound me more by going small.',
+  threatening: 'Threats might actually move me.',
+  booming:     'Speak louder. Make me hear you.',
+  absurd:      'Try something genuinely absurd. That rattles me.',
+  sarcastic:   'Sarcasm cuts deeper than sincere abuse.',
+  mystical:    'Invoke something old and wrong.',
+  formal:      'Adopt the proper register, would you?',
+  academic:    'Cite a source. THAT would hurt.',
+  rhetorical:  'Make an argument I can\'t refute.',
+  chaotic:     'I prefer my insults a little unhinged.',
+};
+
+const INSULT_BACKFIRE_RETORTS = [
+  'Is that all?',
+  'I expect more from a real wizard.',
+  'Your words slide off, and yours with them.',
+  'You sound less like an insulter and more like an apologiser.',
+  'My grandmother insulted me harder than this. Posthumously.',
+];
 
 // Map act number to the pool of sidequests available in that act.
 const SIDEQUESTS_BY_ACT = (() => {
@@ -2327,6 +2447,10 @@ export default function App() {
   // onEnemyDefeated reads to skip the normal reward flow.
   const [sidequestActive, setSidequestActive] = useState(null);
   const [sidequestCombatActive, setSidequestCombatActive] = useState(false);
+  // Insult prompt — when player casts an insult card, this holds the
+  // card + a slate of 3 random nouns/verbs/adjectives to pick from.
+  // Shape: { card, phase, samples: { noun, verb, adjective }, picks: [] }
+  const [insultPrompt, setInsultPrompt] = useState(null);
   // In-game menu / pause overlay.
   const [gameMenuOpen, setGameMenuOpen] = useState(false);
   // True if localStorage holds a saved run we can resume.
@@ -3413,6 +3537,34 @@ export default function App() {
     const card = tray.effectCard;
     const eff = card.effect || {};
 
+    // INSULT branch: open the 3-pick word prompt. The cast resolves
+    // asynchronously from the prompt screen via finalizeInsult.
+    if (eff.insult) {
+      // Send staged cards to discard immediately (the cost is paid).
+      const wordsToDiscard = tray.words.filter(w => !w.effects?.exhaust);
+      const wordsToExile   = tray.words.filter(w =>  w.effects?.exhaust);
+      setDiscard(d => [...d, ...wordsToDiscard, card]);
+      if (wordsToExile.length) setExiled(ex => [...ex, ...wordsToExile]);
+      // Sample 3 random words for each part of speech.
+      const sample = (pool) => {
+        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, 3);
+      };
+      setInsultPrompt({
+        card,
+        phase: 0, // 0 = noun, 1 = verb, 2 = adjective
+        samples: {
+          noun:      sample(INSULT_NOUNS),
+          verb:      sample(INSULT_VERBS),
+          adjective: sample(INSULT_ADJECTIVES),
+        },
+        picks: [],
+      });
+      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
+      setStage('insult-prompt');
+      return;
+    }
+
     // SWAY branch: no damage, instead try to shift one enemy resistance up
     // by +0.5 (cap 1.0). Success rolled from tray-tags + enemy.softSpot.
     if (eff.sway) {
@@ -3504,6 +3656,82 @@ export default function App() {
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
     applyPowerTriggers('onEffectCardPlayed');
     advanceTutorialStep('cast-spell');
+  }
+
+  // Insult prompt — player picks a word from the current phase's samples.
+  // Auto-pick triggers when the 4s timer elapses (InsultPromptScreen calls
+  // this with the first sample as a fallback).
+  function pickInsultWord(wordObj) {
+    if (!insultPrompt) return;
+    const nextPicks = [...insultPrompt.picks, wordObj];
+    const nextPhase = insultPrompt.phase + 1;
+    if (nextPhase >= 3) {
+      // All 3 picks made — resolve.
+      finalizeInsult(nextPicks);
+      return;
+    }
+    setInsultPrompt({ ...insultPrompt, picks: nextPicks, phase: nextPhase });
+  }
+
+  function finalizeInsult(picks) {
+    const card = insultPrompt?.card;
+    if (!card || !enemy) { setInsultPrompt(null); setStage('combat'); return; }
+    const eff = card.effect || {};
+    const vulns = enemy.insultVulnerabilities || ['dismissive', 'sarcastic'];
+    // Score: each word counts as a vote if any of its tags align with
+    // the enemy's vulnerability set. 3/3 = 100%, 2/3 = 67%, etc.
+    let matches = 0;
+    for (const pick of picks) {
+      const tags = pick?.tags || [];
+      if (tags.some(t => vulns.includes(t))) matches++;
+    }
+    const pct = picks.length > 0 ? matches / picks.length : 0;
+    const outcome = pct >= 0.5 ? 'land' : pct >= 0.25 ? 'unfaze' : 'backfire';
+
+    // Build the actual insult sentence for log narration.
+    const adj = picks.find(p => INSULT_ADJECTIVES.some(a => a.word === p.word));
+    const noun = picks.find(p => INSULT_NOUNS.some(n => n.word === p.word));
+    const verb = picks.find(p => INSULT_VERBS.some(v => v.word === p.word));
+    const sentence = `You ${adj?.word || ''} ${noun?.word || ''}. ${(verb?.word || '').replace(/.$/, m => m)}, all of you.`;
+    pushLog(`💢 "${sentence}"`);
+
+    // Pay the player composure cost (always).
+    const cost = eff.playerComposureCost || 3;
+    setComposure(c => Math.max(0, c - cost));
+    pushLog(`🎭 −${cost} Composure (you lose some of yourself doing this).`);
+
+    if (outcome === 'land') {
+      const dmg = Math.round((eff.landDamage || 10) * playerDmgMult);
+      const witMult = enemy?.effectiveness?.wit ?? 1.0; // verbal channel
+      const finalDmg = Math.round(dmg * witMult);
+      const after = applyDamageToEnemyComposure(finalDmg);
+      pushLog(`✓ LAND — ${finalDmg} composure → ${after}`);
+      if (eff.successFlavor) pushLog(`"${eff.successFlavor}"`);
+    } else if (outcome === 'unfaze') {
+      pushLog(`◌ UNFAZE — ${enemy.name} does not register the insult.`);
+      const hint = INSULT_HINT_BY_TAG[vulns[0]] || 'You\'d need to try a different angle.';
+      pushLog(`${enemy.name}: "${hint}"`);
+    } else {
+      // Backfire — enemy retorts, player takes extra composure damage.
+      const retort = INSULT_BACKFIRE_RETORTS[Math.floor(Math.random() * INSULT_BACKFIRE_RETORTS.length)];
+      pushLog(`✗ BACKFIRE — ${enemy.name}: "${retort}"`);
+      const back = eff.backfireDamage || 5;
+      setComposure(c => Math.max(0, c - back));
+      pushLog(`🎭 −${back} Composure (their retort lands).`);
+      const hint = vulns.length > 0
+        ? (INSULT_HINT_BY_TAG[vulns[0]] || 'A more cutting angle would have stuck.')
+        : 'It does not appear to hear you. Or care.';
+      pushLog(`Hint: ${hint}`);
+      // KO check on composure.
+      setComposure(c => {
+        const newC = Math.max(0, c);
+        if (newC <= 0) setTimeout(() => setStage('defeat'), 200);
+        return newC;
+      });
+    }
+
+    setInsultPrompt(null);
+    setStage('combat');
   }
 
   // Compute the predicted damage if you CAST right now. Used by the
@@ -4308,6 +4536,9 @@ export default function App() {
       onChoose={resolveSidequestChoice} onNarrativeContinue={resolveSidequestNarrative}
       onAbandon={abandonSidequest} />;
   }
+  if (stage === 'insult-prompt' && insultPrompt) return <InsultPromptScreen
+    insultPrompt={insultPrompt} enemy={enemy}
+    onPick={pickInsultWord} />;
   if (stage === 'skill-minigame' && skillMinigame?.kind === 'trace-whittling') return <TraceWhittlingMinigame
     eventTitle={skillMinigame.eventTitle}
     choiceLabel={skillMinigame.choiceLabel}
@@ -5674,6 +5905,71 @@ function SidequestNodeScreen({ template, node, nodeIdx, onChoose, onNarrativeCon
         <button className="text-xs text-parchment-400 italic hover:text-ember-300 mt-3" onClick={onAbandon}>
           Abandon the diversion (return to the map)
         </button>
+      )}
+    </div>
+  );
+}
+
+// INSULT PROMPT — three sequential choice screens (noun / verb / adjective),
+// each with three pre-classified word options and a 4-second timer. On
+// timer expiry, auto-picks the first option (penalty for hesitation).
+// The picks land or backfire based on alignment with the enemy's
+// insultVulnerabilities — finalizeInsult does the math.
+function InsultPromptScreen({ insultPrompt, enemy, onPick }) {
+  const TIMER_SECONDS = 4;
+  const phaseLabel = ['Noun', 'Verb', 'Adjective'][insultPrompt.phase] || '?';
+  const phaseKey   = ['noun', 'verb', 'adjective'][insultPrompt.phase];
+  const phasePrompt = [
+    'What you call them:',
+    'What they do:',
+    'How they are:',
+  ][insultPrompt.phase] || '';
+  const samples = insultPrompt.samples?.[phaseKey] || [];
+  const [secondsLeft, setSecondsLeft] = useState(TIMER_SECONDS);
+
+  // Re-arm the timer on every phase change.
+  useEffect(() => {
+    setSecondsLeft(TIMER_SECONDS);
+    const interval = setInterval(() => {
+      setSecondsLeft(s => {
+        if (s <= 0.1) {
+          clearInterval(interval);
+          // Time's up — auto-pick the first option as a penalty for hesitating.
+          onPick(samples[0]);
+          return 0;
+        }
+        return Math.max(0, s - 0.1);
+      });
+    }, 100);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insultPrompt.phase]);
+
+  const tBar = (secondsLeft / TIMER_SECONDS) * 100;
+  const timerColor = secondsLeft > 2 ? 'bg-moss-500' : secondsLeft > 1 ? 'bg-gold-500' : 'bg-ember-500';
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-4 max-w-2xl mx-auto">
+      <div className="text-xs uppercase tracking-widest text-ember-300">💢 Insulting {enemy?.name || 'them'}</div>
+      <h2 className="font-display text-2xl text-gold-300">Step {insultPrompt.phase + 1} of 3 — {phaseLabel}</h2>
+      <p className="font-quill italic text-parchment-200 text-center">{phasePrompt}</p>
+      <div className="w-full max-w-sm h-2 bg-ink-700 rounded-full overflow-hidden">
+        <div className={`h-full ${timerColor} transition-all`} style={{ width: `${tBar}%` }} />
+      </div>
+      <div className="text-[10px] text-parchment-400">{secondsLeft.toFixed(1)}s — auto-picks first option if you stall</div>
+      <div className="flex flex-col gap-2 w-full max-w-sm">
+        {samples.map((s, i) => (
+          <button key={i} onClick={() => onPick(s)}
+            className="btn bg-ink-600 hover:bg-ember-700 text-parchment-100 text-left">
+            <span className="font-display text-base">{s.word}</span>
+            <span className="ml-2 text-[10px] text-parchment-400 italic">{(s.tags || []).join(' · ')}</span>
+          </button>
+        ))}
+      </div>
+      {insultPrompt.picks.length > 0 && (
+        <div className="text-xs text-parchment-400 mt-2">
+          So far: <span className="text-iris-200">{insultPrompt.picks.map(p => p.word).join(' / ')}</span>
+        </div>
       )}
     </div>
   );
