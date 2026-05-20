@@ -2327,6 +2327,10 @@ export default function App() {
   // onEnemyDefeated reads to skip the normal reward flow.
   const [sidequestActive, setSidequestActive] = useState(null);
   const [sidequestCombatActive, setSidequestCombatActive] = useState(false);
+  // In-game menu / pause overlay.
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  // True if localStorage holds a saved run we can resume.
+  const [hasSavedRun, setHasSavedRun] = useState(false);
   // Supply shop draft state. Cleared after exit.
   const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
   const [supplyPicks, setSupplyPicks] = useState([]);     // indices already picked (max 2)
@@ -2469,6 +2473,109 @@ export default function App() {
   // Scripted practice match. Reset player state, build a small fixed
   // deck, force the opening hand so the player always has a Word + a
   // matching Effect on turn 1, and enter combat against the Bursar.
+  // Save / Load -------------------------------------------------------------
+  // We persist only when the player chooses Save & Quit from the in-game
+  // menu. Combat / sidequest-beat states aren't safe to save mid-flight
+  // (closure-stale refs, animation timing), so save is only enabled while
+  // stage === 'map'. Run state shape is versioned so we can invalidate
+  // saves cleanly if the data model changes.
+  const SAVE_KEY = 'wg-saved-run-v1';
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) setHasSavedRun(true);
+    } catch (_) { /* localStorage unavailable; just don't show Continue */ }
+  }, []);
+
+  function saveRunSnapshot() {
+    if (stage !== 'map') return false;
+    const snapshot = {
+      v: 1,
+      maxHp, hp, composureMax, composure, energy,
+      deck, hand, discard, exiled,
+      inventory, skills,
+      equipment, powers, relics,
+      familiar, familiarName,
+      effectCount,
+      currentActIdx, map, currentNodeId, clearedNodes,
+      sidequestActive,
+      log: log.slice(-50),
+    };
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+      setHasSavedRun(true);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function loadRunSnapshot() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const s = JSON.parse(raw);
+      if (!s || s.v !== 1) return false;
+      setMaxHp(s.maxHp); setHp(s.hp);
+      setComposureMax(s.composureMax); setComposure(s.composure);
+      setBlock(0); setEnergy(s.energy);
+      setDeck(s.deck || []); setHand(s.hand || []);
+      setDiscard(s.discard || []); setExiled(s.exiled || []);
+      setInventory(s.inventory || { staff: [], robes: [], ring: [], hat: [] });
+      setSkills(s.skills || { whittling: 0, weaving: 0, smithing: 0, felting: 0 });
+      setEquipment(s.equipment || []);
+      setPowers(s.powers || []);
+      setRelics(s.relics || []);
+      setFamiliar(s.familiar || null);
+      setFamiliarName(s.familiarName || '');
+      setEffectCount(s.effectCount || 0);
+      setCurrentActIdx(s.currentActIdx || 0);
+      setMap(s.map || null);
+      setCurrentNodeId(s.currentNodeId || null);
+      setClearedNodes(s.clearedNodes || []);
+      setSidequestActive(s.sidequestActive || null);
+      setLog(s.log || []);
+      setStage('map');
+      pushLog(`📜 Run resumed.`);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function clearSavedRun() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (_) { /* ignore */ }
+    setHasSavedRun(false);
+  }
+
+  // Resume from the saved run (called from MenuScreen).
+  function continueRun() {
+    if (loadRunSnapshot()) return;
+    // Failed to load — clear so the Continue button disappears.
+    clearSavedRun();
+  }
+
+  // Save & Quit: serialize current run, then return to main menu.
+  function saveAndQuit() {
+    const ok = saveRunSnapshot();
+    if (!ok) {
+      // Saving failed (e.g., in combat). Tell the user and bail.
+      pushLog(`⚠ Cannot save mid-combat. Resolve the current step first.`);
+      setGameMenuOpen(false);
+      return;
+    }
+    setGameMenuOpen(false);
+    setStage('menu');
+  }
+
+  // Give Up: wipe state + saved run, return to main menu.
+  function giveUpRun() {
+    clearSavedRun();
+    setGameMenuOpen(false);
+    setStage('menu');
+  }
+
   function startTutorial() {
     setMaxHp(STARTING_MAX_HP);
     setHp(STARTING_MAX_HP);
@@ -2521,6 +2628,7 @@ export default function App() {
 
   // ---------- RUN LIFECYCLE ----------
   function startRun() {
+    clearSavedRun();
     const startDeck = buildStartingDeck();
     setMaxHp(STARTING_MAX_HP);
     setHp(STARTING_MAX_HP);
@@ -4162,7 +4270,10 @@ export default function App() {
   }
 
   // ---------- RENDER ----------
-  if (stage === 'menu')               return <MenuScreen onStart={startRun} onTutorial={startTutorial} />;
+  if (stage === 'menu')               return <MenuScreen
+    onStart={startRun} onTutorial={startTutorial}
+    onContinue={hasSavedRun ? continueRun : null}
+    onDiscardSave={hasSavedRun ? () => { clearSavedRun(); } : null} />;
   if (stage === 'tutorial-complete')  return <TutorialCompleteScreen onStart={startRun} onMenu={() => setStage('menu')} />;
   if (stage === 'defeat')             return <EndScreen win={false} onRetry={startRun} />;
   if (stage === 'graduation')         return <GraduationScreen equipment={equipment} familiar={familiar} familiarName={familiarName} onRetry={startRun} />;
@@ -4210,17 +4321,46 @@ export default function App() {
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
+  // Floating menu button (☰) + overlay. Only renders on play stages.
+  // Save & Quit only allowed when stage === 'map' (combat / mid-event
+  // state isn't safe to serialize). Give Up always available.
+  const menuOverlay = <>
+    <button onClick={() => setGameMenuOpen(true)}
+      title="Menu (resume / save / give up)"
+      className="fixed top-3 right-3 z-40 px-3 py-1.5 rounded-md bg-ink-700 border border-ink-500 text-parchment-200 text-sm hover:bg-ink-600 shadow-lg">
+      ☰ Menu
+    </button>
+    {gameMenuOpen && (
+      <div className="fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4">
+        <div className="parchment-card-strong p-6 max-w-sm w-full flex flex-col gap-3">
+          <h2 className="font-display text-2xl text-gold-300 text-center">Pause</h2>
+          <button onClick={() => setGameMenuOpen(false)} className="btn btn-moss">Resume</button>
+          <button onClick={saveAndQuit} disabled={stage !== 'map'}
+            className={`btn ${stage === 'map' ? 'btn-iris' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'}`}
+            title={stage === 'map' ? 'Save the run and return to the main menu.' : 'Saving is only available on the map. Finish the current step first.'}>
+            Save &amp; Quit {stage !== 'map' && <span className="text-xs">(not on this screen)</span>}
+          </button>
+          <button onClick={giveUpRun} className="btn btn-ember">Give Up (lose run)</button>
+        </div>
+      </div>
+    )}
+  </>;
+
   if (stage === 'map') {
-    return <MapScreen
-      map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
-      currentNodeId={currentNodeId} clearedNodes={clearedNodes}
-      reachable={reachableFromCurrent()}
-      player={{ hp, maxHp, composure, composureMax, equipment, relics, deckSize: deck.length, familiar, familiarName, inventory, skills }}
-      onPick={pickNode} log={log} />;
+    return <>
+      <MapScreen
+        map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
+        currentNodeId={currentNodeId} clearedNodes={clearedNodes}
+        reachable={reachableFromCurrent()}
+        player={{ hp, maxHp, composure, composureMax, equipment, relics, deckSize: deck.length, familiar, familiarName, inventory, skills }}
+        onPick={pickNode} log={log} />
+      {menuOverlay}
+    </>;
   }
 
   // Combat
   return <>
+    {menuOverlay}
     <CombatScreen
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
@@ -4251,7 +4391,7 @@ export default function App() {
 // 4. SUB-SCREENS
 // =============================================================================
 
-function MenuScreen({ onStart, onTutorial }) {
+function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
       <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Wizard Graduation</h1>
@@ -4261,8 +4401,14 @@ function MenuScreen({ onStart, onTutorial }) {
         a trial worthier than the last.
       </p>
       <div className="flex flex-col gap-2 items-center">
-        <button onClick={onStart}    className="btn btn-gold text-lg px-8 py-3">Begin the Path</button>
+        {onContinue && (
+          <button onClick={onContinue} className="btn btn-iris text-lg px-8 py-3 animate-pulse">Continue Saved Run</button>
+        )}
+        <button onClick={onStart}    className="btn btn-gold text-lg px-8 py-3">{onContinue ? 'Begin a New Path (discards save)' : 'Begin the Path'}</button>
         <button onClick={onTutorial} className="btn btn-ink  text-sm px-6 py-2">First time? Practice with the Bursar →</button>
+        {onDiscardSave && (
+          <button onClick={onDiscardSave} className="text-xs text-parchment-500 italic hover:text-ember-300 mt-2">Discard saved run</button>
+        )}
       </div>
       <p className="text-xs text-parchment-400">MVP 5 — verbal combat: words build spells, effects cast them.</p>
     </div>
