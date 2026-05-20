@@ -297,6 +297,76 @@ const CARDS = [
     desc: 'Cast: 6 + Jnsq×2 Composure. 70%: apply 2 Vuln. 30%: gain 1 Weak.',
     flavor: 'Heads, they cower. Tails, you sneeze.' },
 
+  // ---- SWAY EFFECTS — negotiation cards. Each tries to shift one of the
+  //      enemy's resistance dimensions UP toward baseline (cap 1.0) so a
+  //      previously-immune dimension becomes survivable. They do NOT deal
+  //      damage. Success is rolled at cast time using:
+  //        base 35% + 15% per matching tactic-tag in tray
+  //        + 20% if enemy.softSpot matches card.tactic
+  //        + 10% per matching resonance tag
+  //      Clamped to [10%, 90%] so it's never a sure thing or a lock-out.
+  //      On success: enemy.effectiveness[swayTarget] += 0.5 (cap 1.0),
+  //      persistent for the rest of the combat.
+  //      The "negotiation feels like the tray" intent: stack the right
+  //      WORDS first, then cast the Sway, and the words you chose decide
+  //      whether the negotiation lands.
+  { id: 'e-lavish-praise', name: 'Lavish Praise', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'wit', tactic: 'flattery',
+              tacticTags: ['formal', 'academic'],
+              resonatesWith: ['formal', 'rhetorical'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…and you are doing magnificent work, by the way. Truly.',
+              failFlavor: '…you are doing fine work. They have heard better.' },
+    upgrade: { effect: { sway: true, swayTarget: 'wit', tactic: 'flattery',
+              tacticTags: ['formal', 'academic'],
+              successBonus: 0.10,
+              resonatesWith: ['formal', 'rhetorical'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…and you are doing magnificent work, by the way. Truly.',
+              failFlavor: '…you are doing fine work. They have heard better.' } },
+    desc: 'Sway: try to soften the enemy\'s Wit resistance by +0.5 (cap 1.0). Tactic: flattery.',
+    flavor: 'A compliment delivered with the conviction of someone who has practiced in a mirror.' },
+  { id: 'e-calmly-explain', name: 'Calmly Explain', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'chutzpah', tactic: 'logic',
+              tacticTags: ['rhetorical', 'academic'],
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…statistically, this is your worst option. They begin to see.',
+              failFlavor: '…statistically, this is your worst option. They do not care for statistics.' },
+    upgrade: { effect: { sway: true, swayTarget: 'chutzpah', tactic: 'logic',
+              tacticTags: ['rhetorical', 'academic'],
+              successBonus: 0.10,
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…statistically, this is your worst option. They begin to see.',
+              failFlavor: '…statistically, this is your worst option. They do not care for statistics.' } },
+    desc: 'Sway: try to soften the enemy\'s Chutzpah resistance by +0.5 (cap 1.0). Tactic: logic.',
+    flavor: 'You produce an itemised list. They had not expected an itemised list.' },
+  { id: 'e-loom-over-them', name: 'Loom Over Them', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'physical', tactic: 'threat',
+              tacticTags: ['booming', 'threatening'],
+              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…you have not blinked in some time. They notice this.',
+              failFlavor: '…you have not blinked in some time. They have not, either.' },
+    upgrade: { effect: { sway: true, swayTarget: 'physical', tactic: 'threat',
+              tacticTags: ['booming', 'threatening'],
+              successBonus: 0.10,
+              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…you have not blinked in some time. They notice this.',
+              failFlavor: '…you have not blinked in some time. They have not, either.' } },
+    desc: 'Sway: try to soften the enemy\'s Physical resistance by +0.5 (cap 1.0). Tactic: threat.',
+    flavor: 'A threat works because the alternative remains specifically unstated.' },
+  { id: 'e-mention-the-moon', name: 'Mention the Moon', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { sway: true, swayTarget: 'jnsq', tactic: 'confusion',
+              tacticTags: ['chaotic', 'absurd', 'mystical'],
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…but really, isn\'t the moon a kind of cheese? They lose the thread.',
+              failFlavor: '…but really, isn\'t the moon a kind of cheese? They lose nothing.' },
+    upgrade: { effect: { sway: true, swayTarget: 'jnsq', tactic: 'confusion',
+              tacticTags: ['chaotic', 'absurd', 'mystical'],
+              successBonus: 0.10,
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 },
+              successFlavor: '…but really, isn\'t the moon a kind of cheese? They lose the thread.',
+              failFlavor: '…but really, isn\'t the moon a kind of cheese? They lose nothing.' } },
+    desc: 'Sway: try to soften the enemy\'s Jnsq resistance by +0.5 (cap 1.0). Tactic: confusion.',
+    flavor: 'Surreal honesty is the rarest weapon. Use sparingly. Or do not. It hardly matters.' },
+
   // =============================================================================
   // SKILL CARDS — no stat contribution, no spell sealing. Pure utility.
   // =============================================================================
@@ -645,24 +715,28 @@ const ENEMIES = [
   // ===== ACT 1 — The Staff Path =====
   { id: 'e1-acolyte', act: 4, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    softSpot: 'logic', // Wants someone to explain what they're doing here.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
     ] },
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    softSpot: 'threat', // Bullies fold the moment you don't.
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
+    softSpot: 'threat', // Bigger predator energy = scatter.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
     ] },
   { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
+    softSpot: 'logic', // Will argue the methodology over the outcome.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
@@ -671,6 +745,7 @@ const ENEMIES = [
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 999, hpMax: 38, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0, physical: 1.5 },
+    softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
@@ -678,6 +753,7 @@ const ENEMIES = [
     ] },
   { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 100, hpMax: 120, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    softSpot: 'flattery', // Apex predator; flatter the apex.
     behaviors: [
       { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -688,6 +764,7 @@ const ENEMIES = [
   // ===== ACT 2 — The Thread Path =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     behaviors: [
       { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
@@ -695,18 +772,21 @@ const ENEMIES = [
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
@@ -714,6 +794,7 @@ const ENEMIES = [
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
+    softSpot: 'threat', // The vow of silence has limits.
     behaviors: [
       { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -721,6 +802,7 @@ const ENEMIES = [
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 68, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
@@ -731,12 +813,14 @@ const ENEMIES = [
   // ===== ACT 3 — The Stone Path =====
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 999, hpMax: 22, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.5, physical: 1.2 },
+    softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
+    softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
@@ -744,12 +828,14 @@ const ENEMIES = [
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 999, hpMax: 22, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.3, jnsq: 0.3, physical: 1.2 },
+    softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
       { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
+    softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -757,6 +843,7 @@ const ENEMIES = [
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 999, hpMax: 50, tier: 'elite',
     effectiveness: { chutzpah: 0, wit: 0, jnsq: 0.5, physical: 1.0 },
+    softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
@@ -764,6 +851,7 @@ const ENEMIES = [
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 4, weight: 1, telegraph: '⚔ 5×4' },
@@ -774,12 +862,14 @@ const ENEMIES = [
   // ===== ACT 4 — The Forge Path =====
   { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 },
+    softSpot: 'flattery', // Failed apprentice. Pretend the work was good.
     behaviors: [
       { kind: 'attack', value: 10, weight: 3, telegraph: '⚔ 10' },
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10' },
     ] },
   { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
+    softSpot: 'flattery', // Same shape, fresher wound.
     behaviors: [
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
@@ -787,6 +877,7 @@ const ENEMIES = [
     ] },
   { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    softSpot: 'logic', // Reflects what you ARE. Reason at it, see yourself.
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'vulnerable', value: 2, weight: 2, telegraph: '🩸 Vuln 2' },
@@ -794,6 +885,7 @@ const ENEMIES = [
     ] },
   { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    softSpot: 'flattery', // Forgotten = wants to be remembered. Name him.
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -801,6 +893,7 @@ const ENEMIES = [
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 0, jnsq: 1.5, physical: 0.5 },
+    softSpot: 'logic', // It IS a test. Show your work.
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1 + 🩸 Vuln 1', riders: { weak: 1, vulnerable: 1 } },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (impossible question)' },
@@ -809,6 +902,7 @@ const ENEMIES = [
     ] },
   { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 100, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0 },
+    softSpot: 'flattery', // It is a HAT that wants to be the headmaster. Acknowledge that.
     behaviors: [
       { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -822,6 +916,7 @@ const ENEMIES = [
   // Block without ever being in danger.
   { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    softSpot: 'logic',
     behaviors: [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (gentle)' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
@@ -2364,6 +2459,28 @@ export default function App() {
   // staged effect. Computes the full damage (including resonance, Strike
   // bonus, every-nth-effect, weak/vuln, effectiveness), applies damage
   // and any riders, and clears the tray.
+  // Compute Sway success probability + matched-bonus breakdown for a card
+  // against the current tray + enemy. Pure read; used by both castStagedSpell
+  // and the cast-preview UI.
+  function previewSway(card) {
+    if (!card?.effect?.sway || !enemy) return null;
+    const eff = card.effect;
+    const tacticTags = eff.tacticTags || [];
+    const matchedTacticTagsCount = (tray.tags || []).filter(t => tacticTags.includes(t)).length;
+    const resonanceTags = eff.resonatesWith || [];
+    const matchedResonance = (tray.tags || []).filter(t => resonanceTags.includes(t)).length;
+    const softSpotMatch = enemy.softSpot === eff.tactic;
+    const upgradeBonus = eff.successBonus || 0;
+    const raw = 0.35
+              + (matchedTacticTagsCount * 0.15)
+              + (softSpotMatch ? 0.20 : 0)
+              + (matchedResonance * 0.10)
+              + upgradeBonus;
+    const prob = Math.max(0.10, Math.min(0.90, raw));
+    return { prob, matchedTacticTagsCount, matchedResonance, softSpotMatch,
+             target: eff.swayTarget, tactic: eff.tactic, currentEff: enemy.effectiveness?.[eff.swayTarget] ?? 1 };
+  }
+
   function castStagedSpell() {
     if (stage !== 'combat') return;
     if (!tray.effectCard) { pushLog('No Effect staged — nothing to cast.'); return; }
@@ -2371,6 +2488,39 @@ export default function App() {
 
     const card = tray.effectCard;
     const eff = card.effect || {};
+
+    // SWAY branch: no damage, instead try to shift one enemy resistance up
+    // by +0.5 (cap 1.0). Success rolled from tray-tags + enemy.softSpot.
+    if (eff.sway) {
+      const pv = previewSway(card);
+      const phrase = [...tray.phrases, card.phrase || ''].filter(Boolean).join(' ');
+      if (phrase) pushLog(`✨ "${phrase}"`);
+      const roll = Math.random();
+      const succeeded = roll < pv.prob;
+      const dim = eff.swayTarget;
+      const before = enemy?.effectiveness?.[dim] ?? 1;
+      if (succeeded) {
+        const after = Math.min(1.0, before + 0.5);
+        if (after > before) {
+          setEnemy(e => e ? { ...e, effectiveness: { ...e.effectiveness, [dim]: after } } : e);
+          pushLog(`🤝 ${enemy.name} listens. ${dim} ×${before} → ×${after}.`);
+        } else {
+          pushLog(`🤝 ${enemy.name} listens — but their ${dim} is already at the cap.`);
+        }
+        if (eff.successFlavor) pushLog(`"${eff.successFlavor}"`);
+      } else {
+        pushLog(`🛇 ${enemy.name} is unmoved. (${Math.round(pv.prob * 100)}% chance — rolled ${Math.round(roll * 100)}.)`);
+        if (eff.failFlavor) pushLog(`"${eff.failFlavor}"`);
+      }
+      // Send staged cards to discard / exile (same rule as a normal cast).
+      const wordsToDiscard = tray.words.filter(w => !w.effects?.exhaust);
+      const wordsToExile   = tray.words.filter(w =>  w.effects?.exhaust);
+      if (eff.exhaust) setExiled(ex => [...ex, ...wordsToExile, card]);
+      else             { setDiscard(d => [...d, ...wordsToDiscard, card]); if (wordsToExile.length) setExiled(ex => [...ex, ...wordsToExile]); }
+      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
+      applyPowerTriggers('onEffectCardPlayed');
+      return;
+    }
     let base = eff.base || 0;
     if (card.name === 'Strike' || card.name === 'Strike+') base += strikeBonusTotal();
     base += consumeEveryNthEffectBonus();
@@ -2438,6 +2588,11 @@ export default function App() {
     if (!tray.effectCard) return null;
     const card = tray.effectCard;
     const eff = card.effect || {};
+    // Sway cards don't deal damage — return a sway-shaped preview instead.
+    if (eff.sway) {
+      const pv = previewSway(card);
+      return pv ? { kind: 'sway', ...pv } : null;
+    }
     let base = eff.base || 0;
     if (card.name === 'Strike' || card.name === 'Strike+') base += strikeBonusTotal();
     // Peek the everyNth bonus (don't consume).
@@ -3927,13 +4082,28 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <span className="px-2 py-1 rounded bg-ink-700 border border-dashed border-ink-400 text-parchment-400 text-xs italic">need an Effect card</span>
           )}
           <div className="flex-1" />
-          {castPreview && tray.effectCard && tray.words.length > 0 && (
+          {castPreview && tray.effectCard && tray.words.length > 0 && castPreview.kind !== 'sway' && (
             <div className="text-right">
               <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
               <div className={`text-2xl font-bold font-mono ${castPreview.dmgType === 'physical' ? 'text-ember-300' : 'text-iris-200'}`}
                 title={`${castPreview.base} base + ${castPreview.trayVal}×${castPreview.multiplier} from ${castPreview.stat} ${castPreview.resonanceBonus ? `+ ${castPreview.resonanceBonus} resonance` : ''} × ${castPreview.dmgType === 'physical' ? castPreview.phys_mult : castPreview.eff_mult} effectiveness`}>
                 {castPreview.dmg} <span className="text-sm text-parchment-300">{castPreview.dmgType === 'physical' ? 'phys' : 'comp'}</span>
               </div>
+            </div>
+          )}
+          {castPreview && tray.effectCard && tray.words.length > 0 && castPreview.kind === 'sway' && (
+            <div className="text-right">
+              <div className="text-[10px] uppercase text-parchment-300">Sway chance</div>
+              <div className="text-2xl font-bold font-mono text-gold-300"
+                   title={`Base 35% + ${castPreview.matchedTacticTagsCount} matching tactic-tag(s) ×15% + ${castPreview.softSpotMatch ? '20% soft-spot match' : 'no soft-spot match'} + ${castPreview.matchedResonance} resonance ×10%. Clamped [10%, 90%].`}>
+                {Math.round(castPreview.prob * 100)}%
+              </div>
+              <div className="text-[10px] text-parchment-400">
+                target: <b className="text-iris-200">{castPreview.target}</b> ×{castPreview.currentEff} → ×{Math.min(1, (castPreview.currentEff || 0) + 0.5)}
+              </div>
+              {castPreview.softSpotMatch && (
+                <div className="text-[10px] text-moss-300">✓ soft-spot match (+20%)</div>
+              )}
             </div>
           )}
           <button onClick={onCast}
