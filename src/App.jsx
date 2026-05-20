@@ -1135,6 +1135,33 @@ const SIDEQUEST_TEMPLATES = {
         ] },
     ] },
 
+  'sq-jazz-cafe': { id: 'sq-jazz-cafe', title: 'A Small Cafe', act: 1,
+    intro: 'You step out of a forest clearing onto a quiet Japanese street. A cafe is open, with only a few patrons inside.',
+    nodes: [
+      { kind: 'choice', title: 'The Cafe',
+        flavor: 'Jazz drifts from a record player. The barista looks up, polite, waiting. Soft light. Wooden counter. Two patrons not looking up.',
+        choices: [
+          { label: 'Order a small drink. (+4 HP)', effects: { heal: 4 } },
+          { label: 'Order a small meal. (+8 HP)', effects: { heal: 8 } },
+          { label: 'Just sit. You\'re fine. (no heal)', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Cat',
+        flavor: 'A cat at the next seat looks at you. Just looks. Patiently. It is, in some way you cannot articulate, asking a question.',
+        choices: [
+          { label: 'Look away. Finish your drink and leave.', effects: { endSpurEarly: true } },
+          { label: 'Stare it down. (-5 HP, hold your nerve)', effects: { loseHp: 5 } },
+        ] },
+      { kind: 'narrative', title: 'The Man at the Counter',
+        flavor: '"I should explain," says a man at the counter, "the cat is not, technically, mine. I am responsible for it. I am sorry for the bother. It is, regrettably, a life-stealing cat. You did well not to look away first."',
+        next: { effects: {} } },
+      { kind: 'narrative', title: 'About the Man',
+        flavor: '"My life has been complicated. My right arm, you see, is actually my left arm. My left, my right. They look correct. They are not. I learned the guitar by mounting a left-handed neck on a right-handed body and tuning each peg the wrong direction. Allow me to play you a song."',
+        next: { effects: {} } },
+      { kind: 'narrative', title: 'Timber from Norway',
+        flavor: 'He plays a song called Timber from Norway. It is beautiful in a way that suggests it should not be. As he leaves, he asks one thing of you — a postcard, every five nodes, with one specific five-word phrase written on it, blank otherwise. He will know if you forget. He gives you the phrase.',
+        next: { effects: { grantPostcardPhrase: true } } },
+    ] },
+
   'sq-goose': { id: 'sq-goose', title: 'The Goose', act: 1,
     intro: 'A villager weeps. Her prize goose has gone missing. The goose, you suspect, had opinions.',
     nodes: [
@@ -2286,6 +2313,29 @@ const INSULT_BACKFIRE_RETORTS = [
 ];
 
 // Map act number to the pool of sidequests available in that act.
+// Postcard phrase pools for the Jazz Cafe quest. Generates short
+// memorable five-word sentences the player must reproduce exactly.
+const POSTCARD_NOUNS = ['umbrella','kettle','mountain','fish','door','window','song','shoe','star','moth','pen','cat','sparrow','lantern','cup','thread','bell','biscuit','sword','apple','cloud','stone','feather','kite','river','candle','letter','spoon','clock','chair'];
+const POSTCARD_VERBS = ['forgives','remembers','forgets','follows','leaves','enters','opens','closes','sings','sleeps','wakes','waits','returns','rises','falls','mends','breaks','holds'];
+const POSTCARD_ADJECTIVES = ['small','large','quiet','loud','cold','warm','patient','forgotten','old','new','tired','kind','distant','careful','clever','gentle'];
+const POSTCARD_TEMPLATES = [
+  ['the',     'adj',  'noun', 'verb', 'noun'],
+  ['no',      'noun', 'verb', 'the',  'noun'],
+  ['remember','the',  'noun', 'not',  'noun'],
+  ['noun',    'verb', 'every','adj',  'noun'],
+  ['adj',     'noun', 'verb', 'every','noun'],
+  ['the',     'noun', 'verb', 'and',  'noun'],
+];
+function generatePostcardPhrase() {
+  const tpl = POSTCARD_TEMPLATES[Math.floor(Math.random() * POSTCARD_TEMPLATES.length)];
+  return tpl.map(slot => {
+    if (slot === 'noun') return POSTCARD_NOUNS[Math.floor(Math.random() * POSTCARD_NOUNS.length)];
+    if (slot === 'verb') return POSTCARD_VERBS[Math.floor(Math.random() * POSTCARD_VERBS.length)];
+    if (slot === 'adj')  return POSTCARD_ADJECTIVES[Math.floor(Math.random() * POSTCARD_ADJECTIVES.length)];
+    return slot;
+  }).join(' ');
+}
+
 const SIDEQUESTS_BY_ACT = (() => {
   const map = {};
   for (const sq of Object.values(SIDEQUEST_TEMPLATES)) {
@@ -3049,6 +3099,20 @@ export default function App() {
   // onEnemyDefeated reads to skip the normal reward flow.
   const [sidequestActive, setSidequestActive] = useState(null);
   const [sidequestCombatActive, setSidequestCombatActive] = useState(false);
+  // Postcard mechanic (sq-jazz-cafe ongoing quest). State machine:
+  //   idle      → no quest accepted yet
+  //   active    → quest accepted, tracking node-counter
+  //   completed → 3 correct sends made; next mailbox click is the reward
+  //   failed    → wrong submission; fog active; next mailbox click rebukes
+  //   done      → quest fully resolved (reward or rebuke applied)
+  // postcardsCorrect counts only while state === 'active'.
+  // nodesSincePostcard increments on every node entry; resets on submit.
+  const [postcardState, setPostcardState] = useState('idle');
+  const [postcardPhrase, setPostcardPhrase] = useState(null);
+  const [postcardsCorrect, setPostcardsCorrect] = useState(0);
+  const [nodesSincePostcard, setNodesSincePostcard] = useState(0);
+  const [postcardModalOpen, setPostcardModalOpen] = useState(false);
+
   // Insult prompt — when player casts an insult card, this holds the
   // card + a slate of 3 random nouns/verbs/adjectives to pick from.
   // Shape: { card, phase, samples: { noun, verb, adjective }, picks: [] }
@@ -3312,6 +3376,11 @@ export default function App() {
     setStartingPicksSelected([]);
     setSidequestActive(null);
     setSidequestCombatActive(false);
+    setPostcardState('idle');
+    setPostcardPhrase(null);
+    setPostcardsCorrect(0);
+    setNodesSincePostcard(0);
+    setPostcardModalOpen(false);
     setExiled([]);
     setEquipment([]);
     setPowers([]);
@@ -3506,6 +3575,11 @@ export default function App() {
       return;
     }
     setCurrentNodeId(nodeId);
+    // Postcard mechanic: count every node visit toward the 5-node cadence
+    // (only while the quest is active and not yet resolved).
+    if (postcardState === 'active') {
+      setNodesSincePostcard(n => n + 1);
+    }
     resolveNodeEnter(node);
   }
 
@@ -3694,7 +3768,92 @@ export default function App() {
       const c = pickCardByRarity({ rare: 1 });
       if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
     }
+    if (fx.grantPostcardPhrase) {
+      const phrase = generatePostcardPhrase();
+      setPostcardPhrase(phrase);
+      setPostcardState('active');
+      setPostcardsCorrect(0);
+      setNodesSincePostcard(0);
+      logBits.push(`📮 phrase: "${phrase}"`);
+    }
     pushLog(logBits.join(' · '));
+  }
+
+  // Postcard mechanic handlers ----------------------------------------------
+  function submitPostcard(text) {
+    if (postcardState === 'completed') {
+      // The man's forgiveness postcard arrives. Heal + max-HP reward.
+      setHp(h => clamp(h + 10, 0, maxHp + 5));
+      setMaxHp(m => m + 5);
+      pushLog(`📮 Postcard from the man: "My cat forgives you." +10 HP, +5 max HP.`);
+      setPostcardState('done');
+      setPostcardModalOpen(false);
+      return;
+    }
+    if (postcardState === 'failed') {
+      // Rebuke postcard arrives and lifts the fog.
+      pushLog(`📮 Postcard from the man: "You have disgraced my cat. We will not speak again."`);
+      setPostcardState('done');
+      setPostcardModalOpen(false);
+      return;
+    }
+    // Active state — validate input against the phrase exactly.
+    const clean = (text || '').trim();
+    if (clean === (postcardPhrase || '').trim()) {
+      const newCount = postcardsCorrect + 1;
+      setPostcardsCorrect(newCount);
+      setNodesSincePostcard(0);
+      pushLog(`📮 You send the postcard. (${newCount}/3)`);
+      if (newCount >= 3) {
+        // Quest moves to 'completed'; the NEXT mailbox click is the reward.
+        setPostcardState('completed');
+        pushLog(`📮 The third postcard sent. Something will arrive.`);
+      }
+    } else {
+      // Wrong text — penalty.
+      setHp(h => Math.max(1, h - 5));
+      setPostcardState('failed');
+      setNodesSincePostcard(0);
+      pushLog(`📮 You misremembered. The phrase was: "${postcardPhrase}". -5 HP. The road ahead grows obscured.`);
+    }
+    setPostcardModalOpen(false);
+  }
+
+  // Visibility helper for the mailbox button.
+  function postcardMailboxVisible() {
+    if (postcardState === 'completed' || postcardState === 'failed') return true;
+    if (postcardState === 'active' && nodesSincePostcard >= 5) return true;
+    return false;
+  }
+
+  // Cut a sidequest spur short — the player picks an early-exit option
+  // (e.g. "Look away" in the Jazz Cafe quest). Remove the remaining spur
+  // nodes from the map and reroute the current spur node's edge directly
+  // to the original rejoin point.
+  function endSpurEarly(currentSpurNodeId) {
+    setMap(prev => {
+      if (!prev) return prev;
+      const currentNode = prev.nodes.find(n => n.id === currentSpurNodeId);
+      if (!currentNode || !currentNode.sidequestRef) return prev;
+      const { templateId } = currentNode.sidequestRef;
+      const tpl = SIDEQUEST_TEMPLATES[templateId];
+      if (!tpl) return prev;
+      const currentIdx = currentNode.sidequestRef.nodeIdx;
+      // Inherit the rejoin point from the last spur node's outgoing edge.
+      const lastSpurId = `sq-${templateId}-${tpl.nodes.length - 1}`;
+      const rejoinIds = prev.edges[lastSpurId] || [];
+      const newEdges = { ...prev.edges };
+      newEdges[currentSpurNodeId] = rejoinIds;
+      for (let i = currentIdx + 1; i < tpl.nodes.length; i++) {
+        delete newEdges[`sq-${templateId}-${i}`];
+      }
+      const newNodes = prev.nodes.filter(n =>
+        !n.sidequestRef ||
+        n.sidequestRef.templateId !== templateId ||
+        n.sidequestRef.nodeIdx <= currentIdx
+      );
+      return { ...prev, nodes: newNodes, edges: newEdges };
+    });
   }
 
   // SIDEQUEST flow ----------------------------------------------------------
@@ -3718,6 +3877,11 @@ export default function App() {
     if (!active) { returnToMap(); return; }
     if (effects && Object.keys(effects).length > 0) {
       applyChoiceEffects(effects, active.tpl.title);
+    }
+    // Early-exit option (e.g. Jazz Cafe "look away") — collapse the
+    // remaining spur and reroute to the rejoin point.
+    if (effects && effects.endSpurEarly && currentNodeId) {
+      endSpurEarly(currentNodeId);
     }
     setSidequestActive(null);
     setSidequestCombatActive(false);
@@ -5157,7 +5321,25 @@ export default function App() {
   // Floating menu button (☰) + overlay. Only renders on play stages.
   // Save & Quit only allowed when stage === 'map' (combat / mid-event
   // state isn't safe to serialize). Give Up always available.
+  // The mailbox postcard button piggybacks on this overlay block so
+  // it persists across map/combat — it's intentionally not super
+  // noticeable per the design ("a small mailbox, not super noticeable").
   const menuOverlay = <>
+    {postcardMailboxVisible() && (
+      <button onClick={() => setPostcardModalOpen(true)}
+        title="A small mailbox catches your eye."
+        className="fixed top-3 right-24 z-40 px-2 py-1 rounded bg-ink-800 border border-ink-600 text-parchment-400 text-xs hover:bg-ink-700 opacity-60 hover:opacity-100 transition-opacity">
+        📮
+      </button>
+    )}
+    {postcardModalOpen && (
+      <PostcardModal
+        state={postcardState}
+        phrase={postcardPhrase}
+        progress={postcardsCorrect}
+        onSubmit={submitPostcard}
+        onClose={() => setPostcardModalOpen(false)} />
+    )}
     <button onClick={() => setGameMenuOpen(true)}
       title="Menu (resume / save / give up)"
       className="fixed top-3 right-3 z-40 px-3 py-1.5 rounded-md bg-ink-700 border border-ink-500 text-parchment-200 text-sm hover:bg-ink-600 shadow-lg">
@@ -5185,6 +5367,7 @@ export default function App() {
         map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
         currentNodeId={currentNodeId} clearedNodes={clearedNodes}
         reachable={reachableFromCurrent()}
+        mapFog={postcardState === 'failed'}
         player={{ hp, maxHp, composure, composureMax, equipment, relics, deckSize: deck.length, familiar, familiarName, inventory, skills }}
         onPick={pickNode} log={log} />
       {menuOverlay}
@@ -5461,7 +5644,7 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
   );
 }
 
-function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, reachable, player, onPick, log }) {
+function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, reachable, player, onPick, log, mapFog }) {
   // Scroll the player's current node into the middle of the viewport
   // whenever this screen mounts or the position changes. Otherwise the
   // page lands at the top of the act and the player has to manually
@@ -5609,7 +5792,8 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                       className="select-none" fill="#f7eed3"
                       fontSize={n.type === 'boss' ? 18 : 14}
                       opacity={isFuture ? 0.9 : 1}>
-                      {nodeGlyph(n.type)}
+                      {/* Postcard penalty: fog hides node types until lifted. */}
+                      {mapFog && !isCurrent && !isCleared ? '?' : nodeGlyph(n.type)}
                     </text>
                     {n.isSidequest && (
                       <text x={xScale(n.x) + 14} y={yScale(n.y) - 12} textAnchor="middle"
@@ -6508,6 +6692,56 @@ function SidequestNodeScreen({ template, node, nodeIdx, onChoose, onNarrativeCon
           Abandon the diversion (return to the map)
         </button>
       )}
+    </div>
+  );
+}
+
+// POSTCARD MODAL — appears when the mailbox button is clicked. Three
+// faces depending on postcardState:
+//   active    — input box for the phrase; submit verifies exact match
+//   completed — the "My cat forgives you" postcard (heal + max HP reward)
+//   failed    — the "You have disgraced my cat" rebuke (clears the fog)
+function PostcardModal({ state, phrase, progress, onSubmit, onClose }) {
+  const [text, setText] = useState('');
+  const isActive = state === 'active';
+  const isCompleted = state === 'completed';
+  const isFailed = state === 'failed';
+  return (
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-amber-50 text-ink-800 rounded-lg shadow-2xl p-6 border-4 border-amber-200">
+        {isCompleted ? (
+          <>
+            <div className="text-xs uppercase tracking-widest text-ink-500 text-center">A postcard arrives</div>
+            <div className="font-display text-2xl text-center mt-2">My cat forgives you</div>
+            <div className="font-quill italic text-center text-ink-600 mt-3">A small drawing of a cat at a window.</div>
+            <button onClick={() => onSubmit('')} className="btn btn-iris w-full mt-4">Read it</button>
+          </>
+        ) : isFailed ? (
+          <>
+            <div className="text-xs uppercase tracking-widest text-ink-500 text-center">A postcard arrives</div>
+            <div className="font-display text-2xl text-center mt-2">You have disgraced my cat.</div>
+            <div className="font-display text-base text-center mt-1">We will not speak again.</div>
+            <div className="font-quill italic text-center text-ink-600 mt-3">No drawing. Just the words.</div>
+            <button onClick={() => onSubmit('')} className="btn btn-ember w-full mt-4">Set it down</button>
+          </>
+        ) : (
+          <>
+            <div className="text-xs uppercase tracking-widest text-ink-500 text-center">A blank postcard</div>
+            <div className="font-display text-lg text-center text-ink-700 mt-2">Write the phrase. Exactly.</div>
+            <div className="text-xs italic text-center text-ink-500 mt-1">(Sent so far: {progress}/3)</div>
+            <input type="text" value={text} onChange={e => setText(e.target.value)}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') onSubmit(text); }}
+              placeholder="five-word phrase..."
+              className="w-full mt-4 px-3 py-2 rounded border-2 border-ink-300 bg-amber-100 text-ink-800 font-mono" />
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => onSubmit(text)} className="btn btn-iris flex-1">Send</button>
+              <button onClick={onClose} className="btn btn-ink">Cancel</button>
+            </div>
+            <div className="text-[10px] italic text-ink-400 text-center mt-3">Any extra word or punctuation will be noticed.</div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
