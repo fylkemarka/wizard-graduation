@@ -4081,24 +4081,49 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           );
         })()}
 
-        {/* Staged cards + CAST button row */}
+        {/* Staged cards + CAST button row. Fixed slots: 4 word slots + 1
+            effect slot with dotted outlines, so the tray always shows its
+            shape even when empty. Cards animate into place when staged. */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-xs text-parchment-400 mr-1">Staged:</div>
-          {tray.words.map((w) => (
-            <button key={w.uid} onClick={() => onUnstage(w.uid)}
-              title="Click to unstage (refunds energy)"
-              className="px-2 py-1 rounded bg-iris-700 hover:bg-iris-600 border border-iris-400 text-parchment-50 text-xs flex items-center gap-1">
-              <span>{w.name}</span> <span className="text-parchment-400 text-[10px]">×</span>
-            </button>
-          ))}
+          {Array.from({ length: 4 }).map((_, i) => {
+            const w = tray.words[i];
+            if (w) {
+              return (
+                <motion.button key={w.uid}
+                  layout
+                  initial={{ scale: 0.5, opacity: 0, y: 16 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                  onClick={() => onUnstage(w.uid)}
+                  title="Click to unstage (refunds energy)"
+                  className="px-2 py-1 rounded bg-iris-700 hover:bg-iris-600 border border-iris-400 text-parchment-50 text-xs flex items-center gap-1 min-w-[100px] justify-center">
+                  <span>{w.name}</span> <span className="text-parchment-400 text-[10px]">×</span>
+                </motion.button>
+              );
+            }
+            return (
+              <div key={`empty-word-${i}`}
+                className="px-2 py-1 rounded border border-dashed border-iris-600 text-iris-400 text-xs italic min-w-[100px] text-center opacity-50">
+                word
+              </div>
+            );
+          })}
           {tray.effectCard ? (
-            <button onClick={() => onUnstage(tray.effectCard.uid)}
+            <motion.button key={tray.effectCard.uid}
+              layout
+              initial={{ scale: 0.5, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+              onClick={() => onUnstage(tray.effectCard.uid)}
               title="Click to unstage (refunds energy)"
               className="px-2 py-1 rounded bg-ember-700 hover:bg-ember-600 border border-ember-400 text-parchment-50 text-sm font-bold flex items-center gap-1">
               <span>🎯 {tray.effectCard.name}</span> <span className="text-parchment-300 text-[10px]">×</span>
-            </button>
+            </motion.button>
           ) : (
-            <span className="px-2 py-1 rounded bg-ink-700 border border-dashed border-ink-400 text-parchment-400 text-xs italic">need an Effect card</span>
+            <div className="px-3 py-1 rounded border border-dashed border-ember-600 text-ember-500 text-xs italic min-w-[130px] text-center opacity-70">
+              effect
+            </div>
           )}
           <div className="flex-1" />
           {castPreview && tray.effectCard && tray.words.length > 0 && castPreview.kind !== 'sway' && (
