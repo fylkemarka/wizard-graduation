@@ -3960,6 +3960,41 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-xs uppercase text-parchment-300">Deck</div>
             <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
           </div>
+          {/* PLAYER STATUS — Weak / Vulnerable / Strengthened / etc. Only
+              shows pills for active (non-1.0) modifiers. Same numbers as
+              the enemy-side display, but labeled from the player's POV so
+              "what am I afflicted with" is unambiguous. */}
+          {(playerDmgMult !== 1.0 || enemyDmgMult !== 1.0) && (
+            <div className="flex flex-col gap-1">
+              <div className="text-xs uppercase text-parchment-300">Status</div>
+              <div className="flex gap-1 flex-wrap">
+                {playerDmgMult < 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
+                        title={`Weak — your spell potency is at ×${playerDmgMult.toFixed(2)} (${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    ⛧ Weak ×{playerDmgMult.toFixed(2)}
+                  </span>
+                )}
+                {playerDmgMult > 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
+                        title={`Strengthened — your spell potency is at ×${playerDmgMult.toFixed(2)} (+${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    💫 Strong ×{playerDmgMult.toFixed(2)}
+                  </span>
+                )}
+                {enemyDmgMult > 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
+                        title={`Vulnerable — incoming damage is at ×${enemyDmgMult.toFixed(2)} (+${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    🩸 Vuln ×{enemyDmgMult.toFixed(2)}
+                  </span>
+                )}
+                {enemyDmgMult < 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
+                        title={`Sapped — enemy attack damage is at ×${enemyDmgMult.toFixed(2)} (${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    🛡 Sapped ×{enemyDmgMult.toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           {familiar && (
             <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-sm"
                   title={familiar.desc}>
