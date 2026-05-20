@@ -923,6 +923,17 @@ const ENEMIES = [
   // Low-stakes practice partner. All-baseline effectiveness so the
   // player sees clean numbers. Light incoming damage so they learn
   // Block without ever being in danger.
+  // ===== SIDEQUEST ENEMIES — gated by sidequest combat nodes =====
+  { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 60, hpMax: 999, tier: 'elite',
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 0 },
+    softSpot: 'logic',
+    behaviors: [
+      { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (citing 1894 paper)', riders: { vulnerable: 1 } },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (clearing throat audibly)' },
+      { kind: 'weak', value: 1, weight: 2, telegraph: '⛧ Weak 1 (sighs at your argument)' },
+      { kind: 'block', value: 12, weight: 1, telegraph: '🛡 12 (citing himself)' },
+    ] },
+
   { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic',
@@ -1058,6 +1069,508 @@ const EVENTS = [
     ],
   },
 ];
+
+// =============================================================================
+// SIDEQUESTS — 4-7 node arcs the player can be pulled into off the main map.
+// Triggered from the Town node (first arrival, one per act). Each has a list
+// of `nodes`, each node either a `choice` (modal with options), a `combat`
+// (enemy fight that routes back to next node on win), `narrative` (terse
+// scene with one continue), or `boss` (transitions directly to act boss).
+// Approximately 40% have `canAbandon: true` on a middle node, letting the
+// player bail without finishing. Boss-shortcut quests CANNOT be abandoned.
+// =============================================================================
+const SIDEQUEST_TEMPLATES = {
+  'sq-hot-mess': { id: 'sq-hot-mess', title: 'Citation Needed', act: 1,
+    intro: 'A woman by the road, surrounded by floating paper arranged in defensive APA formation.',
+    nodes: [
+      { kind: 'choice', title: 'The Encounter',
+        flavor: 'Persimmon "Sim" Quill is openly distressed. As you speak, a transparent man in a tweed jacket manifests and corrects your pronunciation of her name.',
+        choices: [
+          { label: 'Girl, I LIVE for drama.', effects: { loseHp: 4 } },
+          { label: 'I\'m more than involved, and I\'m ready to be part of the problem.', effects: { loseHp: 4 } },
+          { label: 'Whoever has you like this doesn\'t deserve you. You\'re too amazing for this. Remind me your name?', effects: { loseHp: 4 } },
+        ] },
+      { kind: 'choice', title: 'The Library That Reorders Itself',
+        flavor: 'The library rearranges itself alphabetically every 30 seconds. The card catalog is screaming. You need Hewn-Greaves\'s 1893 notes.',
+        choices: [
+          { label: 'Search the stacks methodically. (-2 HP)', effects: { loseHp: 2 } },
+          { label: 'Argue the library into submission. (lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Bribe the librarian. (lose a card)', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sq-critical-apparition',
+        flavor: 'A small lecture hall has manifested in the middle of the road. Sim watches from the back, mouthing every counterargument a half-second after you make it.' },
+      { kind: 'choice', title: 'The Compromise',
+        flavor: 'Hewn-Greaves concedes one point. He proposes co-authorship. Sim is devastated. She has won and lost at the same time, which, as Hewn-Greaves notes, is an excellent thesis subject.',
+        choices: [
+          { label: 'The thesis is better for it. Take the deal.', effects: { gainCommonCard: 1 } },
+          { label: 'He\'s wrong. Haunt him right back.', effects: { heal: 4 } },
+          { label: 'Persimmon, you ARE the protagonist of your own life.', effects: { maxHp: 2, loseRandomCard: true } },
+        ] },
+    ] },
+
+  'sq-goose': { id: 'sq-goose', title: 'The Goose', act: 1,
+    intro: 'A villager weeps. Her prize goose has gone missing. The goose, you suspect, had opinions.',
+    nodes: [
+      { kind: 'choice', title: 'Margie\'s Plea',
+        flavor: 'Margie Tellwright clutches a small empty wicker pen. The goose, named Constance, is by goose standards exceptional.',
+        choices: [
+          { label: 'I\'ll find her.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Chase',
+        flavor: 'Constance is fast and has political opinions. She does not want to come back.',
+        choices: [
+          { label: 'Corner her. (-4 HP from goose bite)', effects: { loseHp: 4 } },
+          { label: 'Reason with her. (she finds you condescending; lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Feed her bread. (lose Common card representing the bread)', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'choice', title: 'The Return',
+        flavor: 'Constance refuses to return unless you tell Margie she is, in fact, not a prize goose. Just a goose.',
+        choices: [
+          { label: 'Tell Margie the truth.', effects: { maxHp: 2 } },
+          { label: 'Lie. Say Constance forgave her.', effects: { loseHp: 4 } },
+          { label: 'Leave Constance somewhere quiet.', effects: { gainCommonCard: 1 } },
+        ] },
+    ] },
+
+  'sq-cursed-letter': { id: 'sq-cursed-letter', title: 'The Cursed Letter', act: 2,
+    intro: 'A courier hands you a sealed envelope. He apologises before you accept it.',
+    nodes: [
+      { kind: 'choice', title: 'Yves the Courier',
+        flavor: 'Yves Marrow says: don\'t read it. Definitely don\'t read it. Then he runs.',
+        choices: [
+          { label: 'Take the letter.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Walk', canAbandon: true,
+        flavor: 'The letter starts whispering. The whispers escalate.',
+        choices: [
+          { label: 'Suppress the whispers. (-3 HP)', effects: { loseHp: 3 } },
+          { label: 'Open the letter. (lose a card to the curse)', effects: { loseRandomCard: true } },
+          { label: 'Bury the letter. (-1 max HP, the ground complains)', effects: { maxHp: -1 } },
+        ] },
+      { kind: 'choice', title: 'The Fiancée',
+        flavor: 'She takes the letter without reading it. She files it. She invites you in for terrible tea. The letter was technically a wedding invitation, but she was already engaged to someone else.',
+        choices: [
+          { label: 'Accept the tea graciously.', effects: { maxHp: 2 } },
+          { label: 'Accept the unused engagement gift.', effects: { gainUncommonCard: 1 } },
+        ] },
+    ] },
+
+  'sq-last-will-sneeze': { id: 'sq-last-will-sneeze', title: 'The Last Will of a Sneeze', act: 4,
+    intro: 'A thin man in a suit is representing a sneeze. The sneeze is forty years old. The sneeze has assets.',
+    nodes: [
+      { kind: 'choice', title: 'The Hearing',
+        flavor: 'You witness a divorce between an elderly Sneeze and an elderly Cough. You choose which keeps the property.',
+        choices: [
+          { label: 'Side with the Sneeze. (Cough curses you)', effects: { loseHp: 3 } },
+          { label: 'Side with the Cough. (Sneeze curses you)', effects: { loseHp: 3 } },
+        ] },
+      { kind: 'choice', title: 'The Aftermath',
+        flavor: 'The loser sues you. The winner blesses you.',
+        choices: [
+          { label: 'Pay the legal fees. (lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Pay the legal fees the other way. (-2 max HP)', effects: { maxHp: -2 } },
+        ] },
+    ] },
+
+  'sq-wishful-beggar': { id: 'sq-wishful-beggar', title: 'The Wishful Beggar', act: 3,
+    intro: 'An old woman on a milestone. She wishes for nothing in particular. She asks for the same.',
+    nodes: [
+      { kind: 'choice', title: 'The Search',
+        flavor: 'Old Penny wants, specifically, nothing in particular. Acquiring this is harder than expected.',
+        choices: [
+          { label: 'Pay a vendor for empty air. (lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Consult a metaphysicist. (-1 max HP from confusion)', effects: { maxHp: -1 } },
+          { label: 'Steal an empty pocket from a pickpocket. (-3 HP)', effects: { loseHp: 3 } },
+        ] },
+      { kind: 'choice', title: 'The Gift',
+        flavor: 'Penny accepts the nothing. She blesses you. The blessing has a shape.',
+        choices: [
+          { label: 'Receive the blessing.', effects: { heal: 3 } },
+        ] },
+    ] },
+
+  'sq-twins': { id: 'sq-twins', title: 'The Twins', act: 1,
+    intro: 'Twin sisters insist the other is impersonating them. Both are impersonating each other.',
+    nodes: [
+      { kind: 'choice', title: 'Vera & Vere',
+        flavor: 'They speak over each other. They finish each other\'s sentences. Both look hopeful at you.',
+        choices: [
+          { label: 'I\'ll help.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Test', canAbandon: true,
+        flavor: 'Each gives "proof of identity." Vera\'s is a childhood scar. Vere\'s is the same scar in the same place.',
+        choices: [
+          { label: 'Trust Vera.', effects: {} },
+          { label: 'Trust Vere.', effects: {} },
+        ] },
+      { kind: 'combat', enemyId: 'e2-pattern-maker',
+        flavor: 'You arrive at an empty room. They were colluding. The pattern-maker steps out from behind a curtain.' },
+      { kind: 'choice', title: 'Aftermath',
+        flavor: 'You saw the pattern eventually.',
+        choices: [
+          { label: 'Take the reward.', effects: { maxHp: 1, gainCommonCard: 1 } },
+        ] },
+    ] },
+
+  'sq-bridge-toll': { id: 'sq-bridge-toll', title: 'The Bridge Toll', act: 2,
+    intro: 'A small troll under a bridge. He wants three reasons. He won\'t say what for.',
+    nodes: [
+      { kind: 'choice', title: 'Karst Underbridge',
+        flavor: 'Karst is polite but firm. Three reasons. Doesn\'t matter what for. Choose three.',
+        choices: [
+          { label: 'A truth, a joke, and a confession.', effects: { loseRandomCard: true, heal: 2, loseHp: 3, maxHp: 1 } },
+          { label: 'A lie, a lie, and another lie.', effects: { loseHp: 6 } },
+          { label: 'Three philosophical observations.', effects: {} },
+        ] },
+      { kind: 'narrative', title: 'The Crossing',
+        flavor: 'Karst writes all three down in a small notebook. He steps aside. He had no purpose for them. He\'s a collector.',
+        next: { effects: { gainCommonCard: 1 } } },
+    ] },
+
+  'sq-inheriting-spider': { id: 'sq-inheriting-spider', title: 'The Inheriting Spider', act: 3,
+    intro: 'A spider has been named sole heir to a small fortune. Multiple humans are contesting in court.',
+    nodes: [
+      { kind: 'choice', title: 'Hortensia',
+        flavor: 'A lawyer informs you Hortensia (a spider) needs character witnesses. She is medium-sized and weaving aggressively.',
+        choices: [
+          { label: 'I\'ll testify.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Court', canAbandon: true,
+        flavor: 'You\'re sworn in. Hortensia is on your shoulder. The humans glare.',
+        choices: [
+          { label: 'Testify for Hortensia. (the humans blacklist you; lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Testify against. (Hortensia attacks you)', effects: { loseHp: 4 } },
+          { label: 'Recuse yourself. (-1 max HP from court contempt)', effects: { maxHp: -1 } },
+        ] },
+      { kind: 'choice', title: 'The Verdict',
+        flavor: 'Hortensia wins regardless — the will was airtight. She bequeaths you a small token.',
+        choices: [
+          { label: 'Accept the token.', effects: { gainCommonCard: 1 } },
+          { label: 'Decline. Accept her good opinion instead.', effects: { heal: 3 } },
+        ] },
+    ] },
+
+  'sq-postmaster-daughter': { id: 'sq-postmaster-daughter', title: 'The Postmaster\'s Daughter', act: 3,
+    intro: 'Aurelia Tipp weeps onto a map. The map is technically excellent. It charts her affections.',
+    nodes: [
+      { kind: 'choice', title: 'The Map',
+        flavor: 'Aurelia is in love with three cartographers. They cooperate professionally and compete romantically.',
+        choices: [
+          { label: 'I\'ll mediate.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Cartographers', canAbandon: true,
+        flavor: 'All three insist Aurelia loves them most. They have, between them, drawn 47 versions of her smile.',
+        choices: [
+          { label: 'Pick one for her. (the others war; -2 HP)', effects: { loseHp: 2 } },
+          { label: 'Tell them they share a delusion. (they start mapping your face; lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Destroy the map. (-4 HP from her grief, +1 max HP from doing right)', effects: { loseHp: 4, maxHp: 1 } },
+        ] },
+      { kind: 'narrative', title: 'The Resolution',
+        flavor: 'Aurelia chooses none of them. She moves to a coastal town and becomes a hermit. Six weeks later, you receive a postcard.',
+        next: { effects: { heal: 2, gainCommonCard: 1 } } },
+    ] },
+
+  'sq-modest-favor': { id: 'sq-modest-favor', title: 'A Modest Favor', act: 1,
+    intro: 'Apothecary Webb needs "modest" ingredients. The "modest" is a lie. He won\'t tell you what for.',
+    nodes: [
+      { kind: 'choice', title: 'The List',
+        flavor: 'Salt from a sea that doesn\'t exist anymore. A leaf from a tree that grows backwards. The breath of a sleeping cat. Webb hands you the list with a kind smile.',
+        choices: [
+          { label: 'I\'ll fetch them.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Salt', canAbandon: true,
+        flavor: 'A memory-merchant has the salt. He wants something in trade.',
+        choices: [
+          { label: 'Trade a card.', effects: { loseRandomCard: true } },
+          { label: 'Trade a memory. (-3 HP from the absence)', effects: { loseHp: 3 } },
+        ] },
+      { kind: 'combat', enemyId: 'e1-thicket',
+        flavor: 'The backwards-tree has a small protector spirit. It objects to leaf-gathering.' },
+      { kind: 'choice', title: 'The Cat',
+        flavor: 'The cat sleeps on Webb\'s rug. One breath is enough. Don\'t wake the cat.',
+        choices: [
+          { label: 'Perform an elaborate hush. (-1 max HP from concentration)', effects: { maxHp: -1 } },
+          { label: 'Wake the cat anyway. (-3 HP)', effects: { loseHp: 3 } },
+        ] },
+      { kind: 'narrative', title: 'The Brew',
+        flavor: 'Webb brews tea. He drinks it. He becomes mildly enlightened for twenty minutes. He thanks you absently.',
+        next: { effects: { maxHp: 2, gainUncommonCard: 1 } } },
+    ] },
+
+  'sq-quiet-village': { id: 'sq-quiet-village', title: 'The Quiet Village', act: 2,
+    intro: 'The villagers of Greyhollow welcome you. They smile. They do not blink.',
+    nodes: [
+      { kind: 'narrative', title: 'Welcome',
+        flavor: 'A child whispers something in a language that hasn\'t existed for 400 years.',
+        next: { effects: { loseHp: 2 } } },
+      { kind: 'narrative', title: 'The Empty House',
+        flavor: 'You find an empty house with all the doors locked from the inside.',
+        next: { effects: { loseHp: 2 } } },
+      { kind: 'combat', enemyId: 'e2-pattern-maker',
+        flavor: 'Whatever the village has been hosting steps into the road. It is composed mostly of polite expectation.' },
+      { kind: 'narrative', title: 'Departure',
+        flavor: 'The village resumes blinking. You leave with the strange feeling you were the polite one all along.',
+        next: { effects: { maxHp: 2, heal: 4 } } },
+    ] },
+
+  'sq-lost-familiar': { id: 'sq-lost-familiar', title: 'The Lost Familiar', act: 2,
+    intro: 'A senior wizard\'s familiar has gone feral. The familiar has filed paperwork.',
+    nodes: [
+      { kind: 'choice', title: 'Master Penrith',
+        flavor: 'Penrith explains. Lord Buttons has formally severed his contract. Paperwork is in triplicate.',
+        choices: [
+          { label: 'I\'ll find him.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Tavern',
+        flavor: 'Lord Buttons is drinking. Drunken cats are unreasonable.',
+        choices: [
+          { label: 'Reason with him. (-2 HP)', effects: { loseHp: 2 } },
+          { label: 'Match him drink for drink. (-1 max HP, earn his respect)', effects: { maxHp: -1 } },
+          { label: 'Hire a feline translator. (lose a card)', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'choice', title: 'The Hearing',
+        flavor: 'Lord Buttons demands a show of good faith.',
+        choices: [
+          { label: 'Bring him an offering. (lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Give him your name as a curse-word.', effects: {} },
+          { label: 'Offer him a personal vow. (lose a card)', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'narrative', title: 'Reconciliation',
+        flavor: 'Lord Buttons rescinds his paperwork. Penrith is grateful.',
+        next: { effects: { gainUncommonCard: 1 } } },
+    ] },
+
+  'sq-schoolhouse': { id: 'sq-schoolhouse', title: 'The Schoolhouse', act: 1,
+    intro: 'A schoolhouse has become sentient. It has begun grading everyone who walks past.',
+    nodes: [
+      { kind: 'narrative', title: 'The C-',
+        flavor: 'A passing villager has been given a C-. They are inconsolable.',
+        next: { effects: {} } },
+      { kind: 'choice', title: 'Inside', canAbandon: true,
+        flavor: 'The schoolhouse grades your entrance. It assigns you a B+. The grade is real and slightly demoralizing.',
+        choices: [
+          { label: 'Reason with it. (-2 HP from being marked down)', effects: { loseHp: 2 } },
+          { label: 'Threaten the school board. (-1 max HP)', effects: { maxHp: -1 } },
+          { label: 'Compliment its rigor. (+2 HP)', effects: { heal: 2 } },
+        ] },
+      { kind: 'narrative', title: 'The Agreement',
+        flavor: 'The schoolhouse agrees to grade only voluntarily. Your final grade: A-.',
+        next: { effects: { gainCommonCard: 1 } } },
+    ] },
+
+  'sq-skeptical-ghost': { id: 'sq-skeptical-ghost', title: 'The Ghost That Doesn\'t Believe In Itself', act: 3,
+    intro: 'A ghost, skeptical of ghosts on principle. He needs evidence he exists. From you.',
+    nodes: [
+      { kind: 'choice', title: 'Ezekiel Marsh',
+        flavor: 'Ezekiel folds transparent arms. He requires demonstration.',
+        choices: [
+          { label: 'I\'ll try.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'The Demonstrations',
+        flavor: 'Each piece of evidence Ezekiel rebuts.',
+        choices: [
+          { label: 'Walk through him. (he claims wide stance; -1 HP)', effects: { loseHp: 1 } },
+          { label: 'Describe him. (he says you\'re imagining; lose a Wit card)', effects: { loseRandomCard: true } },
+          { label: 'Get a third party. (the third party also can\'t see him; -2 HP)', effects: { loseHp: 2 } },
+        ] },
+      { kind: 'choice', title: 'The Counter',
+        flavor: 'Ezekiel demands you prove the same about yourself. Each piece of evidence he rebuts.',
+        choices: [
+          { label: 'Concede the symmetry.', effects: {} },
+        ] },
+      { kind: 'narrative', title: 'Mutual Existence',
+        flavor: 'You both agree you exist only in each other\'s presence. He becomes a small invisible companion for the rest of the act.',
+        next: { effects: { maxHp: 1, heal: 3 } } },
+    ] },
+
+  'sq-returned-heir': { id: 'sq-returned-heir', title: 'The Returned Heir', act: 3,
+    intro: 'Ferdinand Quenchwell, sole heir, declared dead, has returned. Multiple alternate heirs object.',
+    nodes: [
+      { kind: 'choice', title: 'Ferdinand',
+        flavor: 'He needs witnesses to vouch he is, in fact, him. Three alternate heirs have stronger paperwork.',
+        choices: [
+          { label: 'I\'ll vouch.', effects: {} },
+        ] },
+      { kind: 'combat', enemyId: 'e3-quartz-sentinel', canAbandon: true,
+        flavor: 'The family lawyer was paid by all four heirs. He objects to your involvement, professionally.' },
+      { kind: 'choice', title: 'The Hearing',
+        flavor: 'You give your testimony. The fake heir is now visibly nervous.',
+        choices: [
+          { label: 'Vouch for Ferdinand.', effects: { gainCommonCard: 1 } },
+          { label: 'Reveal the fake. (-3 HP from magical backlash)', effects: { loseHp: 3, gainUncommonCard: 1 } },
+          { label: 'Claim the estate yourself.', effects: { gainUncommonCard: 1, maxHp: -2 } },
+        ] },
+    ] },
+
+  'sq-wedding-crash': { id: 'sq-wedding-crash', title: 'The Wedding Crash', act: 4,
+    intro: 'Two families both believe they\'re hosting the same wedding. The bride doesn\'t exist.',
+    nodes: [
+      { kind: 'narrative', title: 'The Venue',
+        flavor: 'Two wedding parties. Mutual confusion. The cake is also confused.',
+        next: { effects: {} } },
+      { kind: 'choice', title: 'The Bride', canAbandon: true,
+        flavor: 'You locate her. She is a composite of paperwork and assumptions.',
+        choices: [
+          { label: 'Try to find the truth.', effects: {} },
+        ] },
+      { kind: 'combat', enemyId: 'e4-apprentice-shade',
+        flavor: 'The first family\'s enforcer challenges you when you suggest the bride isn\'t real.' },
+      { kind: 'combat', enemyId: 'e4-failed-initiate',
+        flavor: 'The OTHER family\'s enforcer arrives. They thought you were with the first.' },
+      { kind: 'narrative', title: 'The Resolution',
+        flavor: 'Both families realize together. They marry each other\'s matriarchs. The cake is consumed in relief.',
+        next: { effects: { maxHp: 3, gainUncommonCard: 1 } } },
+    ] },
+
+  'sq-apprentice-of-apprentice': { id: 'sq-apprentice-of-apprentice', title: 'The Apprentice\'s Apprentice', act: 4,
+    intro: 'Master Doone\'s apprentice Yves was surpassed by his apprentice Coriander. Everyone is upset.',
+    nodes: [
+      { kind: 'choice', title: 'The Three',
+        flavor: 'They speak over each other. They each demand you settle the matter.',
+        choices: [
+          { label: 'Fine. Three tests.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'Doone\'s Test',
+        flavor: 'Beat his old test (an old test, by old standards).',
+        choices: [
+          { label: 'Pay the study fee. Pass.', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'choice', title: 'Yves\'s Test',
+        flavor: 'Beat the test he beat Doone with. A sloppy spell rebounds.',
+        choices: [
+          { label: 'Take the rebound. Pass.', effects: { loseHp: 2 } },
+        ] },
+      { kind: 'narrative', title: 'Coriander\'s Test',
+        flavor: 'The test is unsolvable. You fail. She is delighted. She gives you a card in pity.',
+        next: { effects: { loseHp: 3, gainCommonCard: 1 } } },
+      { kind: 'narrative', title: 'A New Academy',
+        flavor: 'They resolve to start a small academy where rank is decided by rock-paper-scissors. They thank you sincerely.',
+        next: { effects: { maxHp: 2 } } },
+    ] },
+
+  'sq-drunk-oracle': { id: 'sq-drunk-oracle', title: 'The Drunk Oracle', act: 4,
+    intro: 'Hannelore the Half-Seen has prophesied your death. By Tuesday. By a turnip.',
+    nodes: [
+      { kind: 'choice', title: 'The Prophecy',
+        flavor: 'She is specific. She is also several drinks in.',
+        choices: [
+          { label: 'I should probably verify.', effects: {} },
+        ] },
+      { kind: 'choice', title: 'Verification',
+        flavor: 'A second oracle says Wednesday. By a turnip. Somehow worse.',
+        choices: [
+          { label: 'Search for the turnip. (-1 HP existential dread)', effects: { loseHp: 1 } },
+          { label: 'Buy Hannelore another drink. (lose a card; she retracts temporarily)', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'combat', enemyId: 'e1-shrine-rat',
+        flavor: 'A turnip-themed cult has heard about the prophecy. They want to help fulfill it.' },
+      { kind: 'narrative', title: 'The Distraction',
+        flavor: 'You confront the turnip. It is not the murderer. It was a distraction.',
+        next: { effects: {} } },
+      { kind: 'combat', enemyId: 'e3-vein-devourer',
+        flavor: 'A vegetable seller, wronged in Act 1 (offstage), finds you. He has been preparing.' },
+      { kind: 'narrative', title: 'Averted',
+        flavor: 'You survive. Tuesday passes. Hannelore later claims she meant a metaphorical turnip.',
+        next: { effects: { maxHp: 3, gainUncommonCard: 1 } } },
+    ] },
+
+  'sq-unfinished-symphony': { id: 'sq-unfinished-symphony', title: 'The Unfinished Symphony', act: 4, bossShortcut: true,
+    intro: 'Maestro Calvert Ainsworth\'s masterwork has been declared unfinishable. He wants the critic killed. The critic is, frankly, correct.',
+    nodes: [
+      { kind: 'choice', title: 'The Score',
+        flavor: 'Ainsworth shows you the score. It\'s beautiful and broken. He needs help.',
+        choices: [
+          { label: 'I\'ll talk to her.', effects: {} },
+        ] },
+      { kind: 'narrative', title: 'The Thicket',
+        flavor: 'A spirit guards the path to the critic\'s residence and insists on payment.',
+        next: { effects: { loseRandomCard: true } } },
+      { kind: 'combat', enemyId: 'sq-critical-apparition',
+        flavor: 'The critic. Brutal. Accurate. Slightly bored.' },
+      { kind: 'choice', title: 'The Revision',
+        flavor: 'She concedes one paragraph. Bring it to Ainsworth.',
+        choices: [
+          { label: 'Bring the revision.', effects: { gainCommonCard: 1 } },
+        ] },
+      { kind: 'narrative', title: 'The Boss Approaches',
+        flavor: 'Ainsworth revises. The symphony is now finishable. The act boss, observing all this, takes interest. The symphony, you realize, is what summoned them.',
+        next: { effects: {} } },
+      { kind: 'boss',
+        flavor: 'Ainsworth has placed you in the boss\'s path. He\'s deeply apologetic.' },
+    ] },
+
+  'sq-borrowed-death': { id: 'sq-borrowed-death', title: 'The Borrowed Death', act: 4, bossShortcut: true,
+    intro: 'Death, polite and slightly annoyed. Someone borrowed his scythe and hasn\'t returned it.',
+    nodes: [
+      { kind: 'choice', title: 'Death\'s Apology',
+        flavor: 'He apologises for the inconvenience. The thief, he believes, is in this act.',
+        choices: [
+          { label: 'I\'ll find them.', effects: {} },
+        ] },
+      { kind: 'narrative', title: 'The Witness',
+        flavor: 'A villager remembers a direction. Interview fatigue settles in.',
+        next: { effects: { loseHp: 2 } } },
+      { kind: 'combat', enemyId: 'e3-quartz-sentinel',
+        flavor: 'A figure who tried the scythe and is now stuck to it. They cannot let go. They are not glad to see you.' },
+      { kind: 'choice', title: 'The Child',
+        flavor: 'A child saw the thief. They want payment first.',
+        choices: [
+          { label: 'Pay. (lose a card)', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'narrative', title: 'The Cuts',
+        flavor: 'A cut in a hedge. A cut in a sentence. A cut in your memory of the act.',
+        next: { effects: { loseRandomCard: true } } },
+      { kind: 'combat', enemyId: 'e4-forgotten-master',
+        flavor: 'The thief. Using the scythe inexpertly. Cannot use it well. Cannot stop.' },
+      { kind: 'boss',
+        flavor: 'Death thanks you. He mentions, casually, that he was on his way to a specific appointment. The appointment was the act boss. He offers you a lift.' },
+    ] },
+
+  'sq-lovers-quarrel': { id: 'sq-lovers-quarrel', title: 'The Lover\'s Quarrel', act: 4,
+    intro: 'Two gods are having a domestic. You\'ve been called in to referee. Gods are not allowed to mediate other gods.',
+    nodes: [
+      { kind: 'choice', title: 'The Two Gods',
+        flavor: 'Auron of Hearths. Mehir of Doorways. Both very tall. Both very upset. Both very specific.',
+        choices: [
+          { label: 'Hear them out.', effects: {} },
+        ] },
+      { kind: 'narrative', title: 'Auron',
+        flavor: 'He serves you divine tea. You aren\'t supposed to drink that.',
+        next: { effects: { maxHp: -1 } } },
+      { kind: 'narrative', title: 'Mehir', canAbandon: true,
+        flavor: 'He has slides. The deck is twelve hundred years old and somewhat luminous.',
+        next: { effects: { loseHp: 2 } } },
+      { kind: 'narrative', title: 'The Investigation',
+        flavor: 'A missing key. A misplaced welcome mat. A third party who left town.',
+        next: { effects: {} } },
+      { kind: 'choice', title: 'The God of Vestibules',
+        flavor: 'He\'s hiding in a closet.',
+        choices: [
+          { label: 'Bribe him out. (lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Break the closet door. (-3 HP)', effects: { loseHp: 3 } },
+          { label: 'Perform an elaborate hush. (-1 max HP)', effects: { maxHp: -1 } },
+        ] },
+      { kind: 'choice', title: 'The Mediation',
+        flavor: 'You must make a binding judgment. Each god will dissatisfy two others.',
+        choices: [
+          { label: 'Side with Auron.', effects: { gainCommonCard: 1 } },
+          { label: 'Side with Mehir.', effects: { gainCommonCard: 1 } },
+          { label: 'Suggest the god of vestibules is the real victim.', effects: { maxHp: 3 } },
+        ] },
+      { kind: 'narrative', title: 'Departure',
+        flavor: 'You leave before they notice. You witnessed a divine domestic and survived.',
+        next: { effects: { gainCommonCard: 1 } } },
+    ] },
+};
+
+// Map act number to the pool of sidequests available in that act.
+const SIDEQUESTS_BY_ACT = (() => {
+  const map = {};
+  for (const sq of Object.values(SIDEQUEST_TEMPLATES)) {
+    (map[sq.act] = map[sq.act] || []).push(sq.id);
+  }
+  return map;
+})();
 
 // Materials — gathered at Material nodes during an act. Each slot has
 // its own family. When the player visits a material node, three random
@@ -1725,6 +2238,16 @@ export default function App() {
   // performance instead of the deterministic effect.
   // Shape: { kind: 'trace-whittling', baseEffects: {...}, eventTitle: string }
   const [skillMinigame, setSkillMinigame] = useState(null);
+  // Sidequest state. `sidequestOffer` = open offer modal { templateId }.
+  // `sidequestActive` = in-progress quest { templateId, nodeIdx }.
+  // `sidequestOffered` = set of templateIds offered this run (so each
+  // quest only offers once per game). `sidequestCombatActive` =
+  // boolean flag used by onEnemyDefeated to route the win to the next
+  // sidequest node instead of the normal reward flow.
+  const [sidequestOffer, setSidequestOffer] = useState(null);
+  const [sidequestActive, setSidequestActive] = useState(null);
+  const [sidequestOffered, setSidequestOffered] = useState(new Set());
+  const [sidequestCombatActive, setSidequestCombatActive] = useState(false);
   // Supply shop draft state. Cleared after exit.
   const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
   const [supplyPicks, setSupplyPicks] = useState([]);     // indices already picked (max 2)
@@ -1875,6 +2398,10 @@ export default function App() {
     setBlock(0);
     setEnergy(ENERGY_PER_TURN);
     setStartingPicksSelected([]);
+    setSidequestOffer(null);
+    setSidequestActive(null);
+    setSidequestOffered(new Set());
+    setSidequestCombatActive(false);
     setExiled([]);
     setEquipment([]);
     setPowers([]);
@@ -2068,6 +2595,21 @@ export default function App() {
   function resolveNodeEnter(node) {
     if (node.type === 'town' || node.type === 'start') {
       pushLog(`You set out from ${nodeLabel(node)}.`);
+      // Town arrival can trigger a sidequest offer. One quest per act,
+      // sampled randomly from the current act's pool. Only offered once
+      // per template per run (sidequestOffered tracks the set).
+      const actNum = currentAct?.id;
+      const pool = (SIDEQUESTS_BY_ACT[actNum] || []).filter(qid => !sidequestOffered.has(qid));
+      if (pool.length > 0 && Math.random() < 0.75) {
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        setSidequestOffer({ templateId: pick });
+        setSidequestOffered(prev => {
+          const next = new Set(prev);
+          next.add(pick);
+          return next;
+        });
+        setStage('sidequest-offer');
+      }
       return;
     }
     if (node.type === 'combat')        return enterFight(pickActEnemyId('normal'));
@@ -2191,6 +2733,122 @@ export default function App() {
     }
     pushLog(logBits.join(' · '));
     setSkillMinigame(null);
+    returnToMap();
+  }
+
+  // Apply a generic `effects` payload — reused by sidequest choices,
+  // sidequest narrative-node `next.effects`, etc. Same vocabulary as
+  // resolveEventChoice: heal, loseHp, maxHp, gainCommonCard, etc.
+  function applyChoiceEffects(fx, sourceLabel) {
+    const logBits = [`📜 ${sourceLabel}`];
+    if (fx.healFull) { setHp(maxHp); logBits.push(`+full HP`); }
+    if (fx.heal)    { setHp(h => clamp(h + fx.heal, 0, maxHp)); logBits.push(`+${fx.heal} HP`); }
+    if (fx.loseHp)  { setHp(h => Math.max(1, h - fx.loseHp)); logBits.push(`-${fx.loseHp} HP`); }
+    if (fx.maxHp) {
+      setMaxHp(m => Math.max(1, m + fx.maxHp));
+      if (fx.maxHp < 0) setHp(h => Math.max(1, Math.min(h, maxHp + fx.maxHp)));
+      logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
+    }
+    if (fx.loseRandomCard) {
+      setDeck(d => {
+        if (d.length === 0) return d;
+        const indexed = d.map((c, i) => ({ c, i }));
+        const nonStarters = indexed.filter(({ c }) => !STARTER_DECK.includes(c.id));
+        const pool = nonStarters.length > 0 ? nonStarters : indexed;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        logBits.push(`− ${pick.c.name}`);
+        return d.filter((_, i) => i !== pick.i);
+      });
+    }
+    if (fx.gainCommonCard) {
+      const c = pickCardByRarity({ common: 1 });
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
+    }
+    if (fx.gainUncommonCard) {
+      const c = pickCardByRarity({ uncommon: 1 });
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
+    }
+    if (fx.gainRareCard) {
+      const c = pickCardByRarity({ rare: 1 });
+      if (c) { setDeck(d => [...d, { ...c, uid: uid() }]); logBits.push(`+ ${c.name}`); }
+    }
+    pushLog(logBits.join(' · '));
+  }
+
+  // SIDEQUEST flow ----------------------------------------------------------
+
+  function acceptSidequest() {
+    if (!sidequestOffer) return;
+    const tpl = SIDEQUEST_TEMPLATES[sidequestOffer.templateId];
+    if (!tpl) { setSidequestOffer(null); returnToMap(); return; }
+    pushLog(`🌿 ${tpl.title} begins.`);
+    setSidequestActive({ templateId: tpl.id, nodeIdx: 0 });
+    setSidequestOffer(null);
+    setStage('sidequest-node');
+  }
+
+  function declineSidequest() {
+    pushLog(`🌿 You decline the diversion.`);
+    setSidequestOffer(null);
+    returnToMap();
+  }
+
+  function getActiveSidequestNode() {
+    if (!sidequestActive) return null;
+    const tpl = SIDEQUEST_TEMPLATES[sidequestActive.templateId];
+    if (!tpl) return null;
+    return { tpl, node: tpl.nodes[sidequestActive.nodeIdx], idx: sidequestActive.nodeIdx };
+  }
+
+  function advanceSidequest(effects) {
+    if (!sidequestActive) return;
+    const tpl = SIDEQUEST_TEMPLATES[sidequestActive.templateId];
+    if (!tpl) { setSidequestActive(null); returnToMap(); return; }
+    if (effects && Object.keys(effects).length > 0) {
+      applyChoiceEffects(effects, tpl.title);
+    }
+    const nextIdx = sidequestActive.nodeIdx + 1;
+    if (nextIdx >= tpl.nodes.length) {
+      // Quest complete.
+      pushLog(`🌿 ${tpl.title} resolves.`);
+      setSidequestActive(null);
+      returnToMap();
+      return;
+    }
+    setSidequestActive({ templateId: tpl.id, nodeIdx: nextIdx });
+    const nextNode = tpl.nodes[nextIdx];
+    if (nextNode.kind === 'combat') {
+      setSidequestCombatActive(true);
+      enterFight(nextNode.enemyId);
+    } else if (nextNode.kind === 'boss') {
+      // Boss-shortcut: jump straight to the act boss combat. Sidequest
+      // ends after the boss fight resolves (which is also act-end).
+      pushLog(`🌿 The path delivers you to the act boss.`);
+      setSidequestActive(null);
+      setSidequestCombatActive(false);
+      enterFight(currentAct.bossId);
+    } else {
+      setStage('sidequest-node');
+    }
+  }
+
+  function resolveSidequestChoice(choice) {
+    advanceSidequest(choice.effects || {});
+  }
+
+  function resolveSidequestNarrative() {
+    const active = getActiveSidequestNode();
+    if (!active) return;
+    const fx = active.node?.next?.effects || {};
+    advanceSidequest(fx);
+  }
+
+  function abandonSidequest() {
+    if (!sidequestActive) return;
+    const tpl = SIDEQUEST_TEMPLATES[sidequestActive.templateId];
+    pushLog(`🌿 You leave ${tpl?.title || 'the diversion'} unfinished.`);
+    setSidequestActive(null);
+    setSidequestCombatActive(false);
     returnToMap();
   }
 
@@ -3141,6 +3799,14 @@ export default function App() {
       setStage('tutorial-complete');
       return;
     }
+    // Sidequest combat short-circuit: skip the reward draw and advance
+    // the sidequest to its next node.
+    if (sidequestCombatActive && sidequestActive) {
+      pushLog(`✓ ${enemy.name} resolved.`);
+      setSidequestCombatActive(false);
+      advanceSidequest({});
+      return;
+    }
     pushLog(`✓ ${enemy.name} defeated.`);
     const isBoss = enemy.tier === 'boss';
     // Fire relic onEnemyDefeated triggers (heal etc.). Not for bosses —
@@ -3443,6 +4109,16 @@ export default function App() {
   if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
   if (stage === 'material-choose') return <MaterialChooseScreen prompt={materialChoices} onPick={claimMaterial} onSkip={skipMaterial} />;
   if (stage === 'skill-event') return <SkillEventScreen event={activeSkillEvent} skills={skills} onChoose={resolveSkillChoice} />;
+  if (stage === 'sidequest-offer') return <SidequestOfferScreen
+    template={sidequestOffer ? SIDEQUEST_TEMPLATES[sidequestOffer.templateId] : null}
+    onAccept={acceptSidequest} onDecline={declineSidequest} />;
+  if (stage === 'sidequest-node') {
+    const active = sidequestActive ? { tpl: SIDEQUEST_TEMPLATES[sidequestActive.templateId], node: SIDEQUEST_TEMPLATES[sidequestActive.templateId]?.nodes[sidequestActive.nodeIdx], idx: sidequestActive.nodeIdx } : null;
+    if (!active?.tpl || !active?.node) { returnToMap(); return null; }
+    return <SidequestNodeScreen template={active.tpl} node={active.node} nodeIdx={active.idx}
+      onChoose={resolveSidequestChoice} onNarrativeContinue={resolveSidequestNarrative}
+      onAbandon={abandonSidequest} />;
+  }
   if (stage === 'skill-minigame' && skillMinigame?.kind === 'trace-whittling') return <TraceWhittlingMinigame
     eventTitle={skillMinigame.eventTitle}
     choiceLabel={skillMinigame.choiceLabel}
@@ -4710,6 +5386,57 @@ function SkillEventScreen({ event, skills, onChoose }) {
             className="btn bg-ink-600 hover:bg-ink-500 text-parchment-100 text-left">{c.label}</button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// SIDEQUEST OFFER — appears on Town arrival when a sidequest seeds.
+// Shows the template intro + an Accept / Decline pair.
+function SidequestOfferScreen({ template, onAccept, onDecline }) {
+  if (!template) return null;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-2xl mx-auto">
+      <div className="text-xs uppercase tracking-widest text-moss-300">A diversion offers itself</div>
+      <h2 className="font-display text-3xl text-gold-300">🌿 {template.title}</h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-xl">{template.intro}</p>
+      <p className="text-[11px] text-parchment-400 italic max-w-xl text-center">
+        {template.nodes.length} node{template.nodes.length === 1 ? '' : 's'} · {template.bossShortcut ? 'leads directly to the act boss' : 'returns you to the map'}
+      </p>
+      <div className="flex gap-3">
+        <button className="btn btn-iris" onClick={onAccept}>Get involved</button>
+        <button className="btn btn-ink" onClick={onDecline}>Keep walking</button>
+      </div>
+    </div>
+  );
+}
+
+// SIDEQUEST NODE — renders the current node in an active sidequest.
+// Choice nodes show options; narrative nodes show one Continue button.
+// `canAbandon: true` on the node adds an Abandon button that ends the
+// quest and returns to the map.
+function SidequestNodeScreen({ template, node, nodeIdx, onChoose, onNarrativeContinue, onAbandon }) {
+  const progress = `Node ${nodeIdx + 1} of ${template.nodes.length}`;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-4 max-w-2xl mx-auto">
+      <div className="text-xs uppercase tracking-widest text-moss-300">🌿 {template.title} · {progress}</div>
+      {node.title && <h2 className="font-display text-2xl text-gold-300">{node.title}</h2>}
+      <p className="font-quill italic text-parchment-200 text-center max-w-xl">{node.flavor}</p>
+      {node.kind === 'choice' && (
+        <div className="flex flex-col gap-2 w-full max-w-md">
+          {node.choices.map((c, i) => (
+            <button key={i} onClick={() => onChoose(c)}
+              className="btn bg-ink-600 hover:bg-ink-500 text-parchment-100 text-left">{c.label}</button>
+          ))}
+        </div>
+      )}
+      {node.kind === 'narrative' && (
+        <button className="btn btn-moss mt-2" onClick={onNarrativeContinue}>Continue</button>
+      )}
+      {node.canAbandon && (
+        <button className="text-xs text-parchment-400 italic hover:text-ember-300 mt-3" onClick={onAbandon}>
+          Abandon the diversion (return to the map)
+        </button>
+      )}
     </div>
   );
 }
