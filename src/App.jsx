@@ -3200,7 +3200,7 @@ export default function App() {
       map={map} act={currentAct} actIdx={currentActIdx} totalActs={ACTS.length}
       currentNodeId={currentNodeId} clearedNodes={clearedNodes}
       reachable={reachableFromCurrent()}
-      player={{ hp, maxHp, equipment, relics, deckSize: deck.length, familiar, familiarName, inventory, skills }}
+      player={{ hp, maxHp, composure, composureMax, equipment, relics, deckSize: deck.length, familiar, familiarName, inventory, skills }}
       onPick={pickNode} log={log} />;
   }
 
@@ -3506,21 +3506,31 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
 
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center parchment-card px-4 py-2">
+      {/* Sticky top HUD — scroll-to-current jumps you below the fold;
+          this keeps HP/Composure visible regardless of scroll position. */}
+      <div className="sticky top-0 z-10 flex justify-between items-center parchment-card px-4 py-2 shadow-lg">
         <div>
           <h1 className="font-display text-xl text-gold-300">{act.name}</h1>
           <div className="text-[10px] uppercase text-parchment-400 tracking-widest">Act {actIdx + 1} of {totalActs} · prize: master {SLOT_LABEL[act.slot]}</div>
         </div>
-        <div className="text-xs flex gap-4 items-center">
+        <div className="text-sm flex gap-3 items-center">
           {player.familiar && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400">
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-xs"
+                  title={player.familiar.desc}>
               <span className="text-base leading-none">{player.familiar.emoji}</span>
               <span className="text-gold-300">{player.familiarName || player.familiar.species}</span>
             </span>
           )}
-          <span>❤️ {player.hp} / {player.maxHp}</span>
-          <span>📜 {player.deckSize} cards</span>
-          <span>⚜ {player.equipment.length} equipment</span>
+          <span className="font-mono text-moss-300" title="HP — your physical health. Drops to 0 and you fail.">
+            ❤ {player.hp}<span className="text-parchment-400 text-xs"> / {player.maxHp}</span>
+          </span>
+          {player.composureMax != null && (
+            <span className="font-mono text-iris-200" title="Composure — your nerve. Drops to 0 and you fail by losing your nerve.">
+              🎭 {player.composure}<span className="text-parchment-400 text-xs"> / {player.composureMax}</span>
+            </span>
+          )}
+          <span className="text-xs text-parchment-300">📜 {player.deckSize}</span>
+          <span className="text-xs text-parchment-300">⚜ {player.equipment.length}</span>
         </div>
       </div>
 
