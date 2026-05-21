@@ -69,6 +69,13 @@ const CARDS = [
   { id: 'w-bruise-it-out', name: 'Bruise it out,', cost: 0, type: 'word', rarity: 'common',
     stats: { chutzpah: 2 }, tags: ['threatening', 'dismissive'],
     effects: { heal: 2 } },
+  // Cycle 4 batch 5: three new chutzpah words (lane was 6, now 9).
+  { id: 'w-point-of-fact', name: 'In point of fact,', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 1 }, tags: ['dismissive', 'formal'] },
+  { id: 'w-as-policy', name: 'As a matter of policy,', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 2 }, tags: ['dismissive', 'threatening'] },
+  { id: 'w-misunderstand', name: 'You misunderstand,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { chutzpah: 3 }, tags: ['dismissive', 'sarcastic'] },
 
   // ---- EFFECT CARDS (basic / starter) ----
   { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
@@ -100,6 +107,11 @@ const CARDS = [
   { id: 'e-cutting-remark', name: 'A Cutting Remark', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
+  // Cycle 4 batch 5: chutzpah engine card. +1 draw after cast, modest dmg.
+  { id: 'e-press-the-point', name: 'Press the Point', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'chutzpah', base: 3, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
   { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
@@ -886,6 +898,9 @@ function castSpell(state, combat) {
     if (trig.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * trig.vulnerable);
     if (trig.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * trig.weak);
   }
+
+  // Cycle 4 batch 5: drawAfterCast (Press the Point engine).
+  if (eff.drawAfterCast) drawCards(state, eff.drawAfterCast);
 }
 
 function effectiveCardCost(card, combat) {

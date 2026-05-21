@@ -3,77 +3,76 @@
 N = **300** runs simulated with a greedy AI (prioritises high-damage casts, defends when intent threatens KO, picks rare/uncommon rewards).
 
 ## Win rate
-- **62 wins / 300** = **20.7%**
-- Failures by act: act 1: 22 · act 2: 172 · act 3: 31 · act 4: 13
+- **58 wins / 300** = **19.3%**
+- Failures by act: act 1: 34 · act 2: 157 · act 3: 19 · act 4: 32
 
 ## Boss outcomes
-- Act 1: 278W / 19L (93.6%, n=297)
-- Act 2: 106W / 71L (59.9%, n=177)
-- Act 3: 75W / 25L (75.0%, n=100)
-- Act 4: 62W / 13L (82.7%, n=75)
+- Act 1: 266W / 33L (89.0%, n=299)
+- Act 2: 109W / 66L (62.3%, n=175)
+- Act 3: 90W / 15L (85.7%, n=105)
+- Act 4: 58W / 32L (64.4%, n=90)
 
 ## Combat pacing
-- Avg turns / combat (all tiers): **3.99**
-  - normal: 3.36
-  - elite: 5.96
-  - boss: 6.09
+- Avg turns / combat (all tiers): **3.96**
+  - normal: 3.24
+  - elite: 6.08
+  - boss: 6.49
 
 ## Cast / resonance / fizzle
-- Total casts: 41772
-- Resonance triggered: 14693 (**35.2%** of casts)
+- Total casts: 42365
+- Resonance triggered: 15321 (**36.2%** of casts)
 - Spells fizzled (staged but never CAST): 0
 - Fizzle rate: 0.0%
 
 ## Deck archetypes (lane bucketing)
-- **wit**: 29 runs (9.7%) · 4 wins (13.8% win rate)
-- **chutzpah**: 58 runs (19.3%) · 3 wins (5.2% win rate)
-- **jnsq**: 20 runs (6.7%) · 0 wins (0.0% win rate)
-- **physical**: 30 runs (10.0%) · 12 wins (40.0% win rate)
-- **wit-physical**: 42 runs (14.0%) · 15 wins (35.7% win rate)
-- **chutzpah-physical**: 19 runs (6.3%) · 5 wins (26.3% win rate)
-- **jnsq-physical**: 37 runs (12.3%) · 15 wins (40.5% win rate)
-- **sampler**: 65 runs (21.7%) · 8 wins (12.3% win rate)
+- **wit**: 38 runs (12.7%) · 4 wins (10.5% win rate)
+- **chutzpah**: 81 runs (27.0%) · 13 wins (16.0% win rate)
+- **jnsq**: 20 runs (6.7%) · 1 win (5.0% win rate)
+- **physical**: 18 runs (6.0%) · 9 wins (50.0% win rate)
+- **wit-physical**: 21 runs (7.0%) · 8 wins (38.1% win rate)
+- **chutzpah-physical**: 30 runs (10.0%) · 9 wins (30.0% win rate)
+- **jnsq-physical**: 33 runs (11.0%) · 9 wins (27.3% win rate)
+- **sampler**: 59 runs (19.7%) · 5 wins (8.5% win rate)
 
 ## Material picks (sorted by frequency)
-- mat-mithril: 520
-- mat-linen: 325
-- mat-burrgrass: 294
-- mat-wraithcloth: 281
-- mat-silver: 235
-- mat-brocade: 148
-- mat-hemlock: 140
-- mat-tarred-canvas: 134
-- mat-copper: 79
-- mat-madrone: 63
-- mat-suede: 34
-- mat-rosewood: 22
+- mat-mithril: 494
+- mat-linen: 317
+- mat-burrgrass: 292
+- mat-wraithcloth: 291
+- mat-silver: 232
+- mat-hemlock: 161
+- mat-tarred-canvas: 150
+- mat-brocade: 149
+- mat-madrone: 81
+- mat-copper: 72
+- mat-rosewood: 28
+- mat-suede: 26
 
 ## Craft quality by slot
-- staff: Master 62 (100.0%) · Fine 0 (0.0%) · Rough 0 (0.0%)
-- robes: Master 247 (88.8%) · Fine 31 (11.2%) · Rough 0 (0.0%)
-- ring: Master 90 (84.9%) · Fine 16 (15.1%) · Rough 0 (0.0%)
-- hat: Master 74 (98.7%) · Fine 1 (1.3%) · Rough 0 (0.0%)
+- staff: Master 57 (98.3%) · Fine 1 (1.7%) · Rough 0 (0.0%)
+- robes: Master 241 (90.6%) · Fine 25 (9.4%) · Rough 0 (0.0%)
+- ring: Master 92 (84.4%) · Fine 16 (14.7%) · Rough 1 (0.9%)
+- hat: Master 88 (97.8%) · Fine 2 (2.2%) · Rough 0 (0.0%)
 - Salvaged-Scrap fallbacks: 0
 
 ## Skill levels at run end
-- whittling: mean 1.93 (max-cap reached in 75 runs)
-- weaving: mean 4.21 (max-cap reached in 62 runs)
-- smithing: mean 3.71 (max-cap reached in 0 runs)
-- felting: mean 1.76 (max-cap reached in 105 runs)
+- whittling: mean 2.09 (max-cap reached in 90 runs)
+- weaving: mean 4.19 (max-cap reached in 58 runs)
+- smithing: mean 3.55 (max-cap reached in 0 runs)
+- felting: mean 1.81 (max-cap reached in 108 runs)
 
 ## Winners
-- Final HP %: 87.5% of max (mean)
-- Final deck size (mean across all runs): 25.35 cards
+- Final HP %: 80.5% of max (mean)
+- Final deck size (mean across all runs): 25.81 cards
 
 ## Enemies that killed the player
-- e3-vein-devourer: 99
-- e3-boss-anvil: 71
-- e4-boss-headmasters-hat: 25
-- e2-boss-tapestry: 19
-- e1-boss-thornlord: 13
-- e2-silent-spinner: 2
-- e4-forgotten-master: 2
-- e4-apprentice-shade: 2
+- e3-vein-devourer: 88
+- e3-boss-anvil: 66
+- e2-boss-tapestry: 33
+- e1-boss-thornlord: 32
+- e4-boss-headmasters-hat: 15
+- e3-quartz-sentinel: 3
 - e4-test-wraith: 2
-- e3-quartz-sentinel: 2
-- e2-pattern-maker: 1
+- e2-silent-spinner: 1
+- e4-forgotten-master: 1
+- e4-apprentice-shade: 1

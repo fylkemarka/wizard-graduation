@@ -172,6 +172,24 @@ const CARDS = [
     upgrade: { stats: { chutzpah: 3 }, effects: { heal: 2 } },
     desc: '+2 Chutzpah. Heal 2 HP.',
     flavor: 'You\'ve been hit harder. By worse people. Recently.' },
+  // Cycle 4 batch 5: chutzpah word-pool depth. Chutzpah had 6 words to
+  // wit/jnsq's 9-10 after the batch-2 additions. Three new chutzpah-only
+  // words with no HP cost (the lane already has plenty of self-damage).
+  { id: 'w-point-of-fact', name: 'In point of fact,', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 1 }, tags: ['dismissive', 'formal'], phrase: 'in point of fact,',
+    upgrade: { stats: { chutzpah: 2 } },
+    desc: '+1 Chutzpah.',
+    flavor: 'You produce no points. The fact remains, though.' },
+  { id: 'w-as-policy', name: 'As a matter of policy,', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 2 }, tags: ['dismissive', 'threatening'], phrase: 'as a matter of policy,',
+    upgrade: { stats: { chutzpah: 3 } },
+    desc: '+2 Chutzpah.',
+    flavor: 'The policy is invented. The matter is real.' },
+  { id: 'w-misunderstand', name: 'You misunderstand,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { chutzpah: 3 }, tags: ['dismissive', 'sarcastic'], phrase: 'you misunderstand,',
+    upgrade: { stats: { chutzpah: 4 } },
+    desc: '+3 Chutzpah.',
+    flavor: 'They didn\'t. But they will, by the end of the sentence.' },
 
   // =============================================================================
   // EFFECT CARDS — seal the spell. Consume the tray, deal damage of
@@ -257,6 +275,20 @@ const CARDS = [
               resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
     desc: 'Cast: 8 + Chutzpah×3 Composure. Resonates: dismissive, petty.',
     flavor: 'It is a perfectly normal hat.' },
+  // Cycle 4 batch 5: chutzpah engine card. The lane has no card-cycling,
+  // so a committed chutzpah deck draws the same 5 forever. Press the Point
+  // is the chutzpah equivalent of a draw-engine — modest cast damage with
+  // +1 draw after, so chutzpah decks see more cards per combat.
+  { id: 'e-press-the-point', name: 'Press the Point', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'chutzpah', base: 3, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } },
+    phrase: '…and to be perfectly clear,',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
+    desc: 'Cast: 3 + Chutzpah×2 Composure. Then draw 1.',
+    flavor: 'The point is not subtle. The pressing, less so.' },
   // Cycle 3: broaden the Jnsq pool. Two new options so the lane has
   // depth comparable to Wit/Chutzpah.
   { id: 'e-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'effect', rarity: 'common',
@@ -4619,6 +4651,12 @@ export default function App() {
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
     applyPowerTriggers('onEffectCardPlayed');
     advanceTutorialStep('cast-spell');
+
+    // Cycle 4 batch 5: drawAfterCast (chutzpah engine card hook).
+    if (eff.drawAfterCast) {
+      drawCards(eff.drawAfterCast);
+      pushLog(`📥 Drew ${eff.drawAfterCast} after cast.`);
+    }
   }
 
   // Insult prompt — player picks a word from the current phase's samples.
