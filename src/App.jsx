@@ -393,18 +393,17 @@ const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 function buildStarterDeckForLane(lane) {
   const pool = LANE_POOL_BY_SLOT[lane];
   if (!pool) return [];
-  // Take all basics + a couple commons so the early game has some variety.
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
   const firstNCommons = (arr, n) => arr.filter(c => c.rarity === 'common').slice(0, n);
+  // Starter deck shape: 3 intros + 3 subjects + 3 targets + 1 utility.
+  // With a 5-card hand from this 10-card deck, the chance of drawing
+  // at least one of each slot lands at ~75% — playable from turn 1.
+  // (Previously was 3+3+2+2 = ~62% hit rate; targets were the bottleneck.)
   const ids = [
-    // 3 intros: all 3 basics that fit on the basic-Tier-1 floor.
     ...basics(pool.intro).slice(0, 3).map(c => c.id),
-    // 3 subjects: same.
     ...basics(pool.subject).slice(0, 3).map(c => c.id),
-    // 2 targets: take the cheapest 2 common targets — basics don't include targets.
-    ...firstNCommons(pool.target, 2).map(c => c.id),
-    // 2 utilities (cross-character skills, kept from v1 utility pool).
-    'c-defend', 'c-channel',
+    ...firstNCommons(pool.target, 3).map(c => c.id),
+    'c-defend',
   ];
   return ids;
 }
@@ -3328,9 +3327,15 @@ export default function App() {
     const final = trimmed || familiar?.species || 'Familiar';
     setFamiliarName(final);
     pushLog(`🐾 You name your ${familiar?.species || 'familiar'} ${final}.`);
-    // Route through the Starting Picks screen before the first map loads.
-    // (Placeholder for the planned character-selection opening sequence.)
-    setStage('starting-picks');
+    // Character-select + supply-shop already gave the lane-pure picks the
+    // legacy starting-picks screen used to provide. Skip it and head
+    // directly to the map.
+    {
+      const m0 = generateActMap(ACTS[0].rows, ACTS[0].width);
+      setMap(seedSidequestSpurs(m0, ACTS[0].id, ACTS[0].rows, ACTS[0].width));
+    }
+    setStage('map');
+    pushLog(`🌅 ${ACTS[0].name} begins.`);
   }
 
   function toggleStartingPick(cardId) {
@@ -4081,11 +4086,15 @@ export default function App() {
         pushLog(`Need an intro AND a subject before playing a target.`);
         return;
       }
-      const staged = { ...tray, target: card, effectCard: card };
+      // Replace any existing target the way intro/subject replacement works.
+      if (tray.target) {
+        setHand(h => [...h, tray.target]);
+        setEnergy(e => e + (tray.target.cost || 0));
+        pushLog(`↩ Replaced target ${tray.target.name || tray.target.phrase}.`);
+      }
       setTray(p => syncTrayLegacy({ ...p, target: card }));
       setHand(h => h.filter((_, i) => i !== handIdx));
-      pushLog(`🎯 Target staged: ${card.phrase}`);
-      setTimeout(() => castStagedSpell(staged), 0);
+      pushLog(`🎯 Target staged: ${card.phrase} — hit CAST when ready.`);
       return;
     }
 
@@ -5611,13 +5620,38 @@ function SupplyShopScreen({ choices, picks, onPick, character }) {
                     : 'bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer'
               }`}>
               <div className="flex justify-between items-center">
-                <div className="font-display text-base leading-tight">{card.name}</div>
+                <div className="font-display text-base leading-tight">{card.name || card.phrase || ''}</div>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">
                   {card.cost}
                 </div>
               </div>
-              <div className="text-[10px] uppercase tracking-wider opacity-70">{card.type} · {card.rarity}</div>
-              <div className="text-xs font-quill">{card.desc}</div>
+              <div className="text-[10px] uppercase tracking-wider opacity-70 font-bold">
+                {(card.slot || card.type)} · {card.rarity}{card.tier ? ` · T${card.tier}` : ''}
+              </div>
+              {/* Stat contribution (intros/subjects/modifiers) */}
+              {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+                <div className="flex gap-1 flex-wrap text-xs font-mono">
+                  {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                  {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                  {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                </div>
+              )}
+              {/* Target damage formula */}
+              {(card.slot === 'target' || card.type === 'effect') && card.effect && (
+                <div className="text-xs font-mono text-ink-700">
+                  {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
+                  {card.effect.rider && (
+                    <span className="ml-1 text-ember-700">
+                      ({Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')})
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* Tags */}
+              {card.tags && card.tags.length > 0 && (
+                <div className="text-[11px] italic text-ink-500">✦ {card.tags.join(' · ')}</div>
+              )}
+              <div className="text-xs font-quill">{card.desc || ''}</div>
               {card.flavor && (
                 <div className="text-[11px] italic opacity-70 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
               )}
@@ -6209,21 +6243,35 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             : (card.cost || 0);
           const playable = effCost <= energy;
           const escalated = card.id === 'c-amplify' && amplifyPlaysThisCombat > 0;
-          // Card frame tint by type — word = iris, effect = ember,
-          // skill = moss, power = gold.
-          const tint = card.type === 'word'   ? 'border-iris-500'
+          // Card frame tint. v2 cards: intro/subject = iris, target =
+          // ember, modifier = gold. v1 fallback by card.type for utilities.
+          const tint = card.slot === 'intro' || card.slot === 'subject' ? 'border-iris-500'
+                     : card.slot === 'target' ? 'border-ember-500'
+                     : card.slot === 'modifier' ? 'border-gold-500'
+                     : card.type === 'word'   ? 'border-iris-500'
                      : card.type === 'effect' ? 'border-ember-500'
                      : card.type === 'power'  ? 'border-gold-500'
                      :                          'border-moss-500';
+          // Display label: prefer slot (intro/subject/target/modifier) for v2,
+          // fall back to type for v1 utilities (skill/power).
+          const displayLabel = card.slot
+            ? card.slot
+            : card.type;
+          // Display name: v2 uses `phrase` as the card text; v1 uses `name`.
+          const displayName = card.name || card.phrase || '';
+          // Card body text: v2 uses `flavor` as descriptive italics; v1 has `desc`.
+          const displayDesc = card.desc || (card.flavor ? `"${card.flavor}"` : '');
           const dmgType = card.type === 'effect' ? card.effect?.damageType : null;
           const dmgLabel = dmgType === 'physical' ? 'Physical dmg'
                          : dmgType === 'composure' ? 'Composure dmg'
                          : null;
           const dmgChip = dmgType === 'physical' ? 'text-ember-700 bg-ember-100'
                         :                          'text-iris-700 bg-iris-100';
+          // Tags: shown on every v2 card (intro/subject/target/modifier all carry tags).
+          // Legacy v1 cards: words show their tags; legacy effect cards show resonance.
           const tagOrResonance =
-            card.type === 'word' && card.tags && card.tags.length > 0
-              ? <div className="text-[11px] text-ink-500 italic" title="Themes this fragment contributes. Effects that resonate with a theme deal extra damage.">
+            card.tags && card.tags.length > 0
+              ? <div className="text-[11px] text-ink-500 italic" title="Tags this card contributes to the spell. Cards that share tags can unlock modifier bonuses.">
                   ✦ {card.tags.join(' · ')}
                 </div>
               : card.type === 'effect' && card.effect?.resonatesWith && card.effect.resonatesWith.length > 0
@@ -6242,36 +6290,60 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
               <div className="flex justify-between items-start gap-1">
-                <div className="font-display text-[15px] leading-tight">{card.name}</div>
+                <div className="font-display text-[15px] leading-tight">{displayName}</div>
                 <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? (escalated ? 'bg-ember-500 text-parchment-50' : 'bg-gold-500 text-ink-800') : 'bg-ink-500 text-parchment-300'}`}
                   title={escalated ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).` : undefined}>
                   {effCost}
                 </div>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type}</div>
-              {/* Word stats */}
-              {card.type === 'word' && card.stats && (
+              <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
+                {displayLabel}{card.tier ? ` · T${card.tier}` : ''}
+              </div>
+              {/* Word / intro / subject / modifier stats */}
+              {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
                 <div className="flex gap-1 flex-wrap text-xs font-mono">
                   {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
                   {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
                   {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
                 </div>
               )}
-              {/* Effect formula + damage-type chip on its own row */}
-              {card.type === 'effect' && card.effect && (
+              {/* Target (effect) damage formula + damage-type chip */}
+              {(card.slot === 'target' || card.type === 'effect') && card.effect && (
                 <>
                   <div className="text-sm font-mono text-ink-700">
-                    {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
+                    {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
                   </div>
                   {dmgLabel && (
                     <div className={`text-[10px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 self-start ${dmgChip}`}>
                       {dmgLabel}
                     </div>
                   )}
+                  {card.effect.rider && (
+                    <div className="text-[11px] text-ember-700 italic">
+                      {Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')}
+                    </div>
+                  )}
+                  {card.effect.tier3Double && (
+                    <div className="text-[10px] text-ember-700 font-bold italic">Doubles at Tier 3</div>
+                  )}
+                  {card.effect.requiresTier3 && (
+                    <div className="text-[10px] text-ember-700 font-bold italic">Requires Tier 3 (else half dmg + exile)</div>
+                  )}
                 </>
               )}
-              <div className="text-sm flex-1 font-quill leading-snug">{card.desc}</div>
-              {card.flavor && <div className="text-[11px] italic text-ink-500 leading-tight">"{card.flavor}"</div>}
+              {/* Modifier kind + effect summary */}
+              {card.slot === 'modifier' && card.modifierEffect && (
+                <div className="text-[11px] text-gold-700 italic leading-tight">
+                  ({card.modifierKind})
+                  {card.modifierEffect.damageMult ? ` · ×${card.modifierEffect.damageMult} dmg` : ''}
+                  {card.modifierEffect.conditionalMult?.tier2Plus ? ` · ×${card.modifierEffect.conditionalMult.tier2Plus} if T2+` : ''}
+                  {card.modifierEffect.tier3Payoff ? ` · T3 payoff` : ''}
+                  {card.modifierEffect.rider ? ' · ' + Object.entries(card.modifierEffect.rider).map(([k, v]) => `+${v} ${k}`).join(' ') : ''}
+                  {card.modifierEffect.drawAfterCast ? ` · +${card.modifierEffect.drawAfterCast} draw` : ''}
+                  {card.modifierEffect.stripEnemyBlock ? ` · strip ${card.modifierEffect.stripEnemyBlock} block` : ''}
+                </div>
+              )}
+              <div className="text-sm flex-1 font-quill leading-snug italic">{displayDesc}</div>
               {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
               {/* Resonance / tag row — separated visually so it reads as
                   meta-info, not as part of the card's main effect. */}
@@ -6454,13 +6526,16 @@ function StartingPicksScreen({ pool, selected, onToggle, onConfirm }) {
                 'hover:scale-105 hover:shadow-2xl'
               }`}>
               <div className="flex justify-between items-center">
-                <div className="font-display text-base leading-tight">{card.name}</div>
+                <div className="font-display text-base leading-tight">{card.name || card.phrase || ''}</div>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-ink-400">
-                {card.type}{arch && <> · <span className={archColor(arch).split(' ')[0]}>{arch}</span></>}
+              <div className="text-[10px] uppercase tracking-wider text-ink-400 font-bold">
+                {(card.slot || card.type)}{card.tier ? ` · T${card.tier}` : ''}{arch && <> · <span className={archColor(arch).split(' ')[0]}>{arch}</span></>}
               </div>
-              <div className="text-xs font-quill">{card.desc}</div>
+              {card.tags && card.tags.length > 0 && (
+                <div className="text-[11px] italic text-ink-500">✦ {card.tags.join(' · ')}</div>
+              )}
+              <div className="text-xs font-quill">{card.desc || ''}</div>
               {card.flavor && (
                 <div className="text-[11px] italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
               )}
@@ -6486,11 +6561,33 @@ function RewardScreen({ choices, onPick }) {
           <button key={i} onClick={() => onPick(card)}
             className="w-48 min-h-[260px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition">
             <div className="flex justify-between items-center">
-              <div className="font-display text-base leading-tight">{card.name}</div>
+              <div className="font-display text-base leading-tight">{card.name || card.phrase || ''}</div>
               <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-ink-400">{card.type} · {card.rarity}</div>
-            <div className="text-xs font-quill">{card.desc}</div>
+            <div className="text-[10px] uppercase tracking-wider text-ink-400 font-bold">
+              {(card.slot || card.type)} · {card.rarity}{card.tier ? ` · T${card.tier}` : ''}
+            </div>
+            {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+              <div className="flex gap-1 flex-wrap text-xs font-mono">
+                {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+              </div>
+            )}
+            {(card.slot === 'target' || card.type === 'effect') && card.effect && (
+              <div className="text-xs font-mono text-ink-700">
+                {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
+                {card.effect.rider && (
+                  <span className="ml-1 text-ember-700">
+                    ({Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')})
+                  </span>
+                )}
+              </div>
+            )}
+            {card.tags && card.tags.length > 0 && (
+              <div className="text-[11px] italic text-ink-500">✦ {card.tags.join(' · ')}</div>
+            )}
+            <div className="text-xs font-quill">{card.desc || ''}</div>
             {card.flavor && (
               <div className="text-[11px] italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
             )}
