@@ -76,6 +76,17 @@ const CARDS = [
     stats: { chutzpah: 2 }, tags: ['dismissive', 'threatening'] },
   { id: 'w-misunderstand', name: 'You misunderstand,', cost: 1, type: 'word', rarity: 'uncommon',
     stats: { chutzpah: 3 }, tags: ['dismissive', 'sarcastic'] },
+  // Cycle 5 batch 1: three new jnsq words (lane was 6, now 9).
+  { id: 'w-mind-chickens', name: 'Mind the chickens,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 1 }, tags: ['absurd', 'chaotic'] },
+  { id: 'w-third-tuesday', name: 'On the third Tuesday,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 2 }, tags: ['chaotic', 'absurd'] },
+  { id: 'w-which-case-moon', name: 'In which case, the moon,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { jnsq: 3 }, tags: ['mystical', 'absurd'] },
+  // Cycle 5 batch 3: jnsq sustain word (analog to "Bruise it out").
+  { id: 'w-drunk-starlight', name: 'Drunk on starlight,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 1 }, tags: ['mystical', 'chaotic'],
+    effects: { heal: 2 } },
 
   // ---- EFFECT CARDS (basic / starter) ----
   { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
@@ -112,6 +123,15 @@ const CARDS = [
     effect: { scaleBy: 'chutzpah', base: 3, multiplier: 2, damageType: 'composure',
               drawAfterCast: 1,
               resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
+  // Cycle 5 batch 1: jnsq engine card (mirror of Press the Point).
+  { id: 'e-free-association', name: 'Free Association', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 3, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 } } },
+  // Cycle 5 batch 3: jnsq deep-stacking payoff.
+  { id: 'e-bedlam-cascade', name: 'Bedlam Cascade', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['chaotic', 'absurd', 'mystical'], resonanceBonus: { perTag: 5 } } },
   { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
@@ -1659,10 +1679,24 @@ function aggregate(results) {
   // Lane bucketing — what archetype did each run actually become?
   const archetypeCounts = {};
   const archetypeWins   = {};
+  // Per-archetype loss diagnostics (added Cycle 5 batch 2 for jnsq-pure
+  // variance hunt — tells us which enemies disproportionately end each
+  // lane's runs and where in the act curve each lane falls off).
+  const archetypeLossByEnemy = {}; // arch -> { enemyId: count }
+  const archetypeActsCleared = {}; // arch -> [cleared0, cleared1, cleared2, cleared3, cleared4]
   for (const r of results) {
     const a = r.archetype || 'sampler';
     archetypeCounts[a] = (archetypeCounts[a] || 0) + 1;
     if (r.won) archetypeWins[a] = (archetypeWins[a] || 0) + 1;
+    if (!archetypeLossByEnemy[a]) archetypeLossByEnemy[a] = {};
+    if (!archetypeActsCleared[a]) archetypeActsCleared[a] = [0, 0, 0, 0, 0];
+    archetypeActsCleared[a][r.actsCleared || 0]++;
+    // Find this run's KO combat (if any) and credit the enemy.
+    for (const c of r.combats || []) {
+      if (c.outcome === 'lost') {
+        archetypeLossByEnemy[a][c.enemyId] = (archetypeLossByEnemy[a][c.enemyId] || 0) + 1;
+      }
+    }
   }
 
   // Skill levels at run end
@@ -1693,6 +1727,8 @@ function aggregate(results) {
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize)),
     archetypeCounts,
     archetypeWins,
+    archetypeLossByEnemy,
+    archetypeActsCleared,
   };
 }
 
@@ -1744,6 +1780,25 @@ function buildReport(agg) {
     const w = wins[a] || 0;
     const wr = n ? pct(w / n) : 'n/a';
     lines.push(`- **${a}**: ${n} run${n === 1 ? '' : 's'} (${pct(n / agg.N)}) · ${w} win${w === 1 ? '' : 's'} (${wr} win rate)`);
+  }
+  lines.push('');
+
+  // Per-archetype loss diagnostics (Cycle 5 batch 2): for each archetype
+  // with ≥15 runs, show top 3 killer enemies and act-cleared distribution.
+  lines.push(`## Per-archetype loss diagnostics`);
+  const lossByArch = agg.archetypeLossByEnemy || {};
+  const actsByArch = agg.archetypeActsCleared || {};
+  for (const a of sorted) {
+    const n = counts[a];
+    if (n < 15) continue;
+    const enemyLosses = Object.entries(lossByArch[a] || {}).sort((x, y) => y[1] - x[1]);
+    const topKillers = enemyLosses.slice(0, 3)
+      .map(([id, c]) => `${id} (${c})`).join(', ') || '(no KOs)';
+    const acts = actsByArch[a] || [0, 0, 0, 0, 0];
+    // acts[i] = how many runs cleared exactly i acts. Total losses = n - wins.
+    const lossCounts = acts.slice(0, 4); // died in act 1/2/3/4 = cleared 0/1/2/3
+    const lossDist = lossCounts.map((c, i) => `a${i + 1}:${c}`).join(' · ');
+    lines.push(`- **${a}** (n=${n}, ${(wins[a]||0)}W): ${topKillers} | died in ${lossDist}`);
   }
   lines.push('');
   lines.push(`## Material picks (sorted by frequency)`);

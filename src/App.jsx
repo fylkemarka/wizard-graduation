@@ -190,6 +190,33 @@ const CARDS = [
     upgrade: { stats: { chutzpah: 4 } },
     desc: '+3 Chutzpah.',
     flavor: 'They didn\'t. But they will, by the end of the sentence.' },
+  // Cycle 5 batch 1: jnsq word-pool depth (was 6, now 9 — parity with
+  // chutzpah). Jnsq lane buckets at n=48/1000 with 8% win rate. Mirror
+  // the chutzpah B5 fix: deepen the pool so the AI commits more often
+  // AND the deck has enough fuel to stack jnsq.
+  { id: 'w-mind-chickens', name: 'Mind the chickens,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 1 }, tags: ['absurd', 'chaotic'], phrase: 'mind the chickens,',
+    upgrade: { stats: { jnsq: 2 } },
+    desc: '+1 Jnsq.',
+    flavor: 'Nobody mentioned chickens. There are now chickens.' },
+  { id: 'w-third-tuesday', name: 'On the third Tuesday,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 2 }, tags: ['chaotic', 'absurd'], phrase: 'on the third Tuesday,',
+    upgrade: { stats: { jnsq: 3 } },
+    desc: '+2 Jnsq.',
+    flavor: 'Which Tuesday, exactly? Yes.' },
+  { id: 'w-which-case-moon', name: 'In which case, the moon,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { jnsq: 3 }, tags: ['mystical', 'absurd'], phrase: 'in which case, the moon,',
+    upgrade: { stats: { jnsq: 4 } },
+    desc: '+3 Jnsq.',
+    flavor: 'The moon is, in fact, listening. The moon is always listening.' },
+  // Cycle 5 batch 3: jnsq sustain word (analog to chutzpah's "Bruise it out").
+  { id: 'w-drunk-starlight', name: 'Drunk on starlight,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 1 }, tags: ['mystical', 'chaotic'],
+    effects: { heal: 2 },
+    phrase: 'drunk on starlight,',
+    upgrade: { stats: { jnsq: 2 }, effects: { heal: 2 } },
+    desc: '+1 Jnsq. Heal 2 HP.',
+    flavor: 'The wine was unconvincing. The starlight, less so.' },
 
   // =============================================================================
   // EFFECT CARDS — seal the spell. Consume the tray, deal damage of
@@ -289,6 +316,32 @@ const CARDS = [
               resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
     desc: 'Cast: 3 + Chutzpah×2 Composure. Then draw 1.',
     flavor: 'The point is not subtle. The pressing, less so.' },
+  // Cycle 5 batch 1: jnsq engine card. The lane had no card-cycling,
+  // mirroring the chutzpah problem pre-C4B5. Free Association is the
+  // jnsq equivalent of Press the Point — modest cast damage, +1 draw
+  // after. Resonates with the absurd/chaotic tag pool.
+  { id: 'e-free-association', name: 'Free Association', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'jnsq', base: 3, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 } },
+    phrase: '…which reminds me, the calendar disagrees,',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 } } },
+    desc: 'Cast: 3 + Jnsq×2 Composure. Then draw 1.',
+    flavor: 'Each thought, by itself, was reasonable.' },
+  // Cycle 5 batch 3: jnsq deep-stacking payoff. Rewards committed jnsq
+  // decks that pile tag-rich words into the tray. +5 per matching tag is
+  // higher than Compounding Argument's +4, but jnsq has no resonance
+  // doubler — so this hits hard at full stack and modestly at small.
+  { id: 'e-bedlam-cascade', name: 'Bedlam Cascade', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['chaotic', 'absurd', 'mystical'], resonanceBonus: { perTag: 5 } },
+    phrase: '…and now everything, all at once, in no particular order,',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['chaotic', 'absurd', 'mystical'], resonanceBonus: { perTag: 5 } } },
+    desc: 'Cast: 4 + Jnsq×2 Composure. +5 per matching jnsq tag.',
+    flavor: 'All bets are on. The dice are loaded with stars.' },
   // Cycle 3: broaden the Jnsq pool. Two new options so the lane has
   // depth comparable to Wit/Chutzpah.
   { id: 'e-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'effect', rarity: 'common',
