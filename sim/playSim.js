@@ -87,6 +87,22 @@ const CARDS = [
   { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
+  // Cycle 4: lane-closer cards for pure-verbal archetypes.
+  { id: 'e-compounding-argument', name: 'Compounding Argument', cost: 1, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 4 } } },
+  { id: 'e-genuine-threat', name: 'Genuine Threat', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['chaotic', 'mystical', 'absurd'], resonanceBonus: { perTag: 2 } } },
+  { id: 'e-dont-hold-back', name: 'Don\'t Hold Back', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
+              loseHpOnPlay: 8, hpThresholdDouble: 30,
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
+  { id: 'e-polymath', name: 'Polymath', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure',
+              sumAllStats: true,
+              resonatesWith: ['formal', 'rhetorical', 'absurd', 'threatening'], resonanceBonus: { perTag: 1 } } },
+
   { id: 'e-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'effect', rarity: 'common',
     effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
               resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
@@ -787,7 +803,10 @@ function castSpell(state, combat) {
     return;
   }
   const stat = eff.scaleBy || 'wit';
-  let dmg = (eff.base || 0) + (combat.tray[stat] || 0) * (eff.multiplier || 0);
+  const trayVal = eff.sumAllStats
+    ? (combat.tray.chutzpah || 0) + (combat.tray.wit || 0) + (combat.tray.jnsq || 0)
+    : (combat.tray[stat] || 0);
+  let dmg = (eff.base || 0) + trayVal * (eff.multiplier || 0);
   const dmgType = eff.damageType || 'composure';
   const piercing = !!combat.pierceNextCast;
   if (piercing) combat.pierceNextCast = false;
@@ -795,6 +814,8 @@ function castSpell(state, combat) {
   const phys_mult = piercing ? 1.0 : (combat.enemy?.effectiveness?.physical ?? 1.0);
   if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
   else                        dmg = Math.round(dmg * eff_mult);
+  // Don't-Hold-Back threshold doubler.
+  if (eff.hpThresholdDouble && state.hp < eff.hpThresholdDouble) dmg *= 2;
   const rWith = eff.resonatesWith || [];
   const perTag = eff.resonanceBonus?.perTag || 0;
   const matchedTags = (combat.tray.tags || []).filter(t => rWith.includes(t));

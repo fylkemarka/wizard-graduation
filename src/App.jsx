@@ -391,6 +391,47 @@ const CARDS = [
               failFlavor: '…you have not blinked in some time. They have not, either.' } },
     desc: 'Sway: try to soften the enemy\'s Physical resistance by +0.5 (cap 1.0). Tactic: threat.',
     flavor: 'A threat works because the alternative remains specifically unstated.' },
+  // ---- CYCLE 4 LANE-CLOSERS — three cards designed to give pure-verbal
+  //      archetypes a competitive win path (per cycle-4 bucketing showing
+  //      pure-wit / pure-jnsq winning 0/61 combined). Plus Polymath, which
+  //      turns the "sampler" bucket into a real archetype.
+  { id: 'e-compounding-argument', name: 'Compounding Argument', cost: 1, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 4 } },
+    phrase: '…and, building on the previous point, building on that, building on that…',
+    upgrade: { effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 4 } } },
+    desc: 'Cast: 4 + Wit×2 Composure. Resonance bonus DOUBLED (+4/tag). Resonates: rhetorical, academic, formal.',
+    flavor: 'The argument grows, fractally. The room shrinks proportionally.' },
+  { id: 'e-genuine-threat', name: 'Genuine Threat', cost: 2, type: 'effect', rarity: 'uncommon',
+    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
+              resonatesWith: ['chaotic', 'mystical', 'absurd'], resonanceBonus: { perTag: 2 } },
+    phrase: '…and I MEAN it this time.',
+    upgrade: { effect: { scaleBy: 'jnsq', base: 11, multiplier: 4, damageType: 'composure',
+              resonatesWith: ['chaotic', 'mystical', 'absurd'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 8 + Jnsq×3 Composure. Reliable damage — no gamble. Resonates: chaotic, mystical, absurd.',
+    flavor: 'You\'re not gambling. They are.' },
+  { id: 'e-dont-hold-back', name: 'Don\'t Hold Back', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
+              loseHpOnPlay: 8, hpThresholdDouble: 30,
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
+    phrase: '…there is no version of this you walk away from.',
+    upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 3, damageType: 'composure',
+              loseHpOnPlay: 8, hpThresholdDouble: 30,
+              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
+    desc: 'Cast: 5 + Chutzpah×2 Composure. Lose 8 HP. Damage DOUBLES if you\'re under 30 HP.',
+    flavor: 'You\'re already broken. They\'re about to find out what that means.' },
+  { id: 'e-polymath', name: 'Polymath', cost: 2, type: 'effect', rarity: 'rare',
+    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure',
+              sumAllStats: true,
+              resonatesWith: ['formal', 'rhetorical', 'absurd', 'threatening'], resonanceBonus: { perTag: 1 } },
+    phrase: '…wit, force, and a small unhinged flourish.',
+    upgrade: { effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure',
+              sumAllStats: true,
+              resonatesWith: ['formal', 'rhetorical', 'absurd', 'threatening'], resonanceBonus: { perTag: 1 } } },
+    desc: 'Cast: 5 + (Chutzpah + Wit + Jnsq)×2 Composure. Rewards mixed-stat decks.',
+    flavor: 'You speak three languages at once. None of them are arguments.' },
+
   // ---- INSULT EFFECTS — open a 3-pick word-prompt modal on cast. The
   //      picked words are tag-classified and aligned against the enemy's
   //      insultVulnerabilities. Land (≥50% match) deals heavy composure
@@ -4445,7 +4486,10 @@ export default function App() {
     if (card.name === 'Strike' || card.name === 'Strike+') base += strikeBonusTotal();
     base += consumeEveryNthEffectBonus();
     const stat = eff.scaleBy || 'wit';
-    const trayVal = tray[stat] || 0;
+    // Polymath-style: sum all three verbal stats instead of using one.
+    const trayVal = eff.sumAllStats
+      ? (tray.chutzpah || 0) + (tray.wit || 0) + (tray.jnsq || 0)
+      : (tray[stat] || 0);
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
     // Read-the-Room consumption: pierce effectiveness on the next cast.
@@ -4456,6 +4500,11 @@ export default function App() {
     let dmg = rawSpell;
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
+    // Don't-Hold-Back: damage doubles when below the HP threshold.
+    if (eff.hpThresholdDouble && hp < eff.hpThresholdDouble) {
+      dmg *= 2;
+      pushLog(`💥 below ${eff.hpThresholdDouble} HP — damage doubled.`);
+    }
     if (piercing) pushLog(`🎯 cast pierces ${enemy?.name}'s resistance.`);
     const rWith = eff.resonatesWith || [];
     const perTag = eff.resonanceBonus?.perTag || 0;
@@ -4598,7 +4647,9 @@ export default function App() {
       if ((effectCount + 1) % every.n === 0) base += every.extraDamage || 0;
     }
     const stat = eff.scaleBy || 'wit';
-    const trayVal = tray[stat] || 0;
+    const trayVal = eff.sumAllStats
+      ? (tray.chutzpah || 0) + (tray.wit || 0) + (tray.jnsq || 0)
+      : (tray[stat] || 0);
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
     const eff_mult = pierceNextCast ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
@@ -4606,6 +4657,7 @@ export default function App() {
     let dmg = rawSpell;
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
+    if (eff.hpThresholdDouble && hp < eff.hpThresholdDouble) dmg *= 2;
     const rWith = eff.resonatesWith || [];
     const perTag = eff.resonanceBonus?.perTag || 0;
     const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
