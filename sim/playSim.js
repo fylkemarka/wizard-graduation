@@ -53,6 +53,19 @@ const CARDS = [
   { id: 'w-corner-them', name: 'Corner Them', cost: 0, type: 'word', rarity: 'common',
     stats: { chutzpah: 3 }, tags: ['threatening', 'dismissive'],
     effects: { loseHp: 2 } },
+  // Cycle 4 batch 2: word-pool depth for wit and jnsq resonance chains.
+  { id: 'w-allegedly', name: 'Allegedly,', cost: 0, type: 'word', rarity: 'common',
+    stats: { wit: 1 }, tags: ['rhetorical', 'sarcastic'] },
+  { id: 'w-as-written', name: 'As written,', cost: 0, type: 'word', rarity: 'common',
+    stats: { wit: 2 }, tags: ['academic', 'formal'] },
+  { id: 'w-in-conclusion', name: 'In conclusion,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { wit: 3 }, tags: ['rhetorical', 'formal'] },
+  { id: 'w-astrally', name: 'Astrally speaking,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 1 }, tags: ['mystical', 'absurd'] },
+  { id: 'w-three-at-once', name: 'Three things at once,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 2 }, tags: ['chaotic', 'absurd'] },
+  { id: 'w-by-moonlight', name: 'By moonlight,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { jnsq: 3 }, tags: ['mystical', 'chaotic'] },
 
   // ---- EFFECT CARDS (basic / starter) ----
   { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',

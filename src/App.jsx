@@ -127,6 +127,40 @@ const CARDS = [
     upgrade: { stats: { chutzpah: 4 }, effects: { loseHp: 2 } },
     desc: '+3 Chutzpah. Lose 2 HP.',
     flavor: 'Their back is against the bookshelf. There was no need to push.' },
+  // Cycle 4 batch 2: word-pool depth. Pure-wit and pure-jnsq lanes had
+  // only 3 and 2 resonance-tag-matching words respectively, which meant
+  // Compounding Argument and Genuine Threat couldn't chain. These six
+  // fill that gap.
+  { id: 'w-allegedly', name: 'Allegedly,', cost: 0, type: 'word', rarity: 'common',
+    stats: { wit: 1 }, tags: ['rhetorical', 'sarcastic'], phrase: 'allegedly,',
+    upgrade: { stats: { wit: 2 } },
+    desc: '+1 Wit.',
+    flavor: 'You\'re not committing. They are.' },
+  { id: 'w-as-written', name: 'As written,', cost: 0, type: 'word', rarity: 'common',
+    stats: { wit: 2 }, tags: ['academic', 'formal'], phrase: 'as written,',
+    upgrade: { stats: { wit: 3 } },
+    desc: '+2 Wit.',
+    flavor: 'You hold up a finger. The finger is unimpeachable.' },
+  { id: 'w-in-conclusion', name: 'In conclusion,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { wit: 3 }, tags: ['rhetorical', 'formal'], phrase: 'in conclusion,',
+    upgrade: { stats: { wit: 4 } },
+    desc: '+3 Wit.',
+    flavor: 'They thought it was a long preamble. It was a conclusion.' },
+  { id: 'w-astrally', name: 'Astrally speaking,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 1 }, tags: ['mystical', 'absurd'], phrase: 'astrally speaking,',
+    upgrade: { stats: { jnsq: 2 } },
+    desc: '+1 Jnsq.',
+    flavor: 'It is a distinction that should probably have come earlier.' },
+  { id: 'w-three-at-once', name: 'Three things at once,', cost: 0, type: 'word', rarity: 'common',
+    stats: { jnsq: 2 }, tags: ['chaotic', 'absurd'], phrase: 'three things at once,',
+    upgrade: { stats: { jnsq: 3 } },
+    desc: '+2 Jnsq.',
+    flavor: 'You list none of them. Listing was never the plan.' },
+  { id: 'w-by-moonlight', name: 'By moonlight,', cost: 1, type: 'word', rarity: 'uncommon',
+    stats: { jnsq: 3 }, tags: ['mystical', 'chaotic'], phrase: 'by moonlight,',
+    upgrade: { stats: { jnsq: 4 } },
+    desc: '+3 Jnsq.',
+    flavor: 'It is, technically, a poor time for a lecture. That helps.' },
 
   // =============================================================================
   // EFFECT CARDS — seal the spell. Consume the tray, deal damage of
