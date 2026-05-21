@@ -217,12 +217,25 @@ function runCombat(state, enemyId, telemetry) {
         }
       }
 
+      // Apply on-stage side effects from word cards (draw/block/weak/vulnerable).
+      // Mirrors applySideEffects in App.jsx.
+      const applyStageEffects = (card) => {
+        const fx = card.effects || {};
+        if (fx.block)      state.block += fx.block;
+        if (fx.draw)       drawCards(state, fx.draw);
+        if (fx.weak)       state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * fx.weak);
+        if (fx.vulnerable) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fx.vulnerable);
+        if (fx.energy)     state.energy += fx.energy;
+        if (fx.hp)         state.hp = Math.min(state.maxHp, state.hp + fx.hp);
+        if (fx.loseHp)     state.hp = Math.max(0, state.hp - fx.loseHp);
+      };
       if (!tray.intro) {
         const idx = pickBestForSlot(state, 'intro', state.energy);
         if (idx >= 0) {
           tray.intro = state.hand[idx];
           state.energy -= tray.intro.cost || 0;
           state.hand.splice(idx, 1);
+          applyStageEffects(tray.intro);
           progressed = true;
           continue;
         }
@@ -233,6 +246,7 @@ function runCombat(state, enemyId, telemetry) {
           tray.subject = state.hand[idx];
           state.energy -= tray.subject.cost || 0;
           state.hand.splice(idx, 1);
+          applyStageEffects(tray.subject);
           progressed = true;
           continue;
         }

@@ -395,15 +395,14 @@ function buildStarterDeckForLane(lane) {
   if (!pool) return [];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
   const firstNCommons = (arr, n) => arr.filter(c => c.rarity === 'common').slice(0, n);
-  // Starter deck shape: 3 intros + 3 subjects + 3 targets + 1 utility.
-  // With a 5-card hand from this 10-card deck, the chance of drawing
-  // at least one of each slot lands at ~75% — playable from turn 1.
-  // (Previously was 3+3+2+2 = ~62% hit rate; targets were the bottleneck.)
+  // Starter deck shape: 3 intros + 3 subjects + 3 targets + 2 Defend = 11 cards.
+  // Two Defends give the player real defensive agency; previously the lone
+  // Defend was hoarded for emergencies and effectively non-routine.
   const ids = [
     ...basics(pool.intro).slice(0, 3).map(c => c.id),
     ...basics(pool.subject).slice(0, 3).map(c => c.id),
     ...firstNCommons(pool.target, 3).map(c => c.id),
-    'c-defend',
+    'c-defend', 'c-defend',
   ];
   return ids;
 }
@@ -4337,8 +4336,13 @@ export default function App() {
       return castV2SentenceSpell(t);
     }
 
-    if (!t.effectCard) { pushLog('No Effect staged — nothing to cast.'); return; }
-    if ((t.words || []).length === 0) { pushLog('No Word staged — Effect cards need at least one word.'); return; }
+    if (!t.intro && !t.subject && !t.target) { pushLog('Nothing staged yet — play an intro, subject, and target.'); return; }
+    if (!t.target && !t.effectCard) { pushLog('Need a target (the spell-finisher) before you can cast.'); return; }
+    if (!t.intro || !t.subject) { pushLog('Need both an intro and a subject before casting.'); return; }
+    // Legacy fallback for back-compat event-grant cards: keep older
+    // "words + effect" path alive but unreachable in normal v2 play.
+    if (!t.effectCard) return;
+    if ((t.words || []).length === 0) return;
 
     const card = t.effectCard;
     const eff = card.effect || {};
