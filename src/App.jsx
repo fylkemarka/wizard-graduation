@@ -4328,9 +4328,9 @@ export default function App() {
     advanceTutorialStep('cast-spell');
   }
 
-  function castStagedSpell(stagedOverride = null) {
+  function castStagedSpell() {
     if (stage !== 'combat') return;
-    const t = stagedOverride || tray;
+    const t = tray;
 
     // v2 path: intro + subject + target all filled → sentence-engine cast.
     if (t.intro && t.subject && t.target) {
