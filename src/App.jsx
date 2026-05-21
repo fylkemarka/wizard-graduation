@@ -440,8 +440,8 @@ const ENEMIES = [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
     ] },
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
-    // Cycle 4 batch 3: chutzpah floor 0.5 → 0.7 (lane-equalization).
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah in act 1).
+    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'threat', // Bullies fold the moment you don't.
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -500,7 +500,8 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah).
+    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
@@ -545,7 +546,9 @@ const ENEMIES = [
 
   // ===== ACT 3 — The Stone Path =====
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.0 },
+    // v2.4: sharpened from flat-low to chutzpah-favored. Geodes hate
+    // being loomed over; jnsq just makes them weirder.
+    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 },
     softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
@@ -561,7 +564,8 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.0 },
+    // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
+    effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
@@ -569,7 +573,8 @@ const ENEMIES = [
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (carapace)' },
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
+    // v2.4: sharpened to wit-favored. Constructs answer to logic.
+    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -577,10 +582,9 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 75, hpMax: 50, tier: 'elite',
-    // Cycle 3 batch 2: composureMax 999 → 75. The 0.5 verbal floor was
-    // meaningless when the pool was unreachable. Now physical decks
-    // finish fast (50 HP), committed verbal decks grind slower but win.
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.6, physical: 1.0 },
+    // v2.4: chutzpah-favored. The Devourer responds to direct threat
+    // (Walter punches it, it backs off); evades wit and jnsq.
+    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 },
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
@@ -589,11 +593,10 @@ const ENEMIES = [
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14' },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
-    // Cycle 4 batch 3: chutzpah 0.5 → 0.7. Lane was getting structurally
-    // walled by 2/4 bosses resisting chutzpah at half damage. Still
-    // jnsq-favored (1.5) — anvil prefers wild + improvised — but committed
-    // chutzpah can swing.
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    // v2.4: Anvil flipped from chutzpah-resist to chutzpah-favored. It's
+    // a forging boss — it understands direct demands. Jnsq is now the
+    // softer side (0.7); wit stays neutral.
+    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
@@ -2591,21 +2594,27 @@ function salvageMaterial(slot) {
   };
 }
 
+// v2.4: slot weights to keep target draws healthy as deck grows. Without
+// these, the 25/25/15/10 (intro/subject/target/modifier) lane pools
+// over-deliver intros/subjects exactly when the player needs targets.
+const REWARD_SLOT_WEIGHTS = { target: 35, intro: 25, subject: 25, modifier: 15 };
 function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = [], lane = null) {
   // Lane filter: when set, only cards matching that lane OR lane-agnostic
-  // utility cards (skill/power without a `lane` field) qualify. Used by the
-  // reward flow so v2 characters draw from their own card pool.
+  // utility cards (skill/power without a `lane` field) qualify.
   const matchesLane = (c) => {
     if (!lane) return true;
-    if (!c.lane) return true; // utility / familiar / power — open to all lanes
+    if (!c.lane) return true;
     return c.lane === lane;
   };
   const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c));
   if (pool.length === 0) return null;
-  const total = pool.reduce((s, c) => s + rarityWeights[c.rarity], 0);
+  // Weight by rarity AND slot together.
+  const weightOf = (c) => (rarityWeights[c.rarity] || 0) * (REWARD_SLOT_WEIGHTS[c.slot] || 10);
+  const total = pool.reduce((s, c) => s + weightOf(c), 0);
+  if (total <= 0) return pool[0];
   let r = Math.random() * total;
   for (const c of pool) {
-    r -= rarityWeights[c.rarity];
+    r -= weightOf(c);
     if (r <= 0) return c;
   }
   return pool[0];
@@ -4306,7 +4315,7 @@ export default function App() {
     if (riders.vulnerable) { adjustPlayerDmg(+0.25 * riders.vulnerable); pushLog(`💫 +${25*riders.vulnerable}% potency`); }
     if (riders.block)      { setBlock(b => b + riders.block); pushLog(`🛡 +${riders.block}`); }
 
-    // Side effects (draw, self-composure cost).
+    // Side effects (draw, self-composure cost, self-HP cost).
     if (sideEffects.drawCount) {
       drawCards(sideEffects.drawCount);
       pushLog(`📥 +${sideEffects.drawCount} draw`);
@@ -4314,6 +4323,10 @@ export default function App() {
     if (sideEffects.selfComposureCost) {
       setComposure(c => Math.max(0, c - sideEffects.selfComposureCost));
       pushLog(`💔 -${sideEffects.selfComposureCost} composure (self)`);
+    }
+    if (sideEffects.selfHpCost) {
+      setHp(h => Math.max(0, h - sideEffects.selfHpCost));
+      pushLog(`🩸 -${sideEffects.selfHpCost} HP (self)`);
     }
 
     // Discharge cards. Intro / subject / modifiers → discard. Target →

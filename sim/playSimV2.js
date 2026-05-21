@@ -25,25 +25,28 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/ca
 const ENEMIES = [
   // Act 1 (placeholder bosses come from each path's act)
   { id: 'e1-acolyte',       act: 4, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e1-imp',           act: 4, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
+  { id: 'e1-imp',           act: 4, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
   { id: 'e1-shrine-rat',    act: 4, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 } },
   { id: 'e1-tutor',         act: 4, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 } },
   { id: 'e1-thicket',       act: 4, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 } },
   { id: 'e1-boss-thornlord',act: 4, name: 'The Thornlord',       comp: 100,hp: 120, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
   // Act 2
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 14, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
+  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 14, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 20, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 28, hp: 999, tier: 'elite',  atk: 6, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
   { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 30, hp: 999, tier: 'elite',  atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 44, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
   // Act 3
-  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 28, hp: 22,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
+  // v2.4: sharper act-2 effectiveness so each enemy has a clear lane
+  // favorite + resistor rather than the flat "0.7 everywhere" tax that
+  // walled all three lanes equally.
+  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 28, hp: 22,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
   { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 22, hp: 16,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 28, hp: 22,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 35, hp: 40,  tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 60, hp: 50,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
+  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 28, hp: 22,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 35, hp: 40,  tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 60, hp: 50,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 } },
   // Act 4
   { id: 'e4-apprentice-shade',act:3,name: "Apprentice's Shade",  comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 } },
   { id: 'e4-failed-initiate',act:3, name: 'Failed Initiate',     comp: 30, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
@@ -311,6 +314,7 @@ function runCombat(state, enemyId, telemetry) {
       // Side-effects
       if (result.sideEffects.drawCount) drawCards(state, result.sideEffects.drawCount);
       if (result.sideEffects.selfComposureCost) state.composure = Math.max(0, state.composure - result.sideEffects.selfComposureCost);
+      if (result.sideEffects.selfHpCost) state.hp = Math.max(0, state.hp - result.sideEffects.selfHpCost);
 
       // Discharge cards: intro/subject/modifiers → discard; target exiles
       // on tier-3-required failure, else discard.
@@ -369,20 +373,36 @@ function runCombat(state, enemyId, telemetry) {
   return { outcome: 'stall', turns, killedBy: enemy.id, telemetry };
 }
 
-// Add a random lane-pure card to the deck on combat win
+// v2.4: slot-weighted reward draft. The lane pools have 25 intros + 25
+// subjects + 15 targets + 10 modifiers — uniform random oversamples
+// intros/subjects and undersamples the targets the player actually
+// needs to cast. Slot weights keep target draws healthy as deck grows.
+const SLOT_WEIGHTS = { target: 35, intro: 25, subject: 25, modifier: 15 };
+function pickSlotWeighted(cards) {
+  if (cards.length === 0) return null;
+  const total = cards.reduce((s, c) => s + (SLOT_WEIGHTS[c.slot] || 10), 0);
+  let r = rnd() * total;
+  for (const c of cards) {
+    r -= (SLOT_WEIGHTS[c.slot] || 10);
+    if (r <= 0) return c;
+  }
+  return cards[cards.length - 1];
+}
+// Add a random lane-pure card to the deck on combat win.
 function awardReward(state) {
   const pool = LANE_POOL[state.lane];
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
-  // Reward bias: 15% rare, 60% uncommon, 25% common. Pushes the player up
-  // the tier curve faster than uniform commons would, so v2's "honing
-  // toward higher-tier hand" loop actually plays out in a real run.
+  // Rarity roll: 15% rare, 60% uncommon, 25% common. Then within the
+  // chosen rarity bucket, pick weighted by slot.
   const roll = rnd();
-  let card;
-  if (roll < 0.15 && rares.length) card = pickRandom(rares);
-  else if (roll < 0.75 && uncommons.length) card = pickRandom(uncommons);
-  else card = pickRandom(commons);
+  let bucket;
+  if (roll < 0.15 && rares.length) bucket = rares;
+  else if (roll < 0.75 && uncommons.length) bucket = uncommons;
+  else bucket = commons;
+  const card = pickSlotWeighted(bucket);
+  if (!card) return;
   state.discard.push({ ...card, uid: uid() });
   state.rewardsTaken.push(card.id);
 }

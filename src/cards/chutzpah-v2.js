@@ -28,6 +28,11 @@ const INTROS = [
   { id: 'cv2-i-okay', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Okay,', tags: ['direct', 'dismissive'], stats: { chutzpah: 2 },
     flavor: 'Not okay. Not at all. But also: okay.' },
+  // v2.4: HP-cost intro (Chutzpah HP-for-tempo identity, Ironclad-style).
+  { id: 'cv2-i-be-blunt', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
+    phrase: "Look — I'll be blunt:", tags: ['direct', 'threatening'], stats: { chutzpah: 3 },
+    effects: { loseHp: 1 },
+    flavor: 'Bluntness is, today, the only currency I have.' },
 
   // ---- Common (12) ----
   { id: 'cv2-i-listen-carefully', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
@@ -68,6 +73,11 @@ const INTROS = [
   { id: 'cv2-i-period', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'Period:', tags: ['dismissive', 'threatening'], stats: { chutzpah: 2 },
     flavor: 'The shortest sentence in chutzpah ends in a colon.' },
+  // v2.4: HP-cost common intro.
+  { id: 'cv2-i-skin-game', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'Skin in the game,', tags: ['threatening', 'swaggering'], stats: { chutzpah: 3 },
+    effects: { loseHp: 2 },
+    flavor: "The skin in question is yours. Both yours, really. That's the bargain." },
 
   // ---- Uncommon (6) ----
   { id: 'cv2-i-now-you-listen', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -194,23 +204,23 @@ const SUBJECTS = [
 
 const TARGETS = [
   // ---- Common (5) ----
-  { id: 'cv2-t-stops-now', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-stops-now', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'stops right now.', tags: ['demanding', 'direct'],
     effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure', rider: { weak: 1 } },
     flavor: 'Now being a word that, in chutzpah, carries actual force.' },
-  { id: 'cv2-t-is-over', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-is-over', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is over.', tags: ['demanding', 'dismissive'],
     effect: { scaleBy: 'chutzpah', base: 7, multiplier: 3, damageType: 'composure' },
     flavor: 'Two words, one verdict.' },
-  { id: 'cv2-t-wont-fly', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-wont-fly', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: "won't fly here.", tags: ['dismissive', 'direct'],
     effect: { scaleBy: 'chutzpah', base: 6, multiplier: 3, damageType: 'composure' },
     flavor: 'Flying having been previously discussed and ruled out.' },
-  { id: 'cv2-t-cost-you', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-cost-you', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is gonna cost you.', tags: ['threatening'],
     effect: { scaleBy: 'chutzpah', base: 7, multiplier: 3, damageType: 'composure' },
     flavor: 'Gonna is the threat. Cost is the receipt.' },
-  { id: 'cv2-t-ends-today', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-ends-today', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'ends today.', tags: ['swaggering', 'demanding'],
     effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure', drawAfterCast: 1 },
     flavor: 'Today being the new deadline.' },
@@ -240,6 +250,11 @@ const TARGETS = [
     phrase: 'is gonna learn what consequences look like.', tags: ['threatening', 'demanding'],
     effect: { scaleBy: 'chutzpah', base: 9, multiplier: 2, damageType: 'composure', rider: { weak: 2 } },
     flavor: 'Look like being a polite way to say feel like.' },
+  // v2.4: HP-cost target with damage payoff. Bleeds for impact.
+  { id: 'cv2-t-bleeds-for-it', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'bleeds for what it believes in.', tags: ['threatening', 'direct'],
+    effect: { scaleBy: 'chutzpah', base: 11, multiplier: 3, damageType: 'composure', drawAfterCast: 1, loseHpOnCast: 3 },
+    flavor: 'The blood is rhetorical. The conviction is not.' },
 
   // ---- Rare (4) ----
   { id: 'cv2-t-over-my-head', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
@@ -316,6 +331,11 @@ const MODIFIERS = [
     modifierKind: 'pre', phrase: '(plants feet,)', tags: ['direct', 'threatening'],
     modifierEffect: { addsTag: 'direct', rider: { block: 4 } },
     flavor: 'The plant is decisive. The feet, sturdy.' },
+  // v2.4: HP-cost modifier — pay HP for a big damage multiplier.
+  { id: 'cv2-m-rolls-up-sleeves', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'modifier',
+    modifierKind: 'pre', phrase: '(rolls up sleeves,)', tags: ['direct', 'threatening'],
+    modifierEffect: { damageMult: 1.5, loseHpOnCast: 2 },
+    flavor: 'The sleeves were already up. The roll is for the audience.' },
 ];
 
 export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS];

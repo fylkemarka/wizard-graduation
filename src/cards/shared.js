@@ -144,7 +144,9 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   // Handle target-side tier-3 conditions.
   if (eff.tier3Double && tier === 3) damage *= 2;
   if (eff.requiresTier3 && tier < 3) {
-    // Fail-condition: damage cut, target exhausts if specified.
+    // Fail-condition: damage cut. (v2.4: dropped exile-on-fail — double
+    // punishment turned rare-target gambles into trap cards. Half-damage
+    // is enough sting; the card still goes to discard like any other.)
     damage *= eff.requiresTier3.failureDamageMult || 0.5;
   }
 
@@ -164,6 +166,8 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   let drawCount = eff.drawAfterCast || 0;
   let stripBlock = 0;
   let selfComposureCost = 0;
+  // v2.4: HP-cost-on-cast (Chutzpah identity). Modifiers can also add to it.
+  let selfHpCost = eff.loseHpOnCast || 0;
 
   for (const m of modifiers) {
     if (!m) continue;
@@ -194,6 +198,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     if (me.drawAfterCast) drawCount += me.drawAfterCast;
     if (me.stripEnemyBlock) stripBlock += me.stripEnemyBlock;
     if (me.selfComposureCost) selfComposureCost += me.selfComposureCost;
+    if (me.loseHpOnCast) selfHpCost += me.loseHpOnCast;
   }
 
   return {
@@ -204,7 +209,11 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
       drawCount,
       stripBlock,
       selfComposureCost,
-      exhaustTarget: eff.requiresTier3?.exhaustOnFail && tier < 3,
+      selfHpCost,
+      // v2.4: exhaustTarget always false now. The exile-on-tier-3-fail
+      // double-punishment was a trap; rare gamble targets keep the
+      // half-damage penalty but stay in the deck for replay.
+      exhaustTarget: false,
     },
   };
 }
