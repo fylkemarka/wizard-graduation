@@ -146,6 +146,21 @@ const CARDS = [
     upgrade: { stats: { wit: 4 } },
     desc: '+3 Wit.',
     flavor: 'They thought it was a long preamble. It was a conclusion.' },
+  // Cycle 6 batch 1: wit pool depth + sustain. Wit had 8 words to
+  // chutzpah/jnsq's 10, and no sustain word. Mirror of the chutzpah
+  // C4B5 / jnsq C5 fix pattern.
+  { id: 'w-per-precedent', name: 'Per the precedent,', cost: 0, type: 'word', rarity: 'common',
+    stats: { wit: 2 }, tags: ['formal', 'rhetorical'], phrase: 'per the precedent,',
+    upgrade: { stats: { wit: 3 } },
+    desc: '+2 Wit.',
+    flavor: 'There is no precedent. There is now.' },
+  { id: 'w-pardon-digression', name: 'Pardon the digression,', cost: 0, type: 'word', rarity: 'common',
+    stats: { wit: 1 }, tags: ['rhetorical', 'academic'],
+    effects: { heal: 2 },
+    phrase: 'pardon the digression,',
+    upgrade: { stats: { wit: 2 }, effects: { heal: 2 } },
+    desc: '+1 Wit. Heal 2 HP.',
+    flavor: 'You wander, briefly, into a parallel argument. It is more relaxing there.' },
   { id: 'w-astrally', name: 'Astrally speaking,', cost: 0, type: 'word', rarity: 'common',
     stats: { jnsq: 1 }, tags: ['mystical', 'absurd'], phrase: 'astrally speaking,',
     upgrade: { stats: { jnsq: 2 } },
@@ -342,6 +357,19 @@ const CARDS = [
               resonatesWith: ['chaotic', 'absurd', 'mystical'], resonanceBonus: { perTag: 5 } } },
     desc: 'Cast: 4 + Jnsq×2 Composure. +5 per matching jnsq tag.',
     flavor: 'All bets are on. The dice are loaded with stars.' },
+  // Cycle 6 batch 1: wit engine card. Wit had no draw engine — Compounding
+  // Argument fires once and the committed deck stalls. Footnote-and-Cite
+  // is the wit equivalent of Press the Point / Free Association.
+  { id: 'e-footnote-cite', name: 'Footnote and Cite', cost: 1, type: 'effect', rarity: 'common',
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 } },
+    phrase: '…as per the marginalia in question,',
+    upgrade: { effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure',
+              drawAfterCast: 1,
+              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 } } },
+    desc: 'Cast: 3 + Wit×2 Composure. Then draw 1.',
+    flavor: 'The citation is invented. The conviction with which you say it is not.' },
   // Cycle 3: broaden the Jnsq pool. Two new options so the lane has
   // depth comparable to Wit/Chutzpah.
   { id: 'e-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'effect', rarity: 'common',
