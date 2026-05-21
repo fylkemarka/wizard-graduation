@@ -4839,18 +4839,14 @@ export default function App() {
   //      hand-set ended up reading undefined, blanking the screen.
   function endTurn() {
     if (stage !== 'combat') return;
-    logEvent(TE.TURN_END, { enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length, trayStaged: tray.words.length + (tray.effectCard ? 1 : 0), fizzling: (tray.words.length > 0 || tray.effectCard) && !tray.effectFiredThisTurn });
+    logEvent(TE.TURN_END, { enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length, trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0) });
 
-    // 0. Fizzle check — if any cards were staged but no CAST happened,
-    //    the spell does not arrive. Staged cards go to discard (you
-    //    spent the energy; you don't get the cards back).
-    if ((tray.words.length > 0 || tray.effectCard) && !tray.effectFiredThisTurn) {
-      pushLog(`💨 "${tray.phrases.join(' ')}" …trails off. The spell does not arrive.`);
-      const dropped = [...tray.words];
-      if (tray.effectCard) dropped.push(tray.effectCard);
-      setDiscard(d => [...d, ...dropped]);
-    }
-    setTray(initialV2Tray());
+    // v2.1: persistent tray. Cards staged into intro/subject/target/modifier
+    // slots carry across turns until the spell casts. This replaces the old
+    // fizzle-on-turn-end behavior — players can now compose a sentence
+    // across multiple turns, casting partial spells for tempo or holding
+    // for a higher-tier cast next turn.
+    // (Tray clears only when a cast fires or combat ends.)
 
     // 1. End-of-turn power triggers.
     const killedByPowers = applyEndOfTurnPowerTriggers();

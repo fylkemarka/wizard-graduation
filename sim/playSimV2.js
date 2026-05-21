@@ -186,10 +186,14 @@ function runCombat(state, enemyId, telemetry) {
   state.hand = [];
   drawCards(state, HAND_SIZE);
 
+  // v2.1: tray persists across turns. Cards staged but not cast last turn
+  // remain in their slots; the player can refine the spell over multiple
+  // turns. Cleared only on combat end (return statements below) or when
+  // the cast fires.
+  let tray = { intro: null, subject: null, target: null, modifiers: [] };
   let turns = 0;
   while (turns++ < MAX_COMBAT_TURNS) {
     state.energy = ENERGY_PER_TURN;
-    let tray = { intro: null, subject: null, target: null, modifiers: [] };
     let cast = false;
 
     // AI: try to fill intro, subject, target. Then play modifier if good.
@@ -306,11 +310,12 @@ function runCombat(state, enemyId, telemetry) {
       if (result.tier === 3) telemetry.tier3Casts++;
       if (result.tier === 2) telemetry.tier2Casts++;
       if (result.tier === 1) telemetry.tier1Casts++;
+      // Tray clears only when a cast actually fires.
+      tray = { intro: null, subject: null, target: null, modifiers: [] };
     } else {
-      // Fizzle: didn't cast. Stage cards still in tray go to discard.
-      const fizz = [tray.intro, tray.subject, tray.target, ...tray.modifiers].filter(Boolean);
-      state.discard.push(...fizz);
-      telemetry.fizzles++;
+      // No cast this turn — partial stage remains in the tray. Count it
+      // as a "hold" rather than a fizzle (no card discard penalty).
+      telemetry.holds++;
     }
 
     // Check victory
@@ -393,7 +398,7 @@ function simRun() {
     enemyDmgMult: 1.0, playerDmgMult: 1.0,
   };
   const tele = {
-    castsAttempted: 0, fizzles: 0, totalDamageDealt: 0,
+    castsAttempted: 0, fizzles: 0, holds: 0, totalDamageDealt: 0,
     tier1Casts: 0, tier2Casts: 0, tier3Casts: 0,
     combatTurns: 0, combatCount: 0,
   };
@@ -468,6 +473,7 @@ function aggregate(results) {
     laneStats,
     totalCasts: results.reduce((s, r) => s + (r.castsAttempted || 0), 0),
     totalFizzles: results.reduce((s, r) => s + (r.fizzles || 0), 0),
+    totalHolds: results.reduce((s, r) => s + (r.holds || 0), 0),
     tier1Casts: results.reduce((s, r) => s + (r.tier1Casts || 0), 0),
     tier2Casts: results.reduce((s, r) => s + (r.tier2Casts || 0), 0),
     tier3Casts: results.reduce((s, r) => s + (r.tier3Casts || 0), 0),
@@ -499,7 +505,7 @@ function buildReport(agg) {
   lines.push(`- Tier 1 (COHERENT): ${agg.tier1Casts} (${pct(agg.tier1Casts/tot)})`);
   lines.push(`- Tier 2 (RESONANT): ${agg.tier2Casts} (${pct(agg.tier2Casts/tot)})`);
   lines.push(`- Tier 3 (DEVASTATING): ${agg.tier3Casts} (${pct(agg.tier3Casts/tot)})`);
-  lines.push(`- Fizzles (turn ended without cast): ${agg.totalFizzles} (${pct(agg.totalFizzles / (agg.totalCasts + agg.totalFizzles))})`);
+  lines.push(`- Holds (turn ended without cast — tray persists): ${agg.totalHolds} (${pct(agg.totalHolds / (agg.totalCasts + agg.totalHolds))})`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

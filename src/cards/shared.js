@@ -22,8 +22,10 @@
 //     flavor: '...',
 //   }
 
-// Spell-tier multiplier table. Spell tier = min(intro, subject, target) tiers.
-export const TIER_MULTIPLIER = { 1: 1.0, 2: 1.5, 3: 2.5 };
+// Spell-tier multiplier table. Spell tier = banded sum of card tiers.
+// Curve gentled from ×1.0/×1.5/×2.5 (with min-tier) so that mixed-tier hands
+// can still hit T2 reliably without making the all-rare cliff trivial.
+export const TIER_MULTIPLIER = { 1: 1.0, 2: 1.4, 3: 2.0 };
 
 // Stat contribution per rarity (cards within the same tier vary in raw wit).
 export const RARITY_WIT = { basic: 1, common: 2, uncommon: 3, rare: 4 };
@@ -40,9 +42,25 @@ export const LANE_STAT = { wit: 'wit', chutzpah: 'chutzpah', jnsq: 'jnsq' };
 
 // Compute spell tier from staged intro + subject + target. Returns 0 if any
 // slot is missing.
+//
+// v2.1: sum-of-tiers, banded. Replaces the old min-tier rule which made
+// T2/T3 hands mathematically unreachable in a ~14-card v2 deck. The bands
+// reward partial honing — picking up a Rare now lifts the tier even when
+// the rest of the hand is Common.
+//
+//   sum 3 (1+1+1)         → T1
+//   sum 4 (1+1+2)         → T1   (single uncommon doesn't lift alone)
+//   sum 5 (1+2+2, 1+1+3)  → T2
+//   sum 6 (2+2+2, 1+2+3)  → T2
+//   sum 7 (1+3+3, 2+2+3)  → T3   (two rares = tier-3 payoff)
+//   sum 8 (2+3+3)         → T3
+//   sum 9 (3+3+3)         → T3
 export function computeSpellTier(intro, subject, target) {
   if (!intro || !subject || !target) return 0;
-  return Math.min(intro.tier || 1, subject.tier || 1, target.tier || 1);
+  const sum = (intro.tier || 1) + (subject.tier || 1) + (target.tier || 1);
+  if (sum <= 4) return 1;
+  if (sum <= 6) return 2;
+  return 3;
 }
 
 // Build a flat list of all tags currently in the tray (across intro, subject,
