@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getStats, exportAllSessions, clearTelemetry, logError } from './telemetry.js';
+import { getStats, exportAllSessions, clearTelemetry, setSessionLabel, logError } from './telemetry.js';
 
 // React error boundary — wraps <App /> in main.jsx. Logs the error to
 // telemetry and shows a recovery card so the player isn't staring at a
@@ -46,10 +46,11 @@ const btnStyle = {
 
 // Fixed-position telemetry status badge. Always visible in the bottom-
 // right corner. Click to expand into a panel with export / clear /
-// session info.
+// session info + a label input that travels with exports.
 export function TelemetryBadge() {
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState(getStats());
+  const [labelDraft, setLabelDraft] = useState('');
 
   useEffect(() => {
     // Poll the in-memory buffer every second — cheaper than an event bus
@@ -57,8 +58,16 @@ export function TelemetryBadge() {
     const id = setInterval(() => setStats(getStats()), 1000);
     return () => clearInterval(id);
   }, []);
+  useEffect(() => {
+    // Sync the input on open so we don't fight what the user has typed.
+    if (open) setLabelDraft(stats.label || '');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const hasError = stats.errors > 0;
+  const commitLabel = () => {
+    if (labelDraft !== stats.label) setSessionLabel(labelDraft);
+  };
   return (
     <div style={{
       position: 'fixed',
@@ -82,6 +91,29 @@ export function TelemetryBadge() {
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: 6, color: '#fde68a' }}>Telemetry</div>
           <div style={{ marginBottom: 4 }}>Session: <span style={{ color: '#93c5fd' }}>{(stats.sessionId || '').slice(-8)}</span></div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ display: 'block', color: '#9ca3af', marginBottom: 3 }}>Playtest label (saved across reloads):</label>
+            <input
+              type="text"
+              value={labelDraft}
+              maxLength={80}
+              onChange={(e) => setLabelDraft(e.target.value)}
+              onBlur={commitLabel}
+              onKeyDown={(e) => { if (e.key === 'Enter') { commitLabel(); e.currentTarget.blur(); } }}
+              placeholder='e.g. "chutzpah build #3"'
+              style={{
+                width: '100%',
+                padding: '4px 6px',
+                background: '#0f172a',
+                color: '#e5e7eb',
+                border: '1px solid #374151',
+                borderRadius: 4,
+                fontFamily: 'monospace',
+                fontSize: 11,
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
           <div style={{ marginBottom: 4 }}>Events: <span style={{ color: '#86efac' }}>{stats.events}</span></div>
           <div style={{ marginBottom: 10, color: hasError ? '#fca5a5' : '#9ca3af' }}>Errors: {stats.errors}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -103,7 +135,7 @@ export function TelemetryBadge() {
           fontFamily: 'monospace',
           fontSize: 11,
         }}>
-        {hasError ? `⚠ ${stats.errors} err` : `● ${stats.events} ev`}
+        {hasError ? `⚠ ${stats.errors} err` : `${stats.label ? `[${stats.label.slice(0, 12)}] ` : ''}● ${stats.events} ev`}
       </button>
     </div>
   );

@@ -128,6 +128,55 @@ function runOutcomes(events) {
   return { wins, losses, total: wins.length + losses.length };
 }
 
+// Sidequest engagement: how often does the player enter / complete /
+// abandon each template?
+function sidequestEngagement(events) {
+  const stats = {}; // templateId -> { enter, choice, abandon }
+  for (const e of events) {
+    if (e.type !== 'pick.sidequest_choice') continue;
+    const tid = e.payload?.templateId;
+    if (!tid) continue;
+    if (!stats[tid]) stats[tid] = { enter: 0, choice: 0, abandon: 0 };
+    const action = e.payload?.action || 'choice';
+    if (stats[tid][action] !== undefined) stats[tid][action]++;
+  }
+  return stats;
+}
+
+// Postcard mini-mechanic outcomes.
+function postcardStats(events) {
+  let granted = 0, attempts = 0, correct = 0, completed = 0, failed = 0;
+  for (const e of events) {
+    if (e.type === 'postcard.granted') granted++;
+    else if (e.type === 'postcard.submit') { attempts++; if (e.payload?.correct) correct++; }
+    else if (e.type === 'postcard.reward') {
+      if (e.payload?.result === 'completed') completed++;
+      else if (e.payload?.result === 'failed') failed++;
+    }
+  }
+  return { granted, attempts, correct, completed, failed };
+}
+
+// Relic-fire frequency: how often did persistent effects trigger during
+// play? (Counted via the 📿 sentinel pattern in pushLog.)
+function relicFireCount(events) {
+  return events.filter(e => e.type === 'relic.fire').length;
+}
+
+// Upgrade flow: how often does the player upgrade vs skip the choice?
+function upgradeStats(events) {
+  let picks = 0, cancels = 0;
+  const picked = {};
+  for (const e of events) {
+    if (e.type === 'upgrade.pick') {
+      picks++;
+      const id = e.payload?.cardId;
+      if (id) picked[id] = (picked[id] || 0) + 1;
+    } else if (e.type === 'upgrade.cancel') cancels++;
+  }
+  return { picks, cancels, picked };
+}
+
 // =============================================================================
 // 3. HIGH-LEVEL SUMMARY
 // =============================================================================
@@ -139,9 +188,14 @@ function summarize(sessions) {
   const plays = combatPlayFrequency(events);
   const enemies = enemyOutcomes(events);
   const runs = runOutcomes(events);
+  const sidequests = sidequestEngagement(events);
+  const postcard = postcardStats(events);
+  const relics = relicFireCount(events);
+  const upgrades = upgradeStats(events);
 
   return {
     sessions: sessions.length,
+    sessionLabels: sessions.map(s => ({ id: s.sessionId, label: s.label || '', startedAt: s.startedAt })),
     totalEvents: events.length,
     runs: { wins: runs.wins.length, losses: runs.losses.length, total: runs.total },
     rewardPickRates: rewards.rates,
@@ -149,6 +203,10 @@ function summarize(sessions) {
     mapNodeTypeFrequency: nodes,
     cardPlayFrequency: plays,
     enemyOutcomes: enemies,
+    sidequestEngagement: sidequests,
+    postcard,
+    relicFires: relics,
+    upgrades,
   };
 }
 
@@ -188,8 +246,16 @@ if (isMain) {
   const sessions = loadTelemetryFile(inPath);
   const s = summarize(sessions);
   console.log(`Sessions: ${s.sessions}`);
-  console.log(`Events: ${s.totalEvents}`);
+  for (const sl of s.sessionLabels) {
+    const labelPart = sl.label ? ` "${sl.label}"` : '';
+    console.log(`  ${sl.id}${labelPart} — started ${sl.startedAt}`);
+  }
+  console.log(`\nEvents: ${s.totalEvents}`);
   console.log(`Runs: ${s.runs.wins}W / ${s.runs.losses}L (total ${s.runs.total})`);
+  console.log(`Relic fires: ${s.relicFires}`);
+  console.log(`Upgrades: ${s.upgrades.picks} picked, ${s.upgrades.cancels} cancelled`);
+  console.log(`Postcard: granted ${s.postcard.granted}, ${s.postcard.attempts} attempts (${s.postcard.correct} correct), ${s.postcard.completed} completed, ${s.postcard.failed} failed`);
+
   console.log(`\nReward pick rates (offered ≥3 times):`);
   const ranked = Object.entries(s.rewardPickRates).sort((a, b) => b[1] - a[1]);
   for (const [id, rate] of ranked) {
@@ -202,6 +268,13 @@ if (isMain) {
   console.log(`\nMost-played cards in combat (top 15):`);
   const playsRanked = Object.entries(s.cardPlayFrequency).sort((a, b) => b[1] - a[1]).slice(0, 15);
   for (const [id, c] of playsRanked) console.log(`  ${id}: ${c}`);
+  console.log(`\nSidequest engagement:`);
+  for (const [tid, r] of Object.entries(s.sidequestEngagement)) {
+    console.log(`  ${tid}: enter ${r.enter} · choice ${r.choice} · abandon ${r.abandon}`);
+  }
+  console.log(`\nUpgraded cards (top 10):`);
+  const upRanked = Object.entries(s.upgrades.picked).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  for (const [id, c] of upRanked) console.log(`  ${id}: ${c}`);
   console.log(`\nEnemy win/loss:`);
   for (const [id, r] of Object.entries(s.enemyOutcomes).sort((a, b) => (b[1].won + b[1].lost) - (a[1].won + a[1].lost))) {
     const tot = r.won + r.lost;
@@ -217,6 +290,10 @@ export {
   combatPlayFrequency,
   enemyOutcomes,
   runOutcomes,
+  sidequestEngagement,
+  postcardStats,
+  relicFireCount,
+  upgradeStats,
   summarize,
   humanPickReward,
 };

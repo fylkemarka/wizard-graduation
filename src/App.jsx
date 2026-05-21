@@ -3502,7 +3502,16 @@ export default function App() {
 
   // Log
   const [log, setLog] = useState([]);
-  const pushLog = (s) => setLog(prev => [...prev.slice(-20), s]);
+  const pushLog = (s) => {
+    setLog(prev => [...prev.slice(-20), s]);
+    // Relic firings always include 📿 in the log line — piggyback off
+    // that convention to emit a telemetry event without instrumenting
+    // every onCombatEnd / onEnemyDefeated / onTurnStart / onCardPlay
+    // call site individually.
+    if (typeof s === 'string' && s.includes('📿')) {
+      logEvent('relic.fire', { message: s, hp, composure });
+    }
+  };
 
   const currentAct = ACTS[currentActIdx];
 
@@ -3860,6 +3869,7 @@ export default function App() {
       const tpl = SIDEQUEST_TEMPLATES[templateId];
       if (!tpl) return;
       const beat = tpl.nodes[nodeIdx];
+      logEvent(TE.SIDEQUEST_CHOICE, { action: 'enter', templateId, beatIdx: nodeIdx, beatKind: beat.kind, title: tpl.title, hp, composure });
       setSidequestActive({ templateId, nodeIdx });
       if (beat.kind === 'combat') {
         setSidequestCombatActive(true);
@@ -4046,6 +4056,7 @@ export default function App() {
       setPostcardsCorrect(0);
       setNodesSincePostcard(0);
       logBits.push(`📮 phrase: "${phrase}"`);
+      logEvent('postcard.granted', { phrase });
     }
     return { granted };
   }
@@ -4066,6 +4077,7 @@ export default function App() {
       setHp(h => clamp(h + 10, 0, maxHp + 5));
       setMaxHp(m => m + 5);
       pushLog(`📮 Postcard from the man: "My cat forgives you." +10 HP, +5 max HP.`);
+      logEvent('postcard.reward', { result: 'completed' });
       setPostcardState('done');
       setPostcardModalOpen(false);
       return;
@@ -4073,13 +4085,16 @@ export default function App() {
     if (postcardState === 'failed') {
       // Rebuke postcard arrives and lifts the fog.
       pushLog(`📮 Postcard from the man: "You have disgraced my cat. We will not speak again."`);
+      logEvent('postcard.reward', { result: 'failed' });
       setPostcardState('done');
       setPostcardModalOpen(false);
       return;
     }
     // Active state — validate input against the phrase exactly.
     const clean = (text || '').trim();
-    if (clean === (postcardPhrase || '').trim()) {
+    const correct = clean === (postcardPhrase || '').trim();
+    logEvent('postcard.submit', { correct, attemptLength: clean.length, expectedPhrase: postcardPhrase, submitted: clean, currentProgress: postcardsCorrect });
+    if (correct) {
       const newCount = postcardsCorrect + 1;
       setPostcardsCorrect(newCount);
       setNodesSincePostcard(0);
@@ -4233,6 +4248,8 @@ export default function App() {
   }
 
   function resolveSidequestChoice(choice) {
+    const active = getActiveSidequestBeat();
+    logEvent(TE.SIDEQUEST_CHOICE, { action: 'choice', templateId: active?.tpl?.id, beatIdx: active?.idx, title: active?.tpl?.title, choiceLabel: choice.label, effects: Object.keys(choice.effects || {}), hp, composure });
     resolveSidequestBeat(choice.effects || {});
   }
 
@@ -4250,6 +4267,7 @@ export default function App() {
     const active = getActiveSidequestBeat();
     if (!active) { returnToMap(); return; }
     const tpl = active.tpl;
+    logEvent(TE.SIDEQUEST_CHOICE, { action: 'abandon', templateId: tpl.id, beatIdx: active.idx, title: tpl.title, hp, composure });
     pushLog(`🌿 You leave ${tpl.title} unfinished.`);
     // Find the last spur node for this template and follow its rejoin edge.
     const lastIdx = tpl.nodes.length - 1;
@@ -4532,6 +4550,7 @@ export default function App() {
   // restore their stat contributions; effects clear the sealer slot.
   function unstageCard(cardUid) {
     if (stage !== 'combat') return;
+    logEvent('combat.unstage', { cardUid, enemyId: enemy?.id });
     // Try word first.
     const wordIdx = tray.words.findIndex(w => w.uid === cardUid);
     if (wordIdx >= 0) {
@@ -5111,6 +5130,7 @@ export default function App() {
   //      hand-set ended up reading undefined, blanking the screen.
   function endTurn() {
     if (stage !== 'combat') return;
+    logEvent(TE.TURN_END, { enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length, trayStaged: tray.words.length + (tray.effectCard ? 1 : 0), fizzling: (tray.words.length > 0 || tray.effectCard) && !tray.effectFiredThisTurn });
 
     // 0. Fizzle check — if any cards were staged but no CAST happened,
     //    the spell does not arrive. Staged cards go to discard (you
@@ -5494,6 +5514,7 @@ export default function App() {
   }
 
   function resolveRestChoice(kind) {
+    logEvent(TE.REST_CHOICE, { kind, hp, composure, deckSize: deck.length + hand.length + discard.length + exiled.length });
     if (kind === 'heal') {
       // Rest restores both pools at 30% of max. Composure recovers same
       // ratio as HP so the inn-before-boss guarantee actually tops you
@@ -5519,10 +5540,13 @@ export default function App() {
   function pickCardToUpgrade(cardUid) {
     if (cardUid === null) {
       // Cancelled — go back to rest.
+      logEvent('upgrade.cancel', { deckSize: deck.length });
       setUpgradeOpen(false);
       setStage('rest');
       return;
     }
+    const target = deck.find(c => c.uid === cardUid);
+    logEvent('upgrade.pick', { cardId: target?.id, cardName: target?.name, type: target?.type, deckSize: deck.length });
     setDeck(prev => prev.map(c => {
       if (c.uid !== cardUid) return c;
       const upgraded = upgradeCard(c);

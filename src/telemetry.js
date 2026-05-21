@@ -46,11 +46,20 @@ function persist() {
   }, 250);
 }
 
+// Look up the persisted label (set in a previous session and re-used
+// across reloads) so the player doesn't have to retype it every run.
+const LABEL_STORAGE_KEY = 'wg-telemetry-label';
+function loadStoredLabel() {
+  try { return localStorage.getItem(LABEL_STORAGE_KEY) || ''; }
+  catch (_) { return ''; }
+}
+
 export function installTelemetry() {
   if (SESSION) return SESSION;
   SESSION = {
     version: SESSION_VERSION,
     sessionId: genSessionId(),
+    label: loadStoredLabel(),
     startedAt: new Date().toISOString(),
     userAgent: navigator.userAgent,
     events: [],
@@ -100,13 +109,23 @@ export function logError(errOrMsg, context = {}) {
 }
 
 export function getStats() {
-  if (!SESSION) return { events: 0, errors: 0, sessionId: null, startedAt: null };
+  if (!SESSION) return { events: 0, errors: 0, sessionId: null, startedAt: null, label: '' };
   return {
     events: SESSION.events.length,
     errors: SESSION.errors.length,
     sessionId: SESSION.sessionId,
     startedAt: SESSION.startedAt,
+    label: SESSION.label || '',
   };
+}
+
+// Set a playtest label that travels with the session in exports and is
+// remembered across reloads.
+export function setSessionLabel(label) {
+  if (!SESSION) installTelemetry();
+  SESSION.label = (label || '').trim().slice(0, 80);
+  try { localStorage.setItem(LABEL_STORAGE_KEY, SESSION.label); } catch (_) {}
+  persist();
 }
 
 // Return all sessions in localStorage (the current one + any previous
@@ -128,8 +147,10 @@ export function exportAllSessions() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const labelSlug = (SESSION?.label || '').replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+  const fname = labelSlug ? `wg-telemetry-${labelSlug}-${stamp}.json` : `wg-telemetry-${stamp}.json`;
   a.href = url;
-  a.download = `wg-telemetry-${stamp}.json`;
+  a.download = fname;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
