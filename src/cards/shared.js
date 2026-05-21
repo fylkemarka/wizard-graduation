@@ -148,9 +148,20 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage *= eff.requiresTier3.failureDamageMult || 0.5;
   }
 
+  // v2.2: target-side tag scaling (jnsq lane identity hook). +N damage
+  // per matching tag in the staged cards. Modifiers' perLaneTag is below
+  // in the modifier loop; this is the target-side mirror so jnsq targets
+  // can reward tag-cohesive deck-building directly.
+  if (eff.perLaneTag) {
+    const allTags = trayTags(intro, subject, target, modifiers);
+    const count = allTags.filter(t => eff.perLaneTag.tags.includes(t)).length;
+    damage += eff.perLaneTag.bonus * count;
+  }
+
   // Sum riders: from target effect + per-modifier rider triggers.
   const riders = { ...(eff.rider || {}) };
-  let drawCount = 0;
+  // v2.2: target cards can also grant drawAfterCast as a smoothing mechanic.
+  let drawCount = eff.drawAfterCast || 0;
   let stripBlock = 0;
   let selfComposureCost = 0;
 

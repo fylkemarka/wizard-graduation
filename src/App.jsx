@@ -5037,6 +5037,16 @@ export default function App() {
       return;
     }
     pushLog(`✓ ${enemy.name} defeated.`);
+    // v2.2: post-combat heal — 15% HP + composure restore after every won
+    // combat, so the player can survive multi-combat acts without
+    // accumulating fatal attrition.
+    const healHp = Math.floor(maxHp * 0.15);
+    const healComp = Math.floor(composureMax * 0.15);
+    if (healHp > 0) {
+      setHp(h => clamp(h + healHp, 0, maxHp));
+      setComposure(c => clamp(c + healComp, 0, composureMax));
+      pushLog(`💚 Recovered +${healHp} HP, +${healComp} Composure.`);
+    }
     const isBoss = enemy.tier === 'boss';
     // Fire relic onEnemyDefeated triggers (heal etc.). Not for bosses —
     // bosses already give a richer reward path.

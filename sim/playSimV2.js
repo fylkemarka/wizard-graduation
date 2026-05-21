@@ -405,6 +405,15 @@ function simRun() {
   let lastResult = null;
   let actsCleared = 0;
 
+  // v2.2: mid-combat heal — 15% HP + composure restore after every won
+  // combat. Lets the player limp through an act without dying to attrition
+  // before the rare-card-honing loop has a chance to differentiate the deck.
+  const POST_COMBAT_HEAL_RATIO = 0.15;
+  const postCombatHeal = () => {
+    state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * POST_COMBAT_HEAL_RATIO));
+    state.composure = Math.min(state.maxComposure, state.composure + Math.floor(state.maxComposure * POST_COMBAT_HEAL_RATIO));
+  };
+
   for (const act of ACTS) {
     // 3 normals
     for (let i = 0; i < 3; i++) {
@@ -414,6 +423,7 @@ function simRun() {
       lastResult = { ...r, where: `act${act.id}-normal-${i}` };
       if (r.outcome !== 'won') return { lane, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
       awardReward(state);
+      postCombatHeal();
     }
     // 1 elite
     const eliteR = runCombat(state, pickRandom(ACT_ELITES[act.id]), tele);
@@ -421,6 +431,7 @@ function simRun() {
     lastResult = { ...eliteR, where: `act${act.id}-elite` };
     if (eliteR.outcome !== 'won') return { lane, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
     awardReward(state);
+    postCombatHeal();
     // Boss
     const bossR = runCombat(state, act.bossId, tele);
     tele.combatCount++; tele.combatTurns += bossR.turns;
@@ -428,7 +439,8 @@ function simRun() {
     if (bossR.outcome !== 'won') return { lane, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
     actsCleared++;
     awardReward(state);
-    // Inter-act heal
+    // Inter-act heal (in addition to post-combat heal) — bigger swing
+    // when crossing acts.
     state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * INTER_ACT_HEAL_RATIO));
     state.composure = Math.min(state.maxComposure, state.composure + Math.floor(state.maxComposure * INTER_ACT_HEAL_RATIO));
   }
