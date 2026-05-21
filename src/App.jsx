@@ -40,592 +40,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
+import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
+import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
+import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
+import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
+
+// v2 card-pool lookup table keyed by lane.
+const LANE_POOL = { wit: WIT_V2, chutzpah: CHUTZPAH_V2, jnsq: JNSQ_V2 };
+const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, chutzpah: CHUTZPAH_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
+const ALL_V2_CARDS = [...WIT_V2, ...CHUTZPAH_V2, ...JNSQ_V2];
 
 // =============================================================================
 // 1. DATA
 // =============================================================================
 const CARDS = [
-  // =============================================================================
-  // WORD CARDS — phrase fragments. They contribute stat points to the
-  // spell tray for this turn. The `phrase` text reads out in the log
-  // as the spell builds.
-  // =============================================================================
-  // ---- BASIC (starter) ----
-  { id: 'w-respect', name: 'With all due respect,', cost: 0, type: 'word', rarity: 'basic',
-    stats: { wit: 1 }, tags: ['formal', 'sarcastic'], phrase: 'with all due respect,',
-    upgrade: { stats: { wit: 2 } },
-    desc: '+1 Wit to your spell.',
-    flavor: 'Almost none of it is due.' },
-  { id: 'w-frankly', name: 'Frankly,', cost: 0, type: 'word', rarity: 'basic',
-    stats: { chutzpah: 1 }, tags: ['dismissive', 'sarcastic'], phrase: 'frankly,',
-    upgrade: { stats: { chutzpah: 2 } },
-    desc: '+1 Chutzpah to your spell.',
-    flavor: 'The word is doing a lot of work.' },
-  { id: 'w-erm', name: 'Erm…', cost: 0, type: 'word', rarity: 'basic',
-    stats: { jnsq: 1 }, tags: ['chaotic'], phrase: 'erm…',
-    upgrade: { stats: { jnsq: 2 } },
-    desc: '+1 Jnsq to your spell.',
-    flavor: 'You haven\'t worked out the next bit yet.' },
-
-  // ---- COMMON ----
-  { id: 'w-actually', name: 'Actually,', cost: 0, type: 'word', rarity: 'common',
-    stats: { wit: 1, chutzpah: 1 }, tags: ['sarcastic', 'dismissive'], phrase: 'actually,',
-    upgrade: { stats: { wit: 2, chutzpah: 1 } },
-    desc: '+1 Wit, +1 Chutzpah.',
-    flavor: 'Slightly louder than the surrounding sentence.' },
-  { id: 'w-look-here', name: 'Look here,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 2 }, tags: ['booming', 'threatening'], phrase: 'look here,',
-    upgrade: { stats: { chutzpah: 3 } },
-    desc: '+2 Chutzpah.',
-    flavor: 'Don\'t actually look. The room behind you is more important.' },
-  { id: 'w-suppose', name: 'Suppose, hypothetically,', cost: 1, type: 'word', rarity: 'common',
-    stats: { wit: 3 }, tags: ['academic', 'rhetorical'], phrase: 'suppose, hypothetically,',
-    upgrade: { stats: { wit: 4 } },
-    desc: '+3 Wit.',
-    flavor: 'It is never hypothetically.' },
-  { id: 'w-mutters', name: 'Mutters dark Latin', cost: 0, type: 'word', rarity: 'common',
-    stats: { jnsq: 2 }, tags: ['mystical', 'chaotic'], phrase: '(mutters dark Latin)',
-    upgrade: { stats: { jnsq: 3 } },
-    desc: '+2 Jnsq.',
-    flavor: 'You half-recognise the verb. It is not encouraging.' },
-  { id: 'w-stares', name: 'Stares', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 1, jnsq: 1 }, tags: ['threatening', 'theatrical'], phrase: '(stares)',
-    upgrade: { stats: { chutzpah: 2, jnsq: 1 } },
-    desc: '+1 Chutzpah, +1 Jnsq.',
-    flavor: 'For longer than is socially comfortable.' },
-  { id: 'w-footnote', name: 'A Lengthy Footnote', cost: 1, type: 'word', rarity: 'common',
-    stats: { wit: 2, jnsq: 1 }, tags: ['academic', 'rhetorical'], phrase: '— see footnote 17 —',
-    upgrade: { stats: { wit: 3, jnsq: 1 } },
-    desc: '+2 Wit, +1 Jnsq.',
-    flavor: 'Footnote 17 was always the dangerous one.' },
-
-  // ---- UNCOMMON ----
-  { id: 'w-rhetorical', name: 'A Rhetorical Question', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { wit: 4 }, tags: ['rhetorical', 'academic'], phrase: 'but is it really, though?',
-    upgrade: { stats: { wit: 5 } },
-    desc: '+4 Wit.',
-    flavor: 'It does not require an answer. It demands one.' },
-  { id: 'w-thundering', name: 'Thundering Aside', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 4 }, tags: ['booming', 'formal'], phrase: 'and FURTHERMORE,',
-    upgrade: { stats: { chutzpah: 5 } },
-    desc: '+4 Chutzpah.',
-    flavor: 'It was supposed to be quieter than that.' },
-  { id: 'w-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { jnsq: 4 }, tags: ['absurd', 'chaotic'], phrase: 'speaking of cheese,',
-    upgrade: { stats: { jnsq: 5 } },
-    desc: '+4 Jnsq.',
-    flavor: 'No one was speaking of cheese.' },
-  { id: 'w-dramatic-pause', name: 'Dramatic Pause', cost: 0, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 1, wit: 1, jnsq: 1 }, tags: ['theatrical', 'mystical'], phrase: '…',
-    effects: { draw: 1 },
-    upgrade: { effects: { draw: 2 }, stats: { chutzpah: 1, wit: 1, jnsq: 1 } },
-    desc: '+1 to each stat. Draw 1.',
-    flavor: 'A bit longer than that. Hold it.' },
-  { id: 'w-corner-them', name: 'Corner Them', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 3 }, tags: ['threatening', 'dismissive'],
-    effects: { loseHp: 2 },
-    phrase: "and there's nowhere left to go,",
-    upgrade: { stats: { chutzpah: 4 }, effects: { loseHp: 2 } },
-    desc: '+3 Chutzpah. Lose 2 HP.',
-    flavor: 'Their back is against the bookshelf. There was no need to push.' },
-  // Cycle 4 batch 2: word-pool depth. Pure-wit and pure-jnsq lanes had
-  // only 3 and 2 resonance-tag-matching words respectively, which meant
-  // Compounding Argument and Genuine Threat couldn't chain. These six
-  // fill that gap.
-  { id: 'w-allegedly', name: 'Allegedly,', cost: 0, type: 'word', rarity: 'common',
-    stats: { wit: 1 }, tags: ['rhetorical', 'sarcastic'], phrase: 'allegedly,',
-    upgrade: { stats: { wit: 2 } },
-    desc: '+1 Wit.',
-    flavor: 'You\'re not committing. They are.' },
-  { id: 'w-as-written', name: 'As written,', cost: 0, type: 'word', rarity: 'common',
-    stats: { wit: 2 }, tags: ['academic', 'formal'], phrase: 'as written,',
-    upgrade: { stats: { wit: 3 } },
-    desc: '+2 Wit.',
-    flavor: 'You hold up a finger. The finger is unimpeachable.' },
-  { id: 'w-in-conclusion', name: 'In conclusion,', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { wit: 3 }, tags: ['rhetorical', 'formal'], phrase: 'in conclusion,',
-    upgrade: { stats: { wit: 4 } },
-    desc: '+3 Wit.',
-    flavor: 'They thought it was a long preamble. It was a conclusion.' },
-  // Cycle 6 batch 1: wit pool depth + sustain. Wit had 8 words to
-  // chutzpah/jnsq's 10, and no sustain word. Mirror of the chutzpah
-  // C4B5 / jnsq C5 fix pattern.
-  { id: 'w-per-precedent', name: 'Per the precedent,', cost: 0, type: 'word', rarity: 'common',
-    stats: { wit: 2 }, tags: ['formal', 'rhetorical'], phrase: 'per the precedent,',
-    upgrade: { stats: { wit: 3 } },
-    desc: '+2 Wit.',
-    flavor: 'There is no precedent. There is now.' },
-  { id: 'w-pardon-digression', name: 'Pardon the digression,', cost: 0, type: 'word', rarity: 'common',
-    stats: { wit: 1 }, tags: ['rhetorical', 'academic'],
-    effects: { heal: 2 },
-    phrase: 'pardon the digression,',
-    upgrade: { stats: { wit: 2 }, effects: { heal: 2 } },
-    desc: '+1 Wit. Heal 2 HP.',
-    flavor: 'You wander, briefly, into a parallel argument. It is more relaxing there.' },
-  { id: 'w-astrally', name: 'Astrally speaking,', cost: 0, type: 'word', rarity: 'common',
-    stats: { jnsq: 1 }, tags: ['mystical', 'absurd'], phrase: 'astrally speaking,',
-    upgrade: { stats: { jnsq: 2 } },
-    desc: '+1 Jnsq.',
-    flavor: 'It is a distinction that should probably have come earlier.' },
-  { id: 'w-three-at-once', name: 'Three things at once,', cost: 0, type: 'word', rarity: 'common',
-    stats: { jnsq: 2 }, tags: ['chaotic', 'absurd'], phrase: 'three things at once,',
-    upgrade: { stats: { jnsq: 3 } },
-    desc: '+2 Jnsq.',
-    flavor: 'You list none of them. Listing was never the plan.' },
-  { id: 'w-by-moonlight', name: 'By moonlight,', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { jnsq: 3 }, tags: ['mystical', 'chaotic'], phrase: 'by moonlight,',
-    upgrade: { stats: { jnsq: 4 } },
-    desc: '+3 Jnsq.',
-    flavor: 'It is, technically, a poor time for a lecture. That helps.' },
-  // Cycle 4 batch 3: chutzpah sustain. Lane was bleeding HP across the
-  // run (Go For The Throat / Corner Them / Don't Hold Back all cost HP).
-  // Bruise It Out is the positive-HP chutzpah word — finally something
-  // the lane can lean on between bigger plays.
-  { id: 'w-bruise-it-out', name: 'Bruise it out,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 2 }, tags: ['threatening', 'dismissive'],
-    effects: { heal: 2 },
-    phrase: 'we\'ll be fine,',
-    upgrade: { stats: { chutzpah: 3 }, effects: { heal: 2 } },
-    desc: '+2 Chutzpah. Heal 2 HP.',
-    flavor: 'You\'ve been hit harder. By worse people. Recently.' },
-  // Cycle 4 batch 5: chutzpah word-pool depth. Chutzpah had 6 words to
-  // wit/jnsq's 9-10 after the batch-2 additions. Three new chutzpah-only
-  // words with no HP cost (the lane already has plenty of self-damage).
-  { id: 'w-point-of-fact', name: 'In point of fact,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 1 }, tags: ['dismissive', 'formal'], phrase: 'in point of fact,',
-    upgrade: { stats: { chutzpah: 2 } },
-    desc: '+1 Chutzpah.',
-    flavor: 'You produce no points. The fact remains, though.' },
-  { id: 'w-as-policy', name: 'As a matter of policy,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 2 }, tags: ['dismissive', 'threatening'], phrase: 'as a matter of policy,',
-    upgrade: { stats: { chutzpah: 3 } },
-    desc: '+2 Chutzpah.',
-    flavor: 'The policy is invented. The matter is real.' },
-  { id: 'w-misunderstand', name: 'You misunderstand,', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 3 }, tags: ['dismissive', 'sarcastic'], phrase: 'you misunderstand,',
-    upgrade: { stats: { chutzpah: 4 } },
-    desc: '+3 Chutzpah.',
-    flavor: 'They didn\'t. But they will, by the end of the sentence.' },
-  // Cycle 5 batch 1: jnsq word-pool depth (was 6, now 9 — parity with
-  // chutzpah). Jnsq lane buckets at n=48/1000 with 8% win rate. Mirror
-  // the chutzpah B5 fix: deepen the pool so the AI commits more often
-  // AND the deck has enough fuel to stack jnsq.
-  { id: 'w-mind-chickens', name: 'Mind the chickens,', cost: 0, type: 'word', rarity: 'common',
-    stats: { jnsq: 1 }, tags: ['absurd', 'chaotic'], phrase: 'mind the chickens,',
-    upgrade: { stats: { jnsq: 2 } },
-    desc: '+1 Jnsq.',
-    flavor: 'Nobody mentioned chickens. There are now chickens.' },
-  { id: 'w-third-tuesday', name: 'On the third Tuesday,', cost: 0, type: 'word', rarity: 'common',
-    stats: { jnsq: 2 }, tags: ['chaotic', 'absurd'], phrase: 'on the third Tuesday,',
-    upgrade: { stats: { jnsq: 3 } },
-    desc: '+2 Jnsq.',
-    flavor: 'Which Tuesday, exactly? Yes.' },
-  { id: 'w-which-case-moon', name: 'In which case, the moon,', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { jnsq: 3 }, tags: ['mystical', 'absurd'], phrase: 'in which case, the moon,',
-    upgrade: { stats: { jnsq: 4 } },
-    desc: '+3 Jnsq.',
-    flavor: 'The moon is, in fact, listening. The moon is always listening.' },
-  // Cycle 5 batch 3: jnsq sustain word (analog to chutzpah's "Bruise it out").
-  { id: 'w-drunk-starlight', name: 'Drunk on starlight,', cost: 0, type: 'word', rarity: 'common',
-    stats: { jnsq: 1 }, tags: ['mystical', 'chaotic'],
-    effects: { heal: 2 },
-    phrase: 'drunk on starlight,',
-    upgrade: { stats: { jnsq: 2 }, effects: { heal: 2 } },
-    desc: '+1 Jnsq. Heal 2 HP.',
-    flavor: 'The wine was unconvincing. The starlight, less so.' },
-
-  // =============================================================================
-  // EFFECT CARDS — seal the spell. Consume the tray, deal damage of
-  // `damageType` ('composure' or 'physical') = (base + tray[scaleBy] *
-  // multiplier) * enemy.effectiveness[scaleBy]. Composure → enemy
-  // verbal track. Physical → enemy HP (most enemies are essentially
-  // physical-immune by design; a few are not).
-  // =============================================================================
-  // ---- BASIC (starter) ----
-  { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
-    effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and so, surely, the matter is settled.',
-    upgrade: { effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 2 + Wit×2 Composure. Resonates: rhetorical, academic, formal.',
-    flavor: 'You have brought receipts.' },
-  { id: 'e-bluster', name: 'Bluster', cost: 1, type: 'effect', rarity: 'basic',
-    effect: { scaleBy: 'chutzpah', base: 2, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['booming', 'threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and that is FINAL.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['booming', 'threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 2 + Chutzpah×2 Composure. Resonates: booming, threatening, dismissive.',
-    flavor: 'You said it with your whole chest.' },
-  { id: 'e-bewilder', name: 'Bewilder', cost: 1, type: 'effect', rarity: 'basic',
-    effect: { scaleBy: 'jnsq', base: 2, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['absurd', 'mystical', 'chaotic'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and the moon, of course, is a kind of biscuit.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['absurd', 'mystical', 'chaotic'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 2 + Jnsq×2 Composure. Resonates: absurd, mystical, chaotic.',
-    flavor: 'They\'re thinking about it. They shouldn\'t be.' },
-
-  // ---- COMMON ----
-  { id: 'e-convince', name: 'Convince', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } },
-    phrase: '…which, logically, you must accept.',
-    upgrade: { effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 4 + Wit×2 Composure. Resonates: rhetorical, academic.',
-    flavor: 'They nod before they realise.' },
-  { id: 'e-intimidate', name: 'Intimidate', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure',
-              rider: { weak: 1 }, resonatesWith: ['threatening', 'booming'], resonanceBonus: { perTag: 2 } },
-    phrase: '…or what, exactly, would you do about it?',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure',
-              rider: { weak: 1 }, resonatesWith: ['threatening', 'booming'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 4 + Chutzpah×2 Composure. Apply 1 Weak. Resonates: threatening, booming.',
-    flavor: 'You are taller than you ought to be.' },
-  { id: 'e-misdirect', name: 'Misdirect', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
-              rider: { vulnerable: 1 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and look — a falling pigeon.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 3, damageType: 'composure',
-              rider: { vulnerable: 1 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 4 + Jnsq×2 Composure. Apply 1 Vulnerable. Resonates: chaotic, absurd.',
-    flavor: 'It is not, but the look is enough.' },
-  { id: 'e-strike', name: 'Strike', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure',
-              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
-    phrase: '*pokes them, verbally, in the chest*',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 9, multiplier: 1, damageType: 'composure',
-              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 6 + Chutzpah Composure. Resonates: dismissive, petty.',
-    flavor: 'A simple closing remark.' },
-
-  // ---- UNCOMMON ----
-  { id: 'e-refute', name: 'Refute', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } },
-    phrase: '…you appear to be misremembering your own earlier words.',
-    upgrade: { effect: { scaleBy: 'wit', base: 10, multiplier: 4, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 8 + Wit×3 Composure. Resonates: rhetorical, academic.',
-    flavor: 'They turn pale. Or maybe always were.' },
-  { id: 'e-cutting-remark', name: 'A Cutting Remark', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and the hat does not suit you.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure',
-              resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 8 + Chutzpah×3 Composure. Resonates: dismissive, petty.',
-    flavor: 'It is a perfectly normal hat.' },
-  // Cycle 4 batch 5: chutzpah engine card. The lane has no card-cycling,
-  // so a committed chutzpah deck draws the same 5 forever. Press the Point
-  // is the chutzpah equivalent of a draw-engine — modest cast damage with
-  // +1 draw after, so chutzpah decks see more cards per combat.
-  { id: 'e-press-the-point', name: 'Press the Point', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 3, multiplier: 2, damageType: 'composure',
-              drawAfterCast: 1,
-              resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } },
-    phrase: '…and to be perfectly clear,',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
-              drawAfterCast: 1,
-              resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
-    desc: 'Cast: 3 + Chutzpah×2 Composure. Then draw 1.',
-    flavor: 'The point is not subtle. The pressing, less so.' },
-  // Cycle 5 batch 1: jnsq engine card. The lane had no card-cycling,
-  // mirroring the chutzpah problem pre-C4B5. Free Association is the
-  // jnsq equivalent of Press the Point — modest cast damage, +1 draw
-  // after. Resonates with the absurd/chaotic tag pool.
-  { id: 'e-free-association', name: 'Free Association', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 3, multiplier: 2, damageType: 'composure',
-              drawAfterCast: 1,
-              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 } },
-    phrase: '…which reminds me, the calendar disagrees,',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 2, damageType: 'composure',
-              drawAfterCast: 1,
-              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 } } },
-    desc: 'Cast: 3 + Jnsq×2 Composure. Then draw 1.',
-    flavor: 'Each thought, by itself, was reasonable.' },
-  // Cycle 5 batch 3: jnsq deep-stacking payoff. Rewards committed jnsq
-  // decks that pile tag-rich words into the tray. +5 per matching tag is
-  // higher than Compounding Argument's +4, but jnsq has no resonance
-  // doubler — so this hits hard at full stack and modestly at small.
-  { id: 'e-bedlam-cascade', name: 'Bedlam Cascade', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['chaotic', 'absurd', 'mystical'], resonanceBonus: { perTag: 5 } },
-    phrase: '…and now everything, all at once, in no particular order,',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['chaotic', 'absurd', 'mystical'], resonanceBonus: { perTag: 5 } } },
-    desc: 'Cast: 4 + Jnsq×2 Composure. +5 per matching jnsq tag.',
-    flavor: 'All bets are on. The dice are loaded with stars.' },
-  // Cycle 6 batch 1: wit engine card. Wit had no draw engine — Compounding
-  // Argument fires once and the committed deck stalls. Footnote-and-Cite
-  // is the wit equivalent of Press the Point / Free Association.
-  { id: 'e-footnote-cite', name: 'Footnote and Cite', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure',
-              drawAfterCast: 1,
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 } },
-    phrase: '…as per the marginalia in question,',
-    upgrade: { effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure',
-              drawAfterCast: 1,
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 } } },
-    desc: 'Cast: 3 + Wit×2 Composure. Then draw 1.',
-    flavor: 'The citation is invented. The conviction with which you say it is not.' },
-  // Cycle 3: broaden the Jnsq pool. Two new options so the lane has
-  // depth comparable to Wit/Chutzpah.
-  { id: 'e-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and the door, surely, has feelings about it.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 4 + Jnsq×2 Composure. Resonates: chaotic, absurd.',
-    flavor: 'You aren\'t wrong, exactly. You\'re just not on topic.' },
-  { id: 'e-calculated-risk', name: 'Calculated Risk', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 10, multiplier: 3, damageType: 'composure',
-              chance: { prob: 0.6, success: { enemyVulnerable: 1 }, failure: { selfWeak: 1 } },
-              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } },
-    phrase: '…I have run the numbers, and the numbers are also confused.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 12, multiplier: 4, damageType: 'composure',
-              chance: { prob: 0.65, success: { enemyVulnerable: 1 }, failure: { selfWeak: 1 } },
-              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 10 + Jnsq×3 Composure. 60%: apply Vuln. 40%: gain Weak.',
-    flavor: 'The numbers are doing their best. You aren\'t doing yours.' },
-
-  { id: 'e-bamboozle', name: 'Bamboozle', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } },
-    phrase: '…the third inflection is the most important.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 10, multiplier: 4, damageType: 'composure',
-              resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 8 + Jnsq×3 Composure. Resonates: absurd, mystical.',
-    flavor: 'There were no inflections. There still aren\'t.' },
-
-  // ---- PHYSICAL EFFECT CARDS — for wizards who still want to throw something ----
-  { id: 'e-spark', name: 'Spark', cost: 0, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 4, multiplier: 1, damageType: 'physical',
-              resonatesWith: ['chaotic'], resonanceBonus: { perTag: 2 } },
-    phrase: '(a small sharp light leaves your fingertips)',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 2, damageType: 'physical',
-              resonatesWith: ['chaotic'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 4 + Jnsq physical damage. Resonates: chaotic.',
-    flavor: 'It is not very impressive. It is also not very pleasant.' },
-  { id: 'e-magic-missile', name: 'Magic Missile', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 11, multiplier: 3, damageType: 'physical',
-              resonatesWith: ['mystical'], resonanceBonus: { perTag: 2 } },
-    phrase: '(the air parts in a straight line ahead of you)',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 14, multiplier: 4, damageType: 'physical',
-              resonatesWith: ['mystical'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 11 + Jnsq×3 physical damage. Resonates: mystical.',
-    flavor: 'It always misses the bookshelves. Always.' },
-  { id: 'e-sword-logic', name: 'Sword Logic', cost: 1, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'physical',
-              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
-    phrase: '(hits them, mid-sentence)',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 8, multiplier: 2, damageType: 'physical',
-              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 5 + Chutzpah×2 physical damage. Resonates: threatening, dismissive.',
-    flavor: 'The argument was won earlier, in a closet, with a board.' },
-  // Cycle 2 batch 2: more physical options so verbal-only decks have
-  // viable picks for Act 2's stone-leaning enemies.
-  { id: 'e-throw-the-book', name: 'Throw the Book', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'wit', base: 4, multiplier: 1, damageType: 'physical',
-              resonatesWith: ['academic', 'formal'], resonanceBonus: { perTag: 2 } },
-    phrase: '(it is a very heavy book)',
-    upgrade: { effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'physical',
-              resonatesWith: ['academic', 'formal'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 4 + Wit×1 physical damage. Resonates: academic, formal.',
-    flavor: 'The footnotes are weighted with regret.' },
-  { id: 'e-flame-on', name: 'Flame On', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'physical',
-              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } },
-    phrase: '(a small enthusiastic fire arrives)',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 7, multiplier: 2, damageType: 'physical',
-              resonatesWith: ['chaotic', 'mystical'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 5 + Jnsq×1 physical damage. Resonates: chaotic, mystical.',
-    flavor: 'It does not consume what you would expect it to.' },
-
-  // ---- RARE EFFECT CARDS ----
-  { id: 'e-devastating', name: 'Devastating Truth', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 3 } },
-    phrase: '…and that is what your tutor used to say about you, isn\'t it?',
-    upgrade: { effect: { scaleBy: 'wit', base: 16, multiplier: 4, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 3 } } },
-    desc: 'Cast: 12 + Wit×3 Composure. Resonates: rhetorical, academic (+3).',
-    flavor: 'You found it in the library. It found you first.' },
-  { id: 'e-coup-de-grace', name: 'Coup de Grâce', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'chutzpah', base: 14, multiplier: 3, damageType: 'composure', exhaust: true,
-              resonatesWith: ['dismissive', 'formal'], resonanceBonus: { perTag: 3 } },
-    phrase: '…and frankly that should have settled it ten minutes ago.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 18, multiplier: 4, damageType: 'composure', exhaust: true,
-              resonatesWith: ['dismissive', 'formal'], resonanceBonus: { perTag: 3 } } },
-    desc: 'Cast: 14 + Chutzpah×3 Composure. Exhaust. Resonates: dismissive, formal (+3).',
-    flavor: 'You walk away mid-syllable. They notice eventually.' },
-  { id: 'e-paradox', name: 'A Functional Paradox', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'jnsq', base: 6, multiplier: 4, damageType: 'composure',
-              rider: { vulnerable: 2 }, resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 3 } },
-    phrase: '…the door is also, in this case, the question.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 8, multiplier: 5, damageType: 'composure',
-              rider: { vulnerable: 2 }, resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 3 } } },
-    desc: 'Cast: 6 + Jnsq×4 Composure. Apply 2 Vulnerable. Resonates: absurd, mystical (+3).',
-    flavor: 'They are working on it. They will be for some time.' },
-
-  // ---- ARCHETYPE-COMMITTING CARDS — added cycle 4. Each uses a
-  //      mechanical lever that ONLY exists in that archetype's lane.
-  //      Chutzpah → loseHp (risk-for-damage). Jnsq → chance (weighted gambles).
-  { id: 'e-go-for-the-throat', name: 'Go For The Throat', cost: 1, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
-              loseHpOnPlay: 3,
-              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and now we both know how this ends.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure',
-              loseHpOnPlay: 3,
-              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 8 + Chutzpah×3 Composure. Lose 3 HP. Resonates: threatening, dismissive.',
-    flavor: 'You commit. There is no second draft.' },
-  { id: 'e-cantrip-roulette', name: 'Cantrip Roulette', cost: 1, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 6, multiplier: 2, damageType: 'composure',
-              chance: { prob: 0.7, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } },
-              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 2 } },
-    phrase: '…heads they fold, tails I sneeze.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
-              chance: { prob: 0.75, success: { enemyVulnerable: 2 }, failure: { selfWeak: 1 } },
-              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 6 + Jnsq×2 Composure. 70%: apply 2 Vuln. 30%: gain 1 Weak.',
-    flavor: 'Heads, they cower. Tails, you sneeze.' },
-
-  // ---- SWAY EFFECTS — negotiation cards. Each tries to shift one of the
-  //      enemy's resistance dimensions UP toward baseline (cap 1.0) so a
-  //      previously-immune dimension becomes survivable. They do NOT deal
-  //      damage. Success is rolled at cast time using:
-  //        base 35% + 15% per matching tactic-tag in tray
-  //        + 20% if enemy.softSpot matches card.tactic
-  //        + 10% per matching resonance tag
-  //      Clamped to [10%, 90%] so it's never a sure thing or a lock-out.
-  //      On success: enemy.effectiveness[swayTarget] += 0.5 (cap 1.0),
-  //      persistent for the rest of the combat.
-  //      The "negotiation feels like the tray" intent: stack the right
-  //      WORDS first, then cast the Sway, and the words you chose decide
-  //      whether the negotiation lands.
-  { id: 'e-lavish-praise', name: 'Lavish Praise', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { sway: true, swayTarget: 'wit', tactic: 'flattery',
-              tacticTags: ['formal', 'academic'],
-              resonatesWith: ['formal', 'rhetorical'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…and you are doing magnificent work, by the way. Truly.',
-              failFlavor: '…you are doing fine work. They have heard better.' },
-    upgrade: { effect: { sway: true, swayTarget: 'wit', tactic: 'flattery',
-              tacticTags: ['formal', 'academic'],
-              successBonus: 0.10,
-              resonatesWith: ['formal', 'rhetorical'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…and you are doing magnificent work, by the way. Truly.',
-              failFlavor: '…you are doing fine work. They have heard better.' } },
-    desc: 'Sway: try to soften the enemy\'s Wit resistance by +0.5 (cap 1.0). Tactic: flattery.',
-    flavor: 'A compliment delivered with the conviction of someone who has practiced in a mirror.' },
-  { id: 'e-calmly-explain', name: 'Calmly Explain', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { sway: true, swayTarget: 'chutzpah', tactic: 'logic',
-              tacticTags: ['rhetorical', 'academic'],
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…statistically, this is your worst option. They begin to see.',
-              failFlavor: '…statistically, this is your worst option. They do not care for statistics.' },
-    upgrade: { effect: { sway: true, swayTarget: 'chutzpah', tactic: 'logic',
-              tacticTags: ['rhetorical', 'academic'],
-              successBonus: 0.10,
-              resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…statistically, this is your worst option. They begin to see.',
-              failFlavor: '…statistically, this is your worst option. They do not care for statistics.' } },
-    desc: 'Sway: try to soften the enemy\'s Chutzpah resistance by +0.5 (cap 1.0). Tactic: logic.',
-    flavor: 'You produce an itemised list. They had not expected an itemised list.' },
-  { id: 'e-loom-over-them', name: 'Loom Over Them', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { sway: true, swayTarget: 'physical', tactic: 'threat',
-              tacticTags: ['booming', 'threatening'],
-              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…you have not blinked in some time. They notice this.',
-              failFlavor: '…you have not blinked in some time. They have not, either.' },
-    upgrade: { effect: { sway: true, swayTarget: 'physical', tactic: 'threat',
-              tacticTags: ['booming', 'threatening'],
-              successBonus: 0.10,
-              resonatesWith: ['booming', 'threatening'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…you have not blinked in some time. They notice this.',
-              failFlavor: '…you have not blinked in some time. They have not, either.' } },
-    desc: 'Sway: try to soften the enemy\'s Physical resistance by +0.5 (cap 1.0). Tactic: threat.',
-    flavor: 'A threat works because the alternative remains specifically unstated.' },
-  // ---- CYCLE 4 LANE-CLOSERS — three cards designed to give pure-verbal
-  //      archetypes a competitive win path (per cycle-4 bucketing showing
-  //      pure-wit / pure-jnsq winning 0/61 combined). Plus Polymath, which
-  //      turns the "sampler" bucket into a real archetype.
-  { id: 'e-compounding-argument', name: 'Compounding Argument', cost: 1, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 4 } },
-    phrase: '…and, building on the previous point, building on that, building on that…',
-    upgrade: { effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 4 } } },
-    desc: 'Cast: 4 + Wit×2 Composure. Resonance bonus DOUBLED (+4/tag). Resonates: rhetorical, academic, formal.',
-    flavor: 'The argument grows, fractally. The room shrinks proportionally.' },
-  { id: 'e-genuine-threat', name: 'Genuine Threat', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
-              resonatesWith: ['chaotic', 'mystical', 'absurd'], resonanceBonus: { perTag: 2 } },
-    phrase: '…and I MEAN it this time.',
-    upgrade: { effect: { scaleBy: 'jnsq', base: 11, multiplier: 4, damageType: 'composure',
-              resonatesWith: ['chaotic', 'mystical', 'absurd'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 8 + Jnsq×3 Composure. Reliable damage — no gamble. Resonates: chaotic, mystical, absurd.',
-    flavor: 'You\'re not gambling. They are.' },
-  { id: 'e-dont-hold-back', name: 'Don\'t Hold Back', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
-              loseHpOnPlay: 8, hpThresholdDouble: 40,
-              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
-    phrase: '…there is no version of this you walk away from.',
-    upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 3, damageType: 'composure',
-              loseHpOnPlay: 8, hpThresholdDouble: 40,
-              resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 5 + Chutzpah×2 Composure. Lose 8 HP. Damage DOUBLES if you\'re under 40 HP.',
-    flavor: 'You\'re already broken. They\'re about to find out what that means.' },
-  { id: 'e-polymath', name: 'Polymath', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure',
-              sumAllStats: true,
-              resonatesWith: ['formal', 'rhetorical', 'absurd', 'threatening'], resonanceBonus: { perTag: 1 } },
-    phrase: '…wit, force, and a small unhinged flourish.',
-    upgrade: { effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure',
-              sumAllStats: true,
-              resonatesWith: ['formal', 'rhetorical', 'absurd', 'threatening'], resonanceBonus: { perTag: 1 } } },
-    desc: 'Cast: 5 + (Chutzpah + Wit + Jnsq)×2 Composure. Rewards mixed-stat decks.',
-    flavor: 'You speak three languages at once. None of them are arguments.' },
-
-  // ---- INSULT EFFECTS — open a 3-pick word-prompt modal on cast. The
-  //      picked words are tag-classified and aligned against the enemy's
-  //      insultVulnerabilities. Land (≥50% match) deals heavy composure
-  //      damage to the enemy. Unfaze (25-49%) — no damage but you still
-  //      pay the player composure cost for the attempt. Backfire (<25%)
-  //      — extra composure damage to you from the enemy's retort.
-  { id: 'e-cut-them-down', name: 'Cut Them Down', cost: 1, type: 'effect', rarity: 'common',
-    effect: { insult: true, playerComposureCost: 3, landDamage: 10, backfireDamage: 5,
-              successFlavor: 'You said the thing. They felt the thing.',
-              failFlavor:    'Words slide off them. Words slide off you.' },
-    upgrade: { effect: { insult: true, playerComposureCost: 3, landDamage: 14, backfireDamage: 5 } },
-    desc: 'Insult: 3 word-picks (4s each). Costs 3 Composure to attempt; up to 10 enemy Composure on a landed insult.',
-    flavor: 'You will lose a little of yourself to do it. Worth it.' },
-  { id: 'e-devastate', name: 'Devastate', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { insult: true, playerComposureCost: 5, landDamage: 18, backfireDamage: 9,
-              successFlavor: 'The room contracts. They contract more.',
-              failFlavor:    'The room contracts. You contract more.' },
-    upgrade: { effect: { insult: true, playerComposureCost: 5, landDamage: 24, backfireDamage: 9 } },
-    desc: 'Insult: 3 word-picks. Costs 5 Composure; 18 enemy Composure on land; 9 to YOU on backfire.',
-    flavor: 'The trick is to mean it. The trouble is also that.' },
-
-  { id: 'e-mention-the-moon', name: 'Mention the Moon', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { sway: true, swayTarget: 'jnsq', tactic: 'confusion',
-              tacticTags: ['chaotic', 'absurd', 'mystical'],
-              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…but really, isn\'t the moon a kind of cheese? They lose the thread.',
-              failFlavor: '…but really, isn\'t the moon a kind of cheese? They lose nothing.' },
-    upgrade: { effect: { sway: true, swayTarget: 'jnsq', tactic: 'confusion',
-              tacticTags: ['chaotic', 'absurd', 'mystical'],
-              successBonus: 0.10,
-              resonatesWith: ['absurd', 'chaotic'], resonanceBonus: { perTag: 1 },
-              successFlavor: '…but really, isn\'t the moon a kind of cheese? They lose the thread.',
-              failFlavor: '…but really, isn\'t the moon a kind of cheese? They lose nothing.' } },
-    desc: 'Sway: try to soften the enemy\'s Jnsq resistance by +0.5 (cap 1.0). Tactic: confusion.',
-    flavor: 'Surreal honesty is the rarest weapon. Use sparingly. Or do not. It hardly matters.' },
+  // v2 sentence-engine cards: imported from src/cards/{wit,chutzpah,jnsq}-v2.js.
+  ...ALL_V2_CARDS,
 
   // =============================================================================
   // SKILL CARDS — no stat contribution, no spell sealing. Pure utility.
@@ -955,27 +385,40 @@ const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 // reward picks later). Old starter had 11 cards spanning all three stats
 // + two physical effects; that made archetype commitment feel pointless
 // because the deck was already a sampler.
-const STARTER_DECK = [
-  'w-respect',                // wit ingredient
-  'w-frankly',                // chutzpah ingredient
-  'e-persuade',               // basic wit attack
-  'e-bluster',                // basic chutzpah attack
-  'c-channel',                // utility
-  'c-defend', 'c-defend',     // block
-];
+// v2 starter deck — character-specific. Each character begins with a small
+// lane-themed deck of basics: 3 intros + 3 subjects + 2 targets + 2 utility
+// skills (defend + channel) for a 10-card opening hand pool. The basic
+// rarity cards lock the player into Tier 1 spells until rewards bring in
+// higher-tier intros / subjects / targets.
+function buildStarterDeckForLane(lane) {
+  const pool = LANE_POOL_BY_SLOT[lane];
+  if (!pool) return [];
+  // Take all basics + a couple commons so the early game has some variety.
+  const basics = (arr) => arr.filter(c => c.rarity === 'basic');
+  const firstNCommons = (arr, n) => arr.filter(c => c.rarity === 'common').slice(0, n);
+  const ids = [
+    // 3 intros: all 3 basics that fit on the basic-Tier-1 floor.
+    ...basics(pool.intro).slice(0, 3).map(c => c.id),
+    // 3 subjects: same.
+    ...basics(pool.subject).slice(0, 3).map(c => c.id),
+    // 2 targets: take the cheapest 2 common targets — basics don't include targets.
+    ...firstNCommons(pool.target, 2).map(c => c.id),
+    // 2 utilities (cross-character skills, kept from v1 utility pool).
+    'c-defend', 'c-channel',
+  ];
+  return ids;
+}
 
-// Six-card pool shown on the Starting Picks screen. Player chooses 2 to
-// add to their deck before the first map loads. Pairs of (word, effect)
-// per archetype: pick both jnsq to open that lane, pick within chutzpah/
-// wit to double down, or mix-and-match. Each is a small commitment, not
-// a build-defining card — early reward picks still shape the deck more.
+// STARTER_DECK is now a function of character. Kept as a const for any v1
+// references that still grep for it — they'll get the wit-scholar default.
+const STARTER_DECK = buildStarterDeckForLane('wit');
+
+// Starting Picks pool is unused now — character-select pre-stages the lane
+// commitment. Kept as the basic intros so the existing screen doesn't blank.
 const STARTING_PICKS_POOL = [
-  'w-frankly',   // Chutzpah word
-  'e-strike',    // Chutzpah effect
-  'w-respect',   // Wit word
-  'e-convince',  // Wit effect
-  'w-erm',       // Jnsq word — opens the branch
-  'e-bewilder',  // Jnsq effect — opens the branch
+  ...LANE_POOL_BY_SLOT.wit.intro.slice(0, 2).map(c => c.id),
+  ...LANE_POOL_BY_SLOT.chutzpah.intro.slice(0, 2).map(c => c.id),
+  ...LANE_POOL_BY_SLOT.jnsq.intro.slice(0, 2).map(c => c.id),
 ];
 
 // Enemies. `act` filters which act they appear in. `tier` ∈ normal / elite / boss.
@@ -2951,8 +2394,9 @@ function rollIntent(enemy, excludeKinds = []) {
   return { ...pool[0] };
 }
 
-function buildStartingDeck() {
-  return shuffle(STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
+function buildStartingDeck(lane = 'wit') {
+  const ids = buildStarterDeckForLane(lane);
+  return shuffle(ids.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
 }
 
 // Return a new card object representing the upgraded version of `card`.
@@ -3149,8 +2593,16 @@ function salvageMaterial(slot) {
   };
 }
 
-function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = []) {
-  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id));
+function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = [], lane = null) {
+  // Lane filter: when set, only cards matching that lane OR lane-agnostic
+  // utility cards (skill/power without a `lane` field) qualify. Used by the
+  // reward flow so v2 characters draw from their own card pool.
+  const matchesLane = (c) => {
+    if (!lane) return true;
+    if (!c.lane) return true; // utility / familiar / power — open to all lanes
+    return c.lane === lane;
+  };
+  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c));
   if (pool.length === 0) return null;
   const total = pool.reduce((s, c) => s + rarityWeights[c.rarity], 0);
   let r = Math.random() * total;
@@ -3348,6 +2800,36 @@ const HAND_SIZE = 5;
 // shot at deep runs.
 const INTER_ACT_HEAL_RATIO = 0.55;
 
+// v2 tray initial state. The intro/subject/target/modifiers fields are the
+// primary truth. Legacy fields (chutzpah/wit/jnsq totals, tags, words array,
+// effectCard) are computed mirrors kept populated for back-compat reads
+// scattered through the older codebase (previewSway, certain log paths).
+function initialV2Tray(overrides = {}) {
+  return {
+    intro: null, subject: null, target: null, modifiers: [],
+    chutzpah: 0, wit: 0, jnsq: 0,
+    phrases: [], tags: [], words: [],
+    effectCard: null,
+    effectFiredThisTurn: false,
+    ...overrides,
+  };
+}
+
+// Rebuild the legacy mirror fields from the v2 slot truth. Called any time
+// we mutate intro / subject / target / modifiers.
+function syncTrayLegacy(t) {
+  const cards = [t.intro, t.subject, ...(t.modifiers || [])].filter(Boolean);
+  const out = { chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [...cards] };
+  for (const c of cards) {
+    out.chutzpah += c.stats?.chutzpah || 0;
+    out.wit      += c.stats?.wit      || 0;
+    out.jnsq     += c.stats?.jnsq     || 0;
+    if (c.phrase) out.phrases.push(c.phrase);
+    if (c.tags) out.tags.push(...c.tags);
+  }
+  return { ...t, ...out, effectCard: t.target };
+}
+
 export default function App() {
   // Stage flow:
   //   menu → map → (combat / event / rest / reward) → map →
@@ -3495,7 +2977,7 @@ export default function App() {
   // `phrases` is the running list of fragment text; `effectFiredThisTurn`
   // tracks whether ANY effect card has resolved the tray (used to detect
   // fizzles at end-of-turn).
-  const [tray, setTray] = useState({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+  const [tray, setTray] = useState(initialV2Tray());
   // Amplify escalates: 1st play costs base (1), every play after costs +1.
   // Resets per combat. The cap on playerDmgMult (1.5) already limits how
   // many times it does anything; the escalating cost stops you from cheaply
@@ -3706,7 +3188,7 @@ export default function App() {
     setFamiliar(null);
     setFamiliarName('');
     setEffectCount(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+    setTray(initialV2Tray());
     setInventory({ staff: [], robes: [], ring: [], hat: [] });
     setSkills({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
     setMaterialChoices(null);
@@ -3742,14 +3224,14 @@ export default function App() {
   // ---------- RUN LIFECYCLE ----------
   function startRun() {
     clearSavedRun();
-    const startDeck = buildStartingDeck();
+    // Deck is built per-character after character-select. Initialise empty.
     setMaxHp(STARTING_MAX_HP);
     setHp(STARTING_MAX_HP);
     setComposureMax(STARTING_MAX_COMPOSURE);
     setComposure(STARTING_MAX_COMPOSURE);
     setBlock(0);
     setEnergy(ENERGY_PER_TURN);
-    setDeck(startDeck);
+    setDeck([]);
     setHand([]);
     setDiscard([]);
     setExiled([]);
@@ -3760,7 +3242,7 @@ export default function App() {
     setFamiliarName('');
     setSelectedCharacter(null);
     setEffectCount(0);
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+    setTray(initialV2Tray());
     setInventory({ staff: [], robes: [], ring: [], hat: [] });
     setSkills({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
     setMaterialChoices(null);
@@ -3782,32 +3264,23 @@ export default function App() {
     setSelectedCharacter(c);
     logEvent('character.select', { characterId: c.id, lane: c.lane, name: c.name });
     pushLog(`🧙 You are ${c.name}, ${c.title}.`);
-    // Build a lane-biased supply pool. Offers preferentially include cards
-    // that scale by the chosen lane's stat (or have it in the word stats).
-    // This is the v1 stopgap until the v2 card pools (per-lane design docs)
-    // are implemented as the player's full draw pool.
-    const lane = c.lane; // 'wit' | 'chutzpah' | 'jnsq'
-    const matchesLane = (card) => {
-      if (card.effect?.scaleBy === lane) return true;
-      if (card.stats?.[lane] && card.stats[lane] > 0) return true;
-      return false;
-    };
+    // Build the character's v2 starter deck (basics from this lane + utility skills).
+    const starterDeck = buildStartingDeck(c.lane);
+    setDeck(starterDeck);
+    // Build a lane-pure supply pool from the character's v2 cards. Supply
+    // shop offers are commons of intro/subject/target slots so the player
+    // begins shaping the deck immediately.
+    const lanePool = LANE_POOL[c.lane] || [];
+    const commons = lanePool.filter(card => card.rarity === 'common');
     const supply = [];
-    const used = [];
-    // Two passes: first try to fill with lane-matching cards, then fill the
-    // remainder with neutral picks. Ensures lane representation even if the
-    // pool's random first pull came up off-lane.
+    const used = new Set();
     let attempts = 0;
-    while (supply.length < 4 && attempts < 40) {
+    while (supply.length < 5 && attempts < 80) {
       attempts++;
-      const c2 = pickCardByRarity({ common: 4, uncommon: 1 }, used);
-      if (!c2) break;
-      if (matchesLane(c2)) { supply.push(c2); used.push(c2.id); }
-    }
-    while (supply.length < 5) {
-      const c2 = pickCardByRarity({ common: 4, uncommon: 1 }, used);
-      if (!c2) break;
-      supply.push(c2); used.push(c2.id);
+      const cand = commons[Math.floor(Math.random() * commons.length)];
+      if (!cand || used.has(cand.id)) continue;
+      supply.push(cand);
+      used.add(cand.id);
     }
     setSupplyChoices(supply);
     setStage('supply-shop');
@@ -4436,7 +3909,7 @@ export default function App() {
     // Powers don't persist between combats.
     setPowers([]);
     // Reset per-combat counters and player debuffs.
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+    setTray(initialV2Tray());
     setAmplifyPlaysThisCombat(0);
 
     // Apply start-of-combat effects from equipment AND relics.
@@ -4573,8 +4046,50 @@ export default function App() {
       return;
     }
 
-    // WORD CARD — stage in the spell tray. Stats / phrase / tags add to
-    // the tray totals. Energy spent at staging; refundable via unstageCard.
+    // v2 sentence engine routing by slot.
+    if (card.slot === 'intro' || card.slot === 'subject') {
+      const prev = tray[card.slot];
+      if (prev) {
+        setHand(h => [...h, prev]);
+        setEnergy(e => e + (prev.cost || 0));
+        pushLog(`↩ Replaced ${card.slot} ${prev.name}.`);
+      }
+      setTray(p => syncTrayLegacy({ ...p, [card.slot]: card }));
+      applySideEffects(card.effects || {}, logBits);
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      pushLog(logBits.join(' · ') + `  →  📜 ${card.slot} staged`);
+      advanceTutorialStep('played-word');
+      return;
+    }
+
+    if (card.slot === 'modifier') {
+      if ((tray.modifiers || []).length >= 2) {
+        setEnergy(e => e + (card.cost || 0));
+        pushLog(`Two modifiers already staged — can't add a third.`);
+        return;
+      }
+      setTray(p => syncTrayLegacy({ ...p, modifiers: [...(p.modifiers || []), card] }));
+      applySideEffects(card.effects || {}, logBits);
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      pushLog(logBits.join(' · ') + `  →  ✨ modifier staged`);
+      return;
+    }
+
+    if (card.slot === 'target') {
+      if (!tray.intro || !tray.subject) {
+        setEnergy(e => e + (card.cost || 0));
+        pushLog(`Need an intro AND a subject before playing a target.`);
+        return;
+      }
+      const staged = { ...tray, target: card, effectCard: card };
+      setTray(p => syncTrayLegacy({ ...p, target: card }));
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      pushLog(`🎯 Target staged: ${card.phrase}`);
+      setTimeout(() => castStagedSpell(staged), 0);
+      return;
+    }
+
+    // ---- BACK-COMPAT (pre-v2 word/effect cards from event-grants etc.) ----
     if (card.type === 'word') {
       const stats = card.stats || {};
       const cardTags = card.tags || [];
@@ -4587,23 +4102,16 @@ export default function App() {
         tags:     [...prev.tags, ...cardTags],
         words:    [...prev.words, card],
       }));
-      // On-play side-effects (Dramatic Pause's draw etc.) STILL fire on
-      // stage — those are immediate, not part of the spell payload.
       applySideEffects(card.effects || {}, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
       pushLog(logBits.join(' · ') + `  →  📜 staged`);
       advanceTutorialStep('played-word');
       return;
     }
-
-    // EFFECT CARD — stage as the spell's sealer. Only one effect at a
-    // time; staging a new one returns the previous to hand (with energy
-    // refunded, of course).
     if (card.type === 'effect') {
       const prevEffect = tray.effectCard;
-      setTray(prev => ({ ...prev, effectCard: card }));
+      setTray(prev => ({ ...prev, effectCard: card, target: card }));
       if (prevEffect) {
-        // Return the previously-staged effect to hand + refund its cost.
         setHand(h => [...h, prevEffect]);
         setEnergy(e => e + (prevEffect.cost || 0));
         pushLog(`↩ Replaced ${prevEffect.name} — returned to hand.`);
@@ -4627,18 +4135,50 @@ export default function App() {
   function unstageCard(cardUid) {
     if (stage !== 'combat') return;
     logEvent('combat.unstage', { cardUid, enemyId: enemy?.id });
-    // Try word first.
+
+    // v2 slot-aware unstage: check intro, subject, target, then modifiers.
+    if (tray.intro?.uid === cardUid) {
+      const c = tray.intro;
+      setTray(p => syncTrayLegacy({ ...p, intro: null }));
+      setHand(h => [...h, c]);
+      setEnergy(e => e + (c.cost || 0));
+      pushLog(`↩ Unstaged intro ${c.name}.`);
+      return;
+    }
+    if (tray.subject?.uid === cardUid) {
+      const c = tray.subject;
+      setTray(p => syncTrayLegacy({ ...p, subject: null }));
+      setHand(h => [...h, c]);
+      setEnergy(e => e + (c.cost || 0));
+      pushLog(`↩ Unstaged subject ${c.name}.`);
+      return;
+    }
+    if (tray.target?.uid === cardUid) {
+      const c = tray.target;
+      setTray(p => syncTrayLegacy({ ...p, target: null }));
+      setHand(h => [...h, c]);
+      setEnergy(e => e + (c.cost || 0));
+      pushLog(`↩ Unstaged target ${c.name}.`);
+      return;
+    }
+    const modIdx = (tray.modifiers || []).findIndex(m => m.uid === cardUid);
+    if (modIdx >= 0) {
+      const c = tray.modifiers[modIdx];
+      setTray(p => syncTrayLegacy({ ...p, modifiers: p.modifiers.filter((_, i) => i !== modIdx) }));
+      setHand(h => [...h, c]);
+      setEnergy(e => e + (c.cost || 0));
+      pushLog(`↩ Unstaged modifier ${c.name}.`);
+      return;
+    }
+
+    // ---- BACK-COMPAT: legacy word/effectCard unstage ----
     const wordIdx = tray.words.findIndex(w => w.uid === cardUid);
     if (wordIdx >= 0) {
       const w = tray.words[wordIdx];
-      const stats = w.stats || {};
-      const tags = w.tags || [];
       setTray(prev => {
         const newWords = prev.words.filter((_, i) => i !== wordIdx);
-        // Recompute everything from the remaining words to be safe.
         const c = { chutzpah: 0, wit: 0, jnsq: 0 };
-        const phrases = [];
-        const allTags = [];
+        const phrases = []; const allTags = [];
         for (const x of newWords) {
           if (x.stats?.chutzpah) c.chutzpah += x.stats.chutzpah;
           if (x.stats?.wit)      c.wit      += x.stats.wit;
@@ -4655,7 +4195,7 @@ export default function App() {
     }
     if (tray.effectCard && tray.effectCard.uid === cardUid) {
       const e = tray.effectCard;
-      setTray(prev => ({ ...prev, effectCard: null }));
+      setTray(prev => ({ ...prev, effectCard: null, target: null }));
       setHand(h => [...h, e]);
       setEnergy(en => en + (e.cost || 0));
       pushLog(`↩ Unstaged ${e.name}.`);
@@ -4702,14 +4242,98 @@ export default function App() {
     else             setDiscard(d => [...d, effectCard]);
   }
 
-  function castStagedSpell() {
-    if (stage !== 'combat') return;
-    if (!tray.effectCard) { pushLog('No Effect staged — nothing to cast.'); return; }
-    if (tray.words.length === 0) { pushLog('No Word staged — Effect cards need at least one word.'); return; }
+  // v2 sentence-engine cast. Resolves a fully-staged intro+subject+target
+  // (plus 0-2 modifiers) into composed sentence text + tier-multiplied
+  // damage + rider application + card discharge.
+  function castV2SentenceSpell(t) {
+    const { intro, subject, target } = t;
+    const modifiers = t.modifiers || [];
 
-    const card = tray.effectCard;
+    logEvent(TE.SPELL_CAST, {
+      lane: target.lane,
+      introId: intro.id, subjectId: subject.id, targetId: target.id,
+      modifierIds: modifiers.map(m => m.id),
+      enemyId: enemy?.id, enemyHp, enemyComposure,
+    });
+
+    // Damage formula handled in shared/cards/shared.js.
+    const { damage: rawDamage, tier, riders, sideEffects } =
+      computeSpellDamage(intro, subject, target, modifiers);
+
+    // Read-the-Room pierce + enemy effectiveness still applies.
+    const eff = target.effect || {};
+    const stat = eff.scaleBy || target.lane || 'wit';
+    const piercing = pierceNextCast;
+    if (piercing) setPierceNextCast(false);
+    const dmgType = eff.damageType || 'composure';
+    const enemyMult = piercing ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
+    const physMult = piercing ? 1.0 : (enemy?.effectiveness?.physical ?? 1.0);
+    let dmg = rawDamage;
+    if (dmgType === 'physical') dmg = Math.round(dmg * physMult);
+    else                        dmg = Math.round(dmg * enemyMult);
+    dmg = Math.round(dmg * playerDmgMult);
+
+    // Compose + log the full sentence.
+    const sentence = composeSpellText(intro, subject, target, modifiers);
+    pushLog(`✨ "${sentence}"`);
+
+    // Strip enemy block before damage if modifier requested it.
+    if (sideEffects.stripBlock) {
+      setEnemyBlock(b => Math.max(0, b - sideEffects.stripBlock));
+      pushLog(`🛇 Stripped ${sideEffects.stripBlock} enemy block.`);
+    }
+    // Apply damage.
+    let after = 0;
+    if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
+    else                        after = applyDamageToEnemyComposure(dmg);
+
+    const tierLabel = tier === 3 ? 'DEVASTATING' : tier === 2 ? 'RESONANT' : 'COHERENT';
+    const dmgTagSuffix = dmgType === 'physical'
+      ? `${dmg} phys → ${after} HP${physMult === 0 ? ' (IMMUNE)' : ''}`
+      : `${dmg} comp → ${after}${enemyMult === 0 ? ' (IMMUNE)' : enemyMult >= 1.5 ? ' (susceptible)' : enemyMult <= 0.5 ? ' (resistant)' : ''}`;
+    pushLog(`🎯 ${tierLabel} (×${TIER_MULTIPLIER[tier] || 1.0}) → ${dmgTagSuffix}`);
+
+    // Riders.
+    if (riders.weak)       { adjustEnemyDmg(-0.25 * riders.weak);  pushLog(`💢 enemy −${25*riders.weak}% atk`); }
+    if (riders.vulnerable) { adjustPlayerDmg(+0.25 * riders.vulnerable); pushLog(`💫 +${25*riders.vulnerable}% potency`); }
+    if (riders.block)      { setBlock(b => b + riders.block); pushLog(`🛡 +${riders.block}`); }
+
+    // Side effects (draw, self-composure cost).
+    if (sideEffects.drawCount) {
+      drawCards(sideEffects.drawCount);
+      pushLog(`📥 +${sideEffects.drawCount} draw`);
+    }
+    if (sideEffects.selfComposureCost) {
+      setComposure(c => Math.max(0, c - sideEffects.selfComposureCost));
+      pushLog(`💔 -${sideEffects.selfComposureCost} composure (self)`);
+    }
+
+    // Discharge cards. Intro / subject / modifiers → discard. Target →
+    // exile if requiresTier3 failed AND exhaustOnFail is set; else discard.
+    setDiscard(d => [...d, intro, subject, ...modifiers]);
+    if (sideEffects.exhaustTarget) setExiled(ex => [...ex, target]);
+    else                           setDiscard(d => [...d, target]);
+
+    setTray(initialV2Tray({ effectFiredThisTurn: true }));
+    applyPowerTriggers('onEffectCardPlayed');
+    advanceTutorialStep('cast-spell');
+  }
+
+  function castStagedSpell(stagedOverride = null) {
+    if (stage !== 'combat') return;
+    const t = stagedOverride || tray;
+
+    // v2 path: intro + subject + target all filled → sentence-engine cast.
+    if (t.intro && t.subject && t.target) {
+      return castV2SentenceSpell(t);
+    }
+
+    if (!t.effectCard) { pushLog('No Effect staged — nothing to cast.'); return; }
+    if ((t.words || []).length === 0) { pushLog('No Word staged — Effect cards need at least one word.'); return; }
+
+    const card = t.effectCard;
     const eff = card.effect || {};
-    logEvent(TE.SPELL_CAST, { effectId: card.id, effectName: card.name, stagedWords: tray.words.map(w => w.id), trayStats: { chutzpah: tray.chutzpah, wit: tray.wit, jnsq: tray.jnsq }, tags: tray.tags, enemyId: enemy?.id, enemyHp, enemyComposure });
+    logEvent(TE.SPELL_CAST, { effectId: card.id, effectName: card.name, stagedWords: (t.words || []).map(w => w.id), trayStats: { chutzpah: t.chutzpah, wit: t.wit, jnsq: t.jnsq }, tags: t.tags, enemyId: enemy?.id, enemyHp, enemyComposure });
 
     // INSULT branch: open the 3-pick word prompt. The cast resolves
     // asynchronously from the prompt screen via finalizeInsult.
@@ -4731,7 +4355,7 @@ export default function App() {
         },
         picks: [],
       });
-      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
+      setTray(initialV2Tray({ effectFiredThisTurn: true }));
       setStage('insult-prompt');
       return;
     }
@@ -4761,7 +4385,7 @@ export default function App() {
       }
       // Send staged cards to discard / exile (same rule as a normal cast).
       dischargeStagedCards(tray.words, card, !!eff.exhaust);
-      setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
+      setTray(initialV2Tray({ effectFiredThisTurn: true }));
       applyPowerTriggers('onEffectCardPlayed');
       return;
     }
@@ -4833,7 +4457,7 @@ export default function App() {
     // Send all staged cards to discard / exile based on flags.
     dischargeStagedCards(tray.words, card, !!eff.exhaust);
 
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: true });
+    setTray(initialV2Tray({ effectFiredThisTurn: true }));
     applyPowerTriggers('onEffectCardPlayed');
     advanceTutorialStep('cast-spell');
 
@@ -5217,7 +4841,7 @@ export default function App() {
       if (tray.effectCard) dropped.push(tray.effectCard);
       setDiscard(d => [...d, ...dropped]);
     }
-    setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
+    setTray(initialV2Tray());
 
     // 1. End-of-turn power triggers.
     const killedByPowers = applyEndOfTurnPowerTriggers();
@@ -5475,8 +5099,9 @@ export default function App() {
       : { common: 4, uncommon: 1 };
     const choices = [];
     const used = [];
+    const lane = selectedCharacter?.lane || null;
     while (choices.length < 3) {
-      const pick = pickCardByRarity(weights, used);
+      const pick = pickCardByRarity(weights, used, lane);
       if (!pick) break;
       choices.push(pick); used.push(pick.id);
     }
@@ -6452,126 +6077,10 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         </div>
       </div>
 
-      {/* SPELL TRAY — staging area. Word + Effect cards get queued here.
-          Click CAST to resolve. End the turn without casting and the
-          spell fizzles (energy lost, cards discarded). */}
-      <div className={`parchment-card p-3 border-l-4 ${
-        (tray.words.length > 0 || tray.effectCard) ? 'border-l-iris-400' : 'border-l-ink-500'
-      }`}>
-        <div className="flex justify-between items-center mb-2">
-          <div className="text-xs uppercase tracking-widest text-iris-300 font-bold">📜 Spell Tray</div>
-          <div className="flex gap-3 text-sm">
-            <span className={tray.chutzpah > 0 ? 'text-ember-300 font-bold' : 'text-parchment-400'}>💪 {tray.chutzpah}</span>
-            <span className={tray.wit > 0 ? 'text-iris-200 font-bold' : 'text-parchment-400'}>✨ {tray.wit}</span>
-            <span className={tray.jnsq > 0 ? 'text-moss-300 font-bold' : 'text-parchment-400'}>🌀 {tray.jnsq}</span>
-          </div>
-        </div>
-
-        {/* Phrase preview */}
-        <div className="text-sm font-quill italic text-parchment-100 min-h-[1.5rem] mb-2">
-          {tray.phrases.length === 0
-            ? <span className="text-parchment-400">(empty — click a Word card to stage it)</span>
-            : <span>"{tray.phrases.join(' ')} {tray.effectCard ? <span className="text-iris-200 not-italic">{tray.effectCard.phrase}</span> : <span className="text-parchment-400 not-italic">… (need an Effect to seal)</span>}"</span>
-          }
-        </div>
-
-        {/* Theme chip row */}
-        {tray.tags && tray.tags.length > 0 && (() => {
-          const counts = {};
-          for (const t of tray.tags) counts[t] = (counts[t] || 0) + 1;
-          return (
-            <div className="mb-2 flex gap-1 flex-wrap text-xs font-mono">
-              <span className="text-iris-300">✦</span>
-              {Object.entries(counts).map(([tag, n]) => (
-                <span key={tag} className="px-2 py-0.5 rounded bg-iris-800 text-parchment-100">
-                  {tag}{n > 1 ? ` ×${n}` : ''}
-                </span>
-              ))}
-            </div>
-          );
-        })()}
-
-        {/* Staged cards + CAST button row. Fixed slots: 4 word slots + 1
-            effect slot with dotted outlines, so the tray always shows its
-            shape even when empty. Cards animate into place when staged. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="text-xs text-parchment-400 mr-1">Staged:</div>
-          {Array.from({ length: 4 }).map((_, i) => {
-            const w = tray.words[i];
-            if (w) {
-              return (
-                <motion.button key={w.uid}
-                  layout
-                  initial={{ scale: 0.5, opacity: 0, y: 16 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-                  onClick={() => onUnstage(w.uid)}
-                  title="Click to unstage (refunds energy)"
-                  className="px-2 py-1 rounded bg-iris-700 hover:bg-iris-600 border border-iris-400 text-parchment-50 text-xs flex items-center gap-1 min-w-[100px] justify-center">
-                  <span>{w.name}</span> <span className="text-parchment-400 text-[10px]">×</span>
-                </motion.button>
-              );
-            }
-            return (
-              <div key={`empty-word-${i}`}
-                className="px-2 py-1 rounded border border-dashed border-iris-600 text-iris-400 text-xs italic min-w-[100px] text-center opacity-50">
-                word
-              </div>
-            );
-          })}
-          {tray.effectCard ? (
-            <motion.button key={tray.effectCard.uid}
-              layout
-              initial={{ scale: 0.5, opacity: 0, y: 16 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-              onClick={() => onUnstage(tray.effectCard.uid)}
-              title="Click to unstage (refunds energy)"
-              className="px-2 py-1 rounded bg-ember-700 hover:bg-ember-600 border border-ember-400 text-parchment-50 text-sm font-bold flex items-center gap-1">
-              <span>🎯 {tray.effectCard.name}</span> <span className="text-parchment-300 text-[10px]">×</span>
-            </motion.button>
-          ) : (
-            <div className="px-3 py-1 rounded border border-dashed border-ember-600 text-ember-500 text-xs italic min-w-[130px] text-center opacity-70">
-              effect
-            </div>
-          )}
-          <div className="flex-1" />
-          {castPreview && tray.effectCard && tray.words.length > 0 && castPreview.kind !== 'sway' && (
-            <div className="text-right">
-              <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
-              <div className={`text-2xl font-bold font-mono ${castPreview.dmgType === 'physical' ? 'text-ember-300' : 'text-iris-200'}`}
-                title={`${castPreview.base} base + ${castPreview.trayVal}×${castPreview.multiplier} from ${castPreview.stat} ${castPreview.resonanceBonus ? `+ ${castPreview.resonanceBonus} resonance` : ''} × ${castPreview.dmgType === 'physical' ? castPreview.phys_mult : castPreview.eff_mult} effectiveness`}>
-                {castPreview.dmg} <span className="text-sm text-parchment-300">{castPreview.dmgType === 'physical' ? 'phys' : 'comp'}</span>
-              </div>
-            </div>
-          )}
-          {castPreview && tray.effectCard && tray.words.length > 0 && castPreview.kind === 'sway' && (
-            <div className="text-right">
-              <div className="text-[10px] uppercase text-parchment-300">Sway chance</div>
-              <div className="text-2xl font-bold font-mono text-gold-300"
-                   title={`Base 35% + ${castPreview.matchedTacticTagsCount} matching tactic-tag(s) ×15% + ${castPreview.softSpotMatch ? '20% soft-spot match' : 'no soft-spot match'} + ${castPreview.matchedResonance} resonance ×10%. Clamped [10%, 90%].`}>
-                {Math.round(castPreview.prob * 100)}%
-              </div>
-              <div className="text-[10px] text-parchment-400">
-                target: <b className="text-iris-200">{castPreview.target}</b> ×{castPreview.currentEff} → ×{Math.min(1, (castPreview.currentEff || 0) + 0.5)}
-              </div>
-              {castPreview.softSpotMatch && (
-                <div className="text-[10px] text-moss-300">✓ soft-spot match (+20%)</div>
-              )}
-            </div>
-          )}
-          <button onClick={onCast}
-            disabled={!tray.effectCard || tray.words.length === 0}
-            className={`btn text-base px-6 py-2 ml-2 ${
-              tray.effectCard && tray.words.length > 0
-                ? 'btn-iris animate-pulse'
-                : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
-            }`}>
-            ✨ CAST
-          </button>
-        </div>
-      </div>
-
+      {/* v2 SENTENCE TRAY — intro + subject + target + 0-2 modifiers.
+          Playing a target auto-casts. End the turn without a target and
+          the spell fizzles. */}
+      <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -6782,6 +6291,120 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
     </div>
   );
 }
+
+function V2SpellTray({ tray, onUnstage, onCast }) {
+  const intro = tray.intro;
+  const subject = tray.subject;
+  const target = tray.target || tray.effectCard;
+  const modifiers = tray.modifiers || [];
+  const anyStaged = intro || subject || target || modifiers.length > 0;
+
+  // Compose sentence + damage preview when all 3 primary slots filled.
+  const ready = !!(intro && subject && target);
+  const tier = ready ? computeSpellTier(intro, subject, target) : 0;
+  const tierMult = TIER_MULTIPLIER[tier] || 1.0;
+  const tierLabel = tier === 3 ? 'DEVASTATING' : tier === 2 ? 'RESONANT' : tier === 1 ? 'COHERENT' : '';
+  let sentence = '';
+  let predicted = null;
+  if (ready) {
+    sentence = composeSpellText(intro, subject, target, modifiers);
+    const { damage, riders } = computeSpellDamage(intro, subject, target, modifiers);
+    predicted = { damage, riders };
+  }
+
+  const tagCounts = {};
+  for (const c of [intro, subject, target, ...modifiers]) {
+    if (!c) continue;
+    for (const t of c.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
+  }
+
+  const slotPill = (card, slotName, color) => {
+    if (!card) {
+      return (
+        <div className={`px-3 py-2 rounded border border-dashed ${color.empty} text-xs italic text-center opacity-60 min-w-[110px]`}>
+          {slotName}
+        </div>
+      );
+    }
+    return (
+      <motion.button key={card.uid}
+        layout
+        initial={{ scale: 0.5, opacity: 0, y: 12 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+        onClick={() => onUnstage(card.uid)}
+        title={`${card.phrase || card.name} — click to unstage`}
+        className={`px-3 py-2 rounded ${color.filled} text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px]`}>
+        <span className="font-mono text-[10px] opacity-70">{slotName}</span>
+        <span className="font-bold text-center">{card.phrase || card.name}</span>
+      </motion.button>
+    );
+  };
+
+  return (
+    <div className={`parchment-card p-3 border-l-4 ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}>
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-xs uppercase tracking-widest text-iris-300 font-bold">📜 Spell Tray</div>
+        {tier > 0 && (
+          <div className={`text-sm font-bold font-mono ${tier === 3 ? 'text-ember-300' : tier === 2 ? 'text-iris-200' : 'text-parchment-300'}`}>
+            {tierLabel} ×{tierMult.toFixed(1)}
+          </div>
+        )}
+      </div>
+
+      {/* Sentence preview */}
+      <div className="text-sm font-quill italic text-parchment-100 min-h-[1.5rem] mb-2 leading-relaxed">
+        {ready
+          ? <span>"{sentence}"</span>
+          : !anyStaged
+            ? <span className="text-parchment-400">(empty — stage intro + subject + target to cast)</span>
+            : <span>
+                {intro && <span>{intro.phrase} </span>}
+                {subject && <span>{subject.phrase} </span>}
+                {!target && <span className="text-parchment-400 not-italic">… (need a target to cast)</span>}
+              </span>
+        }
+      </div>
+
+      {/* Tag chip row */}
+      {Object.keys(tagCounts).length > 0 && (
+        <div className="mb-2 flex gap-1 flex-wrap text-xs font-mono">
+          <span className="text-iris-300">✦</span>
+          {Object.entries(tagCounts).map(([tag, n]) => (
+            <span key={tag} className="px-2 py-0.5 rounded bg-iris-800 text-parchment-100">
+              {tag}{n > 1 ? ` ×${n}` : ''}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Slot row */}
+      <div className="flex flex-wrap items-stretch gap-2">
+        {slotPill(intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
+        {slotPill(subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
+        {slotPill(target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
+        {modifiers.map(m => slotPill(m, 'modifier', { empty: '', filled: 'bg-gold-700 hover:bg-gold-600 border border-gold-400' }))}
+        {modifiers.length < 2 && slotPill(null, modifiers.length === 0 ? 'modifier (optional)' : 'modifier 2 (optional)', { empty: 'border-gold-600 text-gold-500', filled: '' })}
+        <div className="flex-1" />
+        {ready && predicted && (
+          <div className="text-right">
+            <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
+            <div className="text-2xl font-bold font-mono text-iris-200"
+                 title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier`}>
+              {predicted.damage} <span className="text-sm text-parchment-300">comp</span>
+            </div>
+          </div>
+        )}
+        <button onClick={onCast}
+          disabled={!ready}
+          className={`btn text-base px-6 py-2 ml-2 ${ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'}`}>
+          ✨ CAST
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 // Starting Picks — shown after familiar selection. Player taps two cards
 // from a fixed pool to seed their deck with archetype commitment. This
