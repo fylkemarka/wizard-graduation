@@ -276,7 +276,7 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 4, weight: 1 },
@@ -291,7 +291,7 @@ const ENEMIES = [
       { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.5 },
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 9, weight: 2 },
@@ -352,21 +352,21 @@ const ENEMIES = [
     ] },
   // ACT 3
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.2 },
+    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 8, weight: 1 },
       { kind: 'attack', value: 7, weight: 1 },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, riders: { weak: 1 } },
       { kind: 'attack-multi', value: 2, count: 4, weight: 1 },
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.2 },
+    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3 },
       { kind: 'attack', value: 8, weight: 1 },

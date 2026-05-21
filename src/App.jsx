@@ -894,7 +894,9 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 2.0 },
+    // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
+    // partly because Shrine Rat and Thicket were freebies for it.
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
     softSpot: 'threat', // Bigger predator energy = scatter.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
@@ -911,9 +913,9 @@ const ENEMIES = [
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (cutting remark)' },
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
-    // Cycle 3 batch 2: composureMax 999 → 55. Same logic as Vein Devourer
-    // — committed verbal needs a reachable composure pool to be a path.
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.5 },
+    // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
+    // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
@@ -988,7 +990,7 @@ const ENEMIES = [
 
   // ===== ACT 3 — The Stone Path =====
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.2 },
+    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.0 },
     softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
@@ -996,7 +998,7 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.5 },
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -1004,7 +1006,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.2 },
+    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
