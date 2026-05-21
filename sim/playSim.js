@@ -1130,18 +1130,21 @@ function simCombat(state, enemyId) {
 
 function makeRunState() {
   // Slim starter + 2 picks from STARTING_PICKS_POOL (mirrors App's
-  // StartingPicksScreen). Greedy AI heuristic: prefer Jnsq pair to
-  // open the branch lane, since starter already covers Chutzpah + Wit
-  // shallowly. Falls back to random if pool is sampled out.
+  // StartingPicksScreen). Cycle 4: randomize which lane the player
+  // commits to at game start so the sim data reflects all three
+  // archetype paths instead of always-jnsq. Each lane has equal
+  // probability — simulates a player making a one-archetype call.
   const deck = STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() }));
-  const jnsqIds = STARTING_PICKS_POOL.filter(id => {
+  const lanes = ['chutzpah', 'wit', 'jnsq'];
+  const pickedLane = lanes[Math.floor(Math.random() * lanes.length)];
+  const laneIds = STARTING_PICKS_POOL.filter(id => {
     const c = CARDS_BY_ID[id];
     if (!c) return false;
-    if (c.type === 'word') return !!c.stats?.jnsq;
-    if (c.type === 'effect') return c.effect?.scaleBy === 'jnsq';
+    if (c.type === 'word') return !!c.stats?.[pickedLane];
+    if (c.type === 'effect') return c.effect?.scaleBy === pickedLane;
     return false;
   });
-  for (const id of jnsqIds.slice(0, 2)) {
+  for (const id of laneIds.slice(0, 2)) {
     const c = CARDS_BY_ID[id];
     if (c) deck.push({ ...c, uid: uid() });
   }
@@ -1476,7 +1479,42 @@ function simRun() {
   runStats.finalDeckSize = state.deck.length + state.hand.length + state.discard.length + state.exiled.length;
   runStats.finalSkills = { ...state.skills };
   runStats.finalEquipment = state.equipment.map(e => e.id);
+  runStats.archetype = classifyDeckArchetype([...state.deck, ...state.hand, ...state.discard, ...state.exiled]);
   return runStats;
+}
+
+// Classify a deck's archetype by stat-weight + physical presence.
+// Returns one of:
+//   wit / chutzpah / jnsq         — committed verbal lane (≥1.5× over runner-up)
+//   physical                       — 4+ physical-damage Effects (the "punchy" build)
+//   wit-physical / chutzpah-physical / jnsq-physical — hybrid: dominant verbal + ≥3 physical
+//   sampler                        — no committed lane (lane tools are too spread)
+function classifyDeckArchetype(cards) {
+  const stats = { chutzpah: 0, wit: 0, jnsq: 0 };
+  let physical = 0;
+  for (const c of cards) {
+    if (c.type === 'word' && c.stats) {
+      stats.chutzpah += c.stats.chutzpah || 0;
+      stats.wit      += c.stats.wit      || 0;
+      stats.jnsq     += c.stats.jnsq     || 0;
+    }
+    if (c.type === 'effect' && c.effect?.scaleBy) {
+      stats[c.effect.scaleBy] = (stats[c.effect.scaleBy] || 0) + 2;
+    }
+    if (c.type === 'effect' && c.effect?.damageType === 'physical') {
+      physical++;
+    }
+  }
+  const entries = Object.entries(stats).sort((a, b) => b[1] - a[1]);
+  const [topStat, topWeight] = entries[0];
+  const runnerUp = entries[1]?.[1] || 0;
+  // Physical-pure: lots of physical, no clear verbal lane
+  if (physical >= 4 && topWeight < runnerUp * 1.5) return 'physical';
+  // Hybrid: dominant verbal lane + meaningful physical access
+  const isCommitted = topWeight >= 4 && topWeight >= runnerUp * 1.5;
+  if (isCommitted && physical >= 3) return `${topStat}-physical`;
+  if (isCommitted) return topStat;
+  return 'sampler';
 }
 
 // =============================================================================
@@ -1544,6 +1582,15 @@ function aggregate(results) {
   // HP at end of run (winners only)
   const winnerFinalHpPct = results.filter(r => r.won).map(r => r.finalHp / r.finalMaxHp);
 
+  // Lane bucketing — what archetype did each run actually become?
+  const archetypeCounts = {};
+  const archetypeWins   = {};
+  for (const r of results) {
+    const a = r.archetype || 'sampler';
+    archetypeCounts[a] = (archetypeCounts[a] || 0) + 1;
+    if (r.won) archetypeWins[a] = (archetypeWins[a] || 0) + 1;
+  }
+
   // Skill levels at run end
   const skillMaxFreq = { whittling: 0, weaving: 0, smithing: 0, felting: 0 };
   for (const r of results) for (const [s, v] of Object.entries(r.finalSkills || {})) {
@@ -1570,6 +1617,8 @@ function aggregate(results) {
     skillMaxFreq,
     meanSkill,
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize)),
+    archetypeCounts,
+    archetypeWins,
   };
 }
 
@@ -1610,6 +1659,18 @@ function buildReport(agg) {
   lines.push(`- Resonance triggered: ${agg.totalResonated} (**${pct(agg.resonateRate)}** of casts)`);
   lines.push(`- Spells fizzled (staged but never CAST): ${agg.totalFizzles}`);
   lines.push(`- Fizzle rate: ${pct(agg.fizzleRate)}`);
+  lines.push('');
+  lines.push(`## Deck archetypes (lane bucketing)`);
+  const ARCH_ORDER = ['wit', 'chutzpah', 'jnsq', 'physical', 'wit-physical', 'chutzpah-physical', 'jnsq-physical', 'sampler'];
+  const counts = agg.archetypeCounts || {};
+  const wins = agg.archetypeWins || {};
+  const sorted = ARCH_ORDER.filter(a => counts[a]).concat(Object.keys(counts).filter(a => !ARCH_ORDER.includes(a)));
+  for (const a of sorted) {
+    const n = counts[a];
+    const w = wins[a] || 0;
+    const wr = n ? pct(w / n) : 'n/a';
+    lines.push(`- **${a}**: ${n} run${n === 1 ? '' : 's'} (${pct(n / agg.N)}) · ${w} win${w === 1 ? '' : 's'} (${wr} win rate)`);
+  }
   lines.push('');
   lines.push(`## Material picks (sorted by frequency)`);
   const matRanked = Object.entries(agg.materialFreq).sort((a, b) => b[1] - a[1]);
