@@ -39,6 +39,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 
 // =============================================================================
 // 1. DATA
@@ -3735,6 +3736,7 @@ export default function App() {
     if (!card) return;
     setDeck(d => [...d, { ...card, uid: uid() }]);
     pushLog(`🛒 Bought: ${card.name}.`);
+    logEvent(TE.STARTING_PICK, { cardId: card.id, cardName: card.name, type: card.type, rarity: card.rarity, offered: supplyChoices.map(c => c?.id), pickIndex: supplyPicks.length });
     // Pure updater + side-effects outside it ([[feedback_react_pure_updaters]]).
     const next = [...supplyPicks, idx];
     setSupplyPicks(next);
@@ -3759,6 +3761,7 @@ export default function App() {
       setHp(h => h + fam.bonus.maxHp);
     }
     pushLog(`🐾 You choose the ${fam.species}. ${fam.card.name} added to deck.`);
+    logEvent(TE.RUN_START, { familiarId: fam.id, familiarSpecies: fam.species, startingDeckPicks: deck.map(c => c.id) });
     setStage('familiar-name');
   }
 
@@ -3835,6 +3838,7 @@ export default function App() {
       pushLog('That trail is not connected from here.');
       return;
     }
+    logEvent(TE.MAP_NODE, { nodeId, nodeType: node.type, row: node.r, col: node.c, sidequestRef: node.sidequestRef || null, offeredNodeIds: reachableFromCurrent(), actIdx: currentActIdx, hp, composure });
     setCurrentNodeId(nodeId);
     // Postcard mechanic: count every node visit toward the 5-node cadence
     // (only while the quest is active and not yet resolved).
@@ -3899,6 +3903,7 @@ export default function App() {
     if (!materialChoices) return;
     const m = materialChoices.choices.find(c => c.id === materialId);
     if (!m) return;
+    logEvent(TE.MATERIAL_HARVEST, { materialId: m.id, name: m.name, slot: m.slot, offered: materialChoices.choices.map(c => c.id) });
     setInventory(prev => ({ ...prev, [m.slot]: [...prev[m.slot], m] }));
     pushLog(`🪵 You gather ${m.name}.`);
     setMaterialChoices(null);
@@ -4265,6 +4270,7 @@ export default function App() {
 
   function resolveSkillChoice(choice) {
     const fx = choice.effects || {};
+    logEvent(TE.SKILL_LEVEL, { eventTitle: activeSkillEvent?.title, choiceLabel: choice.label, effects: Object.keys(fx) });
     // Minigame intercept: defer the effect until the player has played
     // the minigame. The grade they achieve replaces the deterministic
     // skill bump with a Master/Fine/Rough variant.
@@ -4319,6 +4325,7 @@ export default function App() {
     const tmpl = ENEMIES_BY_ID[enemyId];
     if (!tmpl) return;
     const e = { ...tmpl };
+    logEvent(TE.COMBAT_START, { enemyId: e.id, enemyName: e.name, tier: e.tier, act: e.act, hp, composure, deckSize: deck.length + hand.length + discard.length, equipment: equipment.map(eq => eq.id) });
     setEnemy(e);
     setEnemyComposure(e.composureMax);
     setEnemyHp(e.hpMax);
@@ -4460,6 +4467,7 @@ export default function App() {
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
     setEnergy(e => e - cost);
     if (card.id === 'c-amplify') setAmplifyPlaysThisCombat(n => n + 1);
+    logEvent(TE.CARD_PLAY, { cardId: card.id, cardName: card.name, type: card.type, cost, energyBefore: energy, handSize: hand.length, enemyId: enemy?.id });
     const logBits = [card.name];
 
     // Powers don't apply effects directly — they install themselves on the
@@ -4606,6 +4614,7 @@ export default function App() {
 
     const card = tray.effectCard;
     const eff = card.effect || {};
+    logEvent(TE.SPELL_CAST, { effectId: card.id, effectName: card.name, stagedWords: tray.words.map(w => w.id), trayStats: { chutzpah: tray.chutzpah, wit: tray.wit, jnsq: tray.jnsq }, tags: tray.tags, enemyId: enemy?.id, enemyHp, enemyComposure });
 
     // INSULT branch: open the 3-pick word prompt. The cast resolves
     // asynchronously from the prompt screen via finalizeInsult.
@@ -5270,6 +5279,8 @@ export default function App() {
     }
     if (playerDied) {
       if (tutorialActive) { setHp(maxHp); setComposure(composureMax); return; }
+      logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: 0, composureAfter: composure });
+      logEvent(TE.RUN_END, { outcome: 'lost', killedBy: enemy?.id, actIdx: currentActIdx, finalDeckSize: deck.length + hand.length + discard.length + exiled.length });
       setTimeout(() => setStage('defeat'), 200);
     }
   }
@@ -5277,6 +5288,7 @@ export default function App() {
 
   function onEnemyDefeated() {
     if (!enemy) return;
+    logEvent(TE.COMBAT_END, { enemyId: enemy.id, outcome: 'won', tier: enemy.tier, hpAfter: hp, composureAfter: composure });
     // Tutorial short-circuit: skip rewards, route to the wrap-up screen.
     if (tutorialActive) {
       pushLog(`✓ The Bursar concedes the match. "Well argued."`);
@@ -5385,9 +5397,11 @@ export default function App() {
 
   function pickReward(cardOrSkip) {
     if (cardOrSkip) {
+      logEvent(TE.CARD_PICK, { cardId: cardOrSkip.id, cardName: cardOrSkip.name, type: cardOrSkip.type, rarity: cardOrSkip.rarity, offered: rewardChoices.map(c => c?.id), source: 'combat-reward' });
       setDeck(d => [...d, ...hand, ...discard, ...exiled, { ...cardOrSkip, uid: uid() }]);
       pushLog(`+ ${cardOrSkip.name} added to deck.`);
     } else {
+      logEvent(TE.REWARD_SKIP, { offered: rewardChoices.map(c => c?.id), source: 'combat-reward' });
       setDeck(d => [...d, ...hand, ...discard, ...exiled]);
       pushLog(`Skipped reward.`);
     }
@@ -5399,6 +5413,7 @@ export default function App() {
   // ---------- EVENT / REST / FORGE ----------
   function resolveEventChoice(choice) {
     const fx = choice.effects || {};
+    logEvent(TE.EVENT_CHOICE, { eventId: activeEvent?.id, eventTitle: activeEvent?.title, choiceLabel: choice.label, effects: Object.keys(fx), hp, composure });
     const logBits = [`📜 ${activeEvent.title}: ${choice.label}`];
     const { granted } = applyEffectsCore(fx, { logBits });
     pushLog(logBits.join(' · '));
@@ -5543,8 +5558,11 @@ export default function App() {
     return <ActClearedScreen act={currentAct} equipment={equipment}
       isFinalAct={currentActIdx === ACTS.length - 1}
       onContinue={() => {
-        if (currentActIdx === ACTS.length - 1) setStage('graduation');
-        else advanceToNextAct();
+        logEvent(TE.ACT_CLEARED, { actIdx: currentActIdx, hp, composure, deckSize: deck.length + hand.length + discard.length + exiled.length, equipment: equipment.map(eq => eq.id) });
+        if (currentActIdx === ACTS.length - 1) {
+          logEvent(TE.RUN_END, { outcome: 'won', actIdx: currentActIdx, finalDeckSize: deck.length + hand.length + discard.length + exiled.length, finalHp: hp });
+          setStage('graduation');
+        } else advanceToNextAct();
       }} />;
   }
   if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward} />;
