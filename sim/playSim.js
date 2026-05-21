@@ -66,6 +66,9 @@ const CARDS = [
     stats: { jnsq: 2 }, tags: ['chaotic', 'absurd'] },
   { id: 'w-by-moonlight', name: 'By moonlight,', cost: 1, type: 'word', rarity: 'uncommon',
     stats: { jnsq: 3 }, tags: ['mystical', 'chaotic'] },
+  { id: 'w-bruise-it-out', name: 'Bruise it out,', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 2 }, tags: ['threatening', 'dismissive'],
+    effects: { heal: 2 } },
 
   // ---- EFFECT CARDS (basic / starter) ----
   { id: 'e-persuade', name: 'Persuade', cost: 1, type: 'effect', rarity: 'basic',
@@ -109,7 +112,7 @@ const CARDS = [
               resonatesWith: ['chaotic', 'mystical', 'absurd'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-dont-hold-back', name: 'Don\'t Hold Back', cost: 2, type: 'effect', rarity: 'rare',
     effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
-              loseHpOnPlay: 8, hpThresholdDouble: 30,
+              loseHpOnPlay: 8, hpThresholdDouble: 40,
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-polymath', name: 'Polymath', cost: 2, type: 'effect', rarity: 'rare',
     effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure',
@@ -199,6 +202,8 @@ const CARDS = [
     effects: { energy: 1, draw: 1, exhaust: true } },
   { id: 'c-warding', name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, vulnerable: 1 } },
+  { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon',
+    effects: { heal: 5, boostNextChutzpahCast: 0.5 } },
   { id: 'c-read-the-room', name: 'Read the Room', cost: 0, type: 'skill', rarity: 'uncommon',
     effects: { pierceNextCast: true, exhaust: true } },
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
@@ -264,7 +269,7 @@ const ENEMIES = [
       { kind: 'attack', value: 3, weight: 2 },
     ] },
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2 },
@@ -293,7 +298,7 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
   { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 100, hpMax: 120, tier: 'boss',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 15, weight: 2 },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, riders: { vulnerable: 1 } },
@@ -309,7 +314,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 6, weight: 1 },
@@ -382,7 +387,7 @@ const ENEMIES = [
       { kind: 'attack', value: 14, weight: 1 },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1 },
@@ -405,14 +410,14 @@ const ENEMIES = [
       { kind: 'weak',   value: 2, weight: 1 },
     ] },
   { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'vulnerable', value: 2, weight: 2 },
       { kind: 'block',  value: 8, weight: 1, riders: { weak: 1 } },
     ] },
   { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
@@ -733,6 +738,7 @@ function stageEffect(state, combat, handIdx) {
 
 function applySideEffects(state, combat, fx) {
   if (fx.pierceNextCast) combat.pierceNextCast = true;
+  if (fx.boostNextChutzpahCast) combat.boostNextChutzpahCast = fx.boostNextChutzpahCast;
   if (fx.block)      state.block += fx.block;
   if (fx.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * fx.vulnerable);
   if (fx.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * fx.weak);
@@ -829,6 +835,11 @@ function castSpell(state, combat) {
   else                        dmg = Math.round(dmg * eff_mult);
   // Don't-Hold-Back threshold doubler.
   if (eff.hpThresholdDouble && state.hp < eff.hpThresholdDouble) dmg *= 2;
+  // Iron-Stomach chutzpah boost (consumed by the next chutzpah cast).
+  if (combat.boostNextChutzpahCast > 0 && stat === 'chutzpah') {
+    dmg = Math.round(dmg * (1 + combat.boostNextChutzpahCast));
+    combat.boostNextChutzpahCast = 0;
+  }
   const rWith = eff.resonatesWith || [];
   const perTag = eff.resonanceBonus?.perTag || 0;
   const matchedTags = (combat.tray.tags || []).filter(t => rWith.includes(t));
@@ -957,6 +968,20 @@ function aiTurn(state, combat) {
       if (bestForUs <= 0.6) {
         const pierceIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.pierceNextCast);
         if (pierceIdx >= 0) { playSkillOrPower(state, combat, pierceIdx); continue; }
+      }
+    }
+    // Cycle 4 batch 3: Iron Stomach — heal + next chutzpah cast boost.
+    // Play it when we're committed to chutzpah and the boost isn't already
+    // active. The heal also helps with chutzpah's self-damage burn.
+    if (!combat.boostNextChutzpahCast) {
+      const allCards = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+      const chutzpahDeck = allCards.filter(c =>
+        (c.type === 'word' && c.stats?.chutzpah) ||
+        (c.type === 'effect' && c.effect?.scaleBy === 'chutzpah')
+      ).length;
+      if (chutzpahDeck >= 4) {
+        const isIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.boostNextChutzpahCast);
+        if (isIdx >= 0) { playSkillOrPower(state, combat, isIdx); continue; }
       }
     }
 

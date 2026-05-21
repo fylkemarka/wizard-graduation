@@ -161,6 +161,17 @@ const CARDS = [
     upgrade: { stats: { jnsq: 4 } },
     desc: '+3 Jnsq.',
     flavor: 'It is, technically, a poor time for a lecture. That helps.' },
+  // Cycle 4 batch 3: chutzpah sustain. Lane was bleeding HP across the
+  // run (Go For The Throat / Corner Them / Don't Hold Back all cost HP).
+  // Bruise It Out is the positive-HP chutzpah word — finally something
+  // the lane can lean on between bigger plays.
+  { id: 'w-bruise-it-out', name: 'Bruise it out,', cost: 0, type: 'word', rarity: 'common',
+    stats: { chutzpah: 2 }, tags: ['threatening', 'dismissive'],
+    effects: { heal: 2 },
+    phrase: 'we\'ll be fine,',
+    upgrade: { stats: { chutzpah: 3 }, effects: { heal: 2 } },
+    desc: '+2 Chutzpah. Heal 2 HP.',
+    flavor: 'You\'ve been hit harder. By worse people. Recently.' },
 
   // =============================================================================
   // EFFECT CARDS — seal the spell. Consume the tray, deal damage of
@@ -447,13 +458,13 @@ const CARDS = [
     flavor: 'You\'re not gambling. They are.' },
   { id: 'e-dont-hold-back', name: 'Don\'t Hold Back', cost: 2, type: 'effect', rarity: 'rare',
     effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
-              loseHpOnPlay: 8, hpThresholdDouble: 30,
+              loseHpOnPlay: 8, hpThresholdDouble: 40,
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } },
     phrase: '…there is no version of this you walk away from.',
     upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 3, damageType: 'composure',
-              loseHpOnPlay: 8, hpThresholdDouble: 30,
+              loseHpOnPlay: 8, hpThresholdDouble: 40,
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
-    desc: 'Cast: 5 + Chutzpah×2 Composure. Lose 8 HP. Damage DOUBLES if you\'re under 30 HP.',
+    desc: 'Cast: 5 + Chutzpah×2 Composure. Lose 8 HP. Damage DOUBLES if you\'re under 40 HP.',
     flavor: 'You\'re already broken. They\'re about to find out what that means.' },
   { id: 'e-polymath', name: 'Polymath', cost: 2, type: 'effect', rarity: 'rare',
     effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure',
@@ -534,6 +545,14 @@ const CARDS = [
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { draw: 3, exhaust: true }, upgrade: { effects: { draw: 4, exhaust: true } },
     desc: 'Draw 3 cards. Exhaust.' },
+  // Cycle 4 batch 3: chutzpah sustain + next-cast boost. Pairs with
+  // Don't Hold Back / Go For The Throat / Corner Them — heal the chip
+  // damage your own deck inflicts, then go big on the next chutzpah cast.
+  { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon',
+    effects: { heal: 5, boostNextChutzpahCast: 0.5 },
+    upgrade: { effects: { heal: 8, boostNextChutzpahCast: 0.5 } },
+    desc: 'Heal 5 HP. Your next Chutzpah Effect this turn deals +50% damage.',
+    flavor: 'You\'ve digested worse. You\'ll digest this.' },
   // Cycle 3: resistance-pierce tech card. The committed deck's answer
   // to a hostile matchup — your next Effect ignores the enemy's
   // effectiveness multiplier on the relevant stat. Composure damage only.
@@ -866,7 +885,8 @@ const ENEMIES = [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
     ] },
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    // Cycle 4 batch 3: chutzpah floor 0.5 → 0.7 (lane-equalization).
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'threat', // Bullies fold the moment you don't.
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -901,7 +921,9 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
     ] },
   { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 100, hpMax: 120, tier: 'boss',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    // Cycle 4 batch 3: chutzpah 0.5 → 0.7 (same fix as Anvil — chutzpah
+    // shouldn't be structurally walled by 2/4 act bosses).
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'flattery', // Apex predator; flatter the apex.
     insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
@@ -921,7 +943,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
@@ -1010,7 +1032,11 @@ const ENEMIES = [
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14' },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    // Cycle 4 batch 3: chutzpah 0.5 → 0.7. Lane was getting structurally
+    // walled by 2/4 bosses resisting chutzpah at half damage. Still
+    // jnsq-favored (1.5) — anvil prefers wild + improvised — but committed
+    // chutzpah can swing.
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
@@ -1038,7 +1064,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
     ] },
   { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     softSpot: 'logic', // Reflects what you ARE. Reason at it, see yourself.
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -1046,7 +1072,7 @@ const ENEMIES = [
       { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8 + ⛧ Weak 1', riders: { weak: 1 } },
     ] },
   { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'flattery', // Forgotten = wants to be remembered. Name him.
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -3281,6 +3307,9 @@ export default function App() {
   // Read the Room — next Effect this turn ignores enemy effectiveness
   // multiplier. Set true on play, consumed by castStagedSpell.
   const [pierceNextCast, setPierceNextCast] = useState(false);
+  // Iron Stomach — next chutzpah cast this turn deals +N%. Number, not bool
+  // (e.g., 0.5 = +50%). Consumed only when a chutzpah-scaling cast fires.
+  const [boostNextChutzpahCast, setBoostNextChutzpahCast] = useState(0);
   // Visceral feedback — short-lived state flipped when the enemy takes
   // damage. The CombatScreen reads these and applies the hit-shake
   // class + renders damage-number floaters.
@@ -4184,6 +4213,7 @@ export default function App() {
     setEnemyDmgMult(1.0);
     setPlayerDmgMult(1.0);
     setPierceNextCast(false);
+    setBoostNextChutzpahCast(0);
     setLastIntentKinds([]);
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
@@ -4539,6 +4569,12 @@ export default function App() {
       dmg *= 2;
       pushLog(`💥 below ${eff.hpThresholdDouble} HP — damage doubled.`);
     }
+    // Iron Stomach: next chutzpah-scaling cast gets the boost.
+    if (boostNextChutzpahCast > 0 && stat === 'chutzpah') {
+      dmg = Math.round(dmg * (1 + boostNextChutzpahCast));
+      pushLog(`💪 chutzpah cast boosted +${Math.round(boostNextChutzpahCast * 100)}%.`);
+      setBoostNextChutzpahCast(0);
+    }
     if (piercing) pushLog(`🎯 cast pierces ${enemy?.name}'s resistance.`);
     const rWith = eff.resonatesWith || [];
     const perTag = eff.resonanceBonus?.perTag || 0;
@@ -4692,6 +4728,7 @@ export default function App() {
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
     if (eff.hpThresholdDouble && hp < eff.hpThresholdDouble) dmg *= 2;
+    if (boostNextChutzpahCast > 0 && stat === 'chutzpah') dmg = Math.round(dmg * (1 + boostNextChutzpahCast));
     const rWith = eff.resonatesWith || [];
     const perTag = eff.resonanceBonus?.perTag || 0;
     const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
@@ -4711,6 +4748,10 @@ export default function App() {
     if (fx.pierceNextCast) {
       setPierceNextCast(true);
       logBits.push(`🎯 next cast pierces resistance`);
+    }
+    if (fx.boostNextChutzpahCast) {
+      setBoostNextChutzpahCast(fx.boostNextChutzpahCast);
+      logBits.push(`💪 next Chutzpah cast +${Math.round(fx.boostNextChutzpahCast * 100)}%`);
     }
     if (fx.vulnerable) {
       adjustPlayerDmg(+0.25 * fx.vulnerable);
