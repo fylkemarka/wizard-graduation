@@ -2878,6 +2878,46 @@ const ACTS = [
 const SLOT_LABEL = { staff: 'Staff', robes: 'Robes', ring: 'Ring', hat: 'Hat', gem: 'Gem' };
 const CRAFT_LABEL = { whittling: 'Whittling', weaving: 'Weaving', smithing: 'Smithing', felting: 'Felting' };
 
+// Three wizard archetypes, one per lane. Selected at run start. Each
+// commits the player to a specific voice + a specific (future) card pool.
+// For now the only mechanical effect is that supply-shop offers are
+// weighted toward the chosen lane's existing cards. When v2 pools ship
+// (see design/{WIT,CHUTZPAH,JNSQ}_V2_DESIGN.md), this field will switch
+// the player's draw pool entirely.
+const CHARACTERS = [
+  {
+    id: 'wit-scholar',
+    name: 'The Scholar',
+    lane: 'wit',
+    voice: 'Hawkeye / Fleabag',
+    title: 'graduates by being unkindly correct',
+    desc: 'Spells land because they say what nobody else dares to phrase. Cuts through arguments like a librarian through a hangover.',
+    poolDoc: 'design/WIT_V2_DESIGN.md',
+    tagPalette: ['academic', 'dismissive', 'observational', 'ironic', 'cutting'],
+  },
+  {
+    id: 'chutzpah-bruiser',
+    name: 'The Bruiser',
+    lane: 'chutzpah',
+    voice: 'Jack Burton / Walter Sobchak',
+    title: 'graduates by refusing to leave the room',
+    desc: 'Spells land because they will not be talked over. Volume is a kind of intelligence. So is staying.',
+    poolDoc: 'design/CHUTZPAH_V2_DESIGN.md',
+    tagPalette: ['demanding', 'threatening', 'dismissive', 'swaggering', 'direct'],
+  },
+  {
+    id: 'jnsq-fool',
+    name: 'The Fool',
+    lane: 'jnsq',
+    voice: 'Kramer / Charlie Kelly',
+    title: 'graduates by going sideways through every door',
+    desc: 'Spells land because nobody can find a foothold to disagree. The kitchen is rotating. Pay attention.',
+    poolDoc: 'design/JNSQ_V2_DESIGN.md',
+    tagPalette: ['mystical', 'absurd', 'chaotic', 'theatrical', 'conspiratorial'],
+  },
+];
+const CHARACTERS_BY_ID = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));
+
 // =============================================================================
 // 2. HELPERS
 // =============================================================================
@@ -3341,6 +3381,9 @@ export default function App() {
   // familiar.bonus is treated as a permanent effect source like a relic.
   const [familiar, setFamiliar] = useState(null);
   const [familiarName, setFamiliarName] = useState('');
+  // Wizard archetype selected at run start. Determines lane bias for offers
+  // and (when v2 card pools ship) the entire draw pool.
+  const [selectedCharacter, setSelectedCharacter] = useState(null);
   // Which two cards the player chose from STARTING_PICKS_POOL. Tracked as
   // an array so toggle-to-deselect works; commit happens when length === 2.
   const [startingPicksSelected, setStartingPicksSelected] = useState([]);
@@ -3560,6 +3603,7 @@ export default function App() {
       inventory, skills,
       equipment, powers, relics,
       familiar, familiarName,
+      selectedCharacterId: selectedCharacter?.id || null,
       effectCount,
       currentActIdx, map, currentNodeId, clearedNodes,
       sidequestActive,
@@ -3592,6 +3636,7 @@ export default function App() {
       setRelics(s.relics || []);
       setFamiliar(s.familiar || null);
       setFamiliarName(s.familiarName || '');
+      setSelectedCharacter(s.selectedCharacterId ? (CHARACTERS_BY_ID[s.selectedCharacterId] || null) : null);
       setEffectCount(s.effectCount || 0);
       setCurrentActIdx(s.currentActIdx || 0);
       setMap(s.map || null);
@@ -3713,6 +3758,7 @@ export default function App() {
     setRelics([]);
     setFamiliar(null);
     setFamiliarName('');
+    setSelectedCharacter(null);
     setEffectCount(0);
     setTray({ chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [], effectCard: null, effectFiredThisTurn: false });
     setInventory({ staff: [], robes: [], ring: [], hat: [] });
@@ -3724,16 +3770,46 @@ export default function App() {
     setCurrentActIdx(0);
     setMap(null);
     setCurrentNodeId(null);
-    // Roll 5 candidate cards for the supply shop (common-weighted, no dupes).
+    setSupplyChoices([]);
+    setSupplyPicks([]);
+    // Character select first — the chosen lane drives the supply pool.
+    setStage('character-select');
+  }
+
+  function pickCharacter(characterId) {
+    const c = CHARACTERS_BY_ID[characterId];
+    if (!c) return;
+    setSelectedCharacter(c);
+    logEvent('character.select', { characterId: c.id, lane: c.lane, name: c.name });
+    pushLog(`🧙 You are ${c.name}, ${c.title}.`);
+    // Build a lane-biased supply pool. Offers preferentially include cards
+    // that scale by the chosen lane's stat (or have it in the word stats).
+    // This is the v1 stopgap until the v2 card pools (per-lane design docs)
+    // are implemented as the player's full draw pool.
+    const lane = c.lane; // 'wit' | 'chutzpah' | 'jnsq'
+    const matchesLane = (card) => {
+      if (card.effect?.scaleBy === lane) return true;
+      if (card.stats?.[lane] && card.stats[lane] > 0) return true;
+      return false;
+    };
     const supply = [];
     const used = [];
+    // Two passes: first try to fill with lane-matching cards, then fill the
+    // remainder with neutral picks. Ensures lane representation even if the
+    // pool's random first pull came up off-lane.
+    let attempts = 0;
+    while (supply.length < 4 && attempts < 40) {
+      attempts++;
+      const c2 = pickCardByRarity({ common: 4, uncommon: 1 }, used);
+      if (!c2) break;
+      if (matchesLane(c2)) { supply.push(c2); used.push(c2.id); }
+    }
     while (supply.length < 5) {
-      const c = pickCardByRarity({ common: 4, uncommon: 1 }, used);
-      if (!c) break;
-      supply.push(c); used.push(c.id);
+      const c2 = pickCardByRarity({ common: 4, uncommon: 1 }, used);
+      if (!c2) break;
+      supply.push(c2); used.push(c2.id);
     }
     setSupplyChoices(supply);
-    setSupplyPicks([]);
     setStage('supply-shop');
     pushLog(`🏘 You set out from the school. Town first.`);
   }
@@ -5569,7 +5645,8 @@ export default function App() {
   // Card-grant modal sits on top of whatever stage triggered it — render
   // the modal as an overlay below.
 
-  if (stage === 'supply-shop')   return <SupplyShopScreen choices={supplyChoices} picks={supplyPicks} onPick={pickSupplyCard} />;
+  if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} />;
+  if (stage === 'supply-shop')   return <SupplyShopScreen choices={supplyChoices} picks={supplyPicks} onPick={pickSupplyCard} character={selectedCharacter} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
   if (stage === 'familiar-name') return <FamiliarNameScreen familiar={familiar} onConfirm={confirmFamiliarName} />;
   if (stage === 'starting-picks') return <StartingPicksScreen
@@ -5835,13 +5912,58 @@ function TutorialCompleteScreen({ onStart, onMenu }) {
   );
 }
 
+// ---- CHARACTER SELECT ----
+
+function CharacterSelectScreen({ characters, onSelect }) {
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-6 max-w-6xl mx-auto">
+      <h2 className="font-display text-5xl text-gold-300 tracking-widest text-center">Choose Your Wizard</h2>
+      <p className="font-quill italic text-parchment-200 text-center max-w-2xl">
+        The school taught you words. The graduation requires that you commit
+        to one voice and walk the path with it. The path is the same path.
+        The voice changes everything.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4 w-full">
+        {characters.map(c => (
+          <button key={c.id} onClick={() => onSelect(c.id)}
+            className="flex flex-col gap-3 p-6 bg-ink-700 border-2 border-ink-500 hover:border-gold-400 rounded-lg text-left shadow-lg transition hover:scale-[1.02] cursor-pointer">
+            <div className="text-xs uppercase tracking-widest text-gold-500">{c.lane}</div>
+            <h3 className="font-display text-3xl text-gold-300">{c.name}</h3>
+            <div className="text-sm italic text-parchment-200">{c.title}</div>
+            <p className="font-quill text-parchment-100 leading-relaxed text-sm">{c.desc}</p>
+            <div className="mt-auto pt-3 border-t border-ink-500">
+              <div className="text-xs text-stone-400 mb-1">Voice</div>
+              <div className="text-sm text-parchment-200">{c.voice}</div>
+            </div>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {c.tagPalette.map(t => (
+                <span key={t} className="text-[10px] uppercase tracking-wide bg-ink-600 text-parchment-300 px-2 py-0.5 rounded">{t}</span>
+              ))}
+            </div>
+          </button>
+        ))}
+      </div>
+      <p className="font-quill italic text-stone-400 text-xs text-center max-w-2xl mt-4">
+        Note: full per-character card pools (see design/*_V2_DESIGN.md) are in
+        progress. For now, supply-shop offers are weighted toward your lane —
+        the deck experience will deepen as each pool is implemented.
+      </p>
+    </div>
+  );
+}
+
 // ---- TOWN INTRO ----
 
-function SupplyShopScreen({ choices, picks, onPick }) {
+function SupplyShopScreen({ choices, picks, onPick, character }) {
   const remaining = 2 - picks.length;
   return (
     <div className="min-h-screen flex flex-col items-center p-6 gap-5 max-w-5xl mx-auto">
       <h2 className="font-display text-4xl text-gold-300">The Supply Shop</h2>
+      {character && (
+        <div className="text-sm text-gold-500 italic">
+          For: <span className="text-gold-300">{character.name}</span> — offers leaning {character.lane}.
+        </div>
+      )}
       <p className="font-quill italic text-parchment-200 text-center max-w-2xl">
         A long table covered in cards. The proprietor sucks his teeth in the
         manner of a man who has done so professionally. "Pick two," he says.
