@@ -4550,6 +4550,17 @@ export default function App() {
     // (so the +3 is a flat bonus, not amplified by tier multipliers).
     const annBonus = annoFx('bonusSpellDamage');
     if (annBonus > 0) dmg += annBonus;
+    // v2.15: wit BURST — Cash In annotation for damage = turns × N.
+    // Captures annotation turns BEFORE auto-attach can fire (we'll
+    // clear/exile the annotation in the post-damage block below).
+    const cashIn = target.effect?.cashInAnnotation;
+    let cashedTurns = 0;
+    if (cashIn && enemy?.annotation) {
+      cashedTurns = enemy.annotation.turnsRemaining || 0;
+      const cashBonus = cashedTurns * (cashIn.damagePerTurn || 0);
+      dmg += cashBonus;
+      pushLog(`📝 Cash-in: ${cashedTurns} turn${cashedTurns === 1 ? '' : 's'} → +${cashBonus} dmg`);
+    }
     // v2.13: scaling annotation — Thesis-expanded bonus per prior cast.
     const annPerCast = annoFx('bonusSpellDamagePerCast');
     if (annPerCast > 0) dmg += annPerCast * castsThisCombat;
@@ -4579,19 +4590,24 @@ export default function App() {
     }
     // Reset stake — consumed by this cast.
     if (stakeAmount > 0) setStakeAmount(0);
-    // v2.13: wit characters auto-attach a STUB annotation when casting
-    // into a non-annotated enemy. Compensates for the cost of planning
-    // and rewards players who manually attach (the player-played
-    // annotation overwrites the stub). Only fires when lane is wit and
-    // damage > 0 and no annotation already attached.
-    if (selectedCharacter?.lane === 'wit' && dmg > 0 && enemy && !enemy.annotation) {
+    // v2.15: BURST card exiles the annotation it cashed in.
+    if (cashedTurns > 0) {
+      setEnemy(e => e ? { ...e, annotation: null } : e);
+      pushLog(`📝 The footnote closes.`);
+    }
+    // v2.15: wit characters auto-attach a STUB annotation when casting
+    // into a non-annotated enemy. The stub now does damageOnTurnEnd:1
+    // (chip damage every turn) — even casual wit casts leave a sting,
+    // and humans who manually attach get the upgraded version.
+    // Skip if we just cashed in (don't re-attach what was just exiled).
+    if (selectedCharacter?.lane === 'wit' && dmg > 0 && enemy && !enemy.annotation && cashedTurns === 0) {
       setEnemy(e => e ? {
         ...e,
         annotation: {
           id: 'wv2-ann-cited',
           name: 'Cited in passing',
           phrase: '*[cited]',
-          effect: { enemyAtkReduction: 1 },
+          effect: { damageOnTurnEnd: 1 },
           turnsRemaining: 2,
           stub: true,
         },
@@ -4689,6 +4705,11 @@ export default function App() {
       const reqRoll = t.target.effect?.requiresPriorRoll || 0;
       if (reqRoll > 0 && !combatRolls.includes(reqRoll)) {
         pushLog(`🎯 ${t.target.phrase || t.target.name} requires a prior ${reqRoll} rolled this combat.`);
+        return;
+      }
+      // v2.15: wit BURST gate — target may require an attached annotation.
+      if (t.target.effect?.requiresAnnotation && !enemy?.annotation) {
+        pushLog(`🎯 ${t.target.phrase || t.target.name} requires an annotation attached.`);
         return;
       }
       setCastsThisTurn(n => n + 1);

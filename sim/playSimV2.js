@@ -466,6 +466,14 @@ function runCombat(state, enemyId, telemetry) {
       if (enemy.annotation?.effect?.bonusSpellDamage) {
         dmg += enemy.annotation.effect.bonusSpellDamage;
       }
+      // v2.15: wit BURST — cashInAnnotation exiles attached annotation
+      // for damage = turns × N.
+      const cashIn = tray.target.effect?.cashInAnnotation;
+      let cashedTurns = 0;
+      if (cashIn && enemy.annotation) {
+        cashedTurns = enemy.annotation.turnsRemaining || 0;
+        dmg += cashedTurns * (cashIn.damagePerTurn || 0);
+      }
 
       // Strip enemy block from modifier
       if (result.sideEffects.stripBlock) {
@@ -479,6 +487,17 @@ function runCombat(state, enemyId, telemetry) {
       }
       if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - remaining);
       else                        enemy.currentComp = Math.max(0, enemy.currentComp - remaining);
+      // v2.15: BURST exiles cashed-in annotation; wit auto-attach stub
+      // for casual casts that lacked one.
+      if (cashedTurns > 0) {
+        enemy.annotation = null;
+      } else if (state.lane === 'wit' && dmg > 0 && !enemy.annotation) {
+        enemy.annotation = {
+          id: 'wv2-ann-cited', name: 'Cited in passing',
+          effect: { damageOnTurnEnd: 1 },
+          turnsRemaining: 2, stub: true,
+        };
+      }
       // v2.11: stake half-refund on hit (from "and I mean it." target).
       if (result.sideEffects.stakeRefundHalf && stake > 0 && remaining > 0) {
         const refund = Math.floor(stake / 2);

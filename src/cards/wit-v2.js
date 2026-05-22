@@ -210,25 +210,27 @@ const SUBJECTS = [
 
 const TARGETS = [
   // ---- Common (5) — cost 1 ----
+  // v2.15: common target bases bumped +1 (sim showed +2 overshot wit
+  // from 8.2% to 24.4%; +1 lands closer to the 16-18% target).
   { id: 'wv2-t-shows', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'shows.', tags: ['cutting'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
     flavor: 'The whole sentence is a setup. This is the snap.' },
   { id: 'wv2-t-what-i-expected', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is exactly what I expected.', tags: ['dismissive', 'observational'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure', rider: { weak: 1 } },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', rider: { weak: 1 } },
     flavor: 'Expectations, in this case, were a kindness.' },
   { id: 'wv2-t-not-survive-scrutiny', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'will not survive this scrutiny.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
     flavor: 'Survival being a matter of one careful look.' },
   { id: 'wv2-t-politely-overlooked', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'has been politely overlooked, until now.', tags: ['ironic', 'dismissive'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure', drawAfterCast: 1 },
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure', drawAfterCast: 1 },
     flavor: 'Politeness is a renewable resource. Today it ran out.' },
   { id: 'wv2-t-questions-you-fear', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'invites the questions you most fear.', tags: ['cutting', 'observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
     flavor: 'The fear is the answer. The questions are formality.' },
 
   // ---- Uncommon (6) — cost 2 ----
@@ -369,6 +371,16 @@ const UNIQUE_TARGETS = [
     phrase: '…as the long footnote bears out.', tags: ['academic', 'ironic'],
     effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure', perDiscardCard: 1 },
     flavor: 'The footnote is on page 814. The page is, technically, also a footnote.' },
+  // v2.15: BURST card — wit's signature payoff. Cash in the attached
+  // annotation for damage = remaining_turns × 5. Requires an annotation
+  // to exist; consumed (exiled) on cast. Provides wit's missing damage
+  // ceiling — converts a slow accelerant into a payout.
+  { id: 'wv2-t-finally-answered', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is finally answered, in full.', tags: ['academic', 'cutting'],
+    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
+              requiresAnnotation: true, cashInAnnotation: { damagePerTurn: 5 } },
+    desc: 'REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.',
+    flavor: 'Every footnote has, eventually, a reckoning.' },
 ];
 
 // v2.6: NEW MODIFIERS — say-again (×2 damage rare) + words-to-actions
