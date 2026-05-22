@@ -434,6 +434,11 @@ function buildStarterDeckForLane(lane) {
     'c-defend',
     'c-compose', // v2.9: poise shield for composure-pool attacks
   ];
+  // v2.10: wit characters get a starter annotation. Other lanes don't
+  // (annotations are wit-flavored — characterizing the enemy in writing).
+  if (lane === 'wit') {
+    ids.push('wv2-ann-footnote-credibility');
+  }
   return ids;
 }
 
@@ -2998,6 +3003,8 @@ export default function App() {
   // Damage multipliers replace the old Weak/Vulnerable; see combat
   // state declarations below. Helpers clamp to [0.5, 1.5].
   function adjustEnemyDmg(delta)  { setEnemyDmgMult(m  => Math.max(0.5, Math.min(1.5, m + delta))); }
+  // v2.10: pull annotation effect value (0 if no annotation or key missing).
+  function annoFx(key) { return enemy?.annotation?.effect?.[key] || 0; }
   function adjustPlayerDmg(delta) { setPlayerDmgMult(m => Math.max(0.5, Math.min(1.5, m + delta))); }
   // Attack counter for everyNthAttack relic hooks (resets each combat).
   // Count of effect cards cast this run (drives everyNthEffect relic).
@@ -3980,7 +3987,7 @@ export default function App() {
   function enterFight(enemyId, opts = {}) {
     const tmpl = ENEMIES_BY_ID[enemyId];
     if (!tmpl) return;
-    const e = { ...tmpl };
+    const e = { ...tmpl, annotation: null }; // v2.10: fresh annotation slot per combat
     logEvent(TE.COMBAT_START, { enemyId: e.id, enemyName: e.name, tier: e.tier, act: e.act, hp, composure, deckSize: deck.length + hand.length + discard.length, equipment: equipment.map(eq => eq.id) });
     setEnemy(e);
     setEnemyComposure(e.composureMax);
@@ -4196,6 +4203,29 @@ export default function App() {
     // v2.5: GESTURE slot — fires immediate damage and exhausts. Bypasses
     // the tray entirely. The "I just hit them" attack archetype:
     // hand gestures, shouts, familiar interjections.
+    // v2.10: ANNOTATION — wit-only. Attaches to enemy as a persistent
+    // debuff (3-4 turns). One slot per enemy; new ones overwrite. The
+    // card itself goes to discard (cycles like a skill card). Annotations
+    // don't enter the tray and don't count against the cast cap.
+    if (card.slot === 'annotation') {
+      if (!enemy) return;
+      const prev = enemy.annotation;
+      if (prev) pushLog(`📝 The old note (${prev.name}) is overwritten.`);
+      setEnemy(e => e ? {
+        ...e,
+        annotation: {
+          id: card.id, name: card.name, phrase: card.phrase,
+          effect: card.annotationEffect || {},
+          turnsRemaining: card.duration || 3,
+        },
+      } : e);
+      pushLog(`📝 Annotated ${enemy.name}: ${card.phrase}`);
+      setEnergy(e => e - (card.cost || 0));
+      setDiscard(d => [...d, card]);
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      logEvent(TE.CARD_PLAY, { cardId: card.id, cardName: card.name, type: 'annotation', cost: card.cost || 0 });
+      return;
+    }
     if (card.slot === 'gesture') {
       const ge = card.gestureEffect || {};
       const lane = card.lane || 'wit';
@@ -4414,6 +4444,10 @@ export default function App() {
     if (dmgType === 'physical') dmg = Math.round(dmg * physMult);
     else                        dmg = Math.round(dmg * enemyMult);
     dmg = Math.round(dmg * playerDmgMult);
+    // v2.10: annotation bonusSpellDamage adds AFTER all multipliers
+    // (so the +3 is a flat bonus, not amplified by tier multipliers).
+    const annBonus = annoFx('bonusSpellDamage');
+    if (annBonus > 0) dmg += annBonus;
 
     // Compose + log the full sentence.
     const sentence = composeSpellText(intro, subject, target, modifiers);
@@ -4965,6 +4999,7 @@ export default function App() {
     let wDeck = [...deck];
     let wDiscard = [...discard];
     const wHand = [...hand];
+    let drawn = 0;
     for (let i = 0; i < n; i++) {
       if (wDeck.length === 0) {
         if (wDiscard.length === 0) break;
@@ -4973,10 +5008,17 @@ export default function App() {
       }
       const c = wDeck.shift();
       wHand.push({ ...c, uid: uid() });
+      drawn++;
     }
     setDeck(wDeck);
     setDiscard(wDiscard);
     setHand(wHand);
+    // v2.10: annotation damageOnDraw — composure damage per card drawn.
+    const perDraw = annoFx('damageOnDraw');
+    if (perDraw > 0 && drawn > 0) {
+      applyDamageToEnemyComposure(perDraw * drawn);
+      pushLog(`📝 Marginalia stings: -${perDraw * drawn} comp.`);
+    }
   }
 
   // Composure damage: block absorbs first, then composure drops.
@@ -5038,6 +5080,13 @@ export default function App() {
     const killedByPowers = applyEndOfTurnPowerTriggers();
     if (killedByPowers) return;
 
+    // v2.10: annotation damageOnTurnEnd — composure tick at end of player turn.
+    const annTurnEnd = annoFx('damageOnTurnEnd');
+    if (annTurnEnd > 0) {
+      applyDamageToEnemyComposure(annTurnEnd);
+      pushLog(`📝 Margin notes: -${annTurnEnd} comp.`);
+    }
+
     // 2. Enemy turn begins. Enemy block expires here, before the intent
     // fires — so an enemy that blocks on consecutive turns gets a fresh
     // pool each time, and player attacks during the previous turn can't
@@ -5098,6 +5147,30 @@ export default function App() {
     const wHand   = [...drawn.hand];
     let wEnergy   = energyPerTurnRefill();
     let wBlock    = 0;
+
+    // v2.10: annotation start-of-turn effects fire BEFORE the decrement.
+    const annTurnStartDmg = annoFx('damageOnTurnStart');
+    const annTurnStartEnergy = annoFx('energyOnTurnStart');
+    if (annTurnStartDmg > 0) {
+      applyDamageToEnemyComposure(annTurnStartDmg);
+      pushLog(`📝 Read aloud: -${annTurnStartDmg} comp.`);
+    }
+    if (annTurnStartEnergy > 0) {
+      wEnergy += annTurnStartEnergy;
+      pushLog(`📝 +${annTurnStartEnergy} Energy (read aloud).`);
+    }
+    // v2.10: tick annotation duration. Annotations live 3-4 player turns;
+    // tick fires AFTER the start-of-turn effect lands, so the player gets
+    // every turn's benefit before expiry.
+    if (enemy?.annotation) {
+      const nextTurns = enemy.annotation.turnsRemaining - 1;
+      if (nextTurns <= 0) {
+        pushLog(`📝 The note on ${enemy.name} fades from memory.`);
+        setEnemy(e => e ? { ...e, annotation: null } : e);
+      } else {
+        setEnemy(e => e ? { ...e, annotation: { ...e.annotation, turnsRemaining: nextTurns } } : e);
+      }
+    }
     // Familiar-style startOfTurnBlock (e.g. Hedgehog): fires every turn,
     // including turn 1 (handled separately in enterFight's startBlockTotal).
     // This is the SAME source the player sees as "Block: 2 every turn"
@@ -5179,6 +5252,9 @@ export default function App() {
       // vice versa — forces dual defense management.
       const targetsComposure = intent.pool === 'composure';
       let raw = Math.round(intent.value * enemyDmgMult);
+      // v2.10: annotation reduces incoming attack BEFORE shield routing.
+      const annAtkRed = annoFx('enemyAtkReduction');
+      if (annAtkRed > 0) raw = Math.max(0, raw - annAtkRed);
       const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
                          + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
       const reduction = Math.min(2, rawReduction);
@@ -5221,6 +5297,12 @@ export default function App() {
       // "the bracing worked," visually distinct from "you got hit."
       if (wHp < hp || wComp < composure) setPlayerHitFlash(Date.now());
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
+      // v2.10: reactive annotation damage on enemy attack.
+      const annReactive = annoFx('damageOnEnemyAttack');
+      if (annReactive > 0) {
+        applyDamageToEnemyComposure(annReactive);
+        pushLog(`📝 Annotation lashes back: -${annReactive} comp.`);
+      }
       if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
@@ -6378,6 +6460,13 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               <div className="text-lg text-parchment-50">{peekedNextIntent.telegraph}</div>
             </div>
           )}
+          {enemy?.annotation && (
+            <div className="px-3 py-2 bg-iris-900 bg-opacity-40 rounded border border-iris-400"
+                 title={`${enemy.annotation.name} — ${enemy.annotation.turnsRemaining} turn${enemy.annotation.turnsRemaining === 1 ? '' : 's'} remaining.`}>
+              <div className="text-xs uppercase text-iris-300 tracking-widest">📝 Annotated</div>
+              <div className="text-sm italic text-parchment-50">{enemy.annotation.phrase} <span className="text-iris-300">({enemy.annotation.turnsRemaining}t)</span></div>
+            </div>
+          )}
           {enemyDmgMult !== 1.0 && (
             <span className={`px-2 py-1 rounded text-sm ${enemyDmgMult > 1 ? 'bg-ember-700 text-parchment-50' : 'bg-iris-700 text-parchment-50'}`}
               title={`Enemy attack damage ×${enemyDmgMult.toFixed(2)} (drifts toward 1.00 by 0.25/turn).`}>
@@ -6539,6 +6628,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           const tint = card.slot === 'intro' || card.slot === 'subject' ? 'border-iris-500'
                      : card.slot === 'target' ? 'border-ember-500'
                      : card.slot === 'modifier' ? 'border-gold-500'
+                     : card.slot === 'annotation' ? 'border-iris-400 border-dashed' // v2.10
                      : card.type === 'word'   ? 'border-iris-500'
                      : card.type === 'effect' ? 'border-ember-500'
                      : card.type === 'power'  ? 'border-gold-500'
@@ -6590,6 +6680,12 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 </div>
               </div>
               <div className="font-display text-[15px] leading-tight">{displayName}</div>
+              {/* v2.10: annotation duration badge */}
+              {card.slot === 'annotation' && (
+                <div className="text-[11px] font-bold text-iris-700 uppercase tracking-wider">
+                  📝 {card.duration || 3} turns · attach to enemy
+                </div>
+              )}
               {/* Word / intro / subject / modifier stats */}
               {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
                 <div className="flex gap-1 flex-wrap text-xs font-mono">

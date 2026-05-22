@@ -122,6 +122,10 @@ function buildStarterDeck(lane) {
   }).filter(Boolean);
   cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
   cards.push({ id: 'c-compose', type: 'skill', cost: 1, effects: { poise: 5 }, name: 'Compose Yourself', uid: uid() }); // v2.9: poise shield
+  // NOTE: Wit's starter annotation is NOT modeled in the sim. The sim's
+  // greedy AI doesn't use annotations effectively (it can't reason about
+  // the 3-turn payback window vs spending energy on cast NOW). Live play
+  // is the right harness for annotation balance.
   return shuffle(cards);
 }
 
@@ -211,9 +215,49 @@ function runCombat(state, enemyId, telemetry) {
     state.energy = ENERGY_PER_TURN + (turns === 1 && fb.startCombatEnergy ? fb.startCombatEnergy : 0);
     // v2.9: start-of-turn block from familiar (e.g. Hedgehog).
     if (fb.startOfTurnBlock) state.block += fb.startOfTurnBlock;
+    // v2.10: annotation start-of-turn effects.
+    if (enemy.annotation?.effect) {
+      const annE = enemy.annotation.effect;
+      if (annE.damageOnTurnStart) {
+        enemy.currentComp = Math.max(0, enemy.currentComp - annE.damageOnTurnStart);
+      }
+      if (annE.energyOnTurnStart) state.energy += annE.energyOnTurnStart;
+    }
+    // Tick down duration AFTER the start-of-turn effect fires.
+    if (enemy.annotation) {
+      enemy.annotation.turnsRemaining--;
+      if (enemy.annotation.turnsRemaining <= 0) enemy.annotation = null;
+    }
     let cast = false;
     // v2.9: cast cap = 1 per turn.
     let castsThisTurn = 0;
+    // v2.10: AI plays an annotation only when it has spare energy AND
+    // an early opportunity (turn 1-3, against elites/bosses). Without
+    // this gate, annotation steals turn-1 energy from defense + cast
+    // and the lane regresses. Annotation pays back over 3-4 turns so
+    // it's best laid early but only when energy permits.
+    const annotationWorthIt = (
+      !enemy.annotation &&
+      state.energy >= 4 &&            // enough for annotation + at least one card
+      turns <= 4 &&                   // payoff window
+      (enemy.tier === 'elite' || enemy.tier === 'boss') // tougher fights only
+    );
+    if (annotationWorthIt) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if (c.slot === 'annotation' && (c.cost || 0) <= state.energy) {
+          state.energy -= c.cost || 0;
+          enemy.annotation = {
+            id: c.id, name: c.name,
+            effect: c.annotationEffect || {},
+            turnsRemaining: c.duration || 3,
+          };
+          state.discard.push(c);
+          state.hand.splice(i, 1);
+          break;
+        }
+      }
+    }
 
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
@@ -339,6 +383,10 @@ function runCombat(state, enemyId, telemetry) {
         ? (enemy.effectiveness?.physical ?? 1.0)
         : (enemy.effectiveness?.[stat] ?? 1.0);
       dmg = Math.round(dmg * mult * state.playerDmgMult);
+      // v2.10: annotation bonusSpellDamage (flat).
+      if (enemy.annotation?.effect?.bonusSpellDamage) {
+        dmg += enemy.annotation.effect.bonusSpellDamage;
+      }
 
       // Strip enemy block from modifier
       if (result.sideEffects.stripBlock) {
@@ -383,6 +431,17 @@ function runCombat(state, enemyId, telemetry) {
       telemetry.holds++;
     }
 
+    // v2.10: annotation damageOnTurnEnd + damageOnDraw (after the player
+    // has played their full turn). damageOnDraw fires per card drawn this
+    // turn; the sim doesn't track per-call draws, so it fires at end of
+    // turn based on hand size as a simplification.
+    if (enemy.annotation?.effect) {
+      const annE = enemy.annotation.effect;
+      if (annE.damageOnTurnEnd) {
+        enemy.currentComp = Math.max(0, enemy.currentComp - annE.damageOnTurnEnd);
+      }
+    }
+
     // Check victory
     if (enemy.currentComp <= 0 || enemy.currentHp <= 0) {
       // v2.9: onKillHeal (Crow).
@@ -392,6 +451,10 @@ function runCombat(state, enemyId, telemetry) {
 
     // Enemy turn
     let incoming = enemy.atk;
+    // v2.10: annotation enemyAtkReduction.
+    if (enemy.annotation?.effect?.enemyAtkReduction) {
+      incoming = Math.max(0, incoming - enemy.annotation.effect.enemyAtkReduction);
+    }
     // v2.9: Beetle's first-hit absorb consumes once per combat.
     if (state.beetleAbsorb > 0 && incoming > 0) {
       const absorbed = Math.min(state.beetleAbsorb, incoming);
@@ -421,6 +484,11 @@ function runCombat(state, enemyId, telemetry) {
     }
     state.composure = Math.max(0, state.composure - compIncoming);
     state.hp = Math.max(0, state.hp - hpIncoming);
+
+    // v2.10: annotation damageOnEnemyAttack (reactive).
+    if (enemy.annotation?.effect?.damageOnEnemyAttack && (compIncoming + hpIncoming) > 0) {
+      enemy.currentComp = Math.max(0, enemy.currentComp - enemy.annotation.effect.damageOnEnemyAttack);
+    }
 
     // Player KO check
     if (state.hp <= 0 || state.composure <= 0) {

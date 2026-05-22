@@ -385,14 +385,68 @@ const NEW_MODIFIERS_V26 = [
 ];
 
 // =============================================================================
+// ANNOTATIONS (v2.10) — wit-only. Persistent enemy-attached debuffs that
+// don't enter the spell tray. One annotation slot per enemy; new ones
+// replace old. Duration ticks at end of each enemy turn. Effect hooks
+// fire at: damage incoming (reduction), card draw, turn end, turn start,
+// spell cast, and reactively on enemy attack.
+// =============================================================================
+const ANNOTATIONS = [
+  // ---- Basic (1) — joins the starter deck ----
+  { id: 'wv2-ann-footnote-credibility', slot: 'annotation', tier: 1, rarity: 'basic',
+    lane: LANE, cost: 2, type: 'annotation',
+    name: 'Footnote on its credibility', phrase: '*[on its credibility]',
+    duration: 3, annotationEffect: { enemyAtkReduction: 2 },
+    desc: 'Attach. While attached (3 turns): enemy attacks deal -2 damage.',
+    flavor: 'The footnote does the work the body cannot.' },
+
+  // ---- Common (2) ----
+  { id: 'wv2-ann-marginalia-posture', slot: 'annotation', tier: 1, rarity: 'common',
+    lane: LANE, cost: 2, type: 'annotation',
+    name: 'Marginalia on its posture', phrase: '*[on its posture]',
+    duration: 3, annotationEffect: { damageOnDraw: 1 },
+    desc: 'Attach. While attached (3 turns): each card you DRAW deals 1 composure damage.',
+    flavor: 'The handwriting in the margin is, if anything, ruder than the text.' },
+  { id: 'wv2-ann-margin-notes', slot: 'annotation', tier: 1, rarity: 'common',
+    lane: LANE, cost: 2, type: 'annotation',
+    name: 'Margin notes, throughout', phrase: '*[throughout]',
+    duration: 3, annotationEffect: { damageOnTurnEnd: 2 },
+    desc: 'Attach. While attached (3 turns): at end of your turn, deal 2 composure damage.',
+    flavor: 'You ran out of margin halfway down. The notes continue, smaller.' },
+
+  // ---- Uncommon (2) ----
+  { id: 'wv2-ann-subtext-italics', slot: 'annotation', tier: 2, rarity: 'uncommon',
+    lane: LANE, cost: 3, type: 'annotation',
+    name: 'Subtext, in italics', phrase: '*[in italics]',
+    duration: 3, annotationEffect: { bonusSpellDamage: 3 },
+    desc: 'Attach. While attached (3 turns): your spells deal +3 composure damage.',
+    flavor: 'The text was already saying it. The italics insist you noticed.' },
+  { id: 'wv2-ann-read-aloud', slot: 'annotation', tier: 2, rarity: 'uncommon',
+    lane: LANE, cost: 3, type: 'annotation',
+    name: 'Read aloud, slowly', phrase: '*[read aloud, slowly]',
+    duration: 3, annotationEffect: { damageOnTurnStart: 1, energyOnTurnStart: 1 },
+    desc: 'Attach. While attached (3 turns): at start of your turn, deal 1 composure damage AND gain 1 Energy.',
+    flavor: 'The act of reading them out loud is, mysteriously, energizing.' },
+
+  // ---- Rare (1) ----
+  { id: 'wv2-ann-asterisked-concern', slot: 'annotation', tier: 3, rarity: 'rare',
+    lane: LANE, cost: 3, type: 'annotation',
+    name: 'Asterisked with concern', phrase: '*[*]',
+    duration: 4, annotationEffect: { damageOnEnemyAttack: 3 },
+    desc: 'Attach. While attached (4 turns): whenever enemy attacks, they take 3 composure damage.',
+    flavor: 'Your concern is, technically, written down. The asterisk is doing the wounding.' },
+];
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: SUBJECTS,
   target: [...TARGETS, ...UNIQUE_TARGETS],
   gesture: GESTURES,
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
+  annotation: ANNOTATIONS,
 };
