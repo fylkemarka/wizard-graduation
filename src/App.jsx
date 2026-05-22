@@ -517,38 +517,46 @@ const ENEMIES = [
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     behaviors: [
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
-      { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
+      // v2.9.2: telemetry showed Hollow Weaver took 0 HP per fight. Bumped
+      // attack values + added a multi-hit punisher so the player has to
+      // think about block, not just walk through.
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
+      { kind: 'attack-multi', value: 4, count: 2, weight: 1, telegraph: '⚔ 4×2' },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (half-thought)' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 38, hpMax: 999, tier: 'normal',
-    // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah).
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
-      { kind: 'attack-multi', value: 3, count: 3, weight: 3, telegraph: '⚔ 3×3' },
+      // v2.9.2: silk-thread cuts now hit harder + composure-pool option.
+      { kind: 'attack-multi', value: 4, count: 3, weight: 3, telegraph: '⚔ 4×3' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (silken whisper)' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
-      { kind: 'vulnerable', value: 1, weight: 2, telegraph: '🩸 Vuln 1 (silken whisper)' },
+      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 46, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     behaviors: [
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
-      { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
-      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
-      { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
+      { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8' },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (lonely-thread)' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 70, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
+      // v2.9.2: telemetry showed player losing only 3-7 HP per Pattern-Maker
+      // fight. Bumped physical attacks AND added an HP-pool burst so the
+      // fight feels like Silent Spinner does (which the user called "good").
+      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (pattern-wrong)' },
-      // v2.9 burst attack — full-stack to one pool, forces the "scrounge"
-      // moment if the player hasn't kept the right shield up.
       { kind: 'attack', value: 13, pool: 'composure', weight: 1, telegraph: '🎭 13 (PATTERN COMPLETE)' },
+      // HP-side burst — the pattern lashes out physically.
+      { kind: 'attack', value: 15, weight: 1, telegraph: '⚔ 15 (BROKEN-PATTERN STRIKE)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 72, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },

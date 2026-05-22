@@ -33,10 +33,10 @@ const ENEMIES = [
   // Act 2
   // v2.9: bumped composure + atk values to match App.jsx. Elites in
   // particular need to feel like a wall.
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 44, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 38, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 46, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 44, hp: 999, tier: 'normal', atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 38, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 46, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
   { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 72, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 85, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
   // Act 3
