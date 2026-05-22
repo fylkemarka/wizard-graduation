@@ -223,7 +223,8 @@ function runCombat(state, enemyId, telemetry) {
   // Combat starts with empty hand. Draw fresh.
   state.discard = [...state.discard, ...state.hand];
   state.hand = [];
-  drawCards(state, HAND_SIZE + (fb.startCombatDraw || 0));
+  const jnsqBonus = state.lane === 'jnsq' ? 1 : 0;
+  drawCards(state, HAND_SIZE + (fb.startCombatDraw || 0) + jnsqBonus);
 
   // v2.1: tray persists across turns. Cards staged but not cast last turn
   // remain in their slots; the player can refine the spell over multiple
@@ -408,7 +409,7 @@ function runCombat(state, enemyId, telemetry) {
         const gap = enemy.currentComp - previewDmg;
         // Required by target?
         const required = tray.target.effect?.requiresStake || 0;
-        const max = Math.floor(state.hp / 3);
+        const max = Math.floor(state.hp / 4); // v2.13: tighter cap
         if (gap > 0 && gap <= 20) {
           // Default 1:1 stake multiplier; chutzpah staking is best on
           // bigger gaps where the +damage actually closes the kill.
@@ -436,6 +437,9 @@ function runCombat(state, enemyId, telemetry) {
         chaosRoll = rollChaosSim(tray.intro, tray.modifiers);
         chaosOutcome = CHAOS_OUTCOMES[chaosRoll];
         state.combatRolls.push(chaosRoll);
+        // v2.13: intro diceDraw bonus.
+        const diceDraw = tray.intro?.diceDraw || 0;
+        if (diceDraw > 0) drawCards(state, diceDraw);
       }
       const simCtx = {
         discardSize: state.discard.length,
@@ -696,8 +700,8 @@ const SIM_FAMILIARS = [
   { id: 'fam-rabbit',   name: 'Rabbit',    bonus: { startCombatPoise: 3 } }, // v2.9: dead passive → opening poise
 ];
 
-function simRun() {
-  const lane = pickRandom(['wit', 'chutzpah', 'jnsq']);
+function simRun(forcedLane = null) {
+  const lane = forcedLane || pickRandom(['wit', 'chutzpah', 'jnsq']);
   const familiar = pickRandom(SIM_FAMILIARS);
   const fb = familiar.bonus || {};
   const maxHp = STARTING_MAX_HP + (fb.maxHpBonus || 0);
@@ -884,15 +888,19 @@ const __dirname = path.dirname(__filename);
 const isMain = (typeof process !== 'undefined' && process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]);
 if (isMain) {
   const N = parseInt(process.argv[2] || '50', 10);
-  console.log(`Running ${N} v2 playtests…`);
+  // v2.12: optional lane filter as 3rd arg (--lane=wit or just `wit`).
+  const laneArg = (process.argv[3] || '').replace(/^--lane=/, '').toLowerCase();
+  const forcedLane = ['wit', 'chutzpah', 'jnsq'].includes(laneArg) ? laneArg : null;
+  console.log(`Running ${N} v2 playtests${forcedLane ? ` (lane=${forcedLane})` : ''}…`);
   const results = [];
   for (let i = 0; i < N; i++) {
-    results.push(simRun());
-    if ((i + 1) % 25 === 0) console.log(`  …${i + 1} done`);
+    results.push(simRun(forcedLane));
+    if ((i + 1) % 50 === 0) console.log(`  …${i + 1} done`);
   }
   const agg = aggregate(results);
   const report = buildReport(agg);
-  const out = path.join(__dirname, 'report-v2.md');
+  const suffix = forcedLane ? `-${forcedLane}` : '';
+  const out = path.join(__dirname, `report-v2${suffix}.md`);
   fs.writeFileSync(out, report);
   console.log(`\nWrote ${out}`);
   console.log(`Win rate: ${pct(agg.winRate)}`);

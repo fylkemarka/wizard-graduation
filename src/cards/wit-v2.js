@@ -418,8 +418,8 @@ const ANNOTATIONS = [
   { id: 'wv2-ann-subtext-italics', slot: 'annotation', tier: 2, rarity: 'uncommon',
     lane: LANE, cost: 3, type: 'annotation',
     name: 'Subtext, in italics', phrase: '*[in italics]',
-    duration: 3, annotationEffect: { bonusSpellDamage: 3 },
-    desc: 'Attach. While attached (3 turns): your spells deal +3 composure damage.',
+    duration: 3, annotationEffect: { bonusSpellDamage: 4 },
+    desc: 'Attach. While attached (3 turns): your spells deal +4 composure damage.',
     flavor: 'The text was already saying it. The italics insist you noticed.' },
   { id: 'wv2-ann-read-aloud', slot: 'annotation', tier: 2, rarity: 'uncommon',
     lane: LANE, cost: 3, type: 'annotation',
@@ -428,13 +428,20 @@ const ANNOTATIONS = [
     desc: 'Attach. While attached (3 turns): at start of your turn, deal 1 composure damage AND gain 1 Energy.',
     flavor: 'The act of reading them out loud is, mysteriously, energizing.' },
 
-  // ---- Rare (1) ----
+  // ---- Rare (2) ----
   { id: 'wv2-ann-asterisked-concern', slot: 'annotation', tier: 3, rarity: 'rare',
     lane: LANE, cost: 3, type: 'annotation',
     name: 'Asterisked with concern', phrase: '*[*]',
     duration: 4, annotationEffect: { damageOnEnemyAttack: 3 },
     desc: 'Attach. While attached (4 turns): whenever enemy attacks, they take 3 composure damage.',
     flavor: 'Your concern is, technically, written down. The asterisk is doing the wounding.' },
+  // v2.13: scaling annotation — bonus grows with each spell cast.
+  { id: 'wv2-ann-thesis-expanded', slot: 'annotation', tier: 3, rarity: 'rare',
+    lane: LANE, cost: 3, type: 'annotation',
+    name: 'Thesis, expanded as we go', phrase: '*[thesis: expanded]',
+    duration: 4, annotationEffect: { bonusSpellDamagePerCast: 2 },
+    desc: 'Attach. While attached (4 turns): your spells deal +2 composure damage per spell already cast this combat.',
+    flavor: 'The thesis grows. The thesis was already a problem before the growing.' },
 ];
 
 // =============================================================================

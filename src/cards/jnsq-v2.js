@@ -388,7 +388,7 @@ const NEW_MODIFIERS_V26 = [
     modifierEffect: { forceRoll: true },
     desc: 'Forces a chaos roll on this cast, no opt-in required.',
     flavor: 'The universe needs an opinion. The universe has one.' },
-  { id: 'jv2-m-loaded-dice', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
+  { id: 'jv2-m-loaded-dice', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 0, type: 'modifier',
     modifierKind: 'post', phrase: '— with loaded dice,', tags: ['conspiratorial', 'absurd'],
     stats: { jnsq: 1 }, modifierEffect: { diceShift: 1 },
     desc: 'Your chaos roll on this cast is +1 (caps at 6).',

@@ -297,8 +297,8 @@ const TARGETS = [
   { id: 'cv2-t-double-or-nothing', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'or nothing, frankly.', tags: ['demanding'],
     effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure',
-              stakeMultiplier: 1.5 },
-    desc: 'Cast: 5 + Chutzpah comp. Staked HP gives +1.5 dmg/HP.',
+              stakeMultiplier: 1.25 },
+    desc: 'Cast: 5 + Chutzpah comp. Staked HP gives +1.25 dmg/HP.',
     flavor: 'There is no nothing. There is only what they make of you.' },
   { id: 'cv2-t-and-i-mean-it', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'and I mean it.', tags: ['threatening', 'swaggering'],
@@ -309,8 +309,8 @@ const TARGETS = [
   { id: 'cv2-t-big-mistake', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is a big mistake. Huge.', tags: ['threatening', 'swaggering'],
     effect: { scaleBy: 'chutzpah', base: 18, multiplier: 3, damageType: 'composure',
-              requiresStake: 5 },
-    desc: 'REQUIRES 5+ HP staked. 18 + Chutzpah comp.',
+              requiresStake: 8 },
+    desc: 'REQUIRES 8+ HP staked. 18 + Chutzpah comp.',
     flavor: 'Sometimes you have to say it loud. This is one of those.' },
 ];
 

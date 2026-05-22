@@ -3086,6 +3086,9 @@ export default function App() {
   // rounds instead of getting one-shot.
   const [castsThisTurn, setCastsThisTurn] = useState(0);
   const MAX_CASTS_PER_TURN = 1;
+  // v2.13: per-combat cast counter (resets at combat enter).
+  // Used by Thesis-expanded annotation's bonusSpellDamagePerCast scaling.
+  const [castsThisCombat, setCastsThisCombat] = useState(0);
   // v2.11: chutzpah ALL IN — per-cast HP wager. Player commits 0-N HP
   // before casting; bonus damage = N × 1.5 (plus per-card multipliers).
   // Cap at floor(hp/3) so the stake alone can't be lethal. Reset on
@@ -4022,6 +4025,7 @@ export default function App() {
     setTray(initialV2Tray());
     setAmplifyPlaysThisCombat(0);
     setCastsThisTurn(0);
+    setCastsThisCombat(0);
     setStakeAmount(0);
     setRollOptIn(false);
     setLastRoll(null);
@@ -4093,7 +4097,10 @@ export default function App() {
       setDiscard([]);
     } else {
       const fullDeck = [...deck, ...hand, ...discard];
-      const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus + startDrawBonus);
+      // v2.13: jnsq +1 hand size at combat start (chaos dice need full
+      // trays to roll). Real-play impact only — sim AI runs both ways.
+      const jnsqBonus = selectedCharacter?.lane === 'jnsq' ? 1 : 0;
+      const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus + startDrawBonus + jnsqBonus);
       setDeck(drawn.deck);
       setHand(drawn.hand);
       setDiscard([]);
@@ -4481,6 +4488,13 @@ export default function App() {
         result: chaosRoll, outcome: chaosOutcome.name,
         forced: forceRoll, enemyId: enemy?.id,
       });
+      // v2.13: intro diceDraw — "I have a feeling about this —"
+      // becomes a sustain card.
+      const diceDraw = intro?.diceDraw || 0;
+      if (diceDraw > 0) {
+        drawCards(diceDraw);
+        pushLog(`📥 +${diceDraw} draw (rolling)`);
+      }
     }
 
     const ctx = {
@@ -4530,6 +4544,10 @@ export default function App() {
     // (so the +3 is a flat bonus, not amplified by tier multipliers).
     const annBonus = annoFx('bonusSpellDamage');
     if (annBonus > 0) dmg += annBonus;
+    // v2.13: scaling annotation — Thesis-expanded bonus per prior cast.
+    const annPerCast = annoFx('bonusSpellDamagePerCast');
+    if (annPerCast > 0) dmg += annPerCast * castsThisCombat;
+    setCastsThisCombat(c => c + 1);
 
     // Compose + log the full sentence.
     const sentence = composeSpellText(intro, subject, target, modifiers);
@@ -4555,6 +4573,25 @@ export default function App() {
     }
     // Reset stake — consumed by this cast.
     if (stakeAmount > 0) setStakeAmount(0);
+    // v2.13: wit characters auto-attach a STUB annotation when casting
+    // into a non-annotated enemy. Compensates for the cost of planning
+    // and rewards players who manually attach (the player-played
+    // annotation overwrites the stub). Only fires when lane is wit and
+    // damage > 0 and no annotation already attached.
+    if (selectedCharacter?.lane === 'wit' && dmg > 0 && enemy && !enemy.annotation) {
+      setEnemy(e => e ? {
+        ...e,
+        annotation: {
+          id: 'wv2-ann-cited',
+          name: 'Cited in passing',
+          phrase: '*[cited]',
+          effect: { enemyAtkReduction: 1 },
+          turnsRemaining: 2,
+          stub: true,
+        },
+      } : e);
+      pushLog(`📝 The remark lingers as a citation.`);
+    }
     // v2.12: chaos roll side effects (after damage lands).
     if (chaosOutcome) {
       if (chaosOutcome.hpDelta < 0) {
@@ -6944,8 +6981,9 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
     const { damage, riders, stakeBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount });
     predicted = { damage, riders, stakeBonus: stakeBonus || 0 };
   }
-  // v2.11: requirements + caps for ALL IN.
-  const stakeMax = Math.max(0, Math.floor(playerHp / 3));
+  // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
+  // /3 → /4 (keeps "I bleed for damage" without uncapped spirals).
+  const stakeMax = Math.max(0, Math.floor(playerHp / 4));
   const stakeRequired = target?.effect?.requiresStake || 0;
   const stakeBlocked = ready && stakeRequired > 0 && stakeAmount < stakeRequired;
   const stakeNudge = (delta) => setStakeAmount(Math.max(0, Math.min(stakeMax, stakeAmount + delta)));
