@@ -369,10 +369,41 @@ function runCombat(state, enemyId, telemetry) {
     // Cast if all three slots filled. v2.9: hard cap 1 cast per turn.
     if (tray.intro && tray.subject && tray.target && castsThisTurn < 1) {
       castsThisTurn++;
+      // v2.11: chutzpah ALL IN heuristic. Stake to close the kill when
+      // affordable; never stake at low HP or for overkill.
+      let stake = 0;
+      if (state.lane === 'chutzpah' && state.hp >= 30) {
+        // Pre-roll the spell damage WITHOUT stake to estimate gap.
+        const preCtx = {
+          discardSize: state.discard.length,
+          deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+          missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+          stakeAmount: 0,
+        };
+        const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
+        const preMult = (tray.target.effect?.damageType === 'physical')
+          ? (enemy.effectiveness?.physical ?? 1.0)
+          : (enemy.effectiveness?.[tray.target.effect?.scaleBy || tray.target.lane || 'wit'] ?? 1.0);
+        const previewDmg = preview.damage * preMult * state.playerDmgMult;
+        const gap = enemy.currentComp - previewDmg;
+        // Required by target?
+        const required = tray.target.effect?.requiresStake || 0;
+        const max = Math.floor(state.hp / 3);
+        if (gap > 0 && gap <= 20) {
+          // Default 1:1 stake multiplier; chutzpah staking is best on
+          // bigger gaps where the +damage actually closes the kill.
+          stake = Math.min(Math.ceil(gap), max);
+        }
+        if (required > 0) stake = Math.max(stake, required);
+        if (stake > max) stake = 0; // can't afford the requirement
+      }
+      // Apply stake HP cost up-front
+      if (stake > 0) state.hp = Math.max(1, state.hp - stake);
       const simCtx = {
         discardSize: state.discard.length,
         deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
         missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+        stakeAmount: stake, // v2.11
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
@@ -400,6 +431,16 @@ function runCombat(state, enemyId, telemetry) {
       }
       if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - remaining);
       else                        enemy.currentComp = Math.max(0, enemy.currentComp - remaining);
+      // v2.11: stake half-refund on hit (from "and I mean it." target).
+      if (result.sideEffects.stakeRefundHalf && stake > 0 && remaining > 0) {
+        const refund = Math.floor(stake / 2);
+        if (refund > 0) state.hp = Math.min(state.maxHp, state.hp + refund);
+      }
+      // Track stake usage for telemetry
+      if (stake > 0) {
+        telemetry.stakesUsed = (telemetry.stakesUsed || 0) + 1;
+        telemetry.stakeHpSpent = (telemetry.stakeHpSpent || 0) + stake;
+      }
 
       // Riders affect enemy
       if (result.riders.weak)       state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * result.riders.weak);

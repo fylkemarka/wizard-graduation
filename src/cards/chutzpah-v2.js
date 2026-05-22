@@ -106,6 +106,12 @@ const INTROS = [
   { id: 'cv2-i-comes-a-time', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'There comes a time, see, and that time is right now:', tags: ['demanding', 'swaggering', 'threatening'], stats: { chutzpah: 4 },
     flavor: 'The time has come. The time has been coming. You are the time.' },
+  // v2.11: ALL IN synergy — stake bonus uses this card's higher multiplier.
+  { id: 'cv2-i-no-half-measures', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'No half measures —', tags: ['threatening', 'direct'], stats: { chutzpah: 2 },
+    stakeMultiplier: 1.25,
+    desc: 'Staked HP gives +1.25 dmg/HP when this intro is in the spell.',
+    flavor: 'A measure can be half. A statement, less so.' },
 ];
 
 // =============================================================================
@@ -287,6 +293,25 @@ const TARGETS = [
     effect: { scaleBy: 'chutzpah', base: 14, multiplier: 3, damageType: 'composure',
              requiresTier3: { failureDamageMult: 0.5, exhaustOnFail: true } },
     flavor: 'Acquainted being a verb with substantial sequelae.' },
+  // v2.11: ALL IN targets — double the stake bonus, or refund half on hit.
+  { id: 'cv2-t-double-or-nothing', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
+    phrase: 'or nothing, frankly.', tags: ['demanding'],
+    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 3, damageType: 'composure',
+              stakeMultiplier: 1.5 },
+    desc: 'Cast: 5 + Chutzpah comp. Staked HP gives +1.5 dmg/HP.',
+    flavor: 'There is no nothing. There is only what they make of you.' },
+  { id: 'cv2-t-and-i-mean-it', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'and I mean it.', tags: ['threatening', 'swaggering'],
+    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
+              stakeRefundHalf: true },
+    desc: 'Cast: 8 + Chutzpah comp. If staked: heal half the stake on hit.',
+    flavor: 'Means it. Has the receipts. The receipts are large.' },
+  { id: 'cv2-t-big-mistake', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is a big mistake. Huge.', tags: ['threatening', 'swaggering'],
+    effect: { scaleBy: 'chutzpah', base: 18, multiplier: 3, damageType: 'composure',
+              requiresStake: 5 },
+    desc: 'REQUIRES 5+ HP staked. 18 + Chutzpah comp.',
+    flavor: 'Sometimes you have to say it loud. This is one of those.' },
 ];
 
 // =============================================================================
@@ -375,6 +400,13 @@ const NEW_MODIFIERS_V26 = [
     modifierKind: 'post', phrase: '— AND I WILL SAY IT AGAIN,', tags: ['threatening', 'direct'],
     modifierEffect: { damageMult: 2.0 },
     flavor: 'Repetition: the soul of persuasion.' },
+  // v2.11: ALL IN synergy — doubles the stake bonus on the spell.
+  { id: 'cv2-m-not-even-half-kidding', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
+    modifierKind: 'post', phrase: '— and I am not even half kidding.',
+    tags: ['threatening', 'direct'], stats: { chutzpah: 1 },
+    modifierEffect: { stakeAutoDouble: true },
+    desc: 'Doubles any staked-HP bonus damage on this cast.',
+    flavor: 'Not the other half. The first half.' },
 ];
 
 // v2.5: UNIQUE TARGET — scales when player has taken HP damage this combat.

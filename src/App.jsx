@@ -3086,6 +3086,11 @@ export default function App() {
   // rounds instead of getting one-shot.
   const [castsThisTurn, setCastsThisTurn] = useState(0);
   const MAX_CASTS_PER_TURN = 1;
+  // v2.11: chutzpah ALL IN — per-cast HP wager. Player commits 0-N HP
+  // before casting; bonus damage = N × 1.5 (plus per-card multipliers).
+  // Cap at floor(hp/3) so the stake alone can't be lethal. Reset on
+  // cast, turn end, and combat enter.
+  const [stakeAmount, setStakeAmount] = useState(0);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -4009,6 +4014,7 @@ export default function App() {
     setTray(initialV2Tray());
     setAmplifyPlaysThisCombat(0);
     setCastsThisTurn(0);
+    setStakeAmount(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4427,9 +4433,20 @@ export default function App() {
       discardSize: discard.length,
       deckSize: deck.length + hand.length + discard.length + exiled.length,
       missingHpFrac: maxHp > 0 ? (maxHp - hp) / maxHp : 0,
+      stakeAmount, // v2.11: chutzpah ALL IN
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
+    // v2.11: deduct HP for stake immediately on cast. Refund (if any)
+    // happens after damage lands.
+    if (stakeAmount > 0) {
+      setHp(h => Math.max(1, h - stakeAmount));
+      pushLog(`💢 ALL IN: -${stakeAmount} HP → +${stakeBonus || 0} dmg`);
+      logEvent('chutzpah.stake', {
+        stakeAmount, bonusDamage: stakeBonus || 0,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
 
     // Read-the-Room pierce + enemy effectiveness still applies.
     const eff = target.effect || {};
@@ -4462,6 +4479,17 @@ export default function App() {
     let after = 0;
     if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
     else                        after = applyDamageToEnemyComposure(dmg);
+    // v2.11: stake refund (from "and I mean it." target). Half the
+    // staked HP comes back when the cast lands non-zero damage.
+    if (sideEffects.stakeRefundHalf && stakeAmount > 0 && dmg > 0) {
+      const refund = Math.floor(stakeAmount / 2);
+      if (refund > 0) {
+        setHp(h => Math.min(maxHp, h + refund));
+        pushLog(`💚 +${refund} HP (stake refund).`);
+      }
+    }
+    // Reset stake — consumed by this cast.
+    if (stakeAmount > 0) setStakeAmount(0);
 
     const tierLabel = tier === 3 ? 'DEVASTATING' : tier === 2 ? 'RESONANT' : 'COHERENT';
     const dmgTagSuffix = dmgType === 'physical'
@@ -4512,6 +4540,12 @@ export default function App() {
 
     // v2 path: intro + subject + target all filled → sentence-engine cast.
     if (t.intro && t.subject && t.target) {
+      // v2.11: target may require a minimum stake (e.g. "is a big mistake. Huge.")
+      const required = t.target.effect?.requiresStake || 0;
+      if (required > 0 && stakeAmount < required) {
+        pushLog(`🎯 ${t.target.phrase || t.target.name} requires ${required}+ HP staked.`);
+        return;
+      }
       setCastsThisTurn(n => n + 1);
       return castV2SentenceSpell(t);
     }
@@ -5214,6 +5248,8 @@ export default function App() {
     setEnergy(wEnergy);
     // v2.9: reset per-turn cast cap.
     setCastsThisTurn(0);
+    // v2.11: forget uncommitted stakes at turn boundary.
+    setStakeAmount(0);
 
     // 6. New intent. Track what just fired and force a switch if the
     // enemy has already done the same kind twice in a row — saves the
@@ -5753,6 +5789,8 @@ export default function App() {
       onUnstage={unstageCard} onCast={castStagedSpell}
       castPreview={previewCastDamage()}
       castsThisTurn={castsThisTurn} maxCastsPerTurn={MAX_CASTS_PER_TURN}
+      isChutzpah={selectedCharacter?.lane === 'chutzpah'}
+      stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -6361,7 +6399,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        amplifyPlaysThisCombat,
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
-                       castsThisTurn, maxCastsPerTurn }) {
+                       castsThisTurn, maxCastsPerTurn,
+                       isChutzpah, stakeAmount, setStakeAmount }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -6490,7 +6529,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           Playing a target auto-casts. End the turn without a target and
           the spell fizzles. */}
       <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast}
-        castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn} />
+        castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
+        isChutzpah={isChutzpah} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
+        playerHp={hp} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -6770,7 +6811,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
   );
 }
 
-function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1 }) {
+function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
+                       isChutzpah = false, stakeAmount = 0, setStakeAmount = () => {},
+                       playerHp = 70 }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -6786,9 +6829,14 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
   let predicted = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders } = computeSpellDamage(intro, subject, target, modifiers);
-    predicted = { damage, riders };
+    const { damage, riders, stakeBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount });
+    predicted = { damage, riders, stakeBonus: stakeBonus || 0 };
   }
+  // v2.11: requirements + caps for ALL IN.
+  const stakeMax = Math.max(0, Math.floor(playerHp / 3));
+  const stakeRequired = target?.effect?.requiresStake || 0;
+  const stakeBlocked = ready && stakeRequired > 0 && stakeAmount < stakeRequired;
+  const stakeNudge = (delta) => setStakeAmount(Math.max(0, Math.min(stakeMax, stakeAmount + delta)));
 
   const tagCounts = {};
   for (const c of [intro, subject, target, ...modifiers]) {
@@ -6868,16 +6916,46 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
           <div className="text-right">
             <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
             <div className="text-2xl font-bold font-mono text-iris-200"
-                 title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier`}>
+                 title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}`}>
               {predicted.damage} <span className="text-sm text-parchment-300">comp</span>
+              {predicted.stakeBonus > 0 && (
+                <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
+              )}
             </div>
           </div>
         )}
+        {/* v2.11: ALL IN — chutzpah-only HP-wager row. */}
+        {isChutzpah && ready && (
+          <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded border border-ember-500 bg-ember-900 bg-opacity-30"
+               title="Spend HP for bonus damage. +1.5 damage per HP. Capped at ⅓ of current HP.">
+            <span className="text-[10px] uppercase tracking-wider text-ember-300 font-bold">ALL IN?</span>
+            <button onClick={() => stakeNudge(-1)} disabled={stakeAmount <= 0}
+              className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount > 0 ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>−</button>
+            <span className={`font-mono text-sm font-bold ${stakeAmount > 0 ? 'text-ember-200' : 'text-parchment-400'} w-12 text-center`}>
+              {stakeAmount > 0 ? `-${stakeAmount} HP` : '—'}
+            </span>
+            <button onClick={() => stakeNudge(1)} disabled={stakeAmount >= stakeMax}
+              className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+</button>
+            <button onClick={() => stakeNudge(2)} disabled={stakeAmount + 3 > stakeMax}
+              className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount + 3 <= stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+3</button>
+            <button onClick={() => setStakeAmount(stakeMax)} disabled={stakeAmount === stakeMax}
+              className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>MAX</button>
+            {stakeRequired > 0 && (
+              <span className={`ml-1 text-[10px] font-bold uppercase ${stakeBlocked ? 'text-ember-300' : 'text-moss-300'}`}>
+                req {stakeRequired}+
+              </span>
+            )}
+          </div>
+        )}
         <button onClick={onCast}
-          disabled={!ready || castsThisTurn >= maxCastsPerTurn}
-          title={castsThisTurn >= maxCastsPerTurn ? 'One spell per turn. End your turn to cast again.' : 'Cast the staged spell.'}
+          disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked}
+          title={
+            stakeBlocked ? `Target requires ${stakeRequired}+ HP staked.` :
+            castsThisTurn >= maxCastsPerTurn ? 'One spell per turn. End your turn to cast again.' :
+            'Cast the staged spell.'
+          }
           className={`btn text-base px-6 py-2 ml-2 ${
-            castsThisTurn >= maxCastsPerTurn ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
+            castsThisTurn >= maxCastsPerTurn || stakeBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
             ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
           }`}>
           ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">({castsThisTurn}/{maxCastsPerTurn})</span>}

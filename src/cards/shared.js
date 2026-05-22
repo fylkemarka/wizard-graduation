@@ -230,16 +230,36 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     ? (eff.damageType === 'physical' ? 'composure' : 'physical')
     : null;
 
+  // v2.11: chutzpah ALL IN — per-cast HP wager. context.stakeAmount is
+  // the staked HP. Per-card stakeMultiplier picks the MAX value (so a
+  // staged Double-or-Nothing target overrides the default 1.5×). If any
+  // modifier has stakeAutoDouble, the final stake bonus doubles.
+  const stakeAmount = context.stakeAmount || 0;
+  let stakeBonus = 0;
+  if (stakeAmount > 0) {
+    const stakeMults = [intro, subject, target, ...modifiers]
+      .map(c => c?.stakeMultiplier || c?.effect?.stakeMultiplier || 0)
+      .filter(m => m > 0);
+    const stakeMult = stakeMults.length > 0 ? Math.max(...stakeMults) : 1.0;
+    stakeBonus = Math.ceil(stakeAmount * stakeMult);
+    const autoDouble = modifiers.some(m => m?.modifierEffect?.stakeAutoDouble);
+    if (autoDouble) stakeBonus *= 2;
+    damage += stakeBonus;
+  }
+
   return {
     damage: Math.max(0, Math.round(damage)),
     tier,
     riders,
     flippedDmgType, // v2.6: null or the new damage type to use
+    stakeBonus, // v2.11: how much damage came from the stake (for UI/log)
     sideEffects: {
       drawCount,
       stripBlock,
       selfComposureCost,
       selfHpCost,
+      // v2.11: target with stakeRefundHalf heals half the stake on hit.
+      stakeRefundHalf: !!target?.effect?.stakeRefundHalf,
       // v2.4: exhaustTarget always false now. The exile-on-tier-3-fail
       // double-punishment was a trap; rare gamble targets keep the
       // half-damage penalty but stay in the deck for replay.
