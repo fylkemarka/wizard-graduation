@@ -225,6 +225,16 @@ const RELICS = [
 ];
 const RELICS_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
 
+// v2.8: Opening-shop boons. Player picks ONE of three (Card / Relic / Boon)
+// at game start instead of two-of-five cards. Boons are pure stat boosts;
+// the relic and card slots cover effects and deckbuilding. `apply` is a
+// string key consumed by the supply-shop's commit handler.
+const SHOP_BOONS = [
+  { id: 'boon-vigor',  icon: '❤',  name: 'Wellspring',    desc: '+10 max HP. Restore to full.',         apply: 'maxHpPlus10' },
+  { id: 'boon-focus',  icon: '✨', name: 'Composed Mind', desc: '+10 max Composure. Restore to full.',  apply: 'maxCompPlus10' },
+  { id: 'boon-sturdy', icon: '🪨', name: 'Sturdy Frame',  desc: '+5 max HP and +5 max Composure.',      apply: 'sturdy' },
+];
+
 // Familiars — chosen at the familiar shop in town before the first map.
 // Each grants a passive `bonus` (same effect-shape as relics, plus three
 // new keys defined below) AND adds a signature `card` to the player's
@@ -411,14 +421,6 @@ function buildStarterDeckForLane(lane) {
 // STARTER_DECK is now a function of character. Kept as a const for any v1
 // references that still grep for it — they'll get the wit-scholar default.
 const STARTER_DECK = buildStarterDeckForLane('wit');
-
-// Starting Picks pool is unused now — character-select pre-stages the lane
-// commitment. Kept as the basic intros so the existing screen doesn't blank.
-const STARTING_PICKS_POOL = [
-  ...LANE_POOL_BY_SLOT.wit.intro.slice(0, 2).map(c => c.id),
-  ...LANE_POOL_BY_SLOT.chutzpah.intro.slice(0, 2).map(c => c.id),
-  ...LANE_POOL_BY_SLOT.jnsq.intro.slice(0, 2).map(c => c.id),
-];
 
 // Enemies. `act` filters which act they appear in. `tier` ∈ normal / elite / boss.
 // Verbal-combat fields:
@@ -2905,9 +2907,6 @@ export default function App() {
   // Wizard archetype selected at run start. Determines lane bias for offers
   // and (when v2 card pools ship) the entire draw pool.
   const [selectedCharacter, setSelectedCharacter] = useState(null);
-  // Which two cards the player chose from STARTING_PICKS_POOL. Tracked as
-  // an array so toggle-to-deselect works; commit happens when length === 2.
-  const [startingPicksSelected, setStartingPicksSelected] = useState([]);
   // Pending minigame prompt. Set when a skill-event choice carries a
   // `minigame` field — the resolver defers the effect, fires the
   // minigame, and applies a graded outcome based on the player's
@@ -2944,8 +2943,9 @@ export default function App() {
   // True if localStorage holds a saved run we can resume.
   const [hasSavedRun, setHasSavedRun] = useState(false);
   // Supply shop draft state. Cleared after exit.
-  const [supplyChoices, setSupplyChoices] = useState([]); // 5 candidate cards
-  const [supplyPicks, setSupplyPicks] = useState([]);     // indices already picked (max 2)
+  // v2.8: STS-style 1-of-3 supply shop. One card / one relic / one boon.
+  // Shape: { card: <v2-card>, relic: <relic-obj>, boon: <boon-obj> }
+  const [supplyOffers, setSupplyOffers] = useState(null);
   // Player debuffs (mirror of enemy ones). Tick down at end of turn.
   // Damage multipliers replace the old Weak/Vulnerable; see combat
   // state declarations below. Helpers clamp to [0.5, 1.5].
@@ -3294,8 +3294,7 @@ export default function App() {
     setCurrentActIdx(0);
     setMap(null);
     setCurrentNodeId(null);
-    setSupplyChoices([]);
-    setSupplyPicks([]);
+    setSupplyOffers(null);
     // Character select first — the chosen lane drives the supply pool.
     setStage('character-select');
   }
@@ -3309,44 +3308,56 @@ export default function App() {
     // Build the character's v2 starter deck (basics from this lane + utility skills).
     const starterDeck = buildStartingDeck(c.lane);
     setDeck(starterDeck);
-    // Build a lane-pure supply pool from the character's v2 cards. Supply
-    // shop offers are commons of intro/subject/target slots so the player
-    // begins shaping the deck immediately.
+    // v2.8: STS-style 1-of-3. Build three offers from three different
+    // categories so each option feels meaningfully distinct.
     const lanePool = LANE_POOL[c.lane] || [];
-    const commons = lanePool.filter(card => card.rarity === 'common');
-    const supply = [];
-    const used = new Set();
-    let attempts = 0;
-    while (supply.length < 5 && attempts < 80) {
-      attempts++;
-      const cand = commons[Math.floor(Math.random() * commons.length)];
-      if (!cand || used.has(cand.id)) continue;
-      supply.push(cand);
-      used.add(cand.id);
-    }
-    setSupplyChoices(supply);
+    // Card: a strong lane uncommon — picking it commits to lane identity.
+    const uncommons = lanePool.filter(card => card.rarity === 'uncommon');
+    const cardOffer = uncommons.length > 0
+      ? uncommons[Math.floor(Math.random() * uncommons.length)]
+      : null;
+    // Relic: any common relic. Reuses the existing RELICS table.
+    const commonRelics = RELICS.filter(r => r.rarity === 'common');
+    const relicOffer = commonRelics.length > 0
+      ? commonRelics[Math.floor(Math.random() * commonRelics.length)]
+      : null;
+    // Boon: a permanent stat tweak.
+    const boonOffer = SHOP_BOONS[Math.floor(Math.random() * SHOP_BOONS.length)];
+    setSupplyOffers({ card: cardOffer, relic: relicOffer, boon: boonOffer });
     setStage('supply-shop');
     pushLog(`🏘 You set out from the school. Town first.`);
   }
 
-  function pickSupplyCard(idx) {
-    if (supplyPicks.includes(idx)) return;     // already picked
-    if (supplyPicks.length >= 2) return;       // capped
-    const card = supplyChoices[idx];
-    if (!card) return;
-    setDeck(d => [...d, { ...card, uid: uid() }]);
-    pushLog(`🛒 Bought: ${card.name}.`);
-    logEvent(TE.STARTING_PICK, { cardId: card.id, cardName: card.name, type: card.type, rarity: card.rarity, offered: supplyChoices.map(c => c?.id), pickIndex: supplyPicks.length });
-    // Pure updater + side-effects outside it ([[feedback_react_pure_updaters]]).
-    const next = [...supplyPicks, idx];
-    setSupplyPicks(next);
-    if (next.length >= 2) {
-      setTimeout(() => {
-        setSupplyChoices([]);
-        setSupplyPicks([]);
-        setStage('familiar-shop');
-      }, 300);
+  function pickSupplyOffer(kind) {
+    if (!supplyOffers) return;
+    const offer = supplyOffers[kind];
+    if (!offer) return;
+    if (kind === 'card') {
+      setDeck(d => [...d, { ...offer, uid: uid() }]);
+      pushLog(`🛒 Pocketed: ${offer.name || offer.phrase}.`);
+      logEvent(TE.STARTING_PICK, { kind: 'card', cardId: offer.id, cardName: offer.name, type: offer.type, rarity: offer.rarity });
+    } else if (kind === 'relic') {
+      setRelics(r => [...r, offer]);
+      pushLog(`🛒 Strapped on: ${offer.name}.`);
+      logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: offer.id, relicName: offer.name, rarity: offer.rarity });
+    } else if (kind === 'boon') {
+      if (offer.apply === 'maxHpPlus10') {
+        setMaxHp(m => m + 10);
+        setHp(_ => STARTING_MAX_HP + 10);
+      } else if (offer.apply === 'maxCompPlus10') {
+        setComposureMax(m => m + 10);
+        setComposure(_ => STARTING_MAX_COMPOSURE + 10);
+      } else if (offer.apply === 'sturdy') {
+        setMaxHp(m => m + 5);
+        setHp(h => h + 5);
+        setComposureMax(m => m + 5);
+        setComposure(c => c + 5);
+      }
+      pushLog(`🛒 Took the boon: ${offer.name}.`);
+      logEvent(TE.STARTING_PICK, { kind: 'boon', boonId: offer.id, boonName: offer.name });
     }
+    setSupplyOffers(null);
+    setStage('familiar-shop');
   }
 
   function pickFamiliar(familiarId) {
@@ -3373,30 +3384,6 @@ export default function App() {
     // Character-select + supply-shop already gave the lane-pure picks the
     // legacy starting-picks screen used to provide. Skip it and head
     // directly to the map.
-    {
-      const m0 = generateActMap(ACTS[0].rows, ACTS[0].width);
-      setMap(seedSidequestSpurs(m0, ACTS[0].id, ACTS[0].rows, ACTS[0].width));
-    }
-    setStage('map');
-    pushLog(`🌅 ${ACTS[0].name} begins.`);
-  }
-
-  function toggleStartingPick(cardId) {
-    setStartingPicksSelected(prev => {
-      if (prev.includes(cardId)) return prev.filter(id => id !== cardId);
-      if (prev.length >= 2) return prev; // already at cap — must deselect first
-      return [...prev, cardId];
-    });
-  }
-
-  function confirmStartingPicks() {
-    if (startingPicksSelected.length !== 2) return;
-    const additions = startingPicksSelected
-      .map(id => CARDS_BY_ID[id])
-      .filter(Boolean)
-      .map(c => ({ ...c, uid: uid() }));
-    setDeck(d => shuffle([...d, ...additions]));
-    for (const c of additions) pushLog(`+ ${c.name} added to your starting deck.`);
     {
       const m0 = generateActMap(ACTS[0].rows, ACTS[0].width);
       setMap(seedSidequestSpurs(m0, ACTS[0].id, ACTS[0].rows, ACTS[0].width));
@@ -5406,6 +5393,29 @@ export default function App() {
       setStage('upgrade');
       return;
     }
+    if (kind === 'forget') {
+      // v2.8: card removal. Same flow as upgrade — pick one card and
+      // remove it from the deck. Rest node stays selected; the picker
+      // returns to map on confirm or cancel.
+      setStage('forget');
+      return;
+    }
+  }
+
+  // v2.8: Remove a card from the deck at a rest site. Mirrors
+  // pickCardToUpgrade. cardUid === null cancels back to the rest screen.
+  function pickCardToForget(cardUid) {
+    if (cardUid === null) {
+      logEvent('forget.cancel', { deckSize: deck.length });
+      setStage('rest');
+      return;
+    }
+    const target = deck.find(c => c.uid === cardUid);
+    logEvent('forget.pick', { cardId: target?.id, cardName: target?.name, type: target?.type, deckSize: deck.length });
+    setDeck(prev => prev.filter(c => c.uid !== cardUid));
+    if (target) pushLog(`🛏 Forgot ${target.name || target.phrase}. Off the deck for good.`);
+    setRestNode(null);
+    returnToMap();
   }
 
   function pickCardToUpgrade(cardUid) {
@@ -5441,15 +5451,9 @@ export default function App() {
   // the modal as an overlay below.
 
   if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} />;
-  if (stage === 'supply-shop')   return <SupplyShopScreen choices={supplyChoices} picks={supplyPicks} onPick={pickSupplyCard} character={selectedCharacter} />;
+  if (stage === 'supply-shop')   return <SupplyShopScreen offers={supplyOffers} onPick={pickSupplyOffer} character={selectedCharacter} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
   if (stage === 'familiar-name') return <FamiliarNameScreen familiar={familiar} onConfirm={confirmFamiliarName} />;
-  if (stage === 'starting-picks') return <StartingPicksScreen
-    pool={STARTING_PICKS_POOL}
-    selected={startingPicksSelected}
-    onToggle={toggleStartingPick}
-    onConfirm={confirmStartingPicks} />;
-
   if (stage === 'act-cleared') {
     return <ActClearedScreen act={currentAct} equipment={equipment}
       isFinalAct={currentActIdx === ACTS.length - 1}
@@ -5488,6 +5492,7 @@ export default function App() {
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
+  if (stage === 'forget')  return <ForgetCardScreen deck={deck} onPick={pickCardToForget} />;
   // Floating menu button (☰) + overlay. Only renders on play stages.
   // Save & Quit only allowed when stage === 'map' (combat / mid-event
   // state isn't safe to serialize). Give Up always available.
@@ -5550,6 +5555,7 @@ export default function App() {
     <CombatScreen
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
+      peekedNextIntent={peekedNextIntent}
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyHitFlash={enemyHitFlash} playerHitFlash={playerHitFlash} dmgFloaters={dmgFloaters}
       hp={hp} maxHp={maxHp}
@@ -5749,77 +5755,86 @@ function CharacterSelectScreen({ characters, onSelect }) {
 
 // ---- TOWN INTRO ----
 
-function SupplyShopScreen({ choices, picks, onPick, character }) {
-  const remaining = 2 - picks.length;
+function SupplyShopScreen({ offers, onPick, character }) {
+  if (!offers) return null;
+  const { card, relic, boon } = offers;
+  const laneColor = character?.lane === 'wit' ? 'text-iris-300'
+                  : character?.lane === 'chutzpah' ? 'text-ember-300'
+                  : 'text-moss-300';
   return (
     <div className="min-h-screen flex flex-col items-center p-6 gap-5 max-w-5xl mx-auto">
       <h2 className="font-display text-4xl text-gold-300">The Supply Shop</h2>
       {character && (
         <div className="text-sm text-gold-500 italic">
-          For: <span className="text-gold-300">{character.name}</span> — offers leaning {character.lane}.
+          For: <span className={laneColor}>{character.name}</span> · {character.lane}
         </div>
       )}
       <p className="font-quill italic text-parchment-200 text-center max-w-2xl">
-        A long table covered in cards. The proprietor sucks his teeth in the
-        manner of a man who has done so professionally. "Pick two," he says.
-        "You're an apprentice. <i>Two.</i>"
+        The proprietor lays out three things on the long table. "On the
+        house," he says, with the conviction of a man who has watched many
+        apprentices die. "<i>One</i>. Pick well."
       </p>
-      <div className="text-sm text-gold-300">
-        Picked: {picks.length} / 2 {remaining > 0 ? `(choose ${remaining} more)` : '— off to the familiar shop'}
-      </div>
-      <div className="flex gap-3 flex-wrap justify-center">
-        {choices.map((card, i) => {
-          const picked = picks.includes(i);
-          const disabled = picked || picks.length >= 2;
-          return (
-            <button key={i} onClick={() => onPick(i)} disabled={disabled}
-              className={`w-48 min-h-[260px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg transition ${
-                picked
-                  ? 'bg-moss-700 text-parchment-50 border-moss-400 cursor-default'
-                  : disabled
-                    ? 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50'
-                    : 'bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer'
-              }`}>
-              <div className="flex justify-between items-center">
-                <div className="font-display text-base leading-tight">{card.name || card.phrase || ''}</div>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">
-                  {card.cost}
-                </div>
+      <div className="flex gap-4 flex-wrap justify-center">
+        {/* --- CARD OFFER --- */}
+        {card && (
+          <button onClick={() => onPick('card')}
+            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
+            <div className="text-[10px] uppercase tracking-widest text-iris-700 font-bold">📜 Card · Uncommon</div>
+            <div className="flex justify-between items-center">
+              <div className="font-display text-lg leading-tight">{card.name || card.phrase || ''}</div>
+              <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
+            </div>
+            <div className="text-[10px] uppercase tracking-wider opacity-70 font-bold">
+              {(card.slot || card.type)}{card.tier ? ` · T${card.tier}` : ''}
+            </div>
+            {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+              <div className="flex gap-1 flex-wrap text-xs font-mono">
+                {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
               </div>
-              <div className="text-[10px] uppercase tracking-wider opacity-70 font-bold">
-                {(card.slot || card.type)} · {card.rarity}{card.tier ? ` · T${card.tier}` : ''}
+            )}
+            {(card.slot === 'target' || card.type === 'effect') && card.effect && (
+              <div className="text-xs font-mono text-ink-700">
+                {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
               </div>
-              {/* Stat contribution (intros/subjects/modifiers) */}
-              {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
-                <div className="flex gap-1 flex-wrap text-xs font-mono">
-                  {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                  {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                  {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-                </div>
-              )}
-              {/* Target damage formula */}
-              {(card.slot === 'target' || card.type === 'effect') && card.effect && (
-                <div className="text-xs font-mono text-ink-700">
-                  {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
-                  {card.effect.rider && (
-                    <span className="ml-1 text-ember-700">
-                      ({Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')})
-                    </span>
-                  )}
-                </div>
-              )}
-              {/* Tags */}
-              {card.tags && card.tags.length > 0 && (
-                <div className="text-[11px] italic text-ink-500">✦ {card.tags.join(' · ')}</div>
-              )}
-              <div className="text-xs font-quill">{card.desc || ''}</div>
-              {card.flavor && (
-                <div className="text-[11px] italic opacity-70 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
-              )}
-              {picked && <div className="text-xs italic text-moss-300 mt-1">— bought —</div>}
-            </button>
-          );
-        })}
+            )}
+            {card.tags && card.tags.length > 0 && (
+              <div className="text-[11px] italic text-ink-500">✦ {card.tags.join(' · ')}</div>
+            )}
+            <div className="text-xs font-quill">{card.desc || ''}</div>
+            {card.flavor && (
+              <div className="text-[11px] italic opacity-70 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
+            )}
+            <div className="text-[10px] italic text-iris-700 mt-1">Joins your deck.</div>
+          </button>
+        )}
+        {/* --- RELIC OFFER --- */}
+        {relic && (
+          <button onClick={() => onPick('relic')}
+            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
+            <div className="text-[10px] uppercase tracking-widest text-gold-700 font-bold">💎 Relic · Common</div>
+            <div className="font-display text-lg leading-tight">{relic.name}</div>
+            <div className="text-xs font-quill">{relic.desc}</div>
+            {relic.flavor && (
+              <div className="text-[11px] italic opacity-70 mt-auto pt-1 border-t border-ink-300">"{relic.flavor}"</div>
+            )}
+            <div className="text-[10px] italic text-gold-700 mt-1">Passive — lasts the whole run.</div>
+          </button>
+        )}
+        {/* --- BOON OFFER --- */}
+        {boon && (
+          <button onClick={() => onPick('boon')}
+            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-moss-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
+            <div className="text-[10px] uppercase tracking-widest text-moss-700 font-bold">✨ Boon · Permanent</div>
+            <div className="flex items-center gap-2">
+              <div className="text-2xl">{boon.icon}</div>
+              <div className="font-display text-lg leading-tight">{boon.name}</div>
+            </div>
+            <div className="text-xs font-quill">{boon.desc}</div>
+            <div className="text-[10px] italic text-moss-700 mt-auto">Applied immediately and forever.</div>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -6154,7 +6169,7 @@ function Legend({ glyph, label }) {
   return <span><span className="mr-1">{glyph}</span>{label}</span>;
 }
 
-function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick,
+function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
@@ -6664,79 +6679,6 @@ function V2SpellTray({ tray, onUnstage, onCast }) {
   );
 }
 
-
-// Starting Picks — shown after familiar selection. Player taps two cards
-// from a fixed pool to seed their deck with archetype commitment. This
-// is a PLACEHOLDER for the planned character-selection opening sequence;
-// when that lands, the pool will be derived from the chosen character.
-function StartingPicksScreen({ pool, selected, onToggle, onConfirm }) {
-  const cards = pool.map(id => CARDS_BY_ID[id]).filter(Boolean);
-  const archetypeOf = (card) => {
-    if (card.type === 'word') {
-      if (card.stats?.chutzpah) return 'Chutzpah';
-      if (card.stats?.wit)      return 'Wit';
-      if (card.stats?.jnsq)     return 'Jnsq';
-    }
-    if (card.type === 'effect') {
-      const s = card.effect?.scaleBy;
-      if (s === 'chutzpah') return 'Chutzpah';
-      if (s === 'wit')      return 'Wit';
-      if (s === 'jnsq')     return 'Jnsq';
-    }
-    return '';
-  };
-  const archColor = (a) => a === 'Chutzpah' ? 'text-ember-600 border-ember-400'
-                       : a === 'Wit'      ? 'text-iris-700 border-iris-400'
-                       : a === 'Jnsq'     ? 'text-moss-700 border-moss-400'
-                       : 'text-ink-500 border-ink-300';
-  const ready = selected.length === 2;
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-5xl mx-auto">
-      <h2 className="font-display text-3xl text-gold-300">Find Your Voice</h2>
-      <p className="text-sm text-parchment-300 italic max-w-2xl text-center">
-        Your starter deck covers the basics in <span className="text-ember-300">Chutzpah</span> and <span className="text-iris-200">Wit</span>.
-        Pick <b>2</b> more cards to seed your style — double down on a stat you know, or open <span className="text-moss-200">Jnsq</span> as a third lane.
-      </p>
-      <p className="text-xs text-parchment-400">
-        Selected: <span className={ready ? 'text-moss-300' : 'text-gold-300'}>{selected.length} / 2</span>
-      </p>
-      <div className="flex gap-4 flex-wrap justify-center">
-        {cards.map((card) => {
-          const arch = archetypeOf(card);
-          const isSelected = selected.includes(card.id);
-          const disabled = !isSelected && selected.length >= 2;
-          return (
-            <button key={card.id} onClick={() => onToggle(card.id)} disabled={disabled}
-              className={`w-48 min-h-[240px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg transition bg-parchment-50 text-ink-800 ${archColor(arch)} ${
-                isSelected ? 'scale-105 ring-4 ring-gold-400 shadow-2xl' :
-                disabled   ? 'opacity-40 cursor-not-allowed' :
-                'hover:scale-105 hover:shadow-2xl'
-              }`}>
-              <div className="flex justify-between items-center">
-                <div className="font-display text-base leading-tight">{card.name || card.phrase || ''}</div>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
-              </div>
-              <div className="text-[10px] uppercase tracking-wider text-ink-400 font-bold">
-                {(card.slot || card.type)}{card.tier ? ` · T${card.tier}` : ''}{arch && <> · <span className={archColor(arch).split(' ')[0]}>{arch}</span></>}
-              </div>
-              {card.tags && card.tags.length > 0 && (
-                <div className="text-[11px] italic text-ink-500">✦ {card.tags.join(' · ')}</div>
-              )}
-              <div className="text-xs font-quill">{card.desc || ''}</div>
-              {card.flavor && (
-                <div className="text-[11px] italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <button onClick={onConfirm} disabled={!ready}
-        className={`btn text-base px-8 py-3 ${ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'}`}>
-        Begin Act 1
-      </button>
-    </div>
-  );
-}
 
 function RewardScreen({ choices, onPick }) {
   return (
@@ -7529,6 +7471,7 @@ function RestScreen({ onChoose }) {
       <div className="flex flex-col gap-2 w-full">
         <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — restore 30% HP and Composure</button>
         <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
+        <button onClick={() => onChoose('forget')}  className="btn btn-iris">Forget a card — remove one from your deck</button>
       </div>
     </div>
   );
@@ -7624,6 +7567,69 @@ function UpgradeCardScreen({ deck, onPick }) {
           onConfirm={() => { const uid = pendingUid; setPendingUid(null); onPick(uid); }}
           onCancel={() => setPendingUid(null)}
         />
+      )}
+    </div>
+  );
+}
+
+// v2.8: Remove a card from the deck at a rest site. Click → confirm.
+// Same layout as the upgrade picker so the player recognizes the flow.
+function ForgetCardScreen({ deck, onPick }) {
+  const [pendingUid, setPendingUid] = useState(null);
+  const pendingCard = pendingUid ? deck.find(c => c.uid === pendingUid) : null;
+  return (
+    <div className="min-h-screen flex flex-col p-6 gap-4 max-w-5xl mx-auto">
+      <div className="text-center">
+        <h2 className="font-display text-4xl text-iris-300">Forget a Card</h2>
+        <p className="text-base text-parchment-300 italic mt-1">Pick one to lose forever. Slim decks hit harder.</p>
+      </div>
+      <div className="parchment-card p-3">
+        <div className="text-xs uppercase text-parchment-300 mb-2 tracking-widest">Your deck ({deck.length})</div>
+        <div className="flex flex-wrap gap-3">
+          {deck.length === 0 && (
+            <div className="text-sm italic text-parchment-400">Empty deck. Nothing to forget.</div>
+          )}
+          {deck.map(card => {
+            const dispName = card.name || card.phrase || '';
+            const dispLabel = card.slot || card.type;
+            return (
+              <button key={card.uid} onClick={() => setPendingUid(card.uid)}
+                className="w-52 rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
+                    {dispLabel}{card.tier ? ` · T${card.tier}` : ''}
+                  </div>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
+                </div>
+                <div className="font-display text-base">{dispName}</div>
+                {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+                  <div className="flex gap-1 flex-wrap text-xs font-mono">
+                    {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                    {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                    {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                  </div>
+                )}
+                {card.desc && <div className="text-xs font-quill mt-auto">{card.desc}</div>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex gap-2 justify-center">
+        <button onClick={() => onPick(null)} className="btn bg-ink-700 text-parchment-200">Back</button>
+      </div>
+      {pendingCard && (
+        <div className="fixed inset-0 bg-ink-900 bg-opacity-80 flex items-center justify-center z-50 p-6">
+          <div className="parchment-card-strong p-6 max-w-md flex flex-col gap-4 items-center">
+            <h3 className="font-display text-2xl text-iris-300">Forget this card?</h3>
+            <div className="font-display text-lg">{pendingCard.name || pendingCard.phrase}</div>
+            <div className="text-xs italic text-parchment-300">Once forgotten, it's out of your deck for the rest of the run.</div>
+            <div className="flex gap-3">
+              <button onClick={() => setPendingUid(null)} className="btn bg-ink-700 text-parchment-200">Cancel</button>
+              <button onClick={() => onPick(pendingUid)} className="btn btn-iris">Forget</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
