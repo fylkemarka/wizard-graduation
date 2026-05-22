@@ -31,21 +31,23 @@ const ENEMIES = [
   { id: 'e1-thicket',       act: 4, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 } },
   { id: 'e1-boss-thornlord',act: 4, name: 'The Thornlord',       comp: 100,hp: 120, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
   // Act 2
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 14, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 20, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 28, hp: 999, tier: 'elite',  atk: 6, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 30, hp: 999, tier: 'elite',  atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
+  // v2.9: bumped composure + atk values to match App.jsx. Elites in
+  // particular need to feel like a wall.
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 30, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 26, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 32, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 44, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 46, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 44, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
   // Act 3
   // v2.4: sharper act-2 effectiveness so each enemy has a clear lane
   // favorite + resistor rather than the flat "0.7 everywhere" tax that
   // walled all three lanes equally.
-  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 28, hp: 22,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
-  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 22, hp: 16,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 28, hp: 22,  tier: 'normal', atk: 5, effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 35, hp: 40,  tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.5, physical: 1.0 } },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 60, hp: 50,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 34, hp: 16,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 } },
+  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
   { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 } },
   // Act 4
   { id: 'e4-apprentice-shade',act:3,name: "Apprentice's Shade",  comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 } },
@@ -119,6 +121,7 @@ function buildStarterDeck(lane) {
     return tmpl ? { ...tmpl, uid: uid() } : null;
   }).filter(Boolean);
   cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
+  cards.push({ id: 'c-compose', type: 'skill', cost: 1, effects: { poise: 5 }, name: 'Compose Yourself', uid: uid() }); // v2.9: poise shield
   return shuffle(cards);
 }
 
@@ -180,6 +183,12 @@ function runCombat(state, enemyId, telemetry) {
   if (!tmpl) throw new Error(`Unknown enemy ${enemyId}`);
   const enemy = { ...tmpl, currentComp: tmpl.comp, currentHp: tmpl.hp, block: 0 };
   state.block = 0;
+  state.poise = 0; // v2.9: composure-shield
+  // v2.9: familiar start-of-combat bonuses.
+  const fb = state.familiarBonus || {};
+  if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
+  if (fb.startCombatEnergy) state.energy += fb.startCombatEnergy; // applied alongside ENERGY_PER_TURN in loop
+  if (fb.startCombatVuln)   state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fb.startCombatVuln);
   // Power-down: reset per-combat buffs
   state.enemyDmgMult = 1.0;
   state.playerDmgMult = 1.0;
@@ -187,7 +196,7 @@ function runCombat(state, enemyId, telemetry) {
   // Combat starts with empty hand. Draw fresh.
   state.discard = [...state.discard, ...state.hand];
   state.hand = [];
-  drawCards(state, HAND_SIZE);
+  drawCards(state, HAND_SIZE + (fb.startCombatDraw || 0));
 
   // v2.1: tray persists across turns. Cards staged but not cast last turn
   // remain in their slots; the player can refine the spell over multiple
@@ -196,8 +205,12 @@ function runCombat(state, enemyId, telemetry) {
   let tray = { intro: null, subject: null, target: null, modifiers: [] };
   let turns = 0;
   while (turns++ < MAX_COMBAT_TURNS) {
-    state.energy = ENERGY_PER_TURN;
+    state.energy = ENERGY_PER_TURN + (turns === 1 && fb.startCombatEnergy ? fb.startCombatEnergy : 0);
+    // v2.9: start-of-turn block from familiar (e.g. Hedgehog).
+    if (fb.startOfTurnBlock) state.block += fb.startOfTurnBlock;
     let cast = false;
+    // v2.9: cast cap = 1 per turn.
+    let castsThisTurn = 0;
 
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
@@ -205,13 +218,37 @@ function runCombat(state, enemyId, telemetry) {
     while (passCount++ < 8) {
       let progressed = false;
 
-      // Skill: Defend if HP/composure is low.
-      if ((state.hp < 30 || state.composure < 12) && state.block < 4) {
+      // v2.9: Defenders react to anticipated damage. The dual-shield system
+      // forces the AI to keep BOTH pools covered, not just HP. Thresholds
+      // are tuned for a competent (not optimal) human: defend whenever the
+      // next enemy hit could threaten a pool.
+      //   Block / Defend → HP-pool defense. Threshold: hp < 60% AND block < expected hit.
+      //   Poise / Compose → composure defense. Tighter threshold since
+      //     composure pool is smaller (30 vs 70 HP).
+      const expectedHit = enemy.atk;
+      const expectedHpHit = Math.ceil(expectedHit / 2);
+      const expectedCompHit = Math.ceil(expectedHit / 2);
+      // Play Defend / Mend if expected unblocked HP damage > 0.
+      if (state.block < expectedHpHit) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
-          if (c.type === 'skill' && c.id === 'c-defend' && (c.cost || 0) <= state.energy) {
+          if (c.type === 'skill' && (c.id === 'c-defend' || c.id === 'c-mend') && (c.cost || 0) <= state.energy) {
             state.energy -= c.cost || 0;
             state.block += c.effects?.block || 0;
+            state.discard.push(c);
+            state.hand.splice(i, 1);
+            progressed = true;
+            break;
+          }
+        }
+      }
+      // Play Compose / Steady if expected unblocked composure damage > 0.
+      if (state.poise < expectedCompHit) {
+        for (let i = 0; i < state.hand.length; i++) {
+          const c = state.hand[i];
+          if (c.type === 'skill' && (c.id === 'c-compose' || c.id === 'c-steady') && (c.cost || 0) <= state.energy) {
+            state.energy -= c.cost || 0;
+            state.poise += c.effects?.poise || 0;
             state.discard.push(c);
             state.hand.splice(i, 1);
             progressed = true;
@@ -225,6 +262,7 @@ function runCombat(state, enemyId, telemetry) {
       const applyStageEffects = (card) => {
         const fx = card.effects || {};
         if (fx.block)      state.block += fx.block;
+        if (fx.poise)      state.poise += fx.poise;
         if (fx.draw)       drawCards(state, fx.draw);
         if (fx.weak)       state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * fx.weak);
         if (fx.vulnerable) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fx.vulnerable);
@@ -281,8 +319,9 @@ function runCombat(state, enemyId, telemetry) {
       if (!progressed) break;
     }
 
-    // Cast if all three slots filled.
-    if (tray.intro && tray.subject && tray.target) {
+    // Cast if all three slots filled. v2.9: hard cap 1 cast per turn.
+    if (tray.intro && tray.subject && tray.target && castsThisTurn < 1) {
+      castsThisTurn++;
       const simCtx = {
         discardSize: state.discard.length,
         deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
@@ -342,25 +381,38 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // Check victory
-    if (enemy.currentComp <= 0 || enemy.currentHp <= 0) return { outcome: 'won', turns, telemetry };
+    if (enemy.currentComp <= 0 || enemy.currentHp <= 0) {
+      // v2.9: onKillHeal (Crow).
+      if (fb.onKillHeal) state.hp = Math.min(state.maxHp, state.hp + fb.onKillHeal);
+      return { outcome: 'won', turns, telemetry };
+    }
 
     // Enemy turn
     let incoming = enemy.atk;
+    if (fb.damageReduction) incoming = Math.max(1, incoming - fb.damageReduction);
     // Drift player buffs back toward 1.0 (0.25/turn)
     if (state.enemyDmgMult < 1.0) state.enemyDmgMult = Math.min(1.0, state.enemyDmgMult + 0.25);
     if (state.playerDmgMult > 1.0) state.playerDmgMult = Math.max(1.0, state.playerDmgMult - 0.25);
     if (state.playerDmgMult < 1.0) state.playerDmgMult = Math.min(1.0, state.playerDmgMult + 0.25);
     incoming = Math.round(incoming * (state.enemyDmgMult || 1));
-    // Block absorbs
-    if (state.block > 0) {
-      const absorbed = Math.min(state.block, incoming);
-      state.block -= absorbed; incoming -= absorbed;
+    // v2.9: dual-shield routing. Half the incoming is composure (mental
+    // attacks), half is physical. Each is absorbed by its own shield —
+    // a player who built only physical block has zero defense against
+    // the composure half, and vice versa. Forces dual management.
+    let compIncoming = Math.ceil(incoming / 2);
+    let hpIncoming = incoming - compIncoming;
+    // Poise absorbs composure half.
+    if (state.poise > 0) {
+      const absorbed = Math.min(state.poise, compIncoming);
+      state.poise -= absorbed; compIncoming -= absorbed;
     }
-    // Half hits composure, half hits HP (simple model)
-    const compHit = Math.ceil(incoming / 2);
-    const hpHit = incoming - compHit;
-    state.composure = Math.max(0, state.composure - compHit);
-    state.hp = Math.max(0, state.hp - hpHit);
+    // Block absorbs HP half.
+    if (state.block > 0) {
+      const absorbed = Math.min(state.block, hpIncoming);
+      state.block -= absorbed; hpIncoming -= absorbed;
+    }
+    state.composure = Math.max(0, state.composure - compIncoming);
+    state.hp = Math.max(0, state.hp - hpIncoming);
 
     // Player KO check
     if (state.hp <= 0 || state.composure <= 0) {
@@ -371,6 +423,7 @@ function runCombat(state, enemyId, telemetry) {
     state.discard.push(...state.hand);
     state.hand = [];
     state.block = 0;
+    state.poise = 0; // v2.9: poise fades end-of-turn like block
     drawCards(state, HAND_SIZE);
   }
 
@@ -394,7 +447,31 @@ function pickSlotWeighted(cards) {
   return cards[cards.length - 1];
 }
 // Add a random lane-pure card to the deck on combat win.
+// v2.9: defensive skill cards a smart player would pick from rewards when
+// available. The sim models this by sometimes substituting a defense skill
+// for a v2 card reward — proportional to how "underdefended" the player
+// currently is. Without this, the deck dilutes defense over time and elites
+// are unwinnable, which doesn't match real play where players actively
+// pursue defense.
+const DEFENSE_REWARDS = [
+  { id: 'c-mend',   type: 'skill', cost: 1, effects: { block: 7 }, name: 'Mend' },
+  { id: 'c-steady', type: 'skill', cost: 1, effects: { poise: 7 }, name: 'Steady Breath' },
+];
+
 function awardReward(state) {
+  // Count defense cards in current deck.
+  const allCards = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+  const blockCount = allCards.filter(c => c.id === 'c-defend' || c.id === 'c-mend').length;
+  const poiseCount = allCards.filter(c => c.id === 'c-compose' || c.id === 'c-steady').length;
+  // If a defense type is below 2 cards AND coinflip, grant that defender.
+  if ((blockCount < 2 || poiseCount < 2) && rnd() < 0.4) {
+    // Pick whichever shield is weaker; tie → coinflip.
+    const needBlock = blockCount < poiseCount || (blockCount === poiseCount && rnd() < 0.5);
+    const def = needBlock ? DEFENSE_REWARDS[0] : DEFENSE_REWARDS[1];
+    state.discard.push({ ...def, uid: uid() });
+    state.rewardsTaken.push(def.id);
+    return;
+  }
   const pool = LANE_POOL[state.lane];
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
@@ -426,15 +503,36 @@ function classifyArchetype(deck) {
   return 'low-tier';
 }
 
+// v2.9: familiar variety in sim. Apply the bonus at run start; track in
+// telemetry. Mirrors the App's FAMILIARS table — only the bonuses that
+// shift balance are encoded here (maxHp, damageReduction, startBlock,
+// extraDraw, startEnergy, startOfTurnBlock).
+const SIM_FAMILIARS = [
+  { id: 'fam-raven',    name: 'Raven',     bonus: { startCombatDraw: 1 } },
+  { id: 'fam-cat',      name: 'Cat',       bonus: { startCombatBlock: 3 } },
+  { id: 'fam-toad',     name: 'Toad',      bonus: { combatEndHeal: 3 } },
+  { id: 'fam-mouse',    name: 'Mouse',     bonus: { startCombatEnergy: 1 } },
+  { id: 'fam-owl',      name: 'Owl',       bonus: { maxHpBonus: 8 } },
+  { id: 'fam-beetle',   name: 'Beetle',    bonus: { damageReduction: 1 } },
+  { id: 'fam-hedgehog', name: 'Hedgehog',  bonus: { startOfTurnBlock: 2 } },
+  { id: 'fam-crow',     name: 'Crow',      bonus: { onKillHeal: 2 } },
+  { id: 'fam-snake',    name: 'Snake',     bonus: { startCombatVuln: 2 } },
+  { id: 'fam-rabbit',   name: 'Rabbit',    bonus: { strikeBonus: 1 } },
+];
+
 function simRun() {
   const lane = pickRandom(['wit', 'chutzpah', 'jnsq']);
+  const familiar = pickRandom(SIM_FAMILIARS);
+  const fb = familiar.bonus || {};
+  const maxHp = STARTING_MAX_HP + (fb.maxHpBonus || 0);
   const state = {
-    hp: STARTING_MAX_HP, maxHp: STARTING_MAX_HP,
+    hp: maxHp, maxHp,
     composure: STARTING_MAX_COMPOSURE, maxComposure: STARTING_MAX_COMPOSURE,
-    block: 0, energy: 0,
+    block: 0, poise: 0, energy: 0,
     deck: buildStarterDeck(lane), hand: [], discard: [], exiled: [],
     lane, rewardsTaken: [],
     enemyDmgMult: 1.0, playerDmgMult: 1.0,
+    familiar: familiar.id, familiarName: familiar.name, familiarBonus: fb,
   };
   const tele = {
     castsAttempted: 0, fizzles: 0, holds: 0, totalDamageDealt: 0,
@@ -451,6 +549,10 @@ function simRun() {
   const postCombatHeal = () => {
     state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * POST_COMBAT_HEAL_RATIO));
     state.composure = Math.min(state.maxComposure, state.composure + Math.floor(state.maxComposure * POST_COMBAT_HEAL_RATIO));
+    // v2.9: familiar combat-end heal.
+    if (state.familiarBonus?.combatEndHeal) {
+      state.hp = Math.min(state.maxHp, state.hp + state.familiarBonus.combatEndHeal);
+    }
   };
 
   for (const act of ACTS) {
@@ -460,7 +562,7 @@ function simRun() {
       tele.combatCount++;
       tele.combatTurns += r.turns;
       lastResult = { ...r, where: `act${act.id}-normal-${i}` };
-      if (r.outcome !== 'won') return { lane, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
+      if (r.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
       awardReward(state);
       postCombatHeal();
     }
@@ -468,14 +570,14 @@ function simRun() {
     const eliteR = runCombat(state, pickRandom(ACT_ELITES[act.id]), tele);
     tele.combatCount++; tele.combatTurns += eliteR.turns;
     lastResult = { ...eliteR, where: `act${act.id}-elite` };
-    if (eliteR.outcome !== 'won') return { lane, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
+    if (eliteR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
     awardReward(state);
     postCombatHeal();
     // Boss
     const bossR = runCombat(state, act.bossId, tele);
     tele.combatCount++; tele.combatTurns += bossR.turns;
     lastResult = { ...bossR, where: `act${act.id}-boss` };
-    if (bossR.outcome !== 'won') return { lane, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
+    if (bossR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
     actsCleared++;
     awardReward(state);
     // Inter-act heal (in addition to post-combat heal) — bigger swing
@@ -486,7 +588,7 @@ function simRun() {
 
   const finalDeck = [...state.deck, ...state.discard, ...state.hand, ...state.exiled];
   return {
-    lane, actsCleared, outcome: 'won', ...tele,
+    lane, familiar: state.familiar, actsCleared, outcome: 'won', ...tele,
     finalHp: state.hp, finalComposure: state.composure, finalDeckSize: finalDeck.length,
     archetype: classifyArchetype(finalDeck),
   };
@@ -518,10 +620,23 @@ function aggregate(results) {
     const w = arr.filter(r => r.outcome === 'won').length;
     laneStats[lane] = { n: arr.length, wins: w, winRate: arr.length ? w / arr.length : 0 };
   }
+  // v2.9: per-familiar win rates.
+  const byFam = {};
+  for (const r of results) {
+    const k = r.familiar || 'unknown';
+    if (!byFam[k]) byFam[k] = [];
+    byFam[k].push(r);
+  }
+  const famStats = {};
+  for (const fam of Object.keys(byFam)) {
+    const arr = byFam[fam];
+    const w = arr.filter(r => r.outcome === 'won').length;
+    famStats[fam] = { n: arr.length, wins: w, winRate: arr.length ? w / arr.length : 0 };
+  }
   return {
     N: results.length, wins, winRate: wins / results.length,
     lossesByEnemy, lossesByAct,
-    laneStats,
+    laneStats, famStats,
     totalCasts: results.reduce((s, r) => s + (r.castsAttempted || 0), 0),
     totalFizzles: results.reduce((s, r) => s + (r.fizzles || 0), 0),
     totalHolds: results.reduce((s, r) => s + (r.holds || 0), 0),
@@ -548,6 +663,12 @@ function buildReport(agg) {
   lines.push(`## Lane outcomes`);
   for (const [lane, s] of Object.entries(agg.laneStats)) {
     lines.push(`- **${lane}**: ${s.n} runs · ${s.wins} wins (${pct(s.winRate)})`);
+  }
+  lines.push('');
+  lines.push(`## Familiar outcomes (v2.9)`);
+  const famSorted = Object.entries(agg.famStats).sort((a, b) => b[1].winRate - a[1].winRate);
+  for (const [fam, s] of famSorted) {
+    lines.push(`- **${fam}**: ${s.n} runs · ${s.wins} wins (${pct(s.winRate)})`);
   }
   lines.push('');
   lines.push(`## Cast distribution`);

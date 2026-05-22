@@ -63,12 +63,22 @@ const CARDS = [
   // ---- BASIC (starter) ----
   { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
     effects: { block: 5 }, upgrade: { effects: { block: 8 } },
-    desc: 'Gain 5 Block.' },
+    desc: 'Gain 5 Block (vs physical attacks).' },
+  // v2.9: starter Poise card. Defends against composure (🎭) attacks
+  // which Block can't touch. Every starter deck gets one of these
+  // alongside Defend so the player has both shields from turn 1.
+  { id: 'c-compose', name: 'Compose Yourself', cost: 1, type: 'skill', rarity: 'basic',
+    effects: { poise: 5 }, upgrade: { effects: { poise: 8 } },
+    desc: 'Gain 5 Poise (vs composure attacks).' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
     effects: { block: 7 }, upgrade: { effects: { block: 10 } },
     desc: 'Gain 7 Block.' },
+  // v2.9: Poise common — composure-shield mid-tier.
+  { id: 'c-steady', name: 'Steady Breath', cost: 1, type: 'skill', rarity: 'common',
+    effects: { poise: 7 }, upgrade: { effects: { poise: 10 } },
+    desc: 'Gain 7 Poise.' },
   { id: 'c-acuity', name: 'Acuity', cost: 1, type: 'skill', rarity: 'common',
     effects: { draw: 2 }, upgrade: { effects: { draw: 3 } },
     desc: 'Draw 2 cards.' },
@@ -414,6 +424,7 @@ function buildStarterDeckForLane(lane) {
     ...basics(pool.subject).slice(0, 3).map(c => c.id),
     ...firstNCommons(pool.target, 3).map(c => c.id),
     'c-defend',
+    'c-compose', // v2.9: poise shield for composure-pool attacks
   ];
   return ids;
 }
@@ -520,21 +531,23 @@ const ENEMIES = [
       { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
-      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
-      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (pattern-wrong)' },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (pattern-wrong)' },
+      { kind: 'attack-multi', value: 3, count: 2, pool: 'composure', weight: 1, telegraph: '🎭 3×2 + ⛧ Weak 1', riders: { weak: 1 } },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 46, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     softSpot: 'threat', // The vow of silence has limits.
     behaviors: [
-      { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9' },
+      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 8,  weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 10, weight: 1, telegraph: '⚔ 10 (loud silence)' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 52, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
@@ -575,16 +588,17 @@ const ENEMIES = [
       { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (carapace)' },
     ] },
-  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 50, hpMax: 40, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
     effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
+      { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (axiom-strike)' },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 75, hpMax: 50, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 80, hpMax: 50, tier: 'elite',
     // v2.4: chutzpah-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
     effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 },
@@ -593,7 +607,8 @@ const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
-      { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14' },
+      { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (devour)' },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 + ⛧ Weak 1', riders: { weak: 1 } },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
     // v2.4: Anvil flipped from chutzpah-resist to chutzpah-favored. It's
@@ -2885,6 +2900,11 @@ export default function App() {
   const [composureMax, setComposureMax] = useState(STARTING_MAX_COMPOSURE);
   const [composure, setComposure] = useState(STARTING_MAX_COMPOSURE);
   const [block, setBlock] = useState(0);
+  // v2.9: dual-shield system. `block` (🛡) absorbs PHYSICAL damage; `poise`
+  // (🪞) absorbs COMPOSURE damage. Both fade at the start of the enemy's
+  // turn. Cards/relics that grant block default to the physical kind;
+  // cards that grant poise are explicitly tagged with `poise:` in effects.
+  const [poise, setPoise] = useState(0);
   const [energy, setEnergy] = useState(ENERGY_PER_TURN);
   const [deck, setDeck] = useState([]);
   const [hand, setHand] = useState([]);
@@ -3025,6 +3045,12 @@ export default function App() {
   // many times it does anything; the escalating cost stops you from cheaply
   // spamming it to reach the cap.
   const [amplifyPlaysThisCombat, setAmplifyPlaysThisCombat] = useState(0);
+  // v2.9: hard cap on spell casts per turn. Was previously unbounded —
+  // a 3-energy turn could comfortably stage+cast twice. Caps player
+  // tempo so elites and bosses can actually pressure across multiple
+  // rounds instead of getting one-shot.
+  const [castsThisTurn, setCastsThisTurn] = useState(0);
+  const MAX_CASTS_PER_TURN = 1;
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -3947,6 +3973,7 @@ export default function App() {
     // Reset per-combat counters and player debuffs.
     setTray(initialV2Tray());
     setAmplifyPlaysThisCombat(0);
+    setCastsThisTurn(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -3996,6 +4023,7 @@ export default function App() {
       pushLog(`💢 ${e.name}: −${25*startCombatWeakTotal}% atk (start of combat).`);
     }
     setBlock(startBlockTotal);
+    setPoise(0);
     setEnergy(energyPerTurnRefill() + startEnergyBonus);
 
     if (opts.forcedHand && opts.forcedDeck) {
@@ -4403,10 +4431,18 @@ export default function App() {
 
   function castStagedSpell() {
     if (stage !== 'combat') return;
+    // v2.9: enforce per-turn cast cap. Was uncapped, which let a player
+    // stage+cast twice in a single turn at 3 energy. Now the second cast
+    // is gated until next turn.
+    if (castsThisTurn >= MAX_CASTS_PER_TURN) {
+      pushLog(`✋ One spell per turn. End your turn to cast again.`);
+      return;
+    }
     const t = tray;
 
     // v2 path: intro + subject + target all filled → sentence-engine cast.
     if (t.intro && t.subject && t.target) {
+      setCastsThisTurn(n => n + 1);
       return castV2SentenceSpell(t);
     }
 
@@ -4417,6 +4453,7 @@ export default function App() {
     // "words + effect" path alive but unreachable in normal v2 play.
     if (!t.effectCard) return;
     if ((t.words || []).length === 0) return;
+    setCastsThisTurn(n => n + 1);
 
     const card = t.effectCard;
     const eff = card.effect || {};
@@ -4680,6 +4717,11 @@ export default function App() {
     if (fx.block) {
       setBlock(b => b + fx.block);
       logBits.push(`🛡 +${fx.block}`);
+    }
+    // v2.9: poise — composure-pool shield.
+    if (fx.poise) {
+      setPoise(p => p + fx.poise);
+      logBits.push(`🪞 +${fx.poise} Poise`);
     }
     if (fx.pierceNextCast) {
       setPierceNextCast(true);
@@ -5003,6 +5045,8 @@ export default function App() {
     //      `block` here is the closure value at the top of the event handler;
     //      good enough for "you had block; it's gone now."
     if (block > 0) pushLog(`🛡 Block fades.`);
+    if (poise > 0) pushLog(`🪞 Poise fades.`);
+    setPoise(0);
 
     // 3. Debuff decay.
     // Multiplier drift: shift toward 1.0 by 0.25 per turn.
@@ -5059,6 +5103,8 @@ export default function App() {
     setHand(wHand);
     setBlock(wBlock);
     setEnergy(wEnergy);
+    // v2.9: reset per-turn cast cap.
+    setCastsThisTurn(0);
 
     // 6. New intent. Track what just fired and force a switch if the
     // enemy has already done the same kind twice in a row — saves the
@@ -5089,30 +5135,41 @@ export default function App() {
     let playerDied = false;
     if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
-      // Pool routing: intent.pool === 'composure' targets the verbal pool;
-      // default is HP. Block + Defense protect both — they're "bracing,"
-      // not just "armor."
+      // v2.9: dual-shield routing.
+      //   intent.pool === 'composure' → POISE absorbs, then composure pool
+      //   default                     → BLOCK absorbs, then HP pool
+      // Physical and composure defenses are NOW SEPARATE. A player who's
+      // only built physical block has no answer to composure threats and
+      // vice versa — forces dual defense management.
       const targetsComposure = intent.pool === 'composure';
-      // Enemy outgoing damage multiplier (old weak/vuln replacement).
       let raw = Math.round(intent.value * enemyDmgMult);
       const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
                          + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
       const reduction = Math.min(2, rawReduction);
       let wBlock = block;
+      let wPoise = poise;
       let wHp = hp;
       let wComp = composure;
       for (let i = 0; i < hits; i++) {
         let remaining = raw;
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
-        if (wBlock > 0) {
-          const absorbed = Math.min(wBlock, remaining);
-          wBlock -= absorbed; remaining -= absorbed;
+        if (targetsComposure) {
+          if (wPoise > 0) {
+            const absorbed = Math.min(wPoise, remaining);
+            wPoise -= absorbed; remaining -= absorbed;
+          }
+          wComp = Math.max(0, wComp - remaining);
+        } else {
+          if (wBlock > 0) {
+            const absorbed = Math.min(wBlock, remaining);
+            wBlock -= absorbed; remaining -= absorbed;
+          }
+          wHp = Math.max(0, wHp - remaining);
         }
-        if (targetsComposure) wComp = Math.max(0, wComp - remaining);
-        else                  wHp   = Math.max(0, wHp   - remaining);
         if (wHp <= 0 || wComp <= 0) break;
       }
       setBlock(wBlock);
+      setPoise(wPoise);
       setHp(wHp);
       setComposure(wComp);
       // Hit-shake the player HUD if either pool actually moved. Block-only
@@ -5560,7 +5617,7 @@ export default function App() {
       enemyHitFlash={enemyHitFlash} playerHitFlash={playerHitFlash} dmgFloaters={dmgFloaters}
       hp={hp} maxHp={maxHp}
       playerComposure={composure} playerComposureMax={composureMax}
-      block={block} energy={energy} hand={hand}
+      block={block} poise={poise} energy={energy} hand={hand}
       amplifyPlaysThisCombat={amplifyPlaysThisCombat}
       deck={deck} discard={discard} tray={tray}
       energyMax={energyPerTurnRefill()}
@@ -5569,6 +5626,7 @@ export default function App() {
       onPlayCard={playCard} onEndTurn={endTurn}
       onUnstage={unstageCard} onCast={castStagedSpell}
       castPreview={previewCastDamage()}
+      castsThisTurn={castsThisTurn} maxCastsPerTurn={MAX_CASTS_PER_TURN}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -6173,10 +6231,11 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        enemyDmgMult, playerDmgMult,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
-                       block, energy, energyMax, hand, deck, discard, tray,
+                       block, poise, energy, energyMax, hand, deck, discard, tray,
                        amplifyPlaysThisCombat,
                        equipment, powers, relics, familiar, familiarName,
-                       onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log }) {
+                       onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
+                       castsThisTurn, maxCastsPerTurn }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -6297,7 +6356,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       {/* v2 SENTENCE TRAY — intro + subject + target + 0-2 modifiers.
           Playing a target auto-casts. End the turn without a target and
           the spell fizzles. */}
-      <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast} />
+      <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast}
+        castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -6309,9 +6369,13 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-xs uppercase text-parchment-300">Composure <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
           </div>
-          <div title="Block — absorbs incoming damage to either pool (HP or Composure). Resets to 0 at the start of your next turn. Powers / Felt-tier hats can re-grant it.">
+          <div title="Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn.">
             <div className="text-xs uppercase text-parchment-300">Block <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
+          </div>
+          <div title="Poise — absorbs incoming COMPOSURE damage (🎭 mental attacks). Separate from Block. Resets to 0 at the start of your next turn.">
+            <div className="text-xs uppercase text-parchment-300">Poise <span className="text-parchment-500">ⓘ</span></div>
+            <div className="text-2xl font-mono text-moss-300">🪞 {poise}</div>
           </div>
           {(() => {
             const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
@@ -6566,7 +6630,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
   );
 }
 
-function V2SpellTray({ tray, onUnstage, onCast }) {
+function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1 }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -6670,9 +6734,13 @@ function V2SpellTray({ tray, onUnstage, onCast }) {
           </div>
         )}
         <button onClick={onCast}
-          disabled={!ready}
-          className={`btn text-base px-6 py-2 ml-2 ${ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'}`}>
-          ✨ CAST
+          disabled={!ready || castsThisTurn >= maxCastsPerTurn}
+          title={castsThisTurn >= maxCastsPerTurn ? 'One spell per turn. End your turn to cast again.' : 'Cast the staged spell.'}
+          className={`btn text-base px-6 py-2 ml-2 ${
+            castsThisTurn >= maxCastsPerTurn ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
+            ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
+          }`}>
+          ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">({castsThisTurn}/{maxCastsPerTurn})</span>}
         </button>
       </div>
     </div>
