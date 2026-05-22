@@ -168,6 +168,19 @@ const SUBJECTS = [
   { id: 'cv2-s-your-tone', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'your tone with me', tags: ['demanding', 'threatening'], stats: { chutzpah: 2 },
     flavor: 'Tone, having been with you, is now between us.' },
+  // v2.7: NOVEL — Bleed (damage-over-time). On stage, applies DOT to the
+  // enemy: 3 composure dmg per turn for 3 turns. Persistent damage source
+  // that pressures grindy bosses.
+  { id: 'cv2-s-your-every-breath', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your every breath from now on', tags: ['threatening', 'demanding'], stats: { chutzpah: 3 },
+    effects: { applyDot: { damage: 3, turns: 3 } },
+    flavor: "Now on, in this case, being unspecified. But long." },
+  // v2.7: NOVEL — Energy Refund. On stage, refunds +2 energy. Tempo subject
+  // that lets you push deeper into a turn after staging.
+  { id: 'cv2-s-yourself-mostly', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'yourself, mostly', tags: ['dismissive', 'direct'], stats: { chutzpah: 3 },
+    effects: { refundEnergy: 2 },
+    flavor: 'A self is a budget. We balance the books.' },
 
   // ---- Uncommon (6) ----
   { id: 'cv2-s-audacity', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -342,12 +355,12 @@ const MODIFIERS = [
 const GESTURES = [
   { id: 'cv2-g-slams-table', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(SLAMS THE TABLE,)', tags: ['threatening', 'direct'],
-    gestureEffect: { icon: '💥', damage: 10, damageType: 'composure', trayMultiplier: 1, rider: { vulnerable: 1 }, exhaust: true },
+    gestureEffect: { icon: '💥', damage: 6, damageType: 'composure', trayMultiplier: 1, rider: { vulnerable: 1 }, exhaust: true },
     flavor: 'The table was a witness. The table is now also a victim.' },
   // v2.6: Pontification — high-cost monologue, NOT exhausted.
   { id: 'cv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
     phrase: 'GET A LOAD OF THIS:', tags: ['swaggering', 'direct'],
-    gestureEffect: { icon: '📣', damage: 20, damageType: 'composure', trayMultiplier: 2, exhaust: false },
+    gestureEffect: { icon: '📣', damage: 12, damageType: 'composure', trayMultiplier: 2, exhaust: false },
     flavor: 'A load is exactly what they are about to get.' },
   // v2.6: Quip — strip-block style threat.
   { id: 'cv2-g-quip-eyebrow', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',

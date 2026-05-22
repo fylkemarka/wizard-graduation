@@ -57,7 +57,13 @@ export const LANE_STAT = { wit: 'wit', chutzpah: 'chutzpah', jnsq: 'jnsq' };
 //   sum 9 (3+3+3)         → T3
 export function computeSpellTier(intro, subject, target) {
   if (!intro || !subject || !target) return 0;
-  const sum = (intro.tier || 1) + (subject.tier || 1) + (target.tier || 1);
+  // v2.7: tierWildcard — a card with this flag counts as the highest
+  // tier among the OTHER two slots for sum calculation. Lets a player
+  // get a T2-only hand to land at T3 by staging a wildcard subject.
+  const it = intro.tierWildcard ? Math.max(subject.tier || 1, target.tier || 1) : (intro.tier || 1);
+  const st = subject.tierWildcard ? Math.max(intro.tier || 1, target.tier || 1) : (subject.tier || 1);
+  const tt = target.tierWildcard ? Math.max(intro.tier || 1, subject.tier || 1) : (target.tier || 1);
+  const sum = it + st + tt;
   if (sum <= 4) return 1;
   if (sum <= 6) return 2;
   return 3;
@@ -154,10 +160,14 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   // per matching tag in the staged cards. Modifiers' perLaneTag is below
   // in the modifier loop; this is the target-side mirror so jnsq targets
   // can reward tag-cohesive deck-building directly.
+  // v2.7: tagAmpMult — any staged card with this field doubles tag-payoff
+  // bonuses on the cast. Wit "sheer academic" subject is the lead card.
+  const tagAmp = [intro, subject, target, ...modifiers].reduce(
+    (m, c) => m * (c?.tagAmpMult || 1), 1);
   if (eff.perLaneTag) {
     const allTags = trayTags(intro, subject, target, modifiers);
     const count = allTags.filter(t => eff.perLaneTag.tags.includes(t)).length;
-    damage += eff.perLaneTag.bonus * count;
+    damage += eff.perLaneTag.bonus * count * tagAmp;
   }
 
   // v2.5: unique target scaling mechanics. Caller passes world state via
@@ -196,12 +206,12 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
       }
     }
     if (me.perSharedTag) {
-      damage += me.perSharedTag * sharedTagCount(intro, subject, target);
+      damage += me.perSharedTag * sharedTagCount(intro, subject, target) * tagAmp;
     }
     if (me.perLaneTag) {
       const allTags = trayTags(intro, subject, target, modifiers);
       const count = allTags.filter(t => me.perLaneTag.tags.includes(t)).length;
-      damage += me.perLaneTag.bonus * count;
+      damage += me.perLaneTag.bonus * count * tagAmp;
     }
     if (me.rider) {
       for (const [k, v] of Object.entries(me.rider)) {

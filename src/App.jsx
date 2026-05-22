@@ -492,30 +492,30 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Thread Path =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 30, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     behaviors: [
-      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 26, hpMax: 999, tier: 'normal',
     // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah).
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
-      { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 3, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
       { kind: 'vulnerable', value: 1, weight: 2, telegraph: '🩸 Vuln 1 (silken whisper)' },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 32, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     behaviors: [
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
       { kind: 'block',  value: 8, weight: 2, telegraph: '🛡 8' },
-      { kind: 'attack', value: 4, weight: 2, telegraph: '⚔ 4 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
+      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
@@ -546,7 +546,7 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 3 — The Stone Path =====
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 35, hpMax: 22, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 44, hpMax: 22, tier: 'normal',
     // v2.4: sharpened from flat-low to chutzpah-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
     effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 },
@@ -556,7 +556,7 @@ const ENEMIES = [
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
-  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
+  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 34, hpMax: 26, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
@@ -564,7 +564,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 35, hpMax: 22, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 44, hpMax: 22, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
     effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
@@ -2967,6 +2967,9 @@ export default function App() {
   const [enemyHp, setEnemyHp] = useState(0);
   const [enemyBlock, setEnemyBlock] = useState(0);
   const [enemyIntent, setEnemyIntent] = useState(null);
+  // v2.7: peeked next intent (from Jnsq's "the next thing you'll do"
+  // subject). Cleared when the enemy actually fires that intent.
+  const [peekedNextIntent, setPeekedNextIntent] = useState(null);
   // Track the last 2 intent kinds the enemy actually fired (in order).
   // Used to anti-repetition the next roll: if both are the same kind,
   // the next rollIntent excludes that kind. Reset per combat.
@@ -3951,6 +3954,7 @@ export default function App() {
     setLastIntentKinds([]);
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
+    setPeekedNextIntent(null);
     // Powers don't persist between combats.
     setPowers([]);
     // Reset per-combat counters and player debuffs.
@@ -4734,6 +4738,36 @@ export default function App() {
       setHp(h => clamp(h - fx.loseHp, 0, maxHp));
       logBits.push(`-${fx.loseHp} HP (self)`);
     }
+    // v2.7: NOVEL subject mechanics ----------------------------------------
+    // Block steal — strip enemy block AND give player block. The "your
+    // hidden defenses" wit subject.
+    if (fx.stealBlock) {
+      const strip = fx.stealBlock.strip || 0;
+      const gain = fx.stealBlock.gain || 0;
+      if (strip > 0) setEnemyBlock(b => Math.max(0, b - strip));
+      if (gain > 0)  setBlock(b => b + gain);
+      logBits.push(`🛇 strip ${strip} · 🛡 +${gain}`);
+    }
+    // Refund energy — staging this card returns N energy. Tempo subject.
+    if (fx.refundEnergy) {
+      setEnergy(e => e + fx.refundEnergy);
+      logBits.push(`⚡ +${fx.refundEnergy} refund`);
+    }
+    // Apply enemy DOT (damage-over-time). Chutzpah "your every breath".
+    if (fx.applyDot) {
+      const d = fx.applyDot;
+      setEnemy(e => e ? { ...e, dot: { damage: d.damage, turnsRemaining: d.turns, total: d.turns } } : e);
+      logBits.push(`🩸 Bleed ${d.damage}/turn × ${d.turns}`);
+    }
+    // Reveal enemy's next intent. Jnsq "the next thing you'll do".
+    if (fx.revealNextIntent) {
+      // Pre-roll the upcoming intent and store it for UI display.
+      if (enemy) {
+        const peeked = rollIntent(enemy, [enemyIntent?.kind].filter(Boolean));
+        setPeekedNextIntent(peeked);
+        logBits.push(`👁 peek: ${peeked.telegraph || peeked.kind}`);
+      }
+    }
     // Player-side debuff (e.g., Cantrip Roulette failure).
     if (fx.selfWeak) {
       adjustPlayerDmg(-0.25 * fx.selfWeak);
@@ -4950,6 +4984,33 @@ export default function App() {
     if (enemyIntent) applyEnemyIntent(enemyIntent);
     if (hp <= 0 || composure <= 0) return;
 
+    // v2.7: Bleed/DOT tick — happens AFTER the enemy's main action so the
+    // bleed is a free chip on top of whatever the player set up. Decrements
+    // remaining turns; expires at 0. Damages the enemy's composure pool.
+    if (enemy?.dot?.turnsRemaining > 0) {
+      const dot = enemy.dot;
+      const dmg = dot.damage;
+      const remaining = dot.turnsRemaining - 1;
+      // Apply through enemyBlock first (it just got reset above to 0, but
+      // a power could grant block on turn-start). Bleed → composure.
+      let absorbed = 0;
+      if (enemyBlock > 0) {
+        absorbed = Math.min(enemyBlock, dmg);
+        setEnemyBlock(b => Math.max(0, b - absorbed));
+      }
+      const toComp = dmg - absorbed;
+      if (toComp > 0) {
+        setEnemy(e => {
+          if (!e) return e;
+          const nextDot = remaining > 0 ? { ...dot, turnsRemaining: remaining } : null;
+          return { ...e, composure: Math.max(0, (e.composure || 0) - toComp), dot: nextDot };
+        });
+      } else {
+        setEnemy(e => e ? { ...e, dot: remaining > 0 ? { ...dot, turnsRemaining: remaining } : null } : e);
+      }
+      pushLog(`🩸 Bleed: ${dmg} (${remaining} turn${remaining === 1 ? '' : 's'} left)`);
+    }
+
     // 2.5. Block fades — explicit log so the player sees expiry happen even
     //      when a Hedgehog/Felt re-grant immediately tops it back up below.
     //      `block` here is the closure value at the top of the event handler;
@@ -5023,7 +5084,14 @@ export default function App() {
     const exclude = (newHistory.length === 2 && newHistory[0] === newHistory[1])
       ? [newHistory[0]] : [];
     if (enemy) {
-      setEnemyIntent(rollIntent(enemy, exclude));
+      // v2.7: if a peeked intent is queued (from "the next thing you'll do"),
+      // it locks the next intent — the peek is honest.
+      if (peekedNextIntent) {
+        setEnemyIntent(peekedNextIntent);
+        setPeekedNextIntent(null);
+      } else {
+        setEnemyIntent(rollIntent(enemy, exclude));
+      }
       setIntentTick(t => t + 1);
     }
   }
@@ -6185,6 +6253,13 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
             <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
           </div>
+          {peekedNextIntent && (
+            <div className="px-3 py-2 bg-iris-900 bg-opacity-60 rounded border border-iris-700"
+                 title="You peeked the enemy's next move.">
+              <div className="text-xs uppercase text-iris-300 tracking-widest">👁 Peek (next)</div>
+              <div className="text-lg text-parchment-50">{peekedNextIntent.telegraph}</div>
+            </div>
+          )}
           {enemyDmgMult !== 1.0 && (
             <span className={`px-2 py-1 rounded text-sm ${enemyDmgMult > 1 ? 'bg-ember-700 text-parchment-50' : 'bg-iris-700 text-parchment-50'}`}
               title={`Enemy attack damage ×${enemyDmgMult.toFixed(2)} (drifts toward 1.00 by 0.25/turn).`}>

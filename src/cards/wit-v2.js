@@ -140,6 +140,18 @@ const SUBJECTS = [
     phrase: 'your taste', tags: ['observational', 'cutting'], stats: { wit: 2 },
     effects: { vulnerable: 1 },
     flavor: 'Taste is a private matter that has, unfortunately, become public.' },
+  // v2.7: NOVEL — Tag Amplifier. When in tray, perLaneTag/perSharedTag
+  // bonuses on the cast are DOUBLED. Rewards committed tag-cohesive decks.
+  { id: 'wv2-s-sheer-academic', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'the sheer academic of the thing', tags: ['academic', 'cutting'], stats: { wit: 3 },
+    tagAmpMult: 2,
+    flavor: 'Academic, here, being a verb. Spoken academically.' },
+  // v2.7: NOVEL — Block Steal. On stage, strip 5 enemy block and gain 3
+  // player block. Aggressive-defensive hybrid.
+  { id: 'wv2-s-your-hidden-defenses', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your hidden defenses', tags: ['observational', 'cutting'], stats: { wit: 3 },
+    effects: { stealBlock: { strip: 5, gain: 3 } },
+    flavor: "The defenses, on inspection, were ornamental. Useful to neither party." },
   { id: 'wv2-s-the-syllabus', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'the syllabus', tags: ['academic', 'dismissive'], stats: { wit: 2 },
     effects: { draw: 1 },
@@ -331,13 +343,13 @@ const MODIFIERS = [
 const GESTURES = [
   { id: 'wv2-g-adjusts-spectacles', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(adjusts spectacles,)', tags: ['observational'],
-    gestureEffect: { icon: '👓', damage: 8, damageType: 'composure', trayMultiplier: 1, rider: { weak: 1 }, exhaust: true },
+    gestureEffect: { icon: '👓', damage: 5, damageType: 'composure', trayMultiplier: 1, rider: { weak: 1 }, exhaust: true },
     flavor: 'The lenses are clean. The look behind them, less so.' },
   // v2.6: PONTIFICATION — high cost, big damage, NON-exhaust (the card
   // goes back into the deck after firing, so it's reusable across combat).
   { id: 'wv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
     phrase: 'Pontificate at length:', tags: ['academic', 'cutting'],
-    gestureEffect: { icon: '📚', damage: 18, damageType: 'composure', trayMultiplier: 2, exhaust: false },
+    gestureEffect: { icon: '📚', damage: 11, damageType: 'composure', trayMultiplier: 2, exhaust: false },
     flavor: 'The pontifex pontificates. The audience reconsiders their afternoon.' },
   // v2.6: QUIP — light damage gesture that strips enemy block.
   { id: 'wv2-g-quip-correction', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',

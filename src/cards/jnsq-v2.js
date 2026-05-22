@@ -159,6 +159,19 @@ const SUBJECTS = [
   { id: 'jv2-s-eyebrows-say', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'the things your eyebrows say', tags: ['theatrical', 'absurd'], stats: { jnsq: 2 },
     flavor: 'The eyebrows have been editorial. The page count is climbing.' },
+  // v2.7: NOVEL — Tier Wildcard. This card counts as the highest tier
+  // among the other staged cards for spell-tier calculation. A T2-only
+  // hand becomes T3-eligible if THIS is the subject. Strategic flex.
+  { id: 'jv2-s-sideways-situation', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'this whole sideways situation', tags: ['chaotic', 'mystical'], stats: { jnsq: 3 },
+    tierWildcard: true,
+    flavor: 'Sideways being the geometry of the truly committed.' },
+  // v2.7: NOVEL — Intent Reveal. On stage, peek the enemy's next intent
+  // (after the one currently showing). Tactical info card.
+  { id: 'jv2-s-next-thing-youll-do', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: "the next thing you'll do", tags: ['conspiratorial', 'mystical'], stats: { jnsq: 3 },
+    effects: { revealNextIntent: 1 },
+    flavor: 'The next thing being not, perhaps, the thing you intended.' },
 
   // ---- Uncommon (6) ----
   { id: 'jv2-s-small-dog', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -326,12 +339,12 @@ const MODIFIERS = [
 const GESTURES = [
   { id: 'jv2-g-three-snaps', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(snaps three times,)', tags: ['theatrical', 'mystical'],
-    gestureEffect: { icon: '✨', damage: 7, damageType: 'composure', trayMultiplier: 1, draw: 1, exhaust: true },
+    gestureEffect: { icon: '✨', damage: 4, damageType: 'composure', trayMultiplier: 1, draw: 1, exhaust: true },
     flavor: 'Three. Always three. The reasons are sacred and absurd.' },
   // v2.6: Pontification — long mystical monologue, non-exhaust.
   { id: 'jv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
     phrase: 'Now imagine, hypothetically, but stay with me —', tags: ['mystical', 'conspiratorial'],
-    gestureEffect: { icon: '🌀', damage: 16, damageType: 'composure', trayMultiplier: 2, draw: 2, exhaust: false },
+    gestureEffect: { icon: '🌀', damage: 10, damageType: 'composure', trayMultiplier: 2, draw: 2, exhaust: false },
     flavor: 'The hypothetical lasts thirteen minutes. The body, somewhat longer.' },
   // v2.6: Quip — light damage + persistent vulnerable.
   { id: 'jv2-g-quip-koan', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
