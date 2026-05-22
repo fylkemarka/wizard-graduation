@@ -338,7 +338,24 @@ const MODIFIERS = [
     flavor: 'The sleeves were already up. The roll is for the audience.' },
 ];
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS];
+// v2.5: SHOUT (chutzpah's gesture) — one-shot immediate damage, exhaust.
+const GESTURES = [
+  { id: 'cv2-g-slams-table', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
+    phrase: '(SLAMS THE TABLE,)', tags: ['threatening', 'direct'],
+    gestureEffect: { icon: '💥', damage: 10, damageType: 'composure', trayMultiplier: 1, rider: { vulnerable: 1 }, exhaust: true },
+    flavor: 'The table was a witness. The table is now also a victim.' },
+];
+
+// v2.5: UNIQUE TARGET — scales when player has taken HP damage this combat.
+// Chutzpah's "I bleed, you pay" identity, mechanized.
+const UNIQUE_TARGETS = [
+  { id: 'cv2-t-make-me-say-it', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: "doesn't get to make me say it twice.", tags: ['threatening', 'direct'],
+    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 2, damageType: 'composure', missingHpBonus: 0.5 },
+    flavor: 'The first time was a courtesy. The second would be a confession.' },
+];
+
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...GESTURES, ...UNIQUE_TARGETS];
 export const CHUTZPAH_V2_BY_SLOT = {
-  intro: INTROS, subject: SUBJECTS, target: TARGETS, modifier: MODIFIERS,
+  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: MODIFIERS, gesture: GESTURES,
 };

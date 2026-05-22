@@ -323,13 +323,40 @@ const MODIFIERS = [
 ];
 
 // =============================================================================
+// GESTURES (1) — v2.5 one-shot immediate-damage cards. Bypass the spell
+// tray. Hand gestures, theatrical asides; the thing you DO when you can't
+// quite finish a sentence.
+// =============================================================================
+
+const GESTURES = [
+  { id: 'wv2-g-adjusts-spectacles', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
+    phrase: '(adjusts spectacles,)', tags: ['observational'],
+    gestureEffect: { icon: '👓', damage: 8, damageType: 'composure', trayMultiplier: 1, rider: { weak: 1 }, exhaust: true },
+    flavor: 'The lenses are clean. The look behind them, less so.' },
+];
+
+// =============================================================================
+// UNIQUE TARGETS (1) — v2.5 mechanic variety beyond stat-stick targets.
+// "footnote-bears-out" scales with discard pile size — rewards committed
+// deck-cycling.
+// =============================================================================
+
+const UNIQUE_TARGETS = [
+  { id: 'wv2-t-footnote-bears-out', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: '…as the long footnote bears out.', tags: ['academic', 'ironic'],
+    effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure', perDiscardCard: 1 },
+    flavor: 'The footnote is on page 814. The page is, technically, also a footnote.' },
+];
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...GESTURES, ...UNIQUE_TARGETS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: SUBJECTS,
-  target: TARGETS,
+  target: [...TARGETS, ...UNIQUE_TARGETS],
+  gesture: GESTURES,
   modifier: MODIFIERS,
 };

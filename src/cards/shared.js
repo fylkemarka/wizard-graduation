@@ -160,6 +160,19 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage += eff.perLaneTag.bonus * count;
   }
 
+  // v2.5: unique target scaling mechanics. Caller passes world state via
+  // `context`; if it's missing the field, that scaling contributes 0.
+  if (eff.perDiscardCard && context.discardSize > 0) {
+    damage += eff.perDiscardCard * context.discardSize;
+  }
+  if (eff.perDeckCard && context.deckSize > 0) {
+    damage += eff.perDeckCard * context.deckSize;
+  }
+  if (eff.missingHpBonus && context.missingHpFrac > 0) {
+    // Linear scaling: 50% missing HP = +50% damage at missingHpBonus: 1.0
+    damage *= (1 + eff.missingHpBonus * context.missingHpFrac);
+  }
+
   // Sum riders: from target effect + per-modifier rider triggers.
   const riders = { ...(eff.rider || {}) };
   // v2.2: target cards can also grant drawAfterCast as a smoothing mechanic.

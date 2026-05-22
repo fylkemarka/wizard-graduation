@@ -2404,22 +2404,53 @@ function buildStartingDeck(lane = 'wit') {
 // The upgrade field can override `effects`, `power`, `cost`, `stats`,
 // `effect`, or `phrase`. Sets `upgraded: true` and "+"-suffixes the name.
 function upgradeCard(card) {
-  if (!card.upgrade) return card; // already-upgraded or no path
-  const up = card.upgrade;
-  const next = {
-    ...card,
-    uid: uid(),
-    name: card.upgraded ? card.name : `${card.name}+`,
-    upgraded: true,
-    upgrade: null, // can only upgrade once
-  };
-  if (up.effects) next.effects = { ...card.effects, ...up.effects };
-  if (up.power)   next.power   = { ...card.power, ...up.power };
-  if (up.stats)   next.stats   = { ...card.stats, ...up.stats };
-  if (up.effect)  next.effect  = { ...card.effect, ...up.effect };
-  if (up.phrase !== undefined) next.phrase = up.phrase;
-  if (up.cost !== undefined)   next.cost   = up.cost;
-  return next;
+  if (card.upgraded) return card;
+  // Explicit upgrade path (legacy v1 cards).
+  if (card.upgrade) {
+    const up = card.upgrade;
+    const next = {
+      ...card,
+      uid: uid(),
+      name: `${card.name}+`,
+      upgraded: true,
+      upgrade: null,
+    };
+    if (up.effects) next.effects = { ...card.effects, ...up.effects };
+    if (up.power)   next.power   = { ...card.power, ...up.power };
+    if (up.stats)   next.stats   = { ...card.stats, ...up.stats };
+    if (up.effect)  next.effect  = { ...card.effect, ...up.effect };
+    if (up.phrase !== undefined) next.phrase = up.phrase;
+    if (up.cost !== undefined)   next.cost   = up.cost;
+    return next;
+  }
+  // v2 sentence-engine auto-upgrade: any slot-typed card gets a tier-
+  // appropriate buff. Intros/subjects gain +1 stat. Targets gain +2 base
+  // damage. Modifiers gain +0.25 damage multiplier (or block bump if
+  // they're defensive). All keep the same phrase but the card is marked
+  // with a "+" suffix.
+  const isV2 = card.slot && card.lane;
+  if (isV2) {
+    const baseName = card.name || card.phrase;
+    const next = { ...card, uid: uid(), upgraded: true, name: `${baseName}+` };
+    if (card.slot === 'intro' || card.slot === 'subject') {
+      const lane = card.lane;
+      next.stats = { ...card.stats, [lane]: (card.stats?.[lane] || 0) + 1 };
+    } else if (card.slot === 'target' && card.effect) {
+      next.effect = { ...card.effect, base: (card.effect.base || 0) + 2 };
+    } else if (card.slot === 'modifier' && card.modifierEffect) {
+      const me = card.modifierEffect;
+      if (me.rider?.block) {
+        next.modifierEffect = { ...me, rider: { ...me.rider, block: me.rider.block + 1 } };
+      } else if (me.damageMult) {
+        next.modifierEffect = { ...me, damageMult: me.damageMult + 0.25 };
+      } else {
+        // No clean upgrade hook → bump the lane stat instead.
+        next.stats = { ...card.stats, [card.lane]: (card.stats?.[card.lane] || 0) + 1 };
+      }
+    }
+    return next;
+  }
+  return card;
 }
 
 // Crafting output factory. Takes the chosen material + quality grade
@@ -4106,6 +4137,35 @@ export default function App() {
       return;
     }
 
+    // v2.5: GESTURE slot — fires immediate damage and exhausts. Bypasses
+    // the tray entirely. The "I just hit them" attack archetype:
+    // hand gestures, shouts, familiar interjections.
+    if (card.slot === 'gesture') {
+      const ge = card.gestureEffect || {};
+      const lane = card.lane || 'wit';
+      const trayStat = tray[lane] || 0;
+      const trayBonus = trayStat * (ge.trayMultiplier || 0);
+      let dmg = (ge.damage || 0) + trayBonus;
+      const dmgType = ge.damageType || 'composure';
+      const mult = (dmgType === 'physical')
+        ? (enemy?.effectiveness?.physical ?? 1.0)
+        : (enemy?.effectiveness?.[lane] ?? 1.0);
+      dmg = Math.round(dmg * mult * playerDmgMult);
+      pushLog(`${ge.icon || '✊'} ${card.phrase || card.name} → ${dmg} ${dmgType === 'physical' ? 'phys' : 'comp'}`);
+      if (dmgType === 'physical') applyDamageToEnemyHp(dmg);
+      else                        applyDamageToEnemyComposure(dmg);
+      // Apply riders (weak/vulnerable on the enemy).
+      if (ge.rider?.weak)       { adjustEnemyDmg(-0.25 * ge.rider.weak);  pushLog(`💢 enemy −${25*ge.rider.weak}% atk`); }
+      if (ge.rider?.vulnerable) { adjustPlayerDmg(+0.25 * ge.rider.vulnerable); pushLog(`💫 +${25*ge.rider.vulnerable}% potency`); }
+      if (ge.rider?.block)      { setBlock(b => b + ge.rider.block); pushLog(`🛡 +${ge.rider.block}`); }
+      if (ge.draw) drawCards(ge.draw);
+      // Exhaust by default — gestures are one-shot per acquisition.
+      if (ge.exhaust !== false) setExiled(ex => [...ex, card]);
+      else                      setDiscard(d => [...d, card]);
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      return;
+    }
+
     // ---- BACK-COMPAT (pre-v2 word/effect cards from event-grants etc.) ----
     if (card.type === 'word') {
       const stats = card.stats || {};
@@ -4273,9 +4333,16 @@ export default function App() {
       enemyId: enemy?.id, enemyHp, enemyComposure,
     });
 
-    // Damage formula handled in shared/cards/shared.js.
+    // Damage formula handled in shared/cards/shared.js. Pass world state
+    // so v2.5 scaling mechanics (perDiscardCard, perDeckCard,
+    // missingHpBonus) can read current values.
+    const ctx = {
+      discardSize: discard.length,
+      deckSize: deck.length + hand.length + discard.length + exiled.length,
+      missingHpFrac: maxHp > 0 ? (maxHp - hp) / maxHp : 0,
+    };
     const { damage: rawDamage, tier, riders, sideEffects } =
-      computeSpellDamage(intro, subject, target, modifiers);
+      computeSpellDamage(intro, subject, target, modifiers, ctx);
 
     // Read-the-Room pierce + enemy effectiveness still applies.
     const eff = target.effect || {};
@@ -6313,21 +6380,32 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
               <div className="flex justify-between items-start gap-1">
-                <div className="font-display text-[15px] leading-tight">{displayName}</div>
+                <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
+                  {displayLabel}{card.tier ? ` · T${card.tier}` : ''}
+                </div>
                 <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? (escalated ? 'bg-ember-500 text-parchment-50' : 'bg-gold-500 text-ink-800') : 'bg-ink-500 text-parchment-300'}`}
                   title={escalated ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).` : undefined}>
                   {effCost}
                 </div>
               </div>
-              <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
-                {displayLabel}{card.tier ? ` · T${card.tier}` : ''}
-              </div>
+              <div className="font-display text-[15px] leading-tight">{displayName}</div>
               {/* Word / intro / subject / modifier stats */}
               {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
                 <div className="flex gap-1 flex-wrap text-xs font-mono">
                   {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
                   {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
                   {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                </div>
+              )}
+              {/* On-stage status effects for intros/subjects — sized to be noticeable */}
+              {card.effects && (card.effects.weak || card.effects.vulnerable || card.effects.block || card.effects.draw || card.effects.loseHp || card.effects.hp) && (
+                <div className="flex flex-col gap-0.5 text-sm font-bold uppercase tracking-wide">
+                  {card.effects.weak && <span className="text-ember-700">⛧ Weak {card.effects.weak}</span>}
+                  {card.effects.vulnerable && <span className="text-ember-700">🩸 Vuln {card.effects.vulnerable}</span>}
+                  {card.effects.block && <span className="text-iris-700">🛡 +{card.effects.block} Block</span>}
+                  {card.effects.draw && <span className="text-moss-700">📥 Draw {card.effects.draw}</span>}
+                  {card.effects.loseHp && <span className="text-ember-700">🩸 −{card.effects.loseHp} HP</span>}
+                  {card.effects.hp && <span className="text-moss-700">💚 +{card.effects.hp} HP</span>}
                 </div>
               )}
               {/* Target (effect) damage formula + damage-type chip */}
@@ -6342,15 +6420,23 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                     </div>
                   )}
                   {card.effect.rider && (
-                    <div className="text-[11px] text-ember-700 italic">
-                      {Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')}
+                    <div className="text-sm font-bold text-ember-700 uppercase tracking-wide">
+                      {Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(' · ')}
+                    </div>
+                  )}
+                  {card.effect.loseHpOnCast && (
+                    <div className="text-sm font-bold text-ember-700 uppercase tracking-wide">
+                      🩸 −{card.effect.loseHpOnCast} HP on cast
                     </div>
                   )}
                   {card.effect.tier3Double && (
-                    <div className="text-[10px] text-ember-700 font-bold italic">Doubles at Tier 3</div>
+                    <div className="text-xs text-ember-700 font-bold italic">Doubles at Tier 3</div>
                   )}
                   {card.effect.requiresTier3 && (
-                    <div className="text-[10px] text-ember-700 font-bold italic">Requires Tier 3 (else half dmg + exile)</div>
+                    <div className="text-xs text-ember-700 font-bold italic">Requires Tier 3 (else half damage)</div>
+                  )}
+                  {card.effect.perLaneTag && (
+                    <div className="text-xs text-iris-700 font-bold italic">+{card.effect.perLaneTag.bonus}/match: {card.effect.perLaneTag.tags.join(', ')}</div>
                   )}
                 </>
               )}
@@ -7022,11 +7108,35 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
     samples: 0,
     progressIdx: 0,
     cursor: null,
+    startTime: 0,
   });
   const [tracing, setTracing] = useState(false);
   const [cursor, setCursor] = useState(null);
   const [progress, setProgress] = useState(0); // 0..1
   const [errorBucket, setErrorBucket] = useState('fine'); // current proximity feedback
+  // v2.5: time-based grading. Player clicks "Ready" to start a live
+  // timer; finish under 5s for master, under 7.5s for fine, slower for
+  // rough. Accuracy still matters as a tie-breaker (must complete ≥70%
+  // of the path to qualify above rough), but speed is the headline.
+  const [phase, setPhase] = useState('idle'); // 'idle' | 'tracing' | 'done'
+  const [elapsedTime, setElapsedTime] = useState(0); // live seconds display
+
+  // Tick the live timer ~20fps while tracing.
+  useEffect(() => {
+    if (phase !== 'tracing') return;
+    const id = setInterval(() => {
+      const t = (Date.now() - stateRef.current.startTime) / 1000;
+      setElapsedTime(t);
+    }, 50);
+    return () => clearInterval(id);
+  }, [phase]);
+
+  function startTrace() {
+    stateRef.current = { tracing: false, totalError: 0, samples: 0, progressIdx: 0, cursor: null, startTime: Date.now() };
+    setPhase('tracing');
+    setProgress(0);
+    setElapsedTime(0);
+  }
 
   function svgPointFrom(e) {
     if (!svgRef.current) return null;
@@ -7048,15 +7158,16 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
   }
 
   function onPointerDown(e) {
+    if (phase !== 'tracing') return; // must hit "Ready" first to start the timer
     const p = svgPointFrom(e);
     if (!p) return;
     const start = pathSamples[0];
     const startDist = Math.sqrt((p.x - start.x) ** 2 + (p.y - start.y) ** 2);
     if (startDist > 60) return; // must start near the line's left endpoint
-    stateRef.current = { tracing: true, totalError: 0, samples: 0, progressIdx: 0, cursor: p };
+    stateRef.current.tracing = true;
+    stateRef.current.cursor = p;
     setTracing(true);
     setCursor(p);
-    setProgress(0);
   }
 
   function onPointerMove(e) {
@@ -7081,16 +7192,24 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
     if (!s.tracing) return;
     s.tracing = false;
     setTracing(false);
-    const avg = s.samples > 0 ? s.totalError / s.samples : 999;
+    const elapsed = (Date.now() - s.startTime) / 1000;
     const completion = s.progressIdx / (pathSamples.length - 1);
-    // Grading: must finish at least 75% to qualify above Rough.
+    // v2.5: time-based grade. Must complete ≥70% of the path to qualify
+    // above Rough — pure speed without coverage doesn't count.
     let grade;
-    if (completion < 0.5)            grade = 'rough';
-    else if (completion >= 0.85 && avg < 14) grade = 'master';
-    else if (completion >= 0.70 && avg < 26) grade = 'fine';
-    else                              grade = 'rough';
+    if (completion < 0.7) {
+      grade = 'rough';
+    } else if (elapsed < 5.0) {
+      grade = 'master';
+    } else if (elapsed < 7.5) {
+      grade = 'fine';
+    } else {
+      grade = 'rough';
+    }
+    setPhase('done');
+    setElapsedTime(elapsed);
     // Tiny delay so the last cursor frame paints before the screen jumps.
-    setTimeout(() => onComplete(grade), 250);
+    setTimeout(() => onComplete(grade), 600);
   }
 
   function onPointerUp() { finish(); }
@@ -7110,9 +7229,23 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
       <h2 className="font-display text-2xl text-moss-300">🛠 {eventTitle}</h2>
       <p className="text-sm text-parchment-300 italic max-w-xl text-center">{choiceLabel}</p>
       <p className="text-xs text-parchment-400 max-w-xl text-center">
-        Press and hold from the left end. Drag your cursor along the dotted line all the way to the right.
-        Stay close — the closer you stay, the better the cut.
+        Click READY, then immediately press and hold from the green START dot and drag to the red END dot.
+        Speed grading: <b className="text-moss-300">&lt; 5s = Master</b> · <b className="text-gold-300">&lt; 7.5s = Fine</b> · slower = Rough.
+        Must trace ≥ 70% of the line.
       </p>
+      {/* Timer + Ready button. */}
+      <div className="flex items-center gap-4">
+        {phase === 'idle' && (
+          <button onClick={startTrace} className="btn btn-iris text-lg px-8 py-3 animate-pulse">
+            ▶ Ready — Start Timer
+          </button>
+        )}
+        {phase !== 'idle' && (
+          <div className={`font-mono text-3xl font-bold ${elapsedTime < 5 ? 'text-moss-300' : elapsedTime < 7.5 ? 'text-gold-300' : 'text-ember-400'}`}>
+            {elapsedTime.toFixed(2)}s
+          </div>
+        )}
+      </div>
       <div className="parchment-card-strong p-3 select-none">
         <svg ref={svgRef} viewBox={`0 0 ${VB_W} ${VB_H}`}
              className="w-full max-w-3xl block cursor-crosshair touch-none"
@@ -7324,10 +7457,12 @@ function RestScreen({ onChoose }) {
 }
 
 function UpgradeCardScreen({ deck, onPick }) {
-  // Show only NON-upgraded cards. Any card with no `upgrade` field is also
-  // ineligible (already at max).
-  const eligible = deck.filter(c => !c.upgraded && c.upgrade);
-  const ineligible = deck.filter(c => c.upgraded || !c.upgrade);
+  // Show NON-upgraded cards. v2 sentence cards are upgradable via the
+  // auto-derived path in upgradeCard(), so the eligibility check now
+  // accepts either an explicit `upgrade` field OR a v2 `slot` field.
+  const isUpgradable = (c) => !c.upgraded && (c.upgrade || (c.slot && c.lane));
+  const eligible = deck.filter(isUpgradable);
+  const ineligible = deck.filter(c => !isUpgradable(c));
   // pendingUid: which card is queued for upgrade-confirmation. null =
   // browsing the list. When set, the confirm-modal renders over the
   // list and the player can commit or back out.
@@ -7348,17 +7483,43 @@ function UpgradeCardScreen({ deck, onPick }) {
           )}
           {eligible.map(card => {
             const upgraded = upgradeCard(card);
+            const dispName = card.name || card.phrase || '';
+            const upDispName = upgraded.name || upgraded.phrase || dispName;
+            const dispLabel = card.slot || card.type;
             return (
               <button key={card.uid} onClick={() => setPendingUid(card.uid)}
                 className="w-52 rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
                 <div className="flex justify-between items-center">
-                  <div className="font-display text-base">{card.name}</div>
+                  <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
+                    {dispLabel}{card.tier ? ` · T${card.tier}` : ''}
+                  </div>
                   <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
                 </div>
-                <div className="text-xs uppercase tracking-wider text-ink-400">{card.type}</div>
-                <div className="text-sm">{card.desc}</div>
-                <div className="text-xs mt-1 pt-2 border-t border-ink-300 text-moss-700">
-                  → <b>{upgraded.name}</b>: {summarizeEffects(upgraded.effects, upgraded.power, upgraded.cost, upgraded.stats, upgraded.effect)}
+                <div className="font-display text-base">{dispName}</div>
+                {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+                  <div className="flex gap-1 flex-wrap text-xs font-mono">
+                    {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                    {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                    {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                  </div>
+                )}
+                {(card.slot === 'target' || card.type === 'effect') && card.effect && (
+                  <div className="text-xs font-mono text-ink-700">
+                    {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
+                  </div>
+                )}
+                <div className="text-xs mt-auto pt-2 border-t border-ink-300 text-moss-700">
+                  → <b>{upDispName}</b>{(() => {
+                    if (upgraded.effect && card.effect) {
+                      const dBase = (upgraded.effect.base || 0) - (card.effect.base || 0);
+                      if (dBase > 0) return `: base ${card.effect.base} → ${upgraded.effect.base}`;
+                    }
+                    if (upgraded.stats && card.stats) {
+                      const k = ['chutzpah','wit','jnsq'].find(s => (upgraded.stats[s] || 0) > (card.stats[s] || 0));
+                      if (k) return `: ${k} ${card.stats[k]} → ${upgraded.stats[k]}`;
+                    }
+                    return summarizeEffects(upgraded.effects, upgraded.power, upgraded.cost, upgraded.stats, upgraded.effect);
+                  })()}
                 </div>
               </button>
             );
@@ -7369,7 +7530,7 @@ function UpgradeCardScreen({ deck, onPick }) {
         <div className="parchment-card p-3">
           <div className="text-xs uppercase text-parchment-400 mb-1 tracking-widest">Already studied or no upgrade path ({ineligible.length})</div>
           <div className="text-sm text-parchment-400 italic flex flex-wrap gap-2">
-            {ineligible.map(c => <span key={c.uid}>{c.name}</span>)}
+            {ineligible.map(c => <span key={c.uid}>{c.name || c.phrase || c.id}</span>)}
           </div>
         </div>
       )}

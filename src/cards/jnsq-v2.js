@@ -322,7 +322,24 @@ const MODIFIERS = [
     flavor: 'The lamp is, in this matter, complicit.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS];
+// v2.5: GESTURE — three quick snaps for one-shot weird damage.
+const GESTURES = [
+  { id: 'jv2-g-three-snaps', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
+    phrase: '(snaps three times,)', tags: ['theatrical', 'mystical'],
+    gestureEffect: { icon: '✨', damage: 7, damageType: 'composure', trayMultiplier: 1, draw: 1, exhaust: true },
+    flavor: 'Three. Always three. The reasons are sacred and absurd.' },
+];
+
+// v2.5: UNIQUE TARGET — damage scales with the player's deck size, the
+// "weirdness compounds" jnsq identity.
+const UNIQUE_TARGETS = [
+  { id: 'jv2-t-too-many-things', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'has become too many things at once.', tags: ['absurd', 'chaotic', 'mystical'],
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure', perDeckCard: 0.5 },
+    flavor: 'It is, simultaneously, six things. Most of which are weather.' },
+];
+
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...GESTURES, ...UNIQUE_TARGETS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: INTROS, subject: SUBJECTS, target: TARGETS, modifier: MODIFIERS,
+  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: MODIFIERS, gesture: GESTURES,
 };

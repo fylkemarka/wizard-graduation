@@ -283,7 +283,12 @@ function runCombat(state, enemyId, telemetry) {
 
     // Cast if all three slots filled.
     if (tray.intro && tray.subject && tray.target) {
-      const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers);
+      const simCtx = {
+        discardSize: state.discard.length,
+        deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+        missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+      };
+      const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
       const eff = tray.target.effect || {};
       const stat = eff.scaleBy || tray.target.lane || 'wit';
