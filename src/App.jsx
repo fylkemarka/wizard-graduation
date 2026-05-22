@@ -513,15 +513,15 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Thread Path =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 30, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 },
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 44, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 26, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 38, hpMax: 999, tier: 'normal',
     // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah).
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
@@ -530,7 +530,7 @@ const ENEMIES = [
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
       { kind: 'vulnerable', value: 1, weight: 2, telegraph: '🩸 Vuln 1 (silken whisper)' },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 32, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 46, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     behaviors: [
@@ -539,8 +539,8 @@ const ENEMIES = [
       { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 },
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 70, hpMax: 999, tier: 'elite',
+    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -550,7 +550,7 @@ const ENEMIES = [
       // moment if the player hasn't kept the right shield up.
       { kind: 'attack', value: 13, pool: 'composure', weight: 1, telegraph: '🎭 13 (PATTERN COMPLETE)' },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 46, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 72, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     softSpot: 'threat', // The vow of silence has limits.
     behaviors: [
@@ -561,8 +561,8 @@ const ENEMIES = [
       // breaking-of-the-vow moment.
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 52, hpMax: 999, tier: 'boss',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 85, hpMax: 999, tier: 'boss',
+    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     behaviors: [
@@ -593,7 +593,7 @@ const ENEMIES = [
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 44, hpMax: 22, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
-    effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
@@ -602,7 +602,7 @@ const ENEMIES = [
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 50, hpMax: 40, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
-    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -657,7 +657,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
     ] },
   { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 1.0, physical: 0.5 },
     softSpot: 'logic', // Reflects what you ARE. Reason at it, see yourself.
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -686,7 +686,7 @@ const ENEMIES = [
   { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 88, hpMax: 999, tier: 'boss',
     // Cycle 3 floor bump: physical 0 → 0.4. Still verbal-favored (wit 1.5)
     // but physical-built decks aren't shut out entirely.
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 0.4 },
+    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 0.4 },
     softSpot: 'flattery', // It is a HAT that wants to be the headmaster. Acknowledge that.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Vain authority; mocking the hat-ness lands.
     behaviors: [

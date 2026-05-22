@@ -33,28 +33,28 @@ const ENEMIES = [
   // Act 2
   // v2.9: bumped composure + atk values to match App.jsx. Elites in
   // particular need to feel like a wall.
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 30, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 26, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 32, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 44, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 46, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 44, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 44, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 38, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 46, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 72, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 85, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
   // Act 3
   // v2.4: sharper act-2 effectiveness so each enemy has a clear lane
   // favorite + resistor rather than the flat "0.7 everywhere" tax that
   // walled all three lanes equally.
   { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 34, hp: 16,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 } },
   // Act 4
   { id: 'e4-apprentice-shade',act:3,name: "Apprentice's Shade",  comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 0.5 } },
-  { id: 'e4-failed-initiate',act:3, name: 'Failed Initiate',     comp: 30, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
-  { id: 'e4-test-wraith',   act: 3, name: 'Test-Day Wraith',     comp: 36, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
+  { id: 'e4-failed-initiate',act:3, name: 'Failed Initiate',     comp: 30, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
+  { id: 'e4-test-wraith',   act: 3, name: 'Test-Day Wraith',     comp: 36, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
   { id: 'e4-forgotten-master',act:3,name: 'Forgotten Master',    comp: 45, hp: 999, tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e4-boss-headmasters-hat',act:3,name:"The Headmaster's Hat",comp:88,hp:999,tier:'boss',    atk: 11, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 0.4 } },
+  { id: 'e4-boss-headmasters-hat',act:3,name:"The Headmaster's Hat",comp:88,hp:999,tier:'boss',    atk: 11, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 0.4 } },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 

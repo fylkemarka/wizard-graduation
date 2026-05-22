@@ -1,51 +1,54 @@
 # Wizard Graduation v2 — Playtest Report
 
-N = **1000** runs simulated with a greedy v2 AI.
+N = **500** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **188 wins / 1000** = **18.8%**
-- Losses by acts-cleared: 0=0 · 1=281 · 2=395 · 3=136
+- **68 wins / 500** = **13.6%**
+- Losses by acts-cleared: 0=51 · 1=175 · 2=152 · 3=54
 
 ## Lane outcomes
-- **wit**: 332 runs · 82 wins (24.7%)
-- **chutzpah**: 348 runs · 45 wins (12.9%)
-- **jnsq**: 320 runs · 61 wins (19.1%)
+- **wit**: 157 runs · 21 wins (13.4%)
+- **chutzpah**: 174 runs · 15 wins (8.6%)
+- **jnsq**: 169 runs · 32 wins (18.9%)
 
 ## Familiar outcomes (v2.9)
-- **fam-rabbit**: 104 runs · 33 wins (31.7%)
-- **fam-beetle**: 110 runs · 27 wins (24.5%)
-- **fam-raven**: 94 runs · 20 wins (21.3%)
-- **fam-cat**: 92 runs · 19 wins (20.7%)
-- **fam-toad**: 112 runs · 22 wins (19.6%)
-- **fam-hedgehog**: 88 runs · 15 wins (17.0%)
-- **fam-crow**: 115 runs · 18 wins (15.7%)
-- **fam-mouse**: 88 runs · 11 wins (12.5%)
-- **fam-snake**: 94 runs · 11 wins (11.7%)
-- **fam-owl**: 103 runs · 12 wins (11.7%)
+- **fam-rabbit**: 51 runs · 13 wins (25.5%)
+- **fam-hedgehog**: 50 runs · 10 wins (20.0%)
+- **fam-beetle**: 37 runs · 6 wins (16.2%)
+- **fam-crow**: 34 runs · 5 wins (14.7%)
+- **fam-toad**: 42 runs · 6 wins (14.3%)
+- **fam-mouse**: 70 runs · 10 wins (14.3%)
+- **fam-owl**: 51 runs · 5 wins (9.8%)
+- **fam-snake**: 43 runs · 4 wins (9.3%)
+- **fam-raven**: 54 runs · 5 wins (9.3%)
+- **fam-cat**: 68 runs · 4 wins (5.9%)
 
 ## Cast distribution
-- Total casts: 36469
-- Tier 1 (COHERENT): 26157 (71.7%)
-- Tier 2 (RESONANT): 9467 (26.0%)
-- Tier 3 (DEVASTATING): 845 (2.3%)
-- Holds (turn ended without cast — tray persists): 24265 (40.0%)
+- Total casts: 19036
+- Tier 1 (COHERENT): 14473 (76.0%)
+- Tier 2 (RESONANT): 4205 (22.1%)
+- Tier 3 (DEVASTATING): 358 (1.9%)
+- Holds (turn ended without cast — tray persists): 12035 (38.7%)
 
 ## Combat pacing
-- Avg turns / combat: 4.08
-- Avg damage / run: 826
-- Mean final deck size: 22.2
+- Avg turns / combat: 4.86
+- Avg damage / run: 821
+- Mean final deck size: 20.2
 
 ## Archetype of winning decks
-- low-tier: 76
-- mid-t2t3: 112
+- mid-t2t3: 42
+- low-tier: 26
 
 ## Top killer enemies
-- e4-boss-headmasters-hat (The Headmaster's Hat): 365
-- e3-boss-anvil (The Anvil-Forged): 188
-- e1-boss-thornlord (The Thornlord): 129
-- e3-vein-devourer (Vein Devourer): 80
-- e4-forgotten-master (Forgotten Master): 29
-- e3-quartz-sentinel (Quartz Sentinel): 11
-- e1-thicket (Living Thicket): 7
-- e3-crystal-beetle (Crystal Beetle): 2
-- e4-apprentice-shade (Apprentice's Shade): 1
+- e4-boss-headmasters-hat (The Headmaster's Hat): 142
+- e3-boss-anvil (The Anvil-Forged): 100
+- e3-vein-devourer (Vein Devourer): 52
+- e1-boss-thornlord (The Thornlord): 51
+- e2-boss-tapestry (The Tapestry Walker): 47
+- e3-quartz-sentinel (Quartz Sentinel): 12
+- e4-forgotten-master (Forgotten Master): 10
+- e3-crystal-beetle (Crystal Beetle): 7
+- e2-silent-spinner (The Silent Spinner): 4
+- e3-glow-mite (Glow-Mite Swarm): 3
+- e1-thicket (Living Thicket): 3
+- e3-geode-crab (Geode Crab): 1
