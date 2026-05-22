@@ -494,6 +494,22 @@ const ENEMIES = [
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
       { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 (lunging)' },
     ] },
+  // v2.17: rogue wizard — was about to claim his staff. Got too close
+  // to the work. The staff turned him to wood. He is, the records will
+  // show, both. The bureaucracy is unclear on the matter.
+  { id: 'e-rogue-ashweather', act: 4, name: 'Doctor Phin Ashweather (recently inanimate)',
+    composureMax: 36, hpMax: 32, tier: 'normal',
+    // failure mode: mystical mishap (transformation). Chutzpah 0.6 —
+    // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
+    // wound. Physical 1.0 — he is also wood, axe him.
+    effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 },
+    softSpot: 'logic', // Point out that he is a staff. He is, technically, aware.
+    behaviors: [
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (the staff turns)' },
+      { kind: 'block',  value: 9, weight: 1, telegraph: '🛡 9 (knots tighten)' },
+      { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (the staff insists)' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
+    ] },
   { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     softSpot: 'logic', // Will argue the methodology over the outcome.
@@ -559,6 +575,21 @@ const ENEMIES = [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
       { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (lonely-thread)' },
     ] },
+  // v2.17: ROGUE WIZARDS — first wave. Failed-graduate wizards still
+  // working at their craft, refusing to come back. Names follow the
+  // Pratchett-tone with parenthetical bureaucratic annotations.
+  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
+    composureMax: 42, hpMax: 999, tier: 'normal',
+    effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 },
+    // failure mode: refusal. 50 years on the same hem. Wit can't
+    // out-argue him (heard every version); jnsq breaks his focus.
+    softSpot: 'confusion',
+    behaviors: [
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1 (stitch, weakly)', riders: { weak: 1 } },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (murmuring about the hem)' },
+      { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (measures, again)' },
+      { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
+    ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 70, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
@@ -622,6 +653,22 @@ const ENEMIES = [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
       { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (carapace)' },
+    ] },
+  // v2.17: rogue wizard — chutzpah-punisher. Tried to forge a ring of
+  // three metals; the ring forged him. The metal absorbs direct threat.
+  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C. (alloyed)',
+    composureMax: 48, hpMax: 26, tier: 'normal',
+    // failure mode: transformation. Chutzpah resist 0.6 — you can't
+    // bully someone whose identity is partly an iron ring. Jnsq 1.3
+    // because absurdity disrupts the alloy. Physical 1.0 — he is, after
+    // all, also metal.
+    effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 },
+    softSpot: 'confusion',
+    behaviors: [
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (alloyed strike)' },
+      { kind: 'block',  value: 7, weight: 2, telegraph: '🛡 7 + ⛧ Weak 1 (the ring sets)', riders: { weak: 1 } },
+      { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9 (the ring tells him to)' },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (the alloy hums)' },
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 50, hpMax: 40, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
@@ -694,6 +741,24 @@ const ENEMIES = [
       { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (corrects your form)' },
+    ] },
+  // v2.17: rogue wizard — primary chutzpah-puncher elite. Knit her hat
+  // too tight; the hat dampens her thoughts AND incoming threats.
+  { id: 'e-rogue-calloway-trinket', act: 3, name: 'Mistress Calloway-Trinket (un-millinered)',
+    composureMax: 68, hpMax: 999, tier: 'elite',
+    // failure mode: mystical mishap. Chutzpah 0.6 — her felt absorbs
+    // direct pressure as easily as it dampens her own arguments. Jnsq
+    // 1.4 — chaos cuts through the wool. Wit 1.0 — neutral; she can
+    // be argued with but it takes work.
+    effectiveness: { chutzpah: 0.6, wit: 1.0, jnsq: 1.4, physical: 0.7 },
+    softSpot: 'flattery', // Compliment the hat. The hat is the only thing left.
+    insultVulnerabilities: ['absurd', 'observational'],
+    behaviors: [
+      { kind: 'attack-multi', value: 3, count: 3, weight: 2, telegraph: '⚔ 3×3 (the hat hums)' },
+      { kind: 'attack', value: 9, pool: 'composure', weight: 2, telegraph: '🎭 9 (the hat speaks for her)' },
+      { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12 + ⛧ Weak 1 (felt thickens)', riders: { weak: 1 } },
+      // single-pool burst — composure side, the hat dredges up who she was
+      { kind: 'attack', value: 14, pool: 'composure', weight: 1, telegraph: '🎭 14 (THE HAT REMINDS HER WHO SHE WAS)' },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
     // Cycle 3 floor bump: wit 0 → 0.5. Still wit-resistant (jnsq 1.5 is the

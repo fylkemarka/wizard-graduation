@@ -39,6 +39,8 @@ const ENEMIES = [
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
   { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 72, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 85, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
+  // v2.17: rogue wizards
+  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 } },
   // Act 3
   // v2.4: sharper act-2 effectiveness so each enemy has a clear lane
   // favorite + resistor rather than the flat "0.7 everywhere" tax that
@@ -49,12 +51,15 @@ const ENEMIES = [
   { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 48, hp: 26, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 } },
   // Act 4
   { id: 'e4-apprentice-shade',act:3,name: "Apprentice's Shade",  comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 0.5 } },
   { id: 'e4-failed-initiate',act:3, name: 'Failed Initiate',     comp: 30, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
   { id: 'e4-test-wraith',   act: 3, name: 'Test-Day Wraith',     comp: 36, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
   { id: 'e4-forgotten-master',act:3,name: 'Forgotten Master',    comp: 45, hp: 999, tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 } },
   { id: 'e4-boss-headmasters-hat',act:3,name:"The Headmaster's Hat",comp:88,hp:999,tier:'boss',    atk: 11, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 0.4 } },
+  { id: 'e-rogue-calloway-trinket', act: 3, name: 'Mistress Calloway-Trinket', comp: 68, hp: 999, tier: 'elite', atk: 9, effectiveness: { chutzpah: 0.6, wit: 1.0, jnsq: 1.4, physical: 0.7 } },
+  { id: 'e-rogue-ashweather', act: 4, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 } },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
