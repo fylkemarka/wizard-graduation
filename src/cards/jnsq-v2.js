@@ -97,6 +97,12 @@ const INTROS = [
   { id: 'jv2-i-moon-disagrees', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: "And here's the part where the moon usually disagrees with me, but —", tags: ['mystical', 'theatrical'], stats: { jnsq: 4 },
     flavor: 'The moon has, today, been overruled.' },
+  // v2.12: CHAOS DICE synergy — rerolls 1s and 2s.
+  { id: 'jv2-i-feeling-about-this', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'I have a feeling about this —', tags: ['conspiratorial', 'mystical'],
+    stats: { jnsq: 2 }, diceReroll: { onResults: [1, 2] },
+    desc: 'If chaos roll lands 1 or 2 on this cast, reroll once.',
+    flavor: 'The feeling is mostly right. Mostly.' },
 ];
 
 // =============================================================================
@@ -279,6 +285,19 @@ const TARGETS = [
     effect: { scaleBy: 'jnsq', base: 14, multiplier: 3, damageType: 'composure',
              requiresTier3: { failureDamageMult: 0.5, exhaustOnFail: true } },
     flavor: 'Southern France being, as everyone now knows, susceptible.' },
+  // v2.12: CHAOS DICE targets.
+  { id: 'jv2-t-go-interesting', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: "is going to go interesting.", tags: ['mystical', 'chaotic'],
+    effect: { scaleBy: 'jnsq', base: 6, multiplier: 3, damageType: 'composure',
+              alwaysRolls: true, rollDamageScale: 1.5 },
+    desc: 'Cast: 6 + Jnsq comp. Always rolls. Roll multiplier 1.5× stronger.',
+    flavor: 'Interesting being a word doing a lot of work today.' },
+  { id: 'jv2-t-cosmic-recoil', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is the cosmic recoil.', tags: ['mystical', 'theatrical', 'absurd'],
+    effect: { scaleBy: 'jnsq', base: 22, multiplier: 3, damageType: 'composure',
+              requiresPriorRoll: 6 },
+    desc: 'REQUIRES a prior 6 rolled this combat. 22 + Jnsq comp.',
+    flavor: 'The cosmos owes you. The cosmos has receipts. The cosmos pays.' },
 ];
 
 // =============================================================================
@@ -362,6 +381,18 @@ const NEW_MODIFIERS_V26 = [
     modifierKind: 'post', phrase: '— as the moon would have me say again,', tags: ['mystical', 'theatrical'],
     modifierEffect: { damageMult: 2.0 },
     flavor: 'The moon is, frankly, on a roll.' },
+  // v2.12: CHAOS DICE modifiers.
+  { id: 'jv2-m-universe-rolls', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
+    modifierKind: 'post', phrase: '— and the universe rolls a die,',
+    tags: ['chaotic', 'mystical'], stats: { jnsq: 1 },
+    modifierEffect: { forceRoll: true },
+    desc: 'Forces a chaos roll on this cast, no opt-in required.',
+    flavor: 'The universe needs an opinion. The universe has one.' },
+  { id: 'jv2-m-loaded-dice', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
+    modifierKind: 'post', phrase: '— with loaded dice,', tags: ['conspiratorial', 'absurd'],
+    stats: { jnsq: 1 }, modifierEffect: { diceShift: 1 },
+    desc: 'Your chaos roll on this cast is +1 (caps at 6).',
+    flavor: 'Loaded in your favor, technically. Loaded all the same.' },
 ];
 
 // v2.5: UNIQUE TARGET — damage scales with the player's deck size, the

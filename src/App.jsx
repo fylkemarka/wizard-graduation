@@ -3091,6 +3091,14 @@ export default function App() {
   // Cap at floor(hp/3) so the stake alone can't be lethal. Reset on
   // cast, turn end, and combat enter.
   const [stakeAmount, setStakeAmount] = useState(0);
+  // v2.12: jnsq CHAOS DICE — per-cast optional 1d6 roll that modifies
+  // damage and adds side effects per a fixed outcome table. rollOptIn is
+  // the toggle for the next cast; lastRoll is the most recent result
+  // (for UI feedback); combatRolls is the history this combat (for
+  // synergy cards like Cosmic Recoil).
+  const [rollOptIn, setRollOptIn] = useState(false);
+  const [lastRoll, setLastRoll] = useState(null);
+  const [combatRolls, setCombatRolls] = useState([]);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -4015,6 +4023,9 @@ export default function App() {
     setAmplifyPlaysThisCombat(0);
     setCastsThisTurn(0);
     setStakeAmount(0);
+    setRollOptIn(false);
+    setLastRoll(null);
+    setCombatRolls([]);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4226,10 +4237,9 @@ export default function App() {
         },
       } : e);
       pushLog(`📝 Annotated ${enemy.name}: ${card.phrase}`);
-      setEnergy(e => e - (card.cost || 0));
+      // NOTE: energy was already deducted by playCard's outer gate.
       setDiscard(d => [...d, card]);
       setHand(h => h.filter((_, i) => i !== handIdx));
-      logEvent(TE.CARD_PLAY, { cardId: card.id, cardName: card.name, type: 'annotation', cost: card.cost || 0 });
       return;
     }
     if (card.slot === 'gesture') {
@@ -4398,6 +4408,33 @@ export default function App() {
              target: eff.swayTarget, tactic: eff.tactic, currentEff: enemy.effectiveness?.[eff.swayTarget] ?? 1 };
   }
 
+  // v2.12: CHAOS DICE outcome table. Indexed 1-6. EV ~+4% damage,
+  // tuned post-sim to keep jnsq from leaping past chutzpah's risk-reward
+  // identity.
+  const CHAOS_OUTCOMES = {
+    1: { name: 'BACKFIRE',   dmgMult: 0.5,  hpDelta: -3, draw: 0, energyNext: 0, vuln: 0, discardRandom: 0 },
+    2: { name: 'SPILLED IT', dmgMult: 1.0,  hpDelta: 0,  draw: 0, energyNext: 0, vuln: 0, discardRandom: 1 },
+    3: { name: 'HALF-BAKED', dmgMult: 0.75, hpDelta: 0,  draw: 0, energyNext: 1, vuln: 0, discardRandom: 0 },
+    4: { name: 'STICKS',     dmgMult: 1.0,  hpDelta: 0,  draw: 1, energyNext: 0, vuln: 0, discardRandom: 0 },
+    5: { name: 'SINGS',      dmgMult: 1.25, hpDelta: 0,  draw: 1, energyNext: 0, vuln: 0, discardRandom: 0 },
+    6: { name: 'COSMIC',     dmgMult: 1.75, hpDelta: 0,  draw: 2, energyNext: 0, vuln: 1, discardRandom: 0 },
+  };
+
+  // v2.12: roll a chaos die. Applies intro reroll-on-1/2 and modifier
+  // diceShift if present. Returns 1-6.
+  function rollChaosDie(intro, modifiers) {
+    let roll = 1 + Math.floor(Math.random() * 6);
+    const shift = (modifiers || []).reduce((s, m) => s + (m?.modifierEffect?.diceShift || 0), 0);
+    roll = Math.min(6, Math.max(1, roll + shift));
+    // Reroll low rolls if intro permits ("I have a feeling about this —").
+    const rerollList = intro?.diceReroll?.onResults;
+    if (rerollList && rerollList.includes(roll)) {
+      const reroll = 1 + Math.floor(Math.random() * 6);
+      roll = Math.min(6, Math.max(1, reroll + shift));
+    }
+    return roll;
+  }
+
   // Route the staged tray to discard/exile after a cast. Honors each
   // word's own exhaust flag AND the effect card's exhaust flag — so a
   // non-exhaust word in a tray cast through an exhaust Effect lands in
@@ -4429,6 +4466,23 @@ export default function App() {
     // Damage formula handled in shared/cards/shared.js. Pass world state
     // so v2.5 scaling mechanics (perDiscardCard, perDeckCard,
     // missingHpBonus) can read current values.
+    // v2.12: roll chaos die if opt-in OR if any staged card forces it.
+    const forceRoll = modifiers.some(m => m?.modifierEffect?.forceRoll) ||
+                      target.effect?.alwaysRolls === true;
+    const willRoll = (rollOptIn || forceRoll);
+    let chaosRoll = null;
+    let chaosOutcome = null;
+    if (willRoll) {
+      chaosRoll = rollChaosDie(intro, modifiers);
+      chaosOutcome = CHAOS_OUTCOMES[chaosRoll];
+      setLastRoll(chaosRoll);
+      setCombatRolls(rs => [...rs, chaosRoll]);
+      logEvent('jnsq.roll', {
+        result: chaosRoll, outcome: chaosOutcome.name,
+        forced: forceRoll, enemyId: enemy?.id,
+      });
+    }
+
     const ctx = {
       discardSize: discard.length,
       deckSize: deck.length + hand.length + discard.length + exiled.length,
@@ -4461,6 +4515,17 @@ export default function App() {
     if (dmgType === 'physical') dmg = Math.round(dmg * physMult);
     else                        dmg = Math.round(dmg * enemyMult);
     dmg = Math.round(dmg * playerDmgMult);
+    // v2.12: chaos dice damage multiplier. Stronger if "is going to go
+    // interesting." target is staged (1.5× the roll's effect — so a 1.5
+    // becomes 1.75, a 2.0 becomes 2.5, etc.).
+    if (chaosOutcome) {
+      const scale = target.effect?.rollDamageScale || 1.0;
+      // Scale the deviation from 1.0 by `scale` so a 0.5 becomes 0.5,
+      // a 1.5 becomes (1 + 0.5*scale), a 2.0 becomes (1 + 1.0*scale).
+      const effectiveMult = 1.0 + (chaosOutcome.dmgMult - 1.0) * scale;
+      dmg = Math.round(dmg * effectiveMult);
+      pushLog(`🎲 ROLLED ${chaosRoll} — ${chaosOutcome.name} (×${effectiveMult.toFixed(2)} dmg)`);
+    }
     // v2.10: annotation bonusSpellDamage adds AFTER all multipliers
     // (so the +3 is a flat bonus, not amplified by tier multipliers).
     const annBonus = annoFx('bonusSpellDamage');
@@ -4490,6 +4555,37 @@ export default function App() {
     }
     // Reset stake — consumed by this cast.
     if (stakeAmount > 0) setStakeAmount(0);
+    // v2.12: chaos roll side effects (after damage lands).
+    if (chaosOutcome) {
+      if (chaosOutcome.hpDelta < 0) {
+        setHp(h => Math.max(1, h + chaosOutcome.hpDelta));
+        pushLog(`💔 ${chaosOutcome.hpDelta} HP (chaos)`);
+      }
+      if (chaosOutcome.draw > 0) {
+        drawCards(chaosOutcome.draw);
+        pushLog(`📥 +${chaosOutcome.draw} draw (chaos)`);
+      }
+      if (chaosOutcome.discardRandom > 0 && hand.length > 0) {
+        // Pick a random non-staged hand card to discard.
+        const idx = Math.floor(Math.random() * hand.length);
+        const lost = hand[idx];
+        setHand(h => h.filter((_, i) => i !== idx));
+        setDiscard(d => [...d, lost]);
+        pushLog(`💨 Spilled: ${lost.name || lost.phrase} (chaos)`);
+      }
+      if (chaosOutcome.energyNext > 0) {
+        // Granted as an immediate energy bump — the cast already happened
+        // so "next turn" semantically means "the next thing you do".
+        setEnergy(e => e + chaosOutcome.energyNext);
+        pushLog(`⚡ +${chaosOutcome.energyNext} Energy (chaos)`);
+      }
+      if (chaosOutcome.vuln > 0) {
+        adjustPlayerDmg(+0.25 * chaosOutcome.vuln);
+        pushLog(`💫 +${25*chaosOutcome.vuln}% potency (cosmic alignment)`);
+      }
+      // Roll consumed; reset the opt-in toggle.
+      setRollOptIn(false);
+    }
 
     const tierLabel = tier === 3 ? 'DEVASTATING' : tier === 2 ? 'RESONANT' : 'COHERENT';
     const dmgTagSuffix = dmgType === 'physical'
@@ -4544,6 +4640,12 @@ export default function App() {
       const required = t.target.effect?.requiresStake || 0;
       if (required > 0 && stakeAmount < required) {
         pushLog(`🎯 ${t.target.phrase || t.target.name} requires ${required}+ HP staked.`);
+        return;
+      }
+      // v2.12: target may require a prior 6 ("is the cosmic recoil.").
+      const reqRoll = t.target.effect?.requiresPriorRoll || 0;
+      if (reqRoll > 0 && !combatRolls.includes(reqRoll)) {
+        pushLog(`🎯 ${t.target.phrase || t.target.name} requires a prior ${reqRoll} rolled this combat.`);
         return;
       }
       setCastsThisTurn(n => n + 1);
@@ -5250,6 +5352,8 @@ export default function App() {
     setCastsThisTurn(0);
     // v2.11: forget uncommitted stakes at turn boundary.
     setStakeAmount(0);
+    // v2.12: forget uncommitted roll-toggle at turn boundary.
+    setRollOptIn(false);
 
     // 6. New intent. Track what just fired and force a switch if the
     // enemy has already done the same kind twice in a row — saves the
@@ -5791,6 +5895,9 @@ export default function App() {
       castsThisTurn={castsThisTurn} maxCastsPerTurn={MAX_CASTS_PER_TURN}
       isChutzpah={selectedCharacter?.lane === 'chutzpah'}
       stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
+      isJnsq={selectedCharacter?.lane === 'jnsq'}
+      rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
+      lastRoll={lastRoll} combatRolls={combatRolls}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -6400,7 +6507,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
                        castsThisTurn, maxCastsPerTurn,
-                       isChutzpah, stakeAmount, setStakeAmount }) {
+                       isChutzpah, stakeAmount, setStakeAmount,
+                       isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -6531,7 +6639,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast}
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
         isChutzpah={isChutzpah} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
-        playerHp={hp} />
+        playerHp={hp}
+        isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
+        lastRoll={lastRoll} combatRolls={combatRolls} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -6813,7 +6923,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
 
 function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
                        isChutzpah = false, stakeAmount = 0, setStakeAmount = () => {},
-                       playerHp = 70 }) {
+                       playerHp = 70,
+                       isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
+                       lastRoll = null, combatRolls = [] }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -6837,6 +6949,14 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
   const stakeRequired = target?.effect?.requiresStake || 0;
   const stakeBlocked = ready && stakeRequired > 0 && stakeAmount < stakeRequired;
   const stakeNudge = (delta) => setStakeAmount(Math.max(0, Math.min(stakeMax, stakeAmount + delta)));
+  // v2.12: jnsq CHAOS DICE — auto-roll when a forceRoll modifier or
+  // alwaysRolls target is staged; otherwise opt-in via toggle.
+  const forcedRoll = ready && (
+    modifiers.some(m => m?.modifierEffect?.forceRoll) ||
+    target?.effect?.alwaysRolls === true
+  );
+  const rollRequired = target?.effect?.requiresPriorRoll || 0;
+  const rollBlocked = ready && rollRequired > 0 && !combatRolls.includes(rollRequired);
 
   const tagCounts = {};
   for (const c of [intro, subject, target, ...modifiers]) {
@@ -6947,15 +7067,46 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
             )}
           </div>
         )}
+        {/* v2.12: CHAOS DICE — jnsq-only roll toggle. */}
+        {isJnsq && ready && (
+          <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded border border-moss-500 bg-moss-900 bg-opacity-30"
+               title="Roll a 1d6 on this cast. Modifies damage and adds side effects per the outcome.">
+            <button onClick={() => !forcedRoll && setRollOptIn(!rollOptIn)}
+              disabled={forcedRoll}
+              className={`px-2 h-7 rounded text-xs font-bold uppercase tracking-wide ${
+                forcedRoll || rollOptIn
+                  ? 'bg-moss-600 text-parchment-50 hover:bg-moss-500'
+                  : 'bg-ink-700 text-parchment-300 hover:bg-ink-600'
+              }`}>
+              🎲 {forcedRoll ? 'FORCED' : rollOptIn ? 'WILL ROLL' : 'ROLL?'}
+            </button>
+            {lastRoll !== null && (
+              <span className="text-xs text-moss-200 font-mono" title="Last roll this combat.">last: {lastRoll}</span>
+            )}
+            {combatRolls.length > 0 && (
+              <span className="text-[10px] text-moss-300 font-mono opacity-70"
+                    title={`Rolls this combat: ${combatRolls.join(', ')}`}>
+                [{combatRolls.slice(-4).join(' · ')}]
+              </span>
+            )}
+            {rollRequired > 0 && (
+              <span className={`ml-1 text-[10px] font-bold uppercase ${rollBlocked ? 'text-ember-300' : 'text-moss-300'}`}
+                    title={`Target requires a prior ${rollRequired} rolled this combat.`}>
+                req {rollRequired}
+              </span>
+            )}
+          </div>
+        )}
         <button onClick={onCast}
-          disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked}
+          disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked}
           title={
             stakeBlocked ? `Target requires ${stakeRequired}+ HP staked.` :
+            rollBlocked ? `Target requires a prior ${rollRequired} rolled this combat.` :
             castsThisTurn >= maxCastsPerTurn ? 'One spell per turn. End your turn to cast again.' :
             'Cast the staged spell.'
           }
           className={`btn text-base px-6 py-2 ml-2 ${
-            castsThisTurn >= maxCastsPerTurn || stakeBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
+            castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
             ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
           }`}>
           ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">({castsThisTurn}/{maxCastsPerTurn})</span>}

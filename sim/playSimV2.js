@@ -129,6 +129,25 @@ function buildStarterDeck(lane) {
   return shuffle(cards);
 }
 
+// v2.12: jnsq CHAOS DICE outcomes (mirror of App.jsx).
+const CHAOS_OUTCOMES = {
+  1: { dmgMult: 0.5,  hpDelta: -3, draw: 0, energyNext: 0, vuln: 0, discardRandom: 0 },
+  2: { dmgMult: 1.0,  hpDelta: 0,  draw: 0, energyNext: 0, vuln: 0, discardRandom: 1 },
+  3: { dmgMult: 0.75, hpDelta: 0,  draw: 0, energyNext: 1, vuln: 0, discardRandom: 0 },
+  4: { dmgMult: 1.0,  hpDelta: 0,  draw: 1, energyNext: 0, vuln: 0, discardRandom: 0 },
+  5: { dmgMult: 1.25, hpDelta: 0,  draw: 1, energyNext: 0, vuln: 0, discardRandom: 0 },
+  6: { dmgMult: 1.75, hpDelta: 0,  draw: 2, energyNext: 0, vuln: 1, discardRandom: 0 },
+};
+function rollChaosSim(intro, modifiers) {
+  let r = 1 + Math.floor(rnd() * 6);
+  const shift = (modifiers || []).reduce((s, m) => s + (m?.modifierEffect?.diceShift || 0), 0);
+  r = Math.min(6, Math.max(1, r + shift));
+  if (r <= 2 && intro?.diceReroll?.onResults?.includes(r)) {
+    r = Math.min(6, Math.max(1, (1 + Math.floor(rnd() * 6)) + shift));
+  }
+  return r;
+}
+
 // =============================================================================
 // 3. COMBAT
 // =============================================================================
@@ -188,6 +207,7 @@ function runCombat(state, enemyId, telemetry) {
   const enemy = { ...tmpl, currentComp: tmpl.comp, currentHp: tmpl.hp, block: 0 };
   state.block = 0;
   state.poise = 0; // v2.9: composure-shield
+  state.combatRolls = []; // v2.12: track chaos rolls this combat
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
@@ -399,6 +419,24 @@ function runCombat(state, enemyId, telemetry) {
       }
       // Apply stake HP cost up-front
       if (stake > 0) state.hp = Math.max(1, state.hp - stake);
+      // v2.12: jnsq CHAOS DICE — roll if jnsq AND (not too low HP) OR if
+      // staged cards force it. Greedy: jnsq always rolls when affordable.
+      let chaosRoll = null;
+      let chaosOutcome = null;
+      const forceRoll = (tray.modifiers || []).some(m => m?.modifierEffect?.forceRoll) ||
+                        tray.target.effect?.alwaysRolls === true;
+      const willRoll = forceRoll || (state.lane === 'jnsq' && state.hp >= 15);
+      // Gate by requiresPriorRoll
+      const requiredRoll = tray.target.effect?.requiresPriorRoll || 0;
+      if (requiredRoll > 0 && !state.combatRolls.includes(requiredRoll)) {
+        // Cast still happens — the sim doesn't gate here; the App does.
+        // We model gate as "the AI wouldn't pick this target", but skip.
+      }
+      if (willRoll) {
+        chaosRoll = rollChaosSim(tray.intro, tray.modifiers);
+        chaosOutcome = CHAOS_OUTCOMES[chaosRoll];
+        state.combatRolls.push(chaosRoll);
+      }
       const simCtx = {
         discardSize: state.discard.length,
         deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
@@ -414,6 +452,12 @@ function runCombat(state, enemyId, telemetry) {
         ? (enemy.effectiveness?.physical ?? 1.0)
         : (enemy.effectiveness?.[stat] ?? 1.0);
       dmg = Math.round(dmg * mult * state.playerDmgMult);
+      // v2.12: chaos dice damage multiplier.
+      if (chaosOutcome) {
+        const scale = tray.target.effect?.rollDamageScale || 1.0;
+        const effectiveMult = 1.0 + (chaosOutcome.dmgMult - 1.0) * scale;
+        dmg = Math.round(dmg * effectiveMult);
+      }
       // v2.10: annotation bonusSpellDamage (flat).
       if (enemy.annotation?.effect?.bonusSpellDamage) {
         dmg += enemy.annotation.effect.bonusSpellDamage;
@@ -440,6 +484,21 @@ function runCombat(state, enemyId, telemetry) {
       if (stake > 0) {
         telemetry.stakesUsed = (telemetry.stakesUsed || 0) + 1;
         telemetry.stakeHpSpent = (telemetry.stakeHpSpent || 0) + stake;
+      }
+      // v2.12: apply chaos side effects.
+      if (chaosOutcome) {
+        if (chaosOutcome.hpDelta < 0) state.hp = Math.max(1, state.hp + chaosOutcome.hpDelta);
+        if (chaosOutcome.draw > 0) drawCards(state, chaosOutcome.draw);
+        if (chaosOutcome.energyNext > 0) state.energy += chaosOutcome.energyNext;
+        if (chaosOutcome.vuln > 0) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * chaosOutcome.vuln);
+        if (chaosOutcome.discardRandom > 0 && state.hand.length > 0) {
+          const idx = Math.floor(rnd() * state.hand.length);
+          const lost = state.hand[idx];
+          state.hand.splice(idx, 1);
+          state.discard.push(lost);
+        }
+        telemetry.chaosRolls = (telemetry.chaosRolls || 0) + 1;
+        telemetry[`chaosRoll${chaosRoll}`] = (telemetry[`chaosRoll${chaosRoll}`] || 0) + 1;
       }
 
       // Riders affect enemy
