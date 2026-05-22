@@ -322,12 +322,30 @@ const MODIFIERS = [
     flavor: 'The lamp is, in this matter, complicit.' },
 ];
 
-// v2.5: GESTURE — three quick snaps for one-shot weird damage.
+// v2.5/2.6: gestures, pontifications, quips.
 const GESTURES = [
   { id: 'jv2-g-three-snaps', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(snaps three times,)', tags: ['theatrical', 'mystical'],
     gestureEffect: { icon: '✨', damage: 7, damageType: 'composure', trayMultiplier: 1, draw: 1, exhaust: true },
     flavor: 'Three. Always three. The reasons are sacred and absurd.' },
+  // v2.6: Pontification — long mystical monologue, non-exhaust.
+  { id: 'jv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
+    phrase: 'Now imagine, hypothetically, but stay with me —', tags: ['mystical', 'conspiratorial'],
+    gestureEffect: { icon: '🌀', damage: 16, damageType: 'composure', trayMultiplier: 2, draw: 2, exhaust: false },
+    flavor: 'The hypothetical lasts thirteen minutes. The body, somewhat longer.' },
+  // v2.6: Quip — light damage + persistent vulnerable.
+  { id: 'jv2-g-quip-koan', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
+    phrase: '(quip-koan: "is a stork a borrowed neck?")', tags: ['absurd', 'mystical'],
+    gestureEffect: { icon: '🦢', damage: 4, damageType: 'composure', rider: { vulnerable: 2 }, exhaust: false },
+    flavor: 'The koan is bad. The vulnerability of being asked it is real.' },
+];
+
+// v2.6: Modifiers for jnsq.
+const NEW_MODIFIERS_V26 = [
+  { id: 'jv2-m-say-again', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
+    modifierKind: 'post', phrase: '— as the moon would have me say again,', tags: ['mystical', 'theatrical'],
+    modifierEffect: { damageMult: 2.0 },
+    flavor: 'The moon is, frankly, on a roll.' },
 ];
 
 // v2.5: UNIQUE TARGET — damage scales with the player's deck size, the
@@ -339,7 +357,7 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...GESTURES, ...UNIQUE_TARGETS];
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: MODIFIERS, gesture: GESTURES,
+  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26], gesture: GESTURES,
 };

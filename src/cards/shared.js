@@ -214,10 +214,17 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     if (me.loseHpOnCast) selfHpCost += me.loseHpOnCast;
   }
 
+  // v2.6: damageTypeFlip — convert composure damage to physical (or vice
+  // versa). Lets the player route around stat-resistant enemies.
+  const flippedDmgType = modifiers.some(m => m?.modifierEffect?.damageTypeFlip)
+    ? (eff.damageType === 'physical' ? 'composure' : 'physical')
+    : null;
+
   return {
     damage: Math.max(0, Math.round(damage)),
     tier,
     riders,
+    flippedDmgType, // v2.6: null or the new damage type to use
     sideEffects: {
       drawCount,
       stripBlock,

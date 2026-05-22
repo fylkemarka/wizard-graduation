@@ -395,14 +395,15 @@ function buildStarterDeckForLane(lane) {
   if (!pool) return [];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
   const firstNCommons = (arr, n) => arr.filter(c => c.rarity === 'common').slice(0, n);
-  // Starter deck shape: 3 intros + 3 subjects + 3 targets + 2 Defend = 11 cards.
-  // Two Defends give the player real defensive agency; previously the lone
-  // Defend was hoarded for emergencies and effectively non-routine.
+  // v2.6: starter deck = 3 intros + 3 subjects + 3 targets + 1 Defend = 10 cards.
+  // Reverted from 2 Defends after live playtest: combat felt trivially safe,
+  // never forced a defense-vs-attack choice. One Defend means block is a
+  // real decision — when do you spend the energy?
   const ids = [
     ...basics(pool.intro).slice(0, 3).map(c => c.id),
     ...basics(pool.subject).slice(0, 3).map(c => c.id),
     ...firstNCommons(pool.target, 3).map(c => c.id),
-    'c-defend', 'c-defend',
+    'c-defend',
   ];
   return ids;
 }
@@ -4159,6 +4160,7 @@ export default function App() {
       if (ge.rider?.vulnerable) { adjustPlayerDmg(+0.25 * ge.rider.vulnerable); pushLog(`💫 +${25*ge.rider.vulnerable}% potency`); }
       if (ge.rider?.block)      { setBlock(b => b + ge.rider.block); pushLog(`🛡 +${ge.rider.block}`); }
       if (ge.draw) drawCards(ge.draw);
+      if (ge.stripEnemyBlock)   { setEnemyBlock(b => Math.max(0, b - ge.stripEnemyBlock)); pushLog(`🛇 Stripped ${ge.stripEnemyBlock} enemy block.`); }
       // Exhaust by default — gestures are one-shot per acquisition.
       if (ge.exhaust !== false) setExiled(ex => [...ex, card]);
       else                      setDiscard(d => [...d, card]);
@@ -4341,7 +4343,7 @@ export default function App() {
       deckSize: deck.length + hand.length + discard.length + exiled.length,
       missingHpFrac: maxHp > 0 ? (maxHp - hp) / maxHp : 0,
     };
-    const { damage: rawDamage, tier, riders, sideEffects } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
 
     // Read-the-Room pierce + enemy effectiveness still applies.
@@ -4349,7 +4351,8 @@ export default function App() {
     const stat = eff.scaleBy || target.lane || 'wit';
     const piercing = pierceNextCast;
     if (piercing) setPierceNextCast(false);
-    const dmgType = eff.damageType || 'composure';
+    // v2.6: damageTypeFlip from "words to actions"-style modifiers.
+    const dmgType = flippedDmgType || eff.damageType || 'composure';
     const enemyMult = piercing ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
     const physMult = piercing ? 1.0 : (enemy?.effectiveness?.physical ?? 1.0);
     let dmg = rawDamage;
@@ -5121,11 +5124,11 @@ export default function App() {
       return;
     }
     pushLog(`✓ ${enemy.name} defeated.`);
-    // v2.2: post-combat heal — 15% HP + composure restore after every won
-    // combat, so the player can survive multi-combat acts without
-    // accumulating fatal attrition.
-    const healHp = Math.floor(maxHp * 0.15);
-    const healComp = Math.floor(composureMax * 0.15);
+    // v2.6: post-combat heal nerfed 15% → 8%. Live playtest said combat
+    // felt too safe; the 15% restore was washing out attrition that
+    // SHOULD pressure the player into defense decisions.
+    const healHp = Math.floor(maxHp * 0.08);
+    const healComp = Math.floor(composureMax * 0.08);
     if (healHp > 0) {
       setHp(h => clamp(h + healHp, 0, maxHp));
       setComposure(c => clamp(c + healComp, 0, composureMax));

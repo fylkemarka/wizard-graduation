@@ -333,6 +333,17 @@ const GESTURES = [
     phrase: '(adjusts spectacles,)', tags: ['observational'],
     gestureEffect: { icon: '👓', damage: 8, damageType: 'composure', trayMultiplier: 1, rider: { weak: 1 }, exhaust: true },
     flavor: 'The lenses are clean. The look behind them, less so.' },
+  // v2.6: PONTIFICATION — high cost, big damage, NON-exhaust (the card
+  // goes back into the deck after firing, so it's reusable across combat).
+  { id: 'wv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
+    phrase: 'Pontificate at length:', tags: ['academic', 'cutting'],
+    gestureEffect: { icon: '📚', damage: 18, damageType: 'composure', trayMultiplier: 2, exhaust: false },
+    flavor: 'The pontifex pontificates. The audience reconsiders their afternoon.' },
+  // v2.6: QUIP — light damage gesture that strips enemy block.
+  { id: 'wv2-g-quip-correction', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
+    phrase: '(quip: a small correction,)', tags: ['academic', 'cutting'],
+    gestureEffect: { icon: '🖊', damage: 4, damageType: 'composure', stripEnemyBlock: 6, exhaust: false },
+    flavor: 'Six points of block, removed in passing. The footnote is sharper than the body.' },
 ];
 
 // =============================================================================
@@ -348,15 +359,28 @@ const UNIQUE_TARGETS = [
     flavor: 'The footnote is on page 814. The page is, technically, also a footnote.' },
 ];
 
+// v2.6: NEW MODIFIERS — say-again (×2 damage rare) + words-to-actions
+// (damage-type flip from composure to physical).
+const NEW_MODIFIERS_V26 = [
+  { id: 'wv2-m-say-again', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
+    modifierKind: 'post', phrase: "— and I'll say it again,", tags: ['cutting', 'dismissive'],
+    modifierEffect: { damageMult: 2.0 },
+    flavor: 'The first time was free. The second time is on record.' },
+  { id: 'wv2-m-words-actions', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'modifier',
+    modifierKind: 'post', phrase: '— turning my words to actions,', tags: ['cutting', 'observational'],
+    modifierEffect: { damageTypeFlip: true },
+    flavor: "Actions speak louder than words. We're using both, today." },
+];
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...GESTURES, ...UNIQUE_TARGETS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: SUBJECTS,
   target: [...TARGETS, ...UNIQUE_TARGETS],
   gesture: GESTURES,
-  modifier: MODIFIERS,
+  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
 };

@@ -338,12 +338,30 @@ const MODIFIERS = [
     flavor: 'The sleeves were already up. The roll is for the audience.' },
 ];
 
-// v2.5: SHOUT (chutzpah's gesture) — one-shot immediate damage, exhaust.
+// v2.5/2.6: SHOUTS (chutzpah's gesture variant), PONTIFICATIONS, QUIPS.
 const GESTURES = [
   { id: 'cv2-g-slams-table', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(SLAMS THE TABLE,)', tags: ['threatening', 'direct'],
     gestureEffect: { icon: '💥', damage: 10, damageType: 'composure', trayMultiplier: 1, rider: { vulnerable: 1 }, exhaust: true },
     flavor: 'The table was a witness. The table is now also a victim.' },
+  // v2.6: Pontification — high-cost monologue, NOT exhausted.
+  { id: 'cv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
+    phrase: 'GET A LOAD OF THIS:', tags: ['swaggering', 'direct'],
+    gestureEffect: { icon: '📣', damage: 20, damageType: 'composure', trayMultiplier: 2, exhaust: false },
+    flavor: 'A load is exactly what they are about to get.' },
+  // v2.6: Quip — strip-block style threat.
+  { id: 'cv2-g-quip-eyebrow', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
+    phrase: '(quip, with raised eyebrow,)', tags: ['dismissive', 'swaggering'],
+    gestureEffect: { icon: '😏', damage: 4, damageType: 'composure', stripEnemyBlock: 6, exhaust: false },
+    flavor: 'The eyebrow is the threat. The quip is the apology for the eyebrow.' },
+];
+
+// v2.6: Modifiers for the new chutzpah lane.
+const NEW_MODIFIERS_V26 = [
+  { id: 'cv2-m-say-again', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
+    modifierKind: 'post', phrase: '— AND I WILL SAY IT AGAIN,', tags: ['threatening', 'direct'],
+    modifierEffect: { damageMult: 2.0 },
+    flavor: 'Repetition: the soul of persuasion.' },
 ];
 
 // v2.5: UNIQUE TARGET — scales when player has taken HP damage this combat.
@@ -355,7 +373,7 @@ const UNIQUE_TARGETS = [
     flavor: 'The first time was a courtesy. The second would be a confession.' },
 ];
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...GESTURES, ...UNIQUE_TARGETS];
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
 export const CHUTZPAH_V2_BY_SLOT = {
-  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: MODIFIERS, gesture: GESTURES,
+  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26], gesture: GESTURES,
 };
