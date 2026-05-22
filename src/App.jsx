@@ -275,11 +275,12 @@ const FAMILIARS = [
   },
   {
     id: 'fam-cat', species: 'Cat', emoji: '🐈',
-    desc: 'At the start of every combat, gain 5 Block.',
+    desc: 'At the start of every combat, gain 4 Block and draw 1.',
     flavor: 'The cat knows where it is. The cat refuses to discuss it.',
-    // v2.14: block 3 → 5. Was 16.5% avg (bottom third); 5 block matches
-    // the impact of Rabbit's 2 Poise + a starter Defend.
-    bonus: { onCombatStart: { block: 5 } },
+    // v2.16: was block 5 (bipolar: 33% jnsq, 6% wit). Dropped to 4
+    // + added 1 draw, which is lane-agnostic (helps wit tray-completion
+    // as much as jnsq survival).
+    bonus: { onCombatStart: { block: 4, draw: 1 } },
     card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'effect', rarity: 'basic',
       effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure',
                 rider: { weak: 1 }, resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
@@ -313,9 +314,11 @@ const FAMILIARS = [
   },
   {
     id: 'fam-owl', species: 'Owl', emoji: '🦉',
-    desc: '+8 max HP.',
+    desc: '+8 max HP. Heal 2 HP at the end of every combat you win.',
     flavor: 'It judges your reading speed. Privately. At length.',
-    bonus: { maxHp: 8 },
+    // v2.16: was flat +8 maxHp only (bottom-3 in two of three lanes).
+    // Added end-of-combat heal so it actually scales across a run.
+    bonus: { maxHp: 8, onCombatEnd: { heal: 2 } },
     card: { id: 'f-hoo', name: 'Hoo', cost: 1, type: 'skill', rarity: 'basic',
       effects: { draw: 2 },
       upgrade: { effects: { draw: 3 } },
@@ -510,10 +513,11 @@ const ENEMIES = [
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
     ] },
-  { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 100, hpMax: 120, tier: 'boss',
-    // Cycle 4 batch 3: chutzpah 0.5 → 0.7 (same fix as Anvil — chutzpah
-    // shouldn't be structurally walled by 2/4 act bosses).
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+  { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 95, hpMax: 115, tier: 'boss',
+    // v2.16: was killing 182/500 chutzpah runs. First pass 0.7→0.85
+    // overcorrected (chutzpah jumped to 41%). Settled at 0.75: still
+    // a chutzpah-hostile boss, just not a trap.
+    effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 },
     softSpot: 'flattery', // Apex predator; flatter the apex.
     insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
@@ -4095,6 +4099,24 @@ export default function App() {
     const firstHitReduction = effectSources().reduce(
       (s, x) => s + (x.effect?.firstHitReduction || 0), 0);
     setBeetleAbsorb(firstHitReduction);
+    // v2.16: wit characters open every combat with a stub annotation
+    // already attached. Fixes the act-0/1 floor problem — wit's slow
+    // burn was dying before BURST could ever fire. The remark is
+    // *already written down*.
+    if (selectedCharacter?.lane === 'wit') {
+      setEnemy(prevE => prevE ? {
+        ...prevE,
+        annotation: {
+          id: 'wv2-ann-cited',
+          name: 'Cited in passing',
+          phrase: '*[cited]',
+          effect: { damageOnTurnEnd: 1 },
+          turnsRemaining: 2,
+          stub: true,
+        },
+      } : prevE);
+      pushLog(`📝 You arrive having already taken notes.`);
+    }
 
     if (opts.forcedHand && opts.forcedDeck) {
       // Tutorial path: deterministic deck + hand. Skip shuffle entirely.

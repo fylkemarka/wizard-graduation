@@ -29,7 +29,7 @@ const ENEMIES = [
   { id: 'e1-shrine-rat',    act: 4, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 } },
   { id: 'e1-tutor',         act: 4, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 } },
   { id: 'e1-thicket',       act: 4, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e1-boss-thornlord',act: 4, name: 'The Thornlord',       comp: 100,hp: 120, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
+  { id: 'e1-boss-thornlord',act: 4, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 } }, // v2.16: compressed extremes
   // Act 2
   // v2.9: bumped composure + atk values to match App.jsx. Elites in
   // particular need to feel like a wall.
@@ -709,10 +709,10 @@ function classifyArchetype(deck) {
 // v2.14 familiar values mirrored from App.jsx — see balance commit notes.
 const SIM_FAMILIARS = [
   { id: 'fam-raven',    name: 'Raven',     bonus: { startCombatDraw: 1 } },
-  { id: 'fam-cat',      name: 'Cat',       bonus: { startCombatBlock: 5 } }, // v2.14: 3 → 5
+  { id: 'fam-cat',      name: 'Cat',       bonus: { startCombatBlock: 4, startCombatDraw: 1 } }, // v2.16: 5 → 4+draw
   { id: 'fam-toad',     name: 'Toad',      bonus: { combatEndHeal: 3 } },
   { id: 'fam-mouse',    name: 'Mouse',     bonus: { startCombatEnergy: 1 } },
-  { id: 'fam-owl',      name: 'Owl',       bonus: { maxHpBonus: 8 } },
+  { id: 'fam-owl',      name: 'Owl',       bonus: { maxHpBonus: 8, combatEndHeal: 2 } }, // v2.16: + heal
   { id: 'fam-beetle',   name: 'Beetle',    bonus: { maxHpBonus: 6, firstHitReduction: 3 } },
   { id: 'fam-hedgehog', name: 'Hedgehog',  bonus: { startOfTurnBlock: 1 } }, // v2.14: 2 → 1
   { id: 'fam-crow',     name: 'Crow',      bonus: { onKillHeal: 2 } },
