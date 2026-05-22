@@ -322,9 +322,14 @@ const FAMILIARS = [
   },
   {
     id: 'fam-beetle', species: 'Beetle', emoji: '🪲',
-    desc: 'Take 1 less damage from every incoming attack (combats always cost at least 1).',
+    desc: '+6 max HP. The first incoming hit each combat does -3 damage.',
     flavor: 'It is on its third career. The first two were also waiting.',
-    bonus: { damageReduction: 1 },
+    // v2.9: was damageReduction:1 (every hit, every combat) — that
+    // arithmetic worked out to ~60 HP saved per full run, oppressively
+    // strong vs other familiars. Re-tiered as a flat HP boost + a single
+    // strong opening-hit absorb so the flavor stays ("survival pet") but
+    // the math sits with other familiars.
+    bonus: { maxHp: 6, firstHitReduction: 3 },
     card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'effect', rarity: 'basic',
       effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'composure',
                 rider: { block: 3 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } },
@@ -375,9 +380,12 @@ const FAMILIARS = [
   },
   {
     id: 'fam-rabbit', species: 'Rabbit', emoji: '🐇',
-    desc: 'Your Strikes deal +1 damage.',
+    desc: 'Start every combat with +3 Poise.',
     flavor: 'Direction was secondary. Speed was the trick.',
-    bonus: { passiveStrikeBonus: 1 },
+    // v2.9: was passiveStrikeBonus (v1-only — completely dead vs v2 spell
+    // casts). Re-themed for the dual-shield era: composure-side opening
+    // protection so the player can cast a tempo turn instead of defending.
+    bonus: { startCombatPoise: 3 },
     card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'effect', rarity: 'basic',
       effect: { scaleBy: 'chutzpah', base: 4, multiplier: 1, damageType: 'composure', exhaust: true,
                 resonatesWith: ['petty'], resonanceBonus: { perTag: 2 } },
@@ -484,7 +492,7 @@ const ENEMIES = [
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
@@ -506,7 +514,7 @@ const ENEMIES = [
 
   // ===== ACT 2 — The Thread Path =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 30, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -532,13 +540,15 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 44, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (pattern-wrong)' },
-      { kind: 'attack-multi', value: 3, count: 2, pool: 'composure', weight: 1, telegraph: '🎭 3×2 + ⛧ Weak 1', riders: { weak: 1 } },
+      // v2.9 burst attack — full-stack to one pool, forces the "scrounge"
+      // moment if the player hasn't kept the right shield up.
+      { kind: 'attack', value: 13, pool: 'composure', weight: 1, telegraph: '🎭 13 (PATTERN COMPLETE)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 46, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
@@ -546,8 +556,10 @@ const ENEMIES = [
     behaviors: [
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 8,  weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 10, weight: 1, telegraph: '⚔ 10 (loud silence)' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      // v2.9 burst — telegraphed big swing to HP. "Loud silence" is a
+      // breaking-of-the-vow moment.
+      { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 52, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
@@ -564,7 +576,7 @@ const ENEMIES = [
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 44, hpMax: 22, tier: 'normal',
     // v2.4: sharpened from flat-low to chutzpah-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
-    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
@@ -590,25 +602,28 @@ const ENEMIES = [
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 50, hpMax: 40, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
-    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (axiom-strike)' },
+      // v2.9 burst — single-pool HP hammer.
+      { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (RULING)' },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 80, hpMax: 50, tier: 'elite',
     // v2.4: chutzpah-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
-    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
-      { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (devour)' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 + ⛧ Weak 1', riders: { weak: 1 } },
+      // v2.9 burst — the Devourer's "DEVOUR" is a 1-shot KO risk.
+      { kind: 'attack', value: 18, weight: 1, telegraph: '⚔ 18 (DEVOUR)' },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
     // v2.4: Anvil flipped from chutzpah-resist to chutzpah-favored. It's
@@ -626,7 +641,7 @@ const ENEMIES = [
 
   // ===== ACT 4 — The Forge Path =====
   { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 },
+    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 0.5 },
     softSpot: 'flattery', // Failed apprentice. Pretend the work was good.
     behaviors: [
       { kind: 'attack', value: 10, weight: 3, telegraph: '⚔ 10' },
@@ -671,7 +686,7 @@ const ENEMIES = [
   { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 88, hpMax: 999, tier: 'boss',
     // Cycle 3 floor bump: physical 0 → 0.4. Still verbal-favored (wit 1.5)
     // but physical-built decks aren't shut out entirely.
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0.4 },
+    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 0.4 },
     softSpot: 'flattery', // It is a HAT that wants to be the headmaster. Acknowledge that.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Vain authority; mocking the hat-ness lands.
     behaviors: [
@@ -2905,6 +2920,11 @@ export default function App() {
   // turn. Cards/relics that grant block default to the physical kind;
   // cards that grant poise are explicitly tagged with `poise:` in effects.
   const [poise, setPoise] = useState(0);
+  // v2.9: Beetle's first-hit absorb — non-zero only while a combat is
+  // ongoing AND the Beetle wielder hasn't yet taken a hit this fight.
+  // Consumed once on the first attack the enemy lands; reset on combat
+  // enter.
+  const [beetleAbsorb, setBeetleAbsorb] = useState(0);
   const [energy, setEnergy] = useState(ENERGY_PER_TURN);
   const [deck, setDeck] = useState([]);
   const [hand, setHand] = useState([]);
@@ -4022,9 +4042,17 @@ export default function App() {
       adjustEnemyDmg(-0.25 * startCombatWeakTotal);
       pushLog(`💢 ${e.name}: −${25*startCombatWeakTotal}% atk (start of combat).`);
     }
+    // v2.9: Rabbit's startCombatPoise — combat-start composure shield.
+    const startPoiseTotal = effectSources().reduce(
+      (s, x) => s + (x.effect?.startCombatPoise || 0), 0);
     setBlock(startBlockTotal);
-    setPoise(0);
+    setPoise(startPoiseTotal);
     setEnergy(energyPerTurnRefill() + startEnergyBonus);
+    // v2.9: Beetle's firstHitReduction — one-shot per combat. Tracked
+    // on a state flag consumed by the enemy intent handler.
+    const firstHitReduction = effectSources().reduce(
+      (s, x) => s + (x.effect?.firstHitReduction || 0), 0);
+    setBeetleAbsorb(firstHitReduction);
 
     if (opts.forcedHand && opts.forcedDeck) {
       // Tutorial path: deterministic deck + hand. Skip shuffle entirely.
@@ -5146,6 +5174,14 @@ export default function App() {
       const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
                          + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
       const reduction = Math.min(2, rawReduction);
+      // v2.9: Beetle's first-hit absorb — applied BEFORE shield routing
+      // so it works against both pool types. Consumed on first hit only.
+      if (beetleAbsorb > 0 && raw > 0) {
+        const absorbed = Math.min(beetleAbsorb, raw);
+        raw = Math.max(0, raw - absorbed);
+        setBeetleAbsorb(0);
+        pushLog(`🪲 Beetle absorbs ${absorbed}.`);
+      }
       let wBlock = block;
       let wPoise = poise;
       let wHp = hp;

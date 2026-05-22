@@ -28,7 +28,7 @@ const ENEMIES = [
   { id: 'e1-imp',           act: 4, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
   { id: 'e1-shrine-rat',    act: 4, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 } },
   { id: 'e1-tutor',         act: 4, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 } },
-  { id: 'e1-thicket',       act: 4, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e1-thicket',       act: 4, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 } },
   { id: 'e1-boss-thornlord',act: 4, name: 'The Thornlord',       comp: 100,hp: 120, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
   // Act 2
   // v2.9: bumped composure + atk values to match App.jsx. Elites in
@@ -43,18 +43,18 @@ const ENEMIES = [
   // v2.4: sharper act-2 effectiveness so each enemy has a clear lane
   // favorite + resistor rather than the flat "0.7 everywhere" tax that
   // walled all three lanes equally.
-  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 34, hp: 16,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 } },
   { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.5, physical: 1.0 } },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.5, physical: 1.0 } },
+  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 } },
   // Act 4
-  { id: 'e4-apprentice-shade',act:3,name: "Apprentice's Shade",  comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 } },
+  { id: 'e4-apprentice-shade',act:3,name: "Apprentice's Shade",  comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 0.5 } },
   { id: 'e4-failed-initiate',act:3, name: 'Failed Initiate',     comp: 30, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
   { id: 'e4-test-wraith',   act: 3, name: 'Test-Day Wraith',     comp: 36, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 1.0, physical: 0.5 } },
   { id: 'e4-forgotten-master',act:3,name: 'Forgotten Master',    comp: 45, hp: 999, tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e4-boss-headmasters-hat',act:3,name:"The Headmaster's Hat",comp:88,hp:999,tier:'boss',    atk: 11, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0.4 } },
+  { id: 'e4-boss-headmasters-hat',act:3,name:"The Headmaster's Hat",comp:88,hp:999,tier:'boss',    atk: 11, effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.7, physical: 0.4 } },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
@@ -187,8 +187,11 @@ function runCombat(state, enemyId, telemetry) {
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
+  if (fb.startCombatPoise)  state.poise += fb.startCombatPoise; // Rabbit
   if (fb.startCombatEnergy) state.energy += fb.startCombatEnergy; // applied alongside ENERGY_PER_TURN in loop
   if (fb.startCombatVuln)   state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fb.startCombatVuln);
+  // Beetle: tracks a per-combat first-hit absorber.
+  state.beetleAbsorb = fb.firstHitReduction || 0;
   // Power-down: reset per-combat buffs
   state.enemyDmgMult = 1.0;
   state.playerDmgMult = 1.0;
@@ -389,7 +392,12 @@ function runCombat(state, enemyId, telemetry) {
 
     // Enemy turn
     let incoming = enemy.atk;
-    if (fb.damageReduction) incoming = Math.max(1, incoming - fb.damageReduction);
+    // v2.9: Beetle's first-hit absorb consumes once per combat.
+    if (state.beetleAbsorb > 0 && incoming > 0) {
+      const absorbed = Math.min(state.beetleAbsorb, incoming);
+      incoming = Math.max(0, incoming - absorbed);
+      state.beetleAbsorb = 0;
+    }
     // Drift player buffs back toward 1.0 (0.25/turn)
     if (state.enemyDmgMult < 1.0) state.enemyDmgMult = Math.min(1.0, state.enemyDmgMult + 0.25);
     if (state.playerDmgMult > 1.0) state.playerDmgMult = Math.max(1.0, state.playerDmgMult - 0.25);
@@ -513,11 +521,11 @@ const SIM_FAMILIARS = [
   { id: 'fam-toad',     name: 'Toad',      bonus: { combatEndHeal: 3 } },
   { id: 'fam-mouse',    name: 'Mouse',     bonus: { startCombatEnergy: 1 } },
   { id: 'fam-owl',      name: 'Owl',       bonus: { maxHpBonus: 8 } },
-  { id: 'fam-beetle',   name: 'Beetle',    bonus: { damageReduction: 1 } },
+  { id: 'fam-beetle',   name: 'Beetle',    bonus: { maxHpBonus: 6, firstHitReduction: 3 } }, // v2.9: re-tiered
   { id: 'fam-hedgehog', name: 'Hedgehog',  bonus: { startOfTurnBlock: 2 } },
   { id: 'fam-crow',     name: 'Crow',      bonus: { onKillHeal: 2 } },
   { id: 'fam-snake',    name: 'Snake',     bonus: { startCombatVuln: 2 } },
-  { id: 'fam-rabbit',   name: 'Rabbit',    bonus: { strikeBonus: 1 } },
+  { id: 'fam-rabbit',   name: 'Rabbit',    bonus: { startCombatPoise: 3 } }, // v2.9: dead passive → opening poise
 ];
 
 function simRun() {

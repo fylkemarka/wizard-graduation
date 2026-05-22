@@ -208,27 +208,30 @@ const SUBJECTS = [
 
 const TARGETS = [
   // ---- Common (5) ----
+  // v2.9: jnsq common bases bumped (was 2/2/5/5/6 avg 4 — significantly
+  // below chutzpah's avg 6, which combined with act-2's jnsq×0.5 made the
+  // lane unviable). New avg matches the other two lanes.
   { id: 'jv2-t-wrong-color', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is the wrong color.', tags: ['absurd'],
-    effect: { scaleBy: 'jnsq', base: 2, multiplier: 3, damageType: 'composure',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 3, damageType: 'composure',
               perLaneTag: { tags: ['absurd', 'chaotic'], bonus: 2 } },
     flavor: 'Color being, on inspection, definite.' },
   { id: 'jv2-t-owes-nothing', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'owes you nothing.', tags: ['mystical'],
-    effect: { scaleBy: 'jnsq', base: 2, multiplier: 3, damageType: 'composure',
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 3, damageType: 'composure',
               perLaneTag: { tags: ['mystical', 'conspiratorial'], bonus: 2 } },
     flavor: 'Debts being, in this currency, a private matter.' },
   { id: 'jv2-t-forgotten-name', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'has forgotten its own name.', tags: ['mystical', 'absurd'],
-    effect: { scaleBy: 'jnsq', base: 5, multiplier: 3, damageType: 'composure', drawAfterCast: 1 },
+    effect: { scaleBy: 'jnsq', base: 7, multiplier: 3, damageType: 'composure', drawAfterCast: 1 },
     flavor: 'Names being a function of being seen by the right people.' },
   { id: 'jv2-t-levitating', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is, frankly, levitating.', tags: ['theatrical', 'absurd'],
-    effect: { scaleBy: 'jnsq', base: 5, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
+    effect: { scaleBy: 'jnsq', base: 7, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
     flavor: 'Frankly being a word that, here, carries no weight. Like the subject.' },
   { id: 'jv2-t-not-from-here', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: "isn't even from around here.", tags: ['mystical'],
-    effect: { scaleBy: 'jnsq', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure' },
     flavor: 'Origin being a question with, in this case, an unsatisfying answer.' },
 
   // ---- Uncommon (6) ----
