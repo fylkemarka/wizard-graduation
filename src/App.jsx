@@ -275,9 +275,11 @@ const FAMILIARS = [
   },
   {
     id: 'fam-cat', species: 'Cat', emoji: '🐈',
-    desc: 'At the start of every combat, gain 3 Block.',
+    desc: 'At the start of every combat, gain 5 Block.',
     flavor: 'The cat knows where it is. The cat refuses to discuss it.',
-    bonus: { onCombatStart: { block: 3 } },
+    // v2.14: block 3 → 5. Was 16.5% avg (bottom third); 5 block matches
+    // the impact of Rabbit's 2 Poise + a starter Defend.
+    bonus: { onCombatStart: { block: 5 } },
     card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'effect', rarity: 'basic',
       effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure',
                 rider: { weak: 1 }, resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
@@ -341,9 +343,11 @@ const FAMILIARS = [
   },
   {
     id: 'fam-hedgehog', species: 'Hedgehog', emoji: '🦔',
-    desc: 'At the start of every turn, gain 2 Block.',
+    desc: 'At the start of every turn, gain 1 Block.',
     flavor: 'It does not move when you call it. You have called it.',
-    bonus: { startOfTurnBlock: 2 },
+    // v2.14: 2/turn → 1/turn. Compounded too hard over long combats
+    // (~58 HP equivalent over a full run); reduced to ~30 HP.
+    bonus: { startOfTurnBlock: 1 },
     card: { id: 'f-bristle', name: 'Bristle', cost: 1, type: 'skill', rarity: 'basic',
       effects: { block: 5, vulnerable: 1 },
       upgrade: { effects: { block: 7, vulnerable: 1 } },
@@ -366,9 +370,12 @@ const FAMILIARS = [
   },
   {
     id: 'fam-snake', species: 'Snake', emoji: '🐍',
-    desc: 'At the start of every combat, apply 2 Vulnerable to the enemy.',
+    desc: '+5 max HP. At the start of every combat, apply 2 Vulnerable to the enemy.',
     flavor: 'It is patient. You are not. This is the arrangement.',
-    bonus: { startCombatVulnerable: 2 },
+    // v2.14: was bottom-of-meta at 11.6% avg (vuln drifted back too
+    // fast to matter past turn 1-2). Added +5 maxHp baseline so the
+    // familiar earns its slot even on short fights.
+    bonus: { maxHp: 5, startCombatVulnerable: 2 },
     card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'effect', rarity: 'basic',
       effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure',
                 rider: { vulnerable: 1 }, resonatesWith: ['threatening'], resonanceBonus: { perTag: 2 } },
@@ -380,12 +387,11 @@ const FAMILIARS = [
   },
   {
     id: 'fam-rabbit', species: 'Rabbit', emoji: '🐇',
-    desc: 'Start every combat with +3 Poise.',
+    desc: 'Start every combat with +2 Poise.',
     flavor: 'Direction was secondary. Speed was the trick.',
-    // v2.9: was passiveStrikeBonus (v1-only — completely dead vs v2 spell
-    // casts). Re-themed for the dual-shield era: composure-side opening
-    // protection so the player can cast a tempo turn instead of defending.
-    bonus: { startCombatPoise: 3 },
+    // v2.14: poise 3 → 2 (was top-of-meta across all lanes at ~30% avg
+    // win rate; trimmed to bring closer to ~22% mid-pack).
+    bonus: { startCombatPoise: 2 },
     card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'effect', rarity: 'basic',
       effect: { scaleBy: 'chutzpah', base: 4, multiplier: 1, damageType: 'composure', exhaust: true,
                 resonatesWith: ['petty'], resonanceBonus: { perTag: 2 } },

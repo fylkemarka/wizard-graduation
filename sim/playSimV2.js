@@ -687,17 +687,18 @@ function classifyArchetype(deck) {
 // telemetry. Mirrors the App's FAMILIARS table — only the bonuses that
 // shift balance are encoded here (maxHp, damageReduction, startBlock,
 // extraDraw, startEnergy, startOfTurnBlock).
+// v2.14 familiar values mirrored from App.jsx — see balance commit notes.
 const SIM_FAMILIARS = [
   { id: 'fam-raven',    name: 'Raven',     bonus: { startCombatDraw: 1 } },
-  { id: 'fam-cat',      name: 'Cat',       bonus: { startCombatBlock: 3 } },
+  { id: 'fam-cat',      name: 'Cat',       bonus: { startCombatBlock: 5 } }, // v2.14: 3 → 5
   { id: 'fam-toad',     name: 'Toad',      bonus: { combatEndHeal: 3 } },
   { id: 'fam-mouse',    name: 'Mouse',     bonus: { startCombatEnergy: 1 } },
   { id: 'fam-owl',      name: 'Owl',       bonus: { maxHpBonus: 8 } },
-  { id: 'fam-beetle',   name: 'Beetle',    bonus: { maxHpBonus: 6, firstHitReduction: 3 } }, // v2.9: re-tiered
-  { id: 'fam-hedgehog', name: 'Hedgehog',  bonus: { startOfTurnBlock: 2 } },
+  { id: 'fam-beetle',   name: 'Beetle',    bonus: { maxHpBonus: 6, firstHitReduction: 3 } },
+  { id: 'fam-hedgehog', name: 'Hedgehog',  bonus: { startOfTurnBlock: 1 } }, // v2.14: 2 → 1
   { id: 'fam-crow',     name: 'Crow',      bonus: { onKillHeal: 2 } },
-  { id: 'fam-snake',    name: 'Snake',     bonus: { startCombatVuln: 2 } },
-  { id: 'fam-rabbit',   name: 'Rabbit',    bonus: { startCombatPoise: 3 } }, // v2.9: dead passive → opening poise
+  { id: 'fam-snake',    name: 'Snake',     bonus: { maxHpBonus: 5, startCombatVuln: 2 } }, // v2.14: + maxHp
+  { id: 'fam-rabbit',   name: 'Rabbit',    bonus: { startCombatPoise: 2 } }, // v2.14: 3 → 2
 ];
 
 function simRun(forcedLane = null) {
