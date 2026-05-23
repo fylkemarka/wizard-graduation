@@ -8000,13 +8000,31 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
     setErrorBucket(near.dist < 12 ? 'master' : near.dist < 28 ? 'fine' : 'rough');
   }
 
-  function finish() {
+  // v2.20: if the player clicked the START dot and lifted without
+  // dragging (or dragged a tiny amount), DON'T auto-finalize. Reset the
+  // attempt so they can try again. The old behavior fired off a 'rough'
+  // grade and bounced the player back to the map within 600ms, which
+  // from the player's perspective looked like the minigame crashed.
+  // Threshold: at least 10% of path traced OR an explicit Finish click.
+  function finish(opts = {}) {
     const s = stateRef.current;
-    if (!s.tracing) return;
+    if (!s.tracing && !opts.fromButton) return;
+    const completion = s.progressIdx / (pathSamples.length - 1);
+    // Mis-click guard: < 10% completion = treat as no attempt, reset.
+    if (completion < 0.10 && !opts.fromButton) {
+      s.tracing = false;
+      s.progressIdx = 0;
+      s.totalError = 0;
+      s.samples = 0;
+      s.cursor = null;
+      setTracing(false);
+      setCursor(null);
+      setProgress(0);
+      return;
+    }
     s.tracing = false;
     setTracing(false);
     const elapsed = (Date.now() - s.startTime) / 1000;
-    const completion = s.progressIdx / (pathSamples.length - 1);
     // v2.5: time-based grade. Must complete ≥70% of the path to qualify
     // above Rough — pure speed without coverage doesn't count.
     let grade;
@@ -8091,7 +8109,7 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
           <div className="text-xs text-parchment-400 italic">Click the green dot to start.</div>
         )}
         {!tracing && progress > 0 && (
-          <button className="btn btn-iris text-sm" onClick={finish}>Finish the cut</button>
+          <button className="btn btn-iris text-sm" onClick={() => finish({ fromButton: true })}>Finish the cut</button>
         )}
       </div>
     </div>
