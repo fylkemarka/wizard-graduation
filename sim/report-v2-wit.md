@@ -3,32 +3,32 @@
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **2 wins / 100** = **2.0%**
-- Losses by acts-cleared: 0=60 · 1=34 · 2=4 · 3=0
+- **1 wins / 100** = **1.0%**
+- Losses by acts-cleared: 0=51 · 1=43 · 2=5 · 3=0
 
 ## Lane outcomes
-- **wit**: 100 runs · 2 wins (2.0%)
+- **wit**: 100 runs · 1 wins (1.0%)
 - **chutzpah**: 0 runs · 0 wins (0.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-rabbit**: 8 runs · 1 wins (12.5%)
-- **fam-toad**: 8 runs · 1 wins (12.5%)
-- **fam-hedgehog**: 6 runs · 0 wins (0.0%)
-- **fam-owl**: 13 runs · 0 wins (0.0%)
-- **fam-cat**: 12 runs · 0 wins (0.0%)
-- **fam-raven**: 10 runs · 0 wins (0.0%)
-- **fam-snake**: 15 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 5 runs · 1 wins (20.0%)
+- **fam-rabbit**: 11 runs · 0 wins (0.0%)
+- **fam-beetle**: 8 runs · 0 wins (0.0%)
+- **fam-toad**: 15 runs · 0 wins (0.0%)
 - **fam-crow**: 9 runs · 0 wins (0.0%)
-- **fam-beetle**: 6 runs · 0 wins (0.0%)
-- **fam-mouse**: 13 runs · 0 wins (0.0%)
+- **fam-snake**: 6 runs · 0 wins (0.0%)
+- **fam-cat**: 13 runs · 0 wins (0.0%)
+- **fam-raven**: 14 runs · 0 wins (0.0%)
+- **fam-owl**: 10 runs · 0 wins (0.0%)
+- **fam-mouse**: 9 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 1922
-- Tier 1 (COHERENT): 1724 (89.7%)
-- Tier 2 (RESONANT): 189 (9.8%)
-- Tier 3 (DEVASTATING): 9 (0.5%)
-- Holds (turn ended without cast — tray persists): 983 (33.8%)
+- Total casts: 2032
+- Tier 1 (COHERENT): 1732 (85.2%)
+- Tier 2 (RESONANT): 287 (14.1%)
+- Tier 3 (DEVASTATING): 13 (0.6%)
+- Holds (turn ended without cast — tray persists): 1044 (33.9%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -52,24 +52,52 @@ N = **100** runs simulated with a greedy v2 AI.
 - Enemies killed by their own recoil: 0
 - Avg recoil per install: 0.0
 
+## Chutzpah SAYING IT LOUDER (v2.29)
+- "I SAID." casts: 0 (runs: 0 / 100, 0.0%)
+- Avg loudCount per cast: 0.00
+- Avg bonus damage per cast: 0.00
+- Total bonus damage from louder: 0
+
+## Chutzpah SMELL WEAKNESS (v2.30)
+- Predator triggers (cast hit while enemy debuffed): 0 (runs: 0 / 100, 0.0%)
+- Total bonus damage from predator: 0
+- Avg bonus per trigger: 0.00
+
+## Chutzpah SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)
+- Capstone casts: 0 (runs: 0 / 100, 0.0%)
+- Total capstone damage: 0
+- Avg damage per capstone cast: 0.00
+
+## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
+- Skill casts: 0 (runs: 0 / 100, 0.0%)
+- Total debuff absorbs: 0
+- Avg absorbs per skill cast: 0.00
+
+## Wit LONG THREAD (v2.34)
+- Combats reaching LT ≥ 1: 240 (runs: 86 / 100, 86.0%)
+- Avg peak LT per run (across all combats): 2.56
+- Avg peak LT per threaded combat: 1.07
+- Thread breaks (unblocked hit reset a non-zero meter): 166
+- Thread-scaling rider triggers: 5
+- Total bonus damage from thread scaling: 18
+- "natural conclusion." target casts: 40
+
 ## Combat pacing
-- Avg turns / combat: 4.38
-- Avg damage / run: 364
-- Mean final deck size: 13.0
+- Avg turns / combat: 4.30
+- Avg damage / run: 388
+- Mean final deck size: 13.3
 
 ## Archetype of winning decks
-- mid-t2t3: 1
 - low-tier: 1
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 38
+- e2-boss-tapestry (The Tapestry Walker): 27
+- e3-vein-devourer (Vein Devourer): 19
 - e2-silent-spinner (The Silent Spinner): 18
-- e3-boss-anvil (The Anvil-Forged): 11
-- e3-vein-devourer (Vein Devourer): 6
-- e3-geode-crab (Geode Crab): 6
-- e3-quartz-sentinel (Quartz Sentinel): 5
-- e3-crystal-beetle (Crystal Beetle): 4
-- e2-pattern-maker (The Pattern-Maker): 4
-- e1-boss-thornlord (The Thornlord): 3
-- e3-glow-mite (Glow-Mite Swarm): 2
+- e3-boss-anvil (The Anvil-Forged): 15
+- e2-pattern-maker (The Pattern-Maker): 6
+- e3-geode-crab (Geode Crab): 4
+- e1-boss-thornlord (The Thornlord): 4
+- e3-quartz-sentinel (Quartz Sentinel): 4
+- e3-glow-mite (Glow-Mite Swarm): 1
 - e1-thicket (Living Thicket): 1

@@ -3136,6 +3136,22 @@ export default function App() {
   // 0 and restore the +0.5 bonus.
   const [tunnelVision, setTunnelVision] = useState(0);
   const [rageActive, setRageActive] = useState(false);
+  // v2.34: wit LONG THREAD — consecutive-turn scaling counter. Ticks +1
+  // at end of every player turn where the player cast a wit Effect (target)
+  // AND took zero unblocked HP damage. Block-absorbed hits DON'T break
+  // the thread — that's the wit-defender's whole point. Taking actual
+  // unblocked HP damage resets the meter to 0. Wit targets with
+  // `threadScaling: N` add N × longThread flat damage on cast. Persists
+  // across turns; resets between combats.
+  const [longThread, setLongThread] = useState(0);
+  // Track whether the player took unblocked HP damage this turn — read at
+  // end-of-turn by the long-thread bookkeeping. Reset at the start of every
+  // player turn.
+  const [unblockedThisTurn, setUnblockedThisTurn] = useState(false);
+  // Track whether the player cast at least one wit Effect (target) this
+  // turn. Read at end-of-turn by the long-thread bookkeeping. Reset at
+  // the start of every player turn.
+  const [castWitEffectThisTurn, setCastWitEffectThisTurn] = useState(false);
   // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
   // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
@@ -4116,6 +4132,10 @@ export default function App() {
     // v2.24: chutzpah tunnel-vision meter and RAGE state reset per combat.
     setTunnelVision(0);
     setRageActive(false);
+    // v2.34: wit LONG THREAD — meter + per-turn flags reset per combat.
+    setLongThread(0);
+    setUnblockedThisTurn(false);
+    setCastWitEffectThisTurn(false);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
     // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
@@ -4651,8 +4671,10 @@ export default function App() {
       loudCount, // v2.29: chutzpah SAYING IT LOUDER
       // v2.30: chutzpah SMELL WEAKNESS — predator rider reads enemy debuff state
       playerDmgMult, enemyDmgMult,
+      // v2.34: wit LONG THREAD — threadScaling targets read this for +N × LT
+      longThread,
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
     if (loudBonus > 0) {
@@ -4670,6 +4692,20 @@ export default function App() {
         playerDmgMult, enemyDmgMult,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
+    }
+    // v2.34: LONG THREAD — surface the thread-scaling bonus when it fired.
+    if (threadBonus > 0) {
+      pushLog(`🧵 LONG THREAD ×${longThread} → +${threadBonus} dmg`);
+      logEvent('wit.thread', {
+        longThread, bonusDamage: threadBonus,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
+    // v2.34: any wit-lane target that resolves counts as casting a wit
+    // Effect this turn — the player has "stayed on topic". End-of-turn
+    // checks this together with unblockedThisTurn to tick the thread.
+    if (target.lane === 'wit') {
+      setCastWitEffectThisTurn(true);
     }
     // Reset loudCount — the cast consumes the build-up. Future demanding
     // words in the same turn would re-arm if a second cast were possible,
@@ -5587,6 +5623,25 @@ export default function App() {
       pushLog(`🩸 Bleed: ${dmg} (${remaining} turn${remaining === 1 ? '' : 's'} left)`);
     }
 
+    // v2.34: LONG THREAD bookkeeping. Runs AFTER the enemy intent resolves
+    // so `unblockedThisTurn` is final. Rules:
+    //   - Took unblocked HP/composure damage → meter resets to 0.
+    //   - Otherwise, if the player cast a wit Effect this turn → meter +1.
+    //   - Otherwise (no wit cast, no unblocked hit) → meter is unchanged.
+    // Reset the per-turn flags either way.
+    if (unblockedThisTurn) {
+      if (longThread > 0) pushLog(`🧵 Lost the thread.`);
+      setLongThread(0);
+    } else if (castWitEffectThisTurn) {
+      setLongThread(n => {
+        const next = n + 1;
+        pushLog(`🧵 Long Thread: ${next}`);
+        return next;
+      });
+    }
+    setUnblockedThisTurn(false);
+    setCastWitEffectThisTurn(false);
+
     // 2.5. Block fades — explicit log so the player sees expiry happen even
     //      when a Hedgehog/Felt re-grant immediately tops it back up below.
     //      `block` here is the closure value at the top of the event handler;
@@ -5844,6 +5899,11 @@ export default function App() {
       // absorption (both pools unchanged) shouldn't shake — that beat is
       // "the bracing worked," visually distinct from "you got hit."
       if (wHp < hp || wComp < composure) setPlayerHitFlash(Date.now());
+      // v2.34: LONG THREAD — record unblocked damage this turn so the
+      // end-of-turn bookkeeping resets the meter. Block-absorbed-only
+      // hits leave the thread intact (that's the wit defender's whole
+      // point). Either pool moving downward counts as "the hit landed."
+      if (wHp < hp || wComp < composure) setUnblockedThisTurn(true);
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
       // v2.10: reactive annotation damage on enemy attack.
       const annReactive = annoFx('damageOnEnemyAttack');
@@ -6340,6 +6400,8 @@ export default function App() {
       tunnelVision={tunnelVision} rageActive={rageActive}
       cornerTokens={cornerTokens} intentHidden={intentHidden}
       loudCount={loudCount}
+      longThread={longThread}
+      isWit={selectedCharacter?.lane === 'wit'}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7123,7 +7185,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        castsThisTurn, maxCastsPerTurn,
                        isChutzpah, stakeAmount, setStakeAmount,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
-                       tunnelVision, rageActive, cornerTokens, intentHidden, loudCount }) {
+                       tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
+                       longThread = 0, isWit = false }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7341,6 +7404,17 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged this turn. A target with "Said It Louder" gets +${loudCount * 3} flat dmg on cast. Resets each turn.`}>
               <div className="text-xs uppercase text-ember-300">Loud</div>
               <div className="text-2xl font-mono text-ember-300">📢 {loudCount}</div>
+            </div>
+          )}
+          {/* v2.34: wit LONG THREAD pip. Ticks +1 every turn the player
+              casts a wit Effect AND takes zero unblocked HP damage. Resets
+              to 0 when an unblocked hit lands. Wit targets with
+              threadScaling read this for +N × LT flat dmg. Color: iris
+              (wit palette). Shown whenever wit-committed OR meter > 0. */}
+          {(isWit || longThread > 0) && (
+            <div title={`Long Thread — wit's consecutive-turn scaling. Ticks +1 at end of turn IF you cast a wit Effect AND took no unblocked HP damage. Take an unblocked hit, lose the thread. Wit threadScaling targets get +N × Long Thread on cast.`}>
+              <div className="text-xs uppercase text-iris-300">Thread</div>
+              <div className="text-2xl font-mono text-iris-200">🧵 {longThread}</div>
             </div>
           )}
           <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>

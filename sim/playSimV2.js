@@ -235,6 +235,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         loudCount: state.loudCount || 0, // v2.29
         playerDmgMult: state.playerDmgMult || 1.0, // v2.30
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
+        longThread: state.longThread || 0, // v2.34
       };
       // Reuse the shared formula via computeSpellDamage if intro+subject
       // are staged. Off-stage we can't compute reliably; default-pass
@@ -273,6 +274,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         loudCount: state.loudCount || 0, // v2.29
         playerDmgMult: state.playerDmgMult || 1.0, // v2.30
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
+        longThread: state.longThread || 0, // v2.34
       };
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
       const dmgType = c.effect?.damageType || 'composure';
@@ -294,6 +296,16 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
     if (needsRage && rageActive) score += 30; // strongly prefer Bare Knuckles in RAGE
     if (doubleDown) score += 15; // prefer doubleDown when it WILL kill (gate already passed)
     if (stormOut) score += 20;   // prefer stormOut when the finisher conditions matched
+    // v2.34: wit LONG THREAD bias — when wit-committed AND we hold a
+    // threadScaling target AND the meter is already ≥ 1, prefer it. The
+    // bonus damage from threadScaling is `N × longThread` flat. Even at
+    // LT=1 that's +3 dmg on the cast; at LT=3 it's +9, at LT=5 it's +15.
+    // This nudges the AI to cash in the build-up instead of casting a
+    // baseline-stat target. Bias scales with the meter so a high LT
+    // overrides higher-tier alternatives.
+    if (c.effect?.threadScaling > 0 && state.lane === 'wit' && (state.longThread || 0) >= 1) {
+      score += Math.min(25, (state.longThread || 0) * (c.effect.threadScaling || 0));
+    }
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
   return bestIdx;
@@ -336,6 +348,26 @@ function runCombat(state, enemyId, telemetry) {
   // v2.24: chutzpah TUNNEL VISION + RAGE state — per combat.
   state.tunnelVision = 0;
   state.rageActive = false;
+  // v2.34: wit LONG THREAD — per-combat meter + per-turn flags.
+  // longThread persists across turns within a combat; resets between combats.
+  // unblockedThisTurn flips to true if any HP/composure damage reaches the
+  // player this turn. castWitEffectThisTurn flips to true if the player
+  // cast a wit-lane target this turn. Both reset at the end of every
+  // player turn AFTER the long-thread bookkeeping runs. _longThreadPeak is
+  // the high-water-mark for this combat, flushed to telemetry at every
+  // combat exit path via flushThreadPeak().
+  state.longThread = 0;
+  state.unblockedThisTurn = false;
+  state.castWitEffectThisTurn = false;
+  state._longThreadPeak = 0;
+  const flushThreadPeak = () => {
+    telemetry.longThreadPeakSum = (telemetry.longThreadPeakSum || 0) + (state._longThreadPeak || 0);
+    if ((state._longThreadPeak || 0) > 0) {
+      telemetry.combatsWithThread = (telemetry.combatsWithThread || 0) + 1;
+    }
+    state._longThreadPeak = 0;
+    state.longThread = 0;
+  };
   // v2.25: chutzpah DOUBLING DOWN — per-turn corner-token counter.
   // Bumped on cast when target has `doubleDown: true`. Bills 2 unblocked
   // HP per token at end of turn if the enemy is still alive. Resets each
@@ -685,6 +717,7 @@ function runCombat(state, enemyId, telemetry) {
           loudCount: state.loudCount || 0, // v2.29
           playerDmgMult: state.playerDmgMult || 1.0, // v2.30
           enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
+          longThread: state.longThread || 0, // v2.34
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const preMult = (tray.target.effect?.damageType === 'physical')
@@ -734,6 +767,7 @@ function runCombat(state, enemyId, telemetry) {
         loudCount: state.loudCount || 0, // v2.29
         playerDmgMult: state.playerDmgMult || 1.0, // v2.30
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
+        longThread: state.longThread || 0, // v2.34
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
@@ -899,6 +933,20 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.predatorTriggers = (telemetry.predatorTriggers || 0) + 1;
         telemetry.predatorBonusTotal = (telemetry.predatorBonusTotal || 0) + result.predatorBonus;
       }
+      // v2.34: telemetry for LONG THREAD. Any wit-lane cast marks the turn
+      // as "stayed on topic" for end-of-turn bookkeeping. Threadscaling
+      // bonuses are tracked separately so we can see how much damage the
+      // scaling rider contributed across the sample.
+      if (tray.target?.lane === 'wit') {
+        state.castWitEffectThisTurn = true;
+      }
+      if ((result.threadBonus || 0) > 0) {
+        telemetry.threadScalingTriggers = (telemetry.threadScalingTriggers || 0) + 1;
+        telemetry.threadScalingBonusTotal = (telemetry.threadScalingBonusTotal || 0) + result.threadBonus;
+      }
+      if (tray.target?.id === 'wv2-t-natural-conclusion') {
+        telemetry.naturalConclusionCasts = (telemetry.naturalConclusionCasts || 0) + 1;
+      }
       // v2.31: SYNERGY CAPSTONE — count "AND I'M NOT DONE." casts and the
       // total damage they dealt. The card's three riders (doubleDown,
       // loudScaling, predator) tick their own telemetry above; this is the
@@ -934,6 +982,7 @@ function runCombat(state, enemyId, telemetry) {
       // v2.25: enemy died this turn — corner tokens DON'T bill. The kill
       // covers the bravado. Reset for sanity, although combat is over.
       state.cornerTokens = 0;
+      flushThreadPeak();
       return { outcome: 'won', turns, telemetry };
     }
 
@@ -948,6 +997,7 @@ function runCombat(state, enemyId, telemetry) {
       telemetry.cornerTokenBills = (telemetry.cornerTokenBills || 0) + 1;
       state.cornerTokens = 0;
       if (state.hp <= 0) {
+        flushThreadPeak();
         return { outcome: 'lost', turns, killedBy: 'cornerTokens', telemetry };
       }
     }
@@ -971,6 +1021,7 @@ function runCombat(state, enemyId, telemetry) {
       // Check kill — if the enemy's own swing killed itself, end combat.
       if (enemy.currentComp <= 0 || (enemyHpIsReal && enemy.currentHp <= 0)) {
         telemetry.hitMeAgainKills = (telemetry.hitMeAgainKills || 0) + 1;
+        flushThreadPeak();
         return { outcome: 'won', turns, telemetry };
       }
     }
@@ -1041,6 +1092,11 @@ function runCombat(state, enemyId, telemetry) {
     }
     state.composure = Math.max(0, state.composure - compIncoming);
     state.hp = Math.max(0, state.hp - hpIncoming);
+    // v2.34: LONG THREAD — record unblocked damage this turn so end-of-turn
+    // bookkeeping knows the meter must reset. Block-absorbed-only hits
+    // (compIncoming === 0 && hpIncoming === 0 after absorption) leave the
+    // thread intact — that's the wit defender's whole point.
+    if (compIncoming > 0 || hpIncoming > 0) state.unblockedThisTurn = true;
 
     // v2.27: HIT ME AGAIN — arm a charge for next turn if ANY damage made
     // it through this turn (block-absorbed counts per spec). Sim composite
@@ -1056,6 +1112,7 @@ function runCombat(state, enemyId, telemetry) {
 
     // Player KO check
     if (state.hp <= 0 || state.composure <= 0) {
+      flushThreadPeak();
       return { outcome: 'lost', turns, killedBy: enemy.id, telemetry };
     }
 
@@ -1071,6 +1128,25 @@ function runCombat(state, enemyId, telemetry) {
       state.tunnelVision = 0;
       state.rageActive = false;
     }
+    // v2.34: LONG THREAD bookkeeping. Runs after the enemy turn so
+    // unblockedThisTurn is final.
+    //   - Unblocked damage landed → reset to 0 (lost the thread).
+    //   - Otherwise, if a wit Effect cast this turn → +1.
+    //   - Otherwise (defensive turn, no wit cast) → unchanged.
+    // Track peak per combat for telemetry. Reset per-turn flags either way.
+    if (state.unblockedThisTurn) {
+      if ((state.longThread || 0) > 0) {
+        telemetry.longThreadBreaks = (telemetry.longThreadBreaks || 0) + 1;
+      }
+      state.longThread = 0;
+    } else if (state.castWitEffectThisTurn) {
+      state.longThread = (state.longThread || 0) + 1;
+      if ((state.longThread || 0) > (state._longThreadPeak || 0)) {
+        state._longThreadPeak = state.longThread;
+      }
+    }
+    state.unblockedThisTurn = false;
+    state.castWitEffectThisTurn = false;
     // v2.26: STORM OUT — intentHidden persists through ONE upcoming player
     // turn. The flag was set when the storm-out cast resolved THIS turn;
     // the next player turn renders the hidden intent; the turn after that
@@ -1088,6 +1164,7 @@ function runCombat(state, enemyId, telemetry) {
   }
 
   // Stall
+  flushThreadPeak();
   return { outcome: 'stall', turns, killedBy: enemy.id, telemetry };
 }
 
@@ -1250,6 +1327,14 @@ function simRun(forcedLane = null) {
     // how many times the "Sorry — what?" skill was played; notListeningAbsorbs
     // = enemy debuff attempts that were absorbed by an armed token.
     notListeningSkillCasts: 0, notListeningAbsorbs: 0,
+    // v2.34: wit LONG THREAD telemetry. longThreadPeakSum = sum of peak
+    // longThread across all combats in this run. combatsWithThread = how
+    // many combats reached longThread ≥ 1 at any point. longThreadBreaks =
+    // count of "unblocked hit reset a non-zero meter" events. threadScaling*
+    // = number of casts where the rider fired + total flat damage from it.
+    longThreadPeakSum: 0, combatsWithThread: 0, longThreadBreaks: 0,
+    threadScalingTriggers: 0, threadScalingBonusTotal: 0,
+    naturalConclusionCasts: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1392,6 +1477,14 @@ function aggregate(results) {
     notListeningSkillCasts: results.reduce((s, r) => s + (r.notListeningSkillCasts || 0), 0),
     notListeningSkillRuns: results.filter(r => (r.notListeningSkillCasts || 0) > 0).length,
     notListeningAbsorbs: results.reduce((s, r) => s + (r.notListeningAbsorbs || 0), 0),
+    // v2.34: wit LONG THREAD metrics.
+    longThreadPeakSum: results.reduce((s, r) => s + (r.longThreadPeakSum || 0), 0),
+    combatsWithThread: results.reduce((s, r) => s + (r.combatsWithThread || 0), 0),
+    longThreadBreaks: results.reduce((s, r) => s + (r.longThreadBreaks || 0), 0),
+    threadScalingTriggers: results.reduce((s, r) => s + (r.threadScalingTriggers || 0), 0),
+    threadScalingBonusTotal: results.reduce((s, r) => s + (r.threadScalingBonusTotal || 0), 0),
+    naturalConclusionCasts: results.reduce((s, r) => s + (r.naturalConclusionCasts || 0), 0),
+    threadRuns: results.filter(r => (r.combatsWithThread || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1470,6 +1563,15 @@ function buildReport(agg) {
   lines.push(`- Skill casts: ${agg.notListeningSkillCasts} (runs: ${agg.notListeningSkillRuns} / ${agg.N}, ${pct(agg.notListeningSkillRuns / agg.N)})`);
   lines.push(`- Total debuff absorbs: ${agg.notListeningAbsorbs}`);
   lines.push(`- Avg absorbs per skill cast: ${agg.notListeningSkillCasts > 0 ? (agg.notListeningAbsorbs / agg.notListeningSkillCasts).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Wit LONG THREAD (v2.34)`);
+  lines.push(`- Combats reaching LT ≥ 1: ${agg.combatsWithThread} (runs: ${agg.threadRuns} / ${agg.N}, ${pct(agg.threadRuns / agg.N)})`);
+  lines.push(`- Avg peak LT per run (across all combats): ${(agg.longThreadPeakSum / agg.N).toFixed(2)}`);
+  lines.push(`- Avg peak LT per threaded combat: ${agg.combatsWithThread > 0 ? (agg.longThreadPeakSum / agg.combatsWithThread).toFixed(2) : '0.00'}`);
+  lines.push(`- Thread breaks (unblocked hit reset a non-zero meter): ${agg.longThreadBreaks}`);
+  lines.push(`- Thread-scaling rider triggers: ${agg.threadScalingTriggers}`);
+  lines.push(`- Total bonus damage from thread scaling: ${agg.threadScalingBonusTotal}`);
+  lines.push(`- "natural conclusion." target casts: ${agg.naturalConclusionCasts}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

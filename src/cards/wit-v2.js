@@ -70,6 +70,12 @@ const INTROS = [
   { id: 'wv2-i-let-the-record', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'Let the record show that', tags: ['academic'], stats: { wit: 2 },
     flavor: 'There is no record. The phrasing is the record.' },
+  // v2.34: LONG THREAD — wit's signature consecutive-turn scaling. The
+  // 'continuing' tag is reserved for future thread-payoff cards that key
+  // off carrying the argument forward; right now it's narrative.
+  { id: 'wv2-i-as-i-was-saying', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'as I was saying,', tags: ['continuing', 'elaborate'], stats: { wit: 2 },
+    flavor: 'The thread, after all, was never broken — only set aside briefly.' },
 
   // ---- Uncommon (6) — cost 1, +3 wit, tier 2 ----
   { id: 'wv2-i-permit-me-observe', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -258,6 +264,14 @@ const TARGETS = [
     phrase: 'survives only by being too dull to attack.', tags: ['ironic', 'cutting'],
     effect: { scaleBy: 'wit', base: 9, multiplier: 2, damageType: 'composure' },
     flavor: 'And yet, here we are.' },
+  // v2.34: LONG THREAD payoff target. Cast damage = base 6 + Wit×3 +
+  // (Long Thread × 3). Wit's first thread-scaling card — at LT=3 it's
+  // +9 dmg, at LT=5 it's +15. Pays off conservative defensive play.
+  { id: 'wv2-t-natural-conclusion', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is, perhaps, the natural conclusion.', tags: ['rhetorical', 'elaborate'],
+    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure', threadScaling: 3 },
+    desc: 'Cast: 6 + Wit×3 + Long Thread × 3 composure.',
+    flavor: 'Natural is doing some work here, but it gets to.' },
 
   // ---- Rare (4) — cost 2-3 ----
   { id: 'wv2-t-generous-error', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',

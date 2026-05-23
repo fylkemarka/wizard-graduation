@@ -258,6 +258,16 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage += predatorBonus;
   }
 
+  // v2.34: wit LONG THREAD — consecutive-turn scaling. Targets carrying
+  // `threadScaling: N` add `N × longThread` flat damage on cast. Flat (not
+  // tier-multiplied) so the math reads as "+N per turn we held the thread".
+  // Caller passes the current meter via context.longThread (defaults to 0).
+  let threadBonus = 0;
+  if (eff.threadScaling > 0 && (context.longThread || 0) > 0) {
+    threadBonus = eff.threadScaling * context.longThread;
+    damage += threadBonus;
+  }
+
   // v2.11: chutzpah ALL IN — per-cast HP wager. context.stakeAmount is
   // the staked HP. Per-card stakeMultiplier picks the MAX value (so a
   // staged Double-or-Nothing target overrides the default 1.5×). If any
@@ -283,6 +293,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     stakeBonus, // v2.11: how much damage came from the stake (for UI/log)
     loudBonus, // v2.29: how much damage came from saying-it-louder repetition
     predatorBonus, // v2.30: how much damage came from the predator rider
+    threadBonus, // v2.34: how much damage came from the LONG THREAD scaling
     sideEffects: {
       drawCount,
       stripBlock,
