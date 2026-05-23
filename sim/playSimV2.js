@@ -356,6 +356,18 @@ function runCombat(state, enemyId, telemetry) {
   // end-of-player-turn converts remaining energy × 2 → Block and the normal
   // start-of-turn block reset is skipped (block carries over).
   state.stubbornBlockInstalled = false;
+  // v2.32: NOT LISTENING — per-combat install flag + absorb charges. While
+  // installed, the FIRST enemy debuff (Weak or Vulnerable) attempt this combat
+  // is ignored; the charge does NOT refill mid-combat. Plus +1 Block on every
+  // chutzpah-lane card play.
+  state.notListeningInstalled = false;
+  state.notListeningCharges = 0;
+  // v2.32: enemy debuff sampler — per-turn random check that mirrors the
+  // App's intent pool (real enemies in App.jsx fire Weak/Vuln intents AND
+  // riders on attacks). Sim composite-atk model doesn't carry per-enemy
+  // intents, so we approximate: roll a Weak attempt and a Vuln attempt per
+  // enemy turn at a flat rate. notListeningCharges absorbs the first hit.
+  state.enemyDebuffRolls = 0; state.enemyDebuffLanded = 0;
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
@@ -476,6 +488,24 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.32: NOT LISTENING install pass. Install on the earliest affordable
+    // turn — the absorb is per-combat, the on-cast block bonus accrues per
+    // chutzpah card cast. Cost 1 — same shape as the other chutzpah powers.
+    if (!state.notListeningInstalled) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if (c.id === 'cv2-p-sorry-what' && (c.cost || 0) <= state.energy) {
+          state.energy -= c.cost || 0;
+          state.notListeningInstalled = true;
+          state.notListeningCharges = 1;
+          telemetry.notListeningInstalls = (telemetry.notListeningInstalls || 0) + 1;
+          state.discard.push(c);
+          state.hand.splice(i, 1);
+          break;
+        }
+      }
+    }
+
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
     let passCount = 0;
@@ -523,6 +553,30 @@ function runCombat(state, enemyId, telemetry) {
         }
       }
 
+      // v2.32: Cleanse — play "Couldn't quite catch that," when actually debuffed.
+      // 0-cost so it's strictly value when player is Weak (<1.0) or Vuln (>1.0).
+      const isWeak = (state.playerDmgMult || 1) < 1.0;
+      const isVulnerable = (state.enemyDmgMult || 1) > 1.0;
+      if (isWeak || isVulnerable) {
+        for (let i = 0; i < state.hand.length; i++) {
+          const c = state.hand[i];
+          if (c.id === 'cv2-k-couldnt-catch-that' && (c.cost || 0) <= state.energy) {
+            state.energy -= c.cost || 0;
+            const fx = c.effects || {};
+            if (fx.removeWeak && (state.playerDmgMult || 1) < 1.0) {
+              state.playerDmgMult = Math.min(1.0, (state.playerDmgMult || 1) + 0.25 * fx.removeWeak);
+            }
+            if (fx.removeVulnerable && (state.enemyDmgMult || 1) > 1.0) {
+              state.enemyDmgMult = Math.max(1.0, (state.enemyDmgMult || 1) - 0.25 * fx.removeVulnerable);
+            }
+            state.discard.push(c);
+            state.hand.splice(i, 1);
+            progressed = true;
+            break;
+          }
+        }
+      }
+
       // Apply on-stage side effects from word cards (draw/block/weak/vulnerable).
       // Mirrors applySideEffects in App.jsx.
       const applyStageEffects = (card) => {
@@ -537,6 +591,17 @@ function runCombat(state, enemyId, telemetry) {
         if (fx.loseHp)     state.hp = Math.max(0, state.hp - fx.loseHp);
         // v2.24: tunnel-vision pump (Foaming at the mouth, and any future card).
         if (fx.tunnelVision) state.tunnelVision = (state.tunnelVision || 0) + fx.tunnelVision;
+        // v2.32: NOT LISTENING — removeWeak/removeVulnerable scrub stacks
+        // back toward neutral. The sim models Weak via state.playerDmgMult
+        // (below 1.0 means weakened); Vuln via state.enemyDmgMult applied to
+        // the player (above 1.0 means more incoming dmg). Each removed stack
+        // adjusts by 0.25 toward 1.0. Stays at 1.0 if already neutral.
+        if (fx.removeWeak && (state.playerDmgMult || 1) < 1.0) {
+          state.playerDmgMult = Math.min(1.0, (state.playerDmgMult || 1) + 0.25 * fx.removeWeak);
+        }
+        if (fx.removeVulnerable && (state.enemyDmgMult || 1) > 1.0) {
+          state.enemyDmgMult = Math.max(1.0, (state.enemyDmgMult || 1) - 0.25 * fx.removeVulnerable);
+        }
       };
       // v2.24: bumps the chutzpah RAGE meter when a chutzpah-lane card
       // commits to a slot. Mirrors bumpTunnelVisionIfChutzpah() in App.jsx.
@@ -548,6 +613,12 @@ function runCombat(state, enemyId, telemetry) {
             && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
             && (card.tags || []).includes('demanding')) {
           state.loudCount = (state.loudCount || 0) + 1;
+        }
+        // v2.32: NOT LISTENING on-cast block — every chutzpah-lane card play
+        // (intro/subject/modifier/target stage) grants +1 Block while installed.
+        if (state.notListeningInstalled && card?.lane === 'chutzpah') {
+          state.block += 1;
+          telemetry.notListeningOnCastBlock = (telemetry.notListeningOnCastBlock || 0) + 1;
         }
       };
       if (!tray.intro) {
@@ -929,6 +1000,39 @@ function runCombat(state, enemyId, telemetry) {
     if (state.enemyDmgMult < 1.0) state.enemyDmgMult = Math.min(1.0, state.enemyDmgMult + 0.25);
     if (state.playerDmgMult > 1.0) state.playerDmgMult = Math.max(1.0, state.playerDmgMult - 0.25);
     if (state.playerDmgMult < 1.0) state.playerDmgMult = Math.min(1.0, state.playerDmgMult + 0.25);
+    // v2.32: Enemy-debuff sampler. The App's intent pool includes Weak/Vuln
+    // intents and riders on attacks; this sim's composite-atk model collapses
+    // intents to a flat damage roll, so we approximate per-turn debuff
+    // application with a stochastic check. Rates calibrated to roughly match
+    // the App's intent distribution but kept conservative — the sim's
+    // per-turn drift already pulls multipliers back toward 1.0 each turn, so
+    // we don't want compounding pressure that the actual App fight wouldn't
+    // produce. Higher rates on boss/elite mirror their richer intent pools.
+    {
+      const dbTier = (enemy.tier === 'boss' ? 1.4 : enemy.tier === 'elite' ? 1.2 : 1.0);
+      const weakChance = 0.06 * dbTier;
+      const vulnChance = 0.04 * dbTier;
+      const weakRoll = rnd() < weakChance;
+      const vulnRoll = rnd() < vulnChance;
+      // Helper: try to apply one debuff stack, with NOT LISTENING absorbing the
+      // first hit per combat. Tracks telemetry on both attempts and absorbs.
+      const tryApply = (kind) => {
+        state.enemyDebuffRolls += 1;
+        if (state.notListeningInstalled && state.notListeningCharges > 0) {
+          state.notListeningCharges -= 1;
+          telemetry.notListeningAbsorbs = (telemetry.notListeningAbsorbs || 0) + 1;
+          return; // absorbed — no debuff applied
+        }
+        state.enemyDebuffLanded += 1;
+        if (kind === 'weak') {
+          state.playerDmgMult = Math.max(0.5, (state.playerDmgMult || 1) - 0.25);
+        } else {
+          state.enemyDmgMult = Math.min(1.5, (state.enemyDmgMult || 1) + 0.25);
+        }
+      };
+      if (weakRoll) tryApply('weak');
+      if (vulnRoll) tryApply('vulnerable');
+    }
     incoming = Math.round(incoming * (state.enemyDmgMult || 1));
     // v2.9: dual-shield routing. Half the incoming is composure (mental
     // attacks), half is physical. Each is absorbed by its own shield —
@@ -1139,6 +1243,11 @@ function simRun(forcedLane = null) {
     // v2.31: synergy capstone — AND-IM-NOT-DONE casts + total damage. Rare-
     // tier so the per-run count is expected to be 0-2 most runs.
     andImNotDoneCasts: 0, andImNotDoneTotalDamage: 0,
+    // v2.32: NOT LISTENING — install count + absorb count + on-cast block
+    // accrual. notListeningAbsorbs counts enemy debuffs that landed on the
+    // power and were ignored; notListeningOnCastBlock counts +1 Block grants
+    // from chutzpah-card casts.
+    notListeningInstalls: 0, notListeningAbsorbs: 0, notListeningOnCastBlock: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1280,6 +1389,11 @@ function aggregate(results) {
     andImNotDoneCasts: results.reduce((s, r) => s + (r.andImNotDoneCasts || 0), 0),
     andImNotDoneTotalDamage: results.reduce((s, r) => s + (r.andImNotDoneTotalDamage || 0), 0),
     andImNotDoneRuns: results.filter(r => (r.andImNotDoneCasts || 0) > 0).length,
+    // v2.32: not-listening metrics.
+    notListeningInstalls: results.reduce((s, r) => s + (r.notListeningInstalls || 0), 0),
+    notListeningInstallRuns: results.filter(r => (r.notListeningInstalls || 0) > 0).length,
+    notListeningAbsorbs: results.reduce((s, r) => s + (r.notListeningAbsorbs || 0), 0),
+    notListeningOnCastBlock: results.reduce((s, r) => s + (r.notListeningOnCastBlock || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1358,6 +1472,12 @@ function buildReport(agg) {
   lines.push(`- Capstone casts: ${agg.andImNotDoneCasts} (runs: ${agg.andImNotDoneRuns} / ${agg.N}, ${pct(agg.andImNotDoneRuns / agg.N)})`);
   lines.push(`- Total capstone damage: ${agg.andImNotDoneTotalDamage}`);
   lines.push(`- Avg damage per capstone cast: ${agg.andImNotDoneCasts > 0 ? (agg.andImNotDoneTotalDamage / agg.andImNotDoneCasts).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Chutzpah NOT LISTENING — "Sorry — what?" (v2.32)`);
+  lines.push(`- Installs: ${agg.notListeningInstalls} (runs: ${agg.notListeningInstallRuns} / ${agg.N}, ${pct(agg.notListeningInstallRuns / agg.N)})`);
+  lines.push(`- Total debuff absorbs: ${agg.notListeningAbsorbs}`);
+  lines.push(`- Avg absorbs per install: ${agg.notListeningInstalls > 0 ? (agg.notListeningAbsorbs / agg.notListeningInstalls).toFixed(2) : '0.00'}`);
+  lines.push(`- Total on-cast Block from chutzpah plays: ${agg.notListeningOnCastBlock}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

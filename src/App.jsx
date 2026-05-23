@@ -3174,6 +3174,13 @@ export default function App() {
   // "Frankly, no." (cost 0, +4 Block) so players can drop a fresh slab
   // without burning energy that would otherwise feed the converter.
   const [stubbornBlockInstalled, setStubbornBlockInstalled] = useState(false);
+  // v2.32: NOT LISTENING — dismissive defense. While installed, the FIRST
+  // application of Weak OR Vulnerable from an enemy this combat is ignored
+  // (notListeningCharges starts at 1, decrements on first absorb, does NOT
+  // refill mid-combat). PLUS: every chutzpah-lane card play grants +1 Block.
+  // Both reset in enterFight.
+  const [notListeningInstalled, setNotListeningInstalled] = useState(false);
+  const [notListeningCharges, setNotListeningCharges] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
@@ -4127,6 +4134,9 @@ export default function App() {
     setHitMeAgainCharges(0);
     // v2.28: chutzpah Stubborn Block — power install resets per combat.
     setStubbornBlockInstalled(false);
+    // v2.32: chutzpah Not Listening — install + absorb charges reset per combat.
+    setNotListeningInstalled(false);
+    setNotListeningCharges(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4297,6 +4307,11 @@ export default function App() {
       if (card.installPower?.id === 'stubborn-block' || card.id === 'cv2-p-stubborn-block') {
         setStubbornBlockInstalled(true);
       }
+      // v2.32: Not Listening — fast-read flag + arm 1 absorb charge.
+      if (card.installPower?.id === 'not-listening' || card.id === 'cv2-p-sorry-what') {
+        setNotListeningInstalled(true);
+        setNotListeningCharges(1);
+      }
       pushLog(`📿 ${card.name} — power active.`);
       return;
     }
@@ -4313,6 +4328,11 @@ export default function App() {
           && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
           && (card.tags || []).includes('demanding')) {
         setLoudCount(n => n + 1);
+      }
+      // v2.32: NOT LISTENING on-cast block — while installed, every chutzpah-
+      // lane card play (intro/subject/modifier/target stage) grants +1 Block.
+      if (notListeningInstalled && card.lane === 'chutzpah') {
+        setBlock(b => b + 1);
       }
     };
     // v2.24: target-side guard. "Bare knuckles." (and any future card with
@@ -5233,6 +5253,21 @@ export default function App() {
       adjustEnemyDmg(-0.25 * fx.weak);
       logBits.push(`💢 enemy −${25*fx.weak}% atk`);
     }
+    // v2.32: NOT LISTENING — debuff cleanse. removeWeak scrubs player-side
+    // weakness (playerDmgMult below 1.0) back toward neutral; removeVulnerable
+    // scrubs incoming-damage vulnerability (enemyDmgMult above 1.0) back
+    // toward 1.0. Each stack adjusts 0.25, clamped at 1.0 so it can't flip
+    // into a buff. No-op if already at/past neutral.
+    if (fx.removeWeak && playerDmgMult < 1.0) {
+      const target = Math.min(1.0, playerDmgMult + 0.25 * fx.removeWeak);
+      setPlayerDmgMult(target);
+      logBits.push(`🙉 cleansed Weak`);
+    }
+    if (fx.removeVulnerable && enemyDmgMult > 1.0) {
+      const target = Math.max(1.0, enemyDmgMult - 0.25 * fx.removeVulnerable);
+      setEnemyDmgMult(target);
+      logBits.push(`🙉 cleansed Vulnerable`);
+    }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
@@ -5848,12 +5883,24 @@ export default function App() {
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
     } else if (intent.kind === 'vulnerable') {
       // Enemy applies vulnerable to player → enemy hits harder.
-      adjustEnemyDmg(+0.25 * intent.value);
-      pushLog(`👹 ${e.name}: 💢 +${25*intent.value}% to incoming dmg.`);
+      // v2.32: NOT LISTENING — first debuff (Weak/Vuln) per combat is ignored.
+      if (notListeningInstalled && notListeningCharges > 0) {
+        setNotListeningCharges(c => Math.max(0, c - 1));
+        pushLog(`🙉 ${e.name}: ${intent.telegraph} — didn't hear it.`);
+      } else {
+        adjustEnemyDmg(+0.25 * intent.value);
+        pushLog(`👹 ${e.name}: 💢 +${25*intent.value}% to incoming dmg.`);
+      }
     } else if (intent.kind === 'weak') {
       // Enemy applies weak to player → player spells weaker.
-      adjustPlayerDmg(-0.25 * intent.value);
-      pushLog(`👹 ${e.name}: 💢 −${25*intent.value}% to your spell potency.`);
+      // v2.32: NOT LISTENING absorb.
+      if (notListeningInstalled && notListeningCharges > 0) {
+        setNotListeningCharges(c => Math.max(0, c - 1));
+        pushLog(`🙉 ${e.name}: ${intent.telegraph} — didn't hear it.`);
+      } else {
+        adjustPlayerDmg(-0.25 * intent.value);
+        pushLog(`👹 ${e.name}: 💢 −${25*intent.value}% to your spell potency.`);
+      }
     }
     // Riders: a combo intent can attach extra side-effects that fire AFTER
     // the main effect. Keys: weak (player potency down), vulnerable (player
@@ -5862,8 +5909,26 @@ export default function App() {
     // intent.telegraph string above should already advertise the rider.
     if (intent.riders) {
       const r = intent.riders;
-      if (r.weak) adjustPlayerDmg(-0.25 * r.weak);
-      if (r.vulnerable) adjustEnemyDmg(+0.25 * r.vulnerable);
+      // v2.32: NOT LISTENING absorbs the FIRST debuff (weak OR vuln) it sees.
+      // Riders on attack intents check the live charge count too. We use a
+      // local consume-counter so a swing that carries BOTH weak and vuln only
+      // burns one charge (the first one), per the "one absorb per combat" rule.
+      let nlConsumed = false;
+      const tryNlAbsorb = (label) => {
+        if (notListeningInstalled && !nlConsumed && notListeningCharges > 0) {
+          nlConsumed = true;
+          setNotListeningCharges(c => Math.max(0, c - 1));
+          pushLog(`🙉 ${label} rider — didn't hear it.`);
+          return true;
+        }
+        return false;
+      };
+      if (r.weak) {
+        if (!tryNlAbsorb('Weak')) adjustPlayerDmg(-0.25 * r.weak);
+      }
+      if (r.vulnerable) {
+        if (!tryNlAbsorb('Vulnerable')) adjustEnemyDmg(+0.25 * r.vulnerable);
+      }
       if (r.block) setEnemyBlock(b => b + r.block);
     }
     if (playerDied) {
@@ -7385,6 +7450,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
           {powers.map((p, i) => {
             const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
+            const isNotListening = p.installPower?.id === 'not-listening' || p.id === 'cv2-p-sorry-what';
             return (
               <span key={p.uid || i}
                 title={`${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
@@ -7393,6 +7459,11 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 {isHitMeAgain && (
                   <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
                     ⚡{hitMeAgainCharges}
+                  </span>
+                )}
+                {isNotListening && (
+                  <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
+                    🙉{notListeningCharges > 0 ? notListeningCharges : '·'}
                   </span>
                 )}
               </span>

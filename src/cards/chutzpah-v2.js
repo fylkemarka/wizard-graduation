@@ -477,6 +477,33 @@ const SAYING_IT_LOUDER_CARDS = [
     flavor: 'Bold all-caps is, technically, three louds.' },
 ];
 
+// v2.32: NOT LISTENING — chutzpah's defiance of debuff application. While
+// installed, the FIRST application of Vulnerable OR Weak from an enemy per
+// combat is ignored (charge starts at 1, decrements on first absorb; does
+// NOT refill mid-combat). PLUS: every chutzpah-lane card cast grants +1 Block
+// on play — a smaller perma-bonus that justifies the install once the absorb
+// has fired. Pairs with "Couldn't quite catch that," — a 0-cost skill that
+// strips 1 stack each of Weak AND Vulnerable from the player (the post-absorb
+// scrub for when the second debuff lands).
+const NOT_LISTENING_POWER = [
+  { id: 'cv2-p-sorry-what', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
+    name: 'Sorry — what?', phrase: 'Sorry — what?',
+    tags: ['dismissive', 'swaggering'],
+    installPower: { id: 'not-listening' },
+    desc: 'Power. First enemy Weak/Vulnerable application this combat is IGNORED. Every chutzpah card you play: +1 Block.',
+    flavor: 'Said with the genuine concentration of someone who actually did not hear.' },
+];
+
+const NOT_LISTENING_SKILL = [
+  { id: 'cv2-k-couldnt-catch-that', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
+    name: "Couldn't quite catch that,", phrase: "Couldn't quite catch that,",
+    tags: ['dismissive', 'direct'],
+    stats: { chutzpah: 1 },
+    effects: { removeWeak: 1, removeVulnerable: 1 },
+    desc: 'Remove 1 stack of Weak AND 1 stack of Vulnerable from you.',
+    flavor: 'Volume problem? Comprehension problem? Both, probably.' },
+];
+
 // v2.27: HIT ME AGAIN — chutzpah's reactive power. Cost 1, installs on the
 // field for the duration of combat. Every enemy attack that LANDS (blocked
 // or not) adds +1 to a `hitMeAgainCharges` counter. At the START of every
@@ -576,13 +603,13 @@ const SYNERGY_CAPSTONE_CARDS = [
 const SYNERGY_CAPSTONE_TARGETS  = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'target');
 const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'modifier');
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS];
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS, ...NOT_LISTENING_POWER, ...NOT_LISTENING_SKILL];
 export const CHUTZPAH_V2_BY_SLOT = {
   intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS],
   subject: [...SUBJECTS, ...SMELL_WEAKNESS_SUBJECTS],
   target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS, ...SYNERGY_CAPSTONE_TARGETS],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   gesture: GESTURES,
-  power: [...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER],
-  skill: FRANKLY_NO_SKILL,
+  power: [...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...NOT_LISTENING_POWER],
+  skill: [...FRANKLY_NO_SKILL, ...NOT_LISTENING_SKILL],
 };
