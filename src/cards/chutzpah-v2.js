@@ -476,8 +476,35 @@ const HIT_ME_AGAIN_POWER = [
     flavor: 'Keep hitting me. Watch what it costs you.' },
 ];
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER];
+// v2.28: STUBBORN BLOCK — chutzpah's first defensive identity card. Bridge
+// mechanic: chutzpah is bad at defense, but it can REFUSE to give ground.
+// Each unspent energy at end of turn converts to +2 Block. Block does NOT
+// reset to 0 at start of next player turn while this power is installed —
+// stubbornness doesn't move. Pairs with the cheap "Frankly, no." skill
+// (0 cost, +4 Block) so the player can drop a fresh slab without spending.
+const STUBBORN_BLOCK_POWER = [
+  { id: 'cv2-p-stubborn-block', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
+    name: "I'm not going anywhere.", phrase: "I'm not going anywhere.",
+    tags: ['demanding', 'swaggering'],
+    installPower: { id: 'stubborn-block' },
+    desc: 'Power. End of turn: each unspent Energy → +2 Block. Block carries over (no reset at start of your next turn).',
+    flavor: 'The chair is mine. The floor is mine. The argument is mine.' },
+];
+
+// v2.28: FRANKLY, NO. — cheap defensive skill that synergizes with Stubborn
+// Block. 0 cost so playing it leaves energy free to feed the converter.
+const FRANKLY_NO_SKILL = [
+  { id: 'cv2-k-frankly-no', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
+    name: 'Frankly, no.', phrase: 'Frankly, no.',
+    tags: ['dismissive', 'direct'],
+    effects: { block: 4 },
+    desc: 'Gain 4 Block.',
+    flavor: "It's a complete sentence. People keep adding to it." },
+];
+
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL];
 export const CHUTZPAH_V2_BY_SLOT = {
   intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26], gesture: GESTURES,
-  power: HIT_ME_AGAIN_POWER,
+  power: [...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER],
+  skill: FRANKLY_NO_SKILL,
 };

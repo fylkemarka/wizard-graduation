@@ -309,6 +309,10 @@ function runCombat(state, enemyId, telemetry) {
   // reset within a combat. Mirrors hitMeAgainInstalled/Charges in App.jsx.
   state.hitMeAgainInstalled = false;
   state.hitMeAgainCharges = 0;
+  // v2.28: STUBBORN BLOCK — per-combat install flag. While installed,
+  // end-of-player-turn converts remaining energy × 2 → Block and the normal
+  // start-of-turn block reset is skipped (block carries over).
+  state.stubbornBlockInstalled = false;
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
@@ -408,6 +412,25 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.28: STUBBORN BLOCK install pass. Same shape as hit-me-again —
+    // install when affordable. The power pays off ONLY for chutzpah players
+    // (it's chutzpah-only by design + draft pool), so the gate is just
+    // affordability and not-yet-installed. Early install matters because
+    // every turn the converter fires from then on; cost 1.
+    if (!state.stubbornBlockInstalled) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if (c.id === 'cv2-p-stubborn-block' && (c.cost || 0) <= state.energy) {
+          state.energy -= c.cost || 0;
+          state.stubbornBlockInstalled = true;
+          telemetry.stubbornBlockInstalls = (telemetry.stubbornBlockInstalls || 0) + 1;
+          state.discard.push(c);
+          state.hand.splice(i, 1);
+          break;
+        }
+      }
+    }
+
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
     let passCount = 0;
@@ -428,7 +451,9 @@ function runCombat(state, enemyId, telemetry) {
       if (state.block < expectedHpHit) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
-          if (c.type === 'skill' && (c.id === 'c-defend' || c.id === 'c-mend') && (c.cost || 0) <= state.energy) {
+          // v2.28: include "Frankly, no." (cv2-k-frankly-no) — 0-cost +4 Block.
+          // Always playable, and frees energy to feed Stubborn Block.
+          if (c.type === 'skill' && (c.id === 'c-defend' || c.id === 'c-mend' || c.id === 'cv2-k-frankly-no') && (c.cost || 0) <= state.energy) {
             state.energy -= c.cost || 0;
             state.block += c.effects?.block || 0;
             state.discard.push(c);
@@ -856,7 +881,20 @@ function runCombat(state, enemyId, telemetry) {
     // End-of-turn cleanup
     state.discard.push(...state.hand);
     state.hand = [];
-    state.block = 0;
+    // v2.28: STUBBORN BLOCK conversion. If the power is installed, each
+    // unspent energy at end of turn converts to +2 Block AND the normal
+    // block reset is skipped (block carries over to next turn). Without
+    // the power, block resets to 0 as usual.
+    if (state.stubbornBlockInstalled) {
+      const converted = Math.max(0, state.energy) * 2;
+      if (converted > 0) {
+        state.block += converted;
+        telemetry.stubbornBlockConverted = (telemetry.stubbornBlockConverted || 0) + converted;
+      }
+      // Skip the block-reset — stubbornness DOESN'T move.
+    } else {
+      state.block = 0;
+    }
     state.poise = 0; // v2.9: poise fades end-of-turn like block
     // v2.24: RAGE turn ends. Roll the +0.5 potency bump back, reset meter.
     if (state.rageActive) {
@@ -1000,6 +1038,8 @@ function simRun(forcedLane = null) {
     stormOutCasts: 0, stormOutEnergySpent: 0,
     // v2.27: chutzpah hit-me-again telemetry.
     hitMeAgainInstalls: 0, hitMeAgainRecoilTotal: 0, hitMeAgainKills: 0,
+    // v2.28: chutzpah stubborn-block telemetry.
+    stubbornBlockInstalls: 0, stubbornBlockConverted: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1124,6 +1164,10 @@ function aggregate(results) {
     hitMeAgainInstallRuns: results.filter(r => (r.hitMeAgainInstalls || 0) > 0).length,
     hitMeAgainRecoilTotal: results.reduce((s, r) => s + (r.hitMeAgainRecoilTotal || 0), 0),
     hitMeAgainKills: results.reduce((s, r) => s + (r.hitMeAgainKills || 0), 0),
+    // v2.28: stubborn-block metrics.
+    stubbornBlockInstalls: results.reduce((s, r) => s + (r.stubbornBlockInstalls || 0), 0),
+    stubbornBlockInstallRuns: results.filter(r => (r.stubbornBlockInstalls || 0) > 0).length,
+    stubbornBlockConverted: results.reduce((s, r) => s + (r.stubbornBlockConverted || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1181,6 +1225,11 @@ function buildReport(agg) {
   lines.push(`- Total recoil damage to enemies: ${agg.hitMeAgainRecoilTotal}`);
   lines.push(`- Enemies killed by their own recoil: ${agg.hitMeAgainKills}`);
   lines.push(`- Avg recoil per install: ${agg.hitMeAgainInstalls > 0 ? (agg.hitMeAgainRecoilTotal / agg.hitMeAgainInstalls).toFixed(1) : '0.0'}`);
+  lines.push('');
+  lines.push(`## Chutzpah STUBBORN BLOCK (v2.28)`);
+  lines.push(`- Stubborn Block installs: ${agg.stubbornBlockInstalls} (runs: ${agg.stubbornBlockInstallRuns} / ${agg.N}, ${pct(agg.stubbornBlockInstallRuns / agg.N)})`);
+  lines.push(`- Total Block converted from unspent Energy: ${agg.stubbornBlockConverted}`);
+  lines.push(`- Avg converted per install: ${agg.stubbornBlockInstalls > 0 ? (agg.stubbornBlockConverted / agg.stubbornBlockInstalls).toFixed(1) : '0.0'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

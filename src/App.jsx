@@ -3161,6 +3161,13 @@ export default function App() {
   // reset to 0 / false in enterFight.
   const [hitMeAgainInstalled, setHitMeAgainInstalled] = useState(false);
   const [hitMeAgainCharges, setHitMeAgainCharges] = useState(0);
+  // v2.28: STUBBORN BLOCK — chutzpah's first defensive power. While
+  // installed, end-of-player-turn converts each unspent energy point into
+  // +2 Block, AND the normal start-of-next-turn block reset is SKIPPED so
+  // accumulated block carries over. Resets at enterFight. Pairs with
+  // "Frankly, no." (cost 0, +4 Block) so players can drop a fresh slab
+  // without burning energy that would otherwise feed the converter.
+  const [stubbornBlockInstalled, setStubbornBlockInstalled] = useState(false);
   const [combatRolls, setCombatRolls] = useState([]);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
@@ -4110,6 +4117,8 @@ export default function App() {
     // v2.27: chutzpah Hit Me Again — power install + charges reset.
     setHitMeAgainInstalled(false);
     setHitMeAgainCharges(0);
+    // v2.28: chutzpah Stubborn Block — power install resets per combat.
+    setStubbornBlockInstalled(false);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4275,6 +4284,10 @@ export default function App() {
       // attack-resolution doesn't walk `powers` every hit.
       if (card.installPower?.id === 'hit-me-again' || card.id === 'cv2-p-hit-me-again') {
         setHitMeAgainInstalled(true);
+      }
+      // v2.28: Stubborn Block — fast-read flag for the endTurn converter.
+      if (card.installPower?.id === 'stubborn-block' || card.id === 'cv2-p-stubborn-block') {
+        setStubbornBlockInstalled(true);
       }
       pushLog(`📿 ${card.name} — power active.`);
       return;
@@ -5518,7 +5531,7 @@ export default function App() {
     //      when a Hedgehog/Felt re-grant immediately tops it back up below.
     //      `block` here is the closure value at the top of the event handler;
     //      good enough for "you had block; it's gone now."
-    if (block > 0) pushLog(`🛡 Block fades.`);
+    if (block > 0 && !stubbornBlockInstalled) pushLog(`🛡 Block fades.`);
     if (poise > 0) pushLog(`🪞 Poise fades.`);
     setPoise(0);
 
@@ -5539,7 +5552,19 @@ export default function App() {
     let wDiscard  = drawn.discard;
     const wHand   = [...drawn.hand];
     let wEnergy   = energyPerTurnRefill();
+    // v2.28: STUBBORN BLOCK — while installed, end-of-turn converts each
+    // unspent energy point to +2 Block, AND the normal start-of-next-turn
+    // block reset is skipped. `block` here is the closure value at the top
+    // of the event handler (pre-reset); we read remaining `energy` the same
+    // way. The converted block stacks on top of whatever block carried over.
     let wBlock    = 0;
+    if (stubbornBlockInstalled) {
+      const carry = Math.max(0, block);
+      const converted = Math.max(0, energy) * 2;
+      wBlock = carry + converted;
+      if (converted > 0) pushLog(`🪨 Stubborn: +${converted} Block from ${energy} unspent Energy (carry ${carry}).`);
+      else if (carry > 0) pushLog(`🪨 Stubborn: ${carry} Block carries over.`);
+    }
 
     // v2.10: annotation start-of-turn effects fire BEFORE the decrement.
     const annTurnStartDmg = annoFx('damageOnTurnStart');
@@ -7174,9 +7199,11 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-xs uppercase text-parchment-300">Composure <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
           </div>
-          <div title="Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn.">
+          <div title={stubbornBlockInstalled
+              ? "Block — absorbs PHYSICAL damage. STUBBORN BLOCK installed: Block carries over between turns and each unspent Energy at end of turn adds +2 Block."
+              : "Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn."}>
             <div className="text-xs uppercase text-parchment-300">Block <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
+            <div className="text-2xl font-mono text-iris-300">{stubbornBlockInstalled ? '🪨' : '🛡'} {block}</div>
           </div>
           <div title="Poise — absorbs incoming COMPOSURE damage (🎭 mental attacks). Separate from Block. Resets to 0 at the start of your next turn.">
             <div className="text-xs uppercase text-parchment-300">Poise <span className="text-parchment-500">ⓘ</span></div>
