@@ -486,6 +486,32 @@ const SKILLS = [
     effects: { extendOpening: true },
     desc: 'Skill. Your next wit Effect cast this combat counts as turn 1 (its openingBonus still applies). Single-use per combat.',
     flavor: 'Revisitation being, properly executed, a small civic ceremony.' },
+  // v2.40: I'LL LET YOU FINISH — patience-bank skill. Cost 0, non-exhaust. On
+  // play, if Patience is installed, bump patienceStacks +1. If Patience is NOT
+  // installed, the card is still playable (it cycles deck) but does nothing to
+  // the bank — the player should hold it until they install. Pairs with the
+  // Patience power: lets the wit-defender deliberately skip a cast and bank
+  // a stack without losing the whole turn to inactivity.
+  { id: 'wv2-k-let-you-finish', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
+    name: "I'll let you finish,", phrase: "I'll let you finish,",
+    tags: ['hedge', 'rhetorical'],
+    effects: { skipCastBank: true },
+    desc: 'Skill. If Patience is installed, +1 patience stack. Cost 0.',
+    flavor: 'Generous in the technical sense.' },
+];
+
+// v2.40: PATIENCE — wit's skip-cast-and-defend power. While installed, every
+// end-of-turn where the player did NOT cast a spell increments a
+// patienceStacks counter. The next cast adds patienceStacks × 2 flat damage
+// and clears the counter. Pairs naturally with Long Thread (both reward
+// defensive play); counters the eager-cast tempo of Saying-Something-Wrong.
+const PATIENCE_POWER = [
+  { id: 'wv2-p-patience', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
+    name: 'Patience.', phrase: 'Patience.',
+    tags: ['hedge'],
+    installPower: { id: 'patience' },
+    desc: 'Power. End of any turn you did NOT cast: +1 Patience. Next cast adds Patience × 2 flat damage and clears it.',
+    flavor: 'Patience being, in wit, the act of not speaking yet.' },
 ];
 
 // v2.6: NEW MODIFIERS — say-again (×2 damage rare) + words-to-actions
@@ -565,7 +591,7 @@ const ANNOTATIONS = [
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: SUBJECTS,
@@ -574,4 +600,5 @@ export const WIT_V2_BY_SLOT = {
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
   annotation: ANNOTATIONS,
   skill: SKILLS,
+  power: PATIENCE_POWER,
 };

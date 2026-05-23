@@ -384,6 +384,14 @@ function runCombat(state, enemyId, telemetry) {
     }
     state._longThreadPeak = 0;
     state.longThread = 0;
+    // v2.40: PATIENCE — flush the per-combat peak into the run-level
+    // `patiencePeakStacks` aggregator. Tracks the highest patience stack
+    // value seen during the combat (set on every bump in the end-of-turn
+    // tick AND the skill play). Mirrors the longThread peak pattern.
+    if ((state._patiencePeak || 0) > (telemetry.patiencePeakStacks || 0)) {
+      telemetry.patiencePeakStacks = state._patiencePeak;
+    }
+    state._patiencePeak = 0;
   };
   // v2.25: chutzpah DOUBLING DOWN — per-turn corner-token counter.
   // Bumped on cast when target has `doubleDown: true`. Bills 2 unblocked
@@ -406,6 +414,13 @@ function runCombat(state, enemyId, telemetry) {
   // reset within a combat. Mirrors hitMeAgainInstalled/Charges in App.jsx.
   state.hitMeAgainInstalled = false;
   state.hitMeAgainCharges = 0;
+  // v2.40: PATIENCE — wit's skip-cast-and-defend power. While installed,
+  // every end-of-turn where the player did NOT cast a spell increments
+  // patienceStacks. The next cast adds patienceStacks × 2 flat damage and
+  // clears the counter. Reset per combat. Mirror of App.jsx's
+  // patienceInstalled / patienceStacks state pair.
+  state.patienceInstalled = false;
+  state.patienceStacks = 0;
   // v2.33: Stubborn Block REMOVED — no install flag.
   // v2.33: NOT LISTENING refactored to a one-shot SKILL — no install flag.
   // notListeningCharges tracks pending absorbs (set by playing the
@@ -584,6 +599,56 @@ function runCombat(state, enemyId, telemetry) {
           state.discard.push(c);
           state.hand.splice(i, 1);
           break;
+        }
+      }
+    }
+
+    // v2.40: PATIENCE install pass — wit lane only. When the Patience power
+    // is in hand and no Power is installed yet, install it early. Cost 1,
+    // value scales with combat length (each skip-cast turn banks +1; each
+    // bank pays +2 dmg on the next cast). Like Hit Me Again, prefer to
+    // install only when spare energy is available (≥2 after install).
+    if (state.lane === 'wit' && !state.patienceInstalled) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if ((c.id === 'wv2-p-patience' || c.installPower?.id === 'patience')
+            && (c.cost || 0) <= state.energy && state.energy >= 3) {
+          state.energy -= c.cost || 0;
+          state.patienceInstalled = true;
+          telemetry.patienceInstalls = (telemetry.patienceInstalls || 0) + 1;
+          state.discard.push(c);
+          state.hand.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // v2.40: I'LL LET YOU FINISH skill — wit lane only. Cost 0, only play when
+    // Patience is installed AND we plan to skip casting this turn (no target
+    // in hand OR can't afford the cast). Gives a stack without burning energy.
+    if (state.lane === 'wit' && state.patienceInstalled) {
+      const letFinishIdx = state.hand.findIndex(c => c.id === 'wv2-k-let-you-finish');
+      if (letFinishIdx >= 0) {
+        // Heuristic: only play if no castable target chain exists this turn.
+        // Cheap check — do we have a target in hand AND can we afford the
+        // intro+subject+target chain? If yes, prefer the cast over banking.
+        const hasTarget = state.hand.some(c => c.slot === 'target' && c.lane === 'wit');
+        const totalCost = state.hand.filter(c => c.slot === 'target' && c.lane === 'wit')
+          .reduce((min, c) => Math.min(min, c.cost || 0), Infinity);
+        // If can't afford even the cheapest target, OR no target in hand,
+        // the bank is the better play.
+        if (!hasTarget || totalCost > state.energy) {
+          const c = state.hand[letFinishIdx];
+          if ((c.cost || 0) <= state.energy) {
+            state.energy -= c.cost || 0;
+            state.patienceStacks = (state.patienceStacks || 0) + 1;
+            telemetry.patienceSkillPlays = (telemetry.patienceSkillPlays || 0) + 1;
+            if ((state.patienceStacks || 0) > (state._patiencePeak || 0)) {
+              state._patiencePeak = state.patienceStacks;
+            }
+            state.discard.push(c);
+            state.hand.splice(letFinishIdx, 1);
+          }
         }
       }
     }
@@ -986,6 +1051,16 @@ function runCombat(state, enemyId, telemetry) {
         // playerDmgMult. Keeps the math predictable: each point of energy
         // is a clean +N damage at cast time.
         dmg += stormOutEnergySpent * stormOutBonusPerEnergy;
+      }
+
+      // v2.40: PATIENCE — if installed AND stacks > 0, add stacks × 2 flat
+      // damage and clear. Mirrors App.jsx's castV2SentenceSpell hook.
+      if (state.patienceInstalled && (state.patienceStacks || 0) > 0) {
+        const patBonus = state.patienceStacks * 2;
+        dmg += patBonus;
+        telemetry.patienceDamageBonus = (telemetry.patienceDamageBonus || 0) + patBonus;
+        telemetry.patienceCasts = (telemetry.patienceCasts || 0) + 1;
+        state.patienceStacks = 0;
       }
 
       // Strip enemy block from modifier
@@ -1507,6 +1582,16 @@ function runCombat(state, enemyId, telemetry) {
     }
     state.unblockedThisTurn = false;
     state.castWitEffectThisTurn = false;
+    // v2.40: PATIENCE end-of-turn tick. If installed AND no cast resolved this
+    // turn, bank +1 stack. `cast` is the local-scope flag set when the tray
+    // cast actually fired (see the cast-resolve branch above). Track the peak
+    // stack value across the combat for telemetry.
+    if (state.patienceInstalled && !cast) {
+      state.patienceStacks = (state.patienceStacks || 0) + 1;
+      if ((state.patienceStacks || 0) > (state._patiencePeak || 0)) {
+        state._patiencePeak = state.patienceStacks;
+      }
+    }
     // v2.36: ACTUALLY— per-turn reset. arguingBackThisTurn cleared after the
     // enemy attack resolved (the bill came due). lastCastSnapshot nuked so
     // next turn's Actually— can only re-fire what's cast THIS turn.
@@ -1731,6 +1816,35 @@ function awardReward(state) {
       }
     }
   }
+  // v2.40: PATIENCE power bias — wit lane only. ~25% bias on the power so
+  // the sim engages reliably; cap at one copy (a second copy stacks
+  // nothing). Power is uncommon-tier, cost 1.
+  if (state.lane === 'wit') {
+    const ownsPatience = allCards.some(c => c.id === 'wv2-p-patience');
+    if (!ownsPatience) {
+      const pk = pool.find(c => c.id === 'wv2-p-patience');
+      if (pk && rnd() < 0.25) {
+        state.discard.push({ ...pk, uid: uid() });
+        state.rewardsTaken.push(pk.id);
+        return;
+      }
+    }
+  }
+  // v2.40: "I'LL LET YOU FINISH," skill bias — wit lane only, only worth
+  // picking if Patience is also owned (otherwise the skill does nothing).
+  // ~25% bias gated by the prereq. Cap at one copy.
+  if (state.lane === 'wit') {
+    const ownsPatience = allCards.some(c => c.id === 'wv2-p-patience');
+    const ownsLetFinish = allCards.some(c => c.id === 'wv2-k-let-you-finish');
+    if (ownsPatience && !ownsLetFinish) {
+      const lk = pool.find(c => c.id === 'wv2-k-let-you-finish');
+      if (lk && rnd() < 0.25) {
+        state.discard.push({ ...lk, uid: uid() });
+        state.rewardsTaken.push(lk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -1869,6 +1983,17 @@ function simRun(forcedLane = null) {
     openingBonusTriggers: 0,
     openingBonusDamageTotal: 0,
     revisitOpeningPlays: 0,
+    // v2.40: PATIENCE telemetry. patienceInstalls = number of combats where
+    // the power was installed; patiencePeakStacks = run-level peak across
+    // all combats; patienceDamageBonus = total flat damage delivered by
+    // patience-spend across all casts; patienceCasts = casts that consumed
+    // the bank (count); patienceSkillPlays = "I'll let you finish," skill
+    // plays that banked a stack.
+    patienceInstalls: 0,
+    patiencePeakStacks: 0,
+    patienceDamageBonus: 0,
+    patienceCasts: 0,
+    patienceSkillPlays: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -2054,6 +2179,18 @@ function aggregate(results) {
     openingBonusDamageTotal: results.reduce((s, r) => s + (r.openingBonusDamageTotal || 0), 0),
     revisitOpeningPlays: results.reduce((s, r) => s + (r.revisitOpeningPlays || 0), 0),
     openingBonusRuns: results.filter(r => (r.openingBonusTriggers || 0) > 0).length,
+    // v2.40: PATIENCE aggregate. patienceInstalls = number of runs with at
+    // least one install; patiencePeakStacksMax = highest run-level peak;
+    // patienceDamageBonus = sum total of damage delivered by patience spend;
+    // patienceCasts = sum of casts that consumed the bank; patienceInstallRuns
+    // = runs that hit at least one install.
+    patienceInstalls: results.reduce((s, r) => s + (r.patienceInstalls || 0), 0),
+    patienceInstallRuns: results.filter(r => (r.patienceInstalls || 0) > 0).length,
+    patiencePeakStacksMax: results.reduce((m, r) => Math.max(m, r.patiencePeakStacks || 0), 0),
+    patiencePeakStacksMean: mean(results.map(r => r.patiencePeakStacks || 0)),
+    patienceDamageBonus: results.reduce((s, r) => s + (r.patienceDamageBonus || 0), 0),
+    patienceCasts: results.reduce((s, r) => s + (r.patienceCasts || 0), 0),
+    patienceSkillPlays: results.reduce((s, r) => s + (r.patienceSkillPlays || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -2174,6 +2311,14 @@ function buildReport(agg) {
   lines.push(`- Total bonus damage: ${agg.openingBonusDamageTotal}`);
   lines.push(`- Avg bonus / trigger: ${agg.openingBonusTriggers > 0 ? (agg.openingBonusDamageTotal / agg.openingBonusTriggers).toFixed(2) : '0.00'}`);
   lines.push(`- Revisit-opening skill plays: ${agg.revisitOpeningPlays}`);
+  lines.push('');
+  lines.push(`## Wit PATIENCE (v2.40)`);
+  lines.push(`- Installs: ${agg.patienceInstalls} (runs: ${agg.patienceInstallRuns} / ${agg.N}, ${pct(agg.patienceInstallRuns / agg.N)})`);
+  lines.push(`- Peak stacks — max: ${agg.patiencePeakStacksMax}, mean: ${agg.patiencePeakStacksMean.toFixed(2)}`);
+  lines.push(`- Total damage from patience-spend: ${agg.patienceDamageBonus}`);
+  lines.push(`- Casts that consumed bank: ${agg.patienceCasts}`);
+  lines.push(`- "I'll let you finish," skill plays: ${agg.patienceSkillPlays}`);
+  lines.push(`- Avg damage / spend: ${agg.patienceCasts > 0 ? (agg.patienceDamageBonus / agg.patienceCasts).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

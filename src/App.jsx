@@ -3254,6 +3254,14 @@ export default function App() {
   // reset to 0 / false in enterFight.
   const [hitMeAgainInstalled, setHitMeAgainInstalled] = useState(false);
   const [hitMeAgainCharges, setHitMeAgainCharges] = useState(0);
+  // v2.40: PATIENCE — wit's skip-cast-and-defend power. While installed, every
+  // end-of-turn where the player did NOT cast a spell increments
+  // patienceStacks. The next cast adds patienceStacks × 2 flat damage and
+  // clears the counter. Mirrored as a fast-read flag (patienceInstalled) so
+  // the end-of-turn + cast hooks don't have to walk `powers` every tick.
+  // Both reset to false / 0 in enterFight (patience is intra-combat only).
+  const [patienceInstalled, setPatienceInstalled] = useState(false);
+  const [patienceStacks, setPatienceStacks] = useState(0);
   // v2.33: Stubborn Block was removed (Power that converted unspent energy
   // to carry-over Block — wit-flavored on a lane whose defensive identity is
   // "bill them for the hit," not "accumulate Block").
@@ -4238,6 +4246,9 @@ export default function App() {
     // v2.27: chutzpah Hit Me Again — power install + charges reset.
     setHitMeAgainInstalled(false);
     setHitMeAgainCharges(0);
+    // v2.40: wit PATIENCE — install flag + stacks reset per combat.
+    setPatienceInstalled(false);
+    setPatienceStacks(0);
     // v2.33: chutzpah Not Listening — pending absorb charges reset per combat.
     setNotListeningCharges(0);
 
@@ -4405,6 +4416,11 @@ export default function App() {
       // attack-resolution doesn't walk `powers` every hit.
       if (card.installPower?.id === 'hit-me-again' || card.id === 'cv2-p-hit-me-again') {
         setHitMeAgainInstalled(true);
+      }
+      // v2.40: PATIENCE — surface a fast-read flag for the end-of-turn +
+      // cast-resolution hooks.
+      if (card.installPower?.id === 'patience' || card.id === 'wv2-p-patience') {
+        setPatienceInstalled(true);
       }
       pushLog(`📿 ${card.name} — power active.`);
       return;
@@ -4920,6 +4936,23 @@ export default function App() {
       const bonus = stormOutEnergySpent * stormOutBonusPerEnergy;
       dmg += bonus;
       pushLog(`🚪 STORM OUT — spent ${stormOutEnergySpent} Energy → +${bonus} dmg.`);
+    }
+
+    // v2.40: PATIENCE — if installed AND stacks > 0, add stacks × 2 flat
+    // damage and clear the counter. The bonus is a flat add (not multiplied
+    // by enemy effectiveness or playerDmgMult — already-resolved damage
+    // pipeline). One bonus per cast; the next skipped turn starts the bank
+    // over from 0.
+    let patienceBonusDealt = 0;
+    if (patienceInstalled && patienceStacks > 0) {
+      patienceBonusDealt = patienceStacks * 2;
+      dmg += patienceBonusDealt;
+      pushLog(`🌿 Patience spent: +${patienceBonusDealt} damage.`);
+      logEvent('wit.patience.spend', {
+        stacks: patienceStacks, bonusDamage: patienceBonusDealt,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+      setPatienceStacks(0);
     }
 
     // Compose + log the full sentence.
@@ -5536,6 +5569,25 @@ export default function App() {
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
+    // v2.40: PATIENCE skip-cast bank — "I'll let you finish," skill. If
+    // Patience is installed, bump patienceStacks +1 (a deliberate skip-cast
+    // signal without losing the turn). If Patience is NOT installed, the
+    // card is still legal to play (no effect — the player should install
+    // first). Telemetry per play that actually banked.
+    if (fx.skipCastBank) {
+      if (patienceInstalled) {
+        setPatienceStacks(n => {
+          const next = n + 1;
+          logBits.push(`🌿 Patience +1 (${next})`);
+          return next;
+        });
+        logEvent('wit.patience.bank', {
+          enemyId: enemy?.id, enemyTier: enemy?.tier,
+        });
+      } else {
+        logBits.push(`🌿 — Patience not installed`);
+      }
+    }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
@@ -5966,6 +6018,19 @@ export default function App() {
     }
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
+
+    // v2.40: PATIENCE — if installed AND the player did NOT cast this turn,
+    // bank +1 stack. Reads castsThisTurn (the per-turn cast counter) which is
+    // still the pre-reset value at this point (setCastsThisTurn(0) fires
+    // later in the wrap-up). Skip turns get rewarded; casting clears nothing
+    // here (the cast itself already consumed the bank in castV2SentenceSpell).
+    if (patienceInstalled && castsThisTurn === 0) {
+      setPatienceStacks(n => {
+        const next = n + 1;
+        pushLog(`🌿 Patience +1 (${next}).`);
+        return next;
+      });
+    }
 
     // v2.36: ACTUALLY— reset per-turn state. arguingBackThisTurn is the
     // enemy-side surcharge; it cleared during the enemy intent that already
@@ -6819,6 +6884,8 @@ export default function App() {
       pendingMissteps={pendingMissteps}
       combatTurn={combatTurn}
       openingExtended={openingExtended}
+      patienceInstalled={patienceInstalled}
+      patienceStacks={patienceStacks}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7608,7 +7675,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
                        holdOnArmed = false, holdOnValue = 0,
                        pendingMissteps = [],
-                       combatTurn = 1, openingExtended = false }) {
+                       combatTurn = 1, openingExtended = false,
+                       patienceInstalled = false, patienceStacks = 0 }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7862,6 +7930,15 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               <div className="text-2xl font-mono text-iris-200">🎩{openingExtended ? '↩' : ''}</div>
             </div>
           )}
+          {/* v2.40: PATIENCE pip. Shows the current banked stacks while
+              the power is installed. Each stack = +2 flat damage on the
+              next cast. Clears when the cast lands. */}
+          {patienceInstalled && (
+            <div title={`Patience — banked stacks. Each end-of-turn where you DID NOT cast adds +1 to the bank. The next cast adds Patience × 2 flat damage and clears the bank.`}>
+              <div className="text-xs uppercase text-iris-300">Patience</div>
+              <div className="text-2xl font-mono text-iris-200">🌿 {patienceStacks}</div>
+            </div>
+          )}
           {/* v2.37: HOLD ON armed indicator. Shows the snapshotted reduction
               that the next enemy swing will eat. Persists across turns
               until consumed (or auto-cleared at start of next turn — but
@@ -7971,6 +8048,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
           {powers.map((p, i) => {
             const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
+            const isPatience = p.installPower?.id === 'patience' || p.id === 'wv2-p-patience';
             return (
               <span key={p.uid || i}
                 title={`${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
@@ -7979,6 +8057,11 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 {isHitMeAgain && (
                   <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
                     ⚡{hitMeAgainCharges}
+                  </span>
+                )}
+                {isPatience && (
+                  <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
+                    🌿{patienceStacks}
                   </span>
                 )}
               </span>
