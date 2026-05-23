@@ -323,6 +323,17 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         score += Math.max(15, Math.min(25, (c.effect.openingBonus || 0) * 3));
       }
     }
+    // v2.41: SYNERGY CAPSTONE — "is, in summary, the inescapable conclusion."
+    // Boost when conditions align: turn 1 (opening bonus reads), or longThread
+    // >= 2 (thread scaling reads). The card already scores high via tier 3;
+    // this nudge is what makes the AI prefer it over baseline tier-3 targets
+    // when the multi-rider math actually fires. delayedMisstep is the always-on
+    // cost; we don't decrement for it (the spec calls it "the wit closer").
+    if (c.id === 'wv2-t-in-summary' && state.lane === 'wit') {
+      const firstTurn = (state._combatTurn || 1) === 1;
+      if (firstTurn) score += 12;
+      if ((state.longThread || 0) >= 2) score += Math.min(20, (state.longThread || 0) * 4);
+    }
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
   return bestIdx;
@@ -920,7 +931,12 @@ function runCombat(state, enemyId, telemetry) {
         const idx = pickBestModifier(state, state.energy, tier, bossFight, !!tray.target?.effect?.loudScaling);
         if (idx >= 0) {
           const m = state.hand[idx];
-          tray.modifiers.push(m);
+          // v2.41: footnoteSelfOnStage — the staged copy gains +1 footnote
+          // before it enters the tray. Mirrors App.jsx modifier branch.
+          const stagedM = m.effects?.footnoteSelfOnStage
+            ? { ...m, footnotes: (m.footnotes || 0) + 1 }
+            : m;
+          tray.modifiers.push(stagedM);
           state.energy -= m.cost || 0;
           state.hand.splice(idx, 1);
           // v2.29: modifier staging also bumps loud-count + tunnel-vision.
@@ -1221,6 +1237,16 @@ function runCombat(state, enemyId, telemetry) {
       if (tray.target?.id === 'cv2-t-and-im-not-done') {
         telemetry.andImNotDoneCasts = (telemetry.andImNotDoneCasts || 0) + 1;
         telemetry.andImNotDoneTotalDamage = (telemetry.andImNotDoneTotalDamage || 0) + dmg;
+      }
+      // v2.41: wit SYNERGY CAPSTONE — "is, in summary, the inescapable
+      // conclusion." Mirrors the chutzpah capstone telemetry. Counts every
+      // resolved cast where the in-summary target landed plus the total
+      // damage. The three riders (threadScaling, openingBonus, delayedMisstep)
+      // tick their own existing telemetry (threadBonus rolled into footnote
+      // / spell bonuses; missTepCasts via the delayedMisstep block below).
+      if (tray.target?.id === 'wv2-t-in-summary') {
+        telemetry.inSummaryCasts = (telemetry.inSummaryCasts || 0) + 1;
+        telemetry.inSummaryTotalDamage = (telemetry.inSummaryTotalDamage || 0) + dmg;
       }
       // v2.36: ACTUALLY— snapshot. Stash the resolved cast's inputs +
       // multipliers so a subsequent Actually— skill can re-fire damage at
@@ -1845,6 +1871,25 @@ function awardReward(state) {
       }
     }
   }
+  // v2.41: SYNERGY CAPSTONE bias — wit lane only. The "is, in summary,"
+  // capstone is rare (would naturally appear ~15% of rewards × ~3% target
+  // slot weight); bias it up so sim engages reliably. Cap at one copy —
+  // the card is a finisher, two in deck dilutes the supporting tier-2/3
+  // primitives that make the riders fire. ~18% rate matches the existing
+  // skill biases. Paired modifier "as previously stated," picked up under
+  // the normal rarity-roll path (uncommon, slot=modifier) since it's a
+  // generic +1 wit + self-footnote that's useful in any wit deck.
+  if (state.lane === 'wit') {
+    const ownsCapstone = allCards.some(c => c.id === 'wv2-t-in-summary');
+    if (!ownsCapstone) {
+      const cap = pool.find(c => c.id === 'wv2-t-in-summary');
+      if (cap && rnd() < 0.18) {
+        state.discard.push({ ...cap, uid: uid() });
+        state.rewardsTaken.push(cap.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -1931,6 +1976,8 @@ function simRun(forcedLane = null) {
     // v2.31: synergy capstone — AND-IM-NOT-DONE casts + total damage. Rare-
     // tier so the per-run count is expected to be 0-2 most runs.
     andImNotDoneCasts: 0, andImNotDoneTotalDamage: 0,
+    // v2.41: wit SYNERGY CAPSTONE casts + total damage. Mirrors chutzpah cap.
+    inSummaryCasts: 0, inSummaryTotalDamage: 0,
     // v2.33: NOT LISTENING refactored to a SKILL. notListeningSkillCasts =
     // how many times the "Sorry — what?" skill was played; notListeningAbsorbs
     // = enemy debuff attempts that were absorbed by an armed token.
@@ -2132,6 +2179,10 @@ function aggregate(results) {
     andImNotDoneCasts: results.reduce((s, r) => s + (r.andImNotDoneCasts || 0), 0),
     andImNotDoneTotalDamage: results.reduce((s, r) => s + (r.andImNotDoneTotalDamage || 0), 0),
     andImNotDoneRuns: results.filter(r => (r.andImNotDoneCasts || 0) > 0).length,
+    // v2.41: wit synergy-capstone metrics.
+    inSummaryCasts: results.reduce((s, r) => s + (r.inSummaryCasts || 0), 0),
+    inSummaryTotalDamage: results.reduce((s, r) => s + (r.inSummaryTotalDamage || 0), 0),
+    inSummaryRuns: results.filter(r => (r.inSummaryCasts || 0) > 0).length,
     // v2.33: not-listening skill metrics.
     notListeningSkillCasts: results.reduce((s, r) => s + (r.notListeningSkillCasts || 0), 0),
     notListeningSkillRuns: results.filter(r => (r.notListeningSkillCasts || 0) > 0).length,
@@ -2319,6 +2370,11 @@ function buildReport(agg) {
   lines.push(`- Casts that consumed bank: ${agg.patienceCasts}`);
   lines.push(`- "I'll let you finish," skill plays: ${agg.patienceSkillPlays}`);
   lines.push(`- Avg damage / spend: ${agg.patienceCasts > 0 ? (agg.patienceDamageBonus / agg.patienceCasts).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Wit SYNERGY CAPSTONE (v2.41)`);
+  lines.push(`- "in summary," casts: ${agg.inSummaryCasts} (runs: ${agg.inSummaryRuns} / ${agg.N}, ${pct(agg.inSummaryRuns / agg.N)})`);
+  lines.push(`- Total capstone damage: ${agg.inSummaryTotalDamage}`);
+  lines.push(`- Avg damage per cast: ${agg.inSummaryCasts > 0 ? (agg.inSummaryTotalDamage / agg.inSummaryCasts).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

@@ -500,6 +500,34 @@ const SKILLS = [
     flavor: 'Generous in the technical sense.' },
 ];
 
+// v2.41: SYNERGY CAPSTONE — "is, in summary, the inescapable conclusion." pulls
+// together three existing wit primitives into one triple-rider rare target.
+// openingBonus reads turn-1 / extended-opening (Opening Statement), threadScaling
+// reads consecutive-turn meter (Long Thread), delayedMisstep queues the back-end
+// cost (Saying Something Wrong). All three riders are already wired through
+// computeSpellDamage + cast pipeline — this card is content-only convergence.
+// Paired modifier "as previously stated," self-footnotes on stage: the staged
+// instance's `footnotes` bumps +1 the moment it lands in the tray, so its wit
+// stat is +1 for the resolving cast. A self-referential rhetorical move that
+// also lets the player skip the Hewn-Greaves prompt for this one slot.
+const SYNERGY_CAPSTONE_CARDS = [
+  { id: 'wv2-t-in-summary', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is, in summary, the inescapable conclusion.', tags: ['rhetorical', 'elaborate', 'continuing'],
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure',
+              threadScaling: 4, openingBonus: 5, delayedMisstep: true },
+    desc: 'Cast: 8 + Wit×3 comp. +4/Long Thread, +5 on turn 1 (or extended). Queues a Misstep in 2 turns.',
+    flavor: 'Summary being a polite word for verdict.' },
+  { id: 'wv2-m-as-previously-stated', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
+    modifierKind: 'pre', phrase: 'as previously stated,', tags: ['continuing', 'hedge'], stats: { wit: 1 },
+    effects: { footnoteSelfOnStage: true },
+    modifierEffect: { addsTag: 'continuing' },
+    desc: 'Stage: this card gains +1 footnote on itself (wit stat → 2 for this cast).',
+    flavor: 'A modifier that, in the spirit of full disclosure, modifies itself.' },
+];
+
+const SYNERGY_CAPSTONE_TARGETS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'target');
+const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'modifier');
+
 // v2.40: PATIENCE — wit's skip-cast-and-defend power. While installed, every
 // end-of-turn where the player did NOT cast a spell increments a
 // patienceStacks counter. The next cast adds patienceStacks × 2 flat damage
@@ -591,13 +619,13 @@ const ANNOTATIONS = [
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: SUBJECTS,
-  target: [...TARGETS, ...UNIQUE_TARGETS],
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...SYNERGY_CAPSTONE_TARGETS],
   gesture: GESTURES,
-  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
+  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   annotation: ANNOTATIONS,
   skill: SKILLS,
   power: PATIENCE_POWER,

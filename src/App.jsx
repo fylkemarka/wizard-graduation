@@ -4471,8 +4471,20 @@ export default function App() {
         pushLog(`Two modifiers already staged — can't add a third.`);
         return;
       }
-      setTray(p => syncTrayLegacy({ ...p, modifiers: [...(p.modifiers || []), card] }));
+      // v2.41: footnoteSelfOnStage — the staged instance gains +1 footnote on
+      // itself before it lands in the tray. Self-referential rhetorical move;
+      // the cast immediately reads the bumped stat through computeSpellDamage's
+      // footnote-aware stat sum. Bumps the in-tray copy only — the source
+      // card object in hand (already removed via setHand below) doesn't
+      // need updating.
+      const stagedCard = card.effects?.footnoteSelfOnStage
+        ? { ...card, footnotes: (card.footnotes || 0) + 1 }
+        : card;
+      setTray(p => syncTrayLegacy({ ...p, modifiers: [...(p.modifiers || []), stagedCard] }));
       applySideEffects(card.effects || {}, logBits);
+      if (card.effects?.footnoteSelfOnStage) {
+        logBits.push(`📖 self-footnoted (+1 wit on this card)`);
+      }
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfChutzpah();
       pushLog(logBits.join(' · ') + `  →  ✨ modifier staged`);
