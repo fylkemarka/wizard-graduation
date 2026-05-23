@@ -525,11 +525,33 @@ const FRANKLY_NO_SKILL = [
 const SAYING_IT_LOUDER_INTROS = SAYING_IT_LOUDER_CARDS.filter(c => c.slot === 'intro');
 const SAYING_IT_LOUDER_TARGETS = SAYING_IT_LOUDER_CARDS.filter(c => c.slot === 'target');
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL, ...SAYING_IT_LOUDER_CARDS];
+// v2.30: SMELL WEAKNESS — predator rider. A subject that applies Vulnerable
+// on stage (setting up the predator condition AND pumping chutzpah stat), and
+// an uncommon target whose `predator: 6` rider adds +6 flat damage when the
+// enemy is currently debuffed (Vulnerable OR Weak). The combo: stage the
+// subject first to apply Vuln, then cast with the predator target for the
+// +6. Pairs naturally with any other Vuln/Weak applier already in the lane.
+const SMELL_WEAKNESS_CARDS = [
+  { id: 'cv2-s-blood-in-water', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'smells like blood in the water,', tags: ['threatening', 'dismissive'], stats: { chutzpah: 2 },
+    effects: { vulnerable: 1 },
+    desc: 'Stage: apply Vulnerable 1.',
+    flavor: 'You weren\'t supposed to bleed where they could smell.' },
+  { id: 'cv2-t-comes-apart', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'comes apart in your hands.', tags: ['threatening', 'direct'],
+    effect: { scaleBy: 'chutzpah', base: 7, multiplier: 3, damageType: 'composure', predator: 6 },
+    desc: 'Cast: 7 + Chutzpah×3 comp. PREDATOR: +6 dmg if the enemy is Vulnerable or Weak.',
+    flavor: 'In retrospect, the warning signs were everywhere.' },
+];
+
+const SMELL_WEAKNESS_SUBJECTS = SMELL_WEAKNESS_CARDS.filter(c => c.slot === 'subject');
+const SMELL_WEAKNESS_TARGETS  = SMELL_WEAKNESS_CARDS.filter(c => c.slot === 'target');
+
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
   intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS],
-  subject: SUBJECTS,
-  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS],
+  subject: [...SUBJECTS, ...SMELL_WEAKNESS_SUBJECTS],
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
   gesture: GESTURES,
   power: [...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER],

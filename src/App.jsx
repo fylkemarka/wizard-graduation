@@ -4652,14 +4652,25 @@ export default function App() {
       missingHpFrac: maxHp > 0 ? (maxHp - hp) / maxHp : 0,
       stakeAmount, // v2.11: chutzpah ALL IN
       loudCount, // v2.29: chutzpah SAYING IT LOUDER
+      // v2.30: chutzpah SMELL WEAKNESS — predator rider reads enemy debuff state
+      playerDmgMult, enemyDmgMult,
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
     if (loudBonus > 0) {
       pushLog(`📢 SAID IT LOUDER ×${loudCount} → +${loudBonus} dmg`);
       logEvent('chutzpah.loud', {
         loudCount, bonusDamage: loudBonus,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
+    // v2.30: SMELL WEAKNESS — surface the predator rider when it fired.
+    if (predatorBonus > 0) {
+      pushLog(`🩸 PREDATOR — enemy debuffed → +${predatorBonus} dmg`);
+      logEvent('chutzpah.predator', {
+        bonusDamage: predatorBonus,
+        playerDmgMult, enemyDmgMult,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
@@ -7219,7 +7230,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         isChutzpah={isChutzpah} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
         playerHp={hp}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
-        lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount} />
+        lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
+        playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -7549,7 +7561,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
                        isChutzpah = false, stakeAmount = 0, setStakeAmount = () => {},
                        playerHp = 70,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
-                       lastRoll = null, combatRolls = [], loudCount = 0 }) {
+                       lastRoll = null, combatRolls = [], loudCount = 0,
+                       playerDmgMult = 1.0, enemyDmgMult = 1.0 }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -7565,8 +7578,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
   let predicted = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders, stakeBonus, loudBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount });
-    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0 };
+    const { damage, riders, stakeBonus, loudBonus, predatorBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult });
+    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0 };
   }
   // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
   // /3 → /4 (keeps "I bleed for damage" without uncapped spirals).
@@ -7661,10 +7674,13 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
           <div className="text-right">
             <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
             <div className="text-2xl font-bold font-mono text-iris-200"
-                 title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}`}>
+                 title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
               {predicted.damage} <span className="text-sm text-parchment-300">comp</span>
               {predicted.stakeBonus > 0 && (
                 <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
+              )}
+              {predicted.predatorBonus > 0 && (
+                <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
               )}
             </div>
           </div>

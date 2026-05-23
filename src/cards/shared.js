@@ -242,6 +242,22 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage += loudBonus;
   }
 
+  // v2.30: chutzpah SMELL WEAKNESS — predator rider. If the enemy currently
+  // has Vulnerable (playerDmgMult > 1) OR Weak (enemyDmgMult < 1) applied,
+  // a target with `predator: N` adds N flat damage to the cast. Flat (not
+  // tier-multiplied) so the math reads as "+N when the prey is wounded".
+  // Caller passes the current mults via context.playerDmgMult / enemyDmgMult
+  // (both default to 1.0). The bonus is conditional: clean enemies = no
+  // bonus, so chutzpah players are incentivised to OPEN with a Vuln/Weak
+  // applier before swinging the predator finisher.
+  let predatorBonus = 0;
+  const enemyDebuffed = (context.playerDmgMult || 1) > 1.0 ||
+                        (context.enemyDmgMult || 1) < 1.0;
+  if (eff.predator > 0 && enemyDebuffed) {
+    predatorBonus = eff.predator;
+    damage += predatorBonus;
+  }
+
   // v2.11: chutzpah ALL IN — per-cast HP wager. context.stakeAmount is
   // the staked HP. Per-card stakeMultiplier picks the MAX value (so a
   // staged Double-or-Nothing target overrides the default 1.5×). If any
@@ -266,6 +282,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     flippedDmgType, // v2.6: null or the new damage type to use
     stakeBonus, // v2.11: how much damage came from the stake (for UI/log)
     loudBonus, // v2.29: how much damage came from saying-it-louder repetition
+    predatorBonus, // v2.30: how much damage came from the predator rider
     sideEffects: {
       drawCount,
       stripBlock,

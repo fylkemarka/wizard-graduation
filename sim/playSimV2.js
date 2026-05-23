@@ -161,6 +161,14 @@ function pickBestForSlot(state, slot, energyLeft) {
   // slot picks — each demanding word adds +3 to the eventual cast for free.
   const hasLoudTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier')
     && state.hand.some(c => c.lane === 'chutzpah' && c.effect?.loudScaling);
+  // v2.30: detect if a predator target ("comes apart in your hands.") is in
+  // hand. If so, strongly bias toward debuff-applying word cards in this
+  // slot pick — applying Vuln/Weak BEFORE the cast arms the +6 predator
+  // bonus. "smells like blood in the water," is the dedicated setup subject
+  // (vulnerable: 1 on stage); other intros/subjects with effects.vulnerable
+  // or effects.weak also qualify.
+  const hasPredatorTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier')
+    && state.hand.some(c => c.lane === 'chutzpah' && (c.effect?.predator || 0) > 0);
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
     if (c.slot !== slot) continue;
@@ -183,6 +191,13 @@ function pickBestForSlot(state, slot, energyLeft) {
     let effectiveStat = stat;
     if (hasLoudTarget && c.lane === 'chutzpah' && (c.tags || []).includes('demanding')) {
       effectiveStat = stat + 3;
+    }
+    // v2.30: when a predator target is in hand, bias toward debuff-appliers
+    // (vulnerable or weak) staged BEFORE the cast. The bonus is +6 flat —
+    // larger than the loud-bonus per-card +3 — so the bias is stronger.
+    if (hasPredatorTarget && c.lane === 'chutzpah'
+        && (c.effects?.vulnerable || c.effects?.weak)) {
+      effectiveStat = effectiveStat + 5;
     }
     if (tier * 10 + effectiveStat > bestTier * 10 + bestStat) {
       bestIdx = i; bestTier = tier; bestStat = effectiveStat;
@@ -218,6 +233,8 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
         stakeAmount: 0,
         loudCount: state.loudCount || 0, // v2.29
+        playerDmgMult: state.playerDmgMult || 1.0, // v2.30
+        enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
       };
       // Reuse the shared formula via computeSpellDamage if intro+subject
       // are staged. Off-stage we can't compute reliably; default-pass
@@ -249,6 +266,8 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
         stakeAmount: 0,
         loudCount: state.loudCount || 0, // v2.29
+        playerDmgMult: state.playerDmgMult || 1.0, // v2.30
+        enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
       };
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
       const dmgType = c.effect?.damageType || 'composure';
@@ -604,6 +623,8 @@ function runCombat(state, enemyId, telemetry) {
           missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
           stakeAmount: 0,
           loudCount: state.loudCount || 0, // v2.29
+          playerDmgMult: state.playerDmgMult || 1.0, // v2.30
+          enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const preMult = (tray.target.effect?.damageType === 'physical')
@@ -651,6 +672,8 @@ function runCombat(state, enemyId, telemetry) {
         missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
         stakeAmount: stake, // v2.11
         loudCount: state.loudCount || 0, // v2.29
+        playerDmgMult: state.playerDmgMult || 1.0, // v2.30
+        enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
@@ -809,6 +832,13 @@ function runCombat(state, enemyId, telemetry) {
       // v2.29: the cast consumes the loud build-up. Reset to 0 either way
       // (the per-turn cap is 1, so this is mainly defensive).
       if (tray.target?.effect?.loudScaling) state.loudCount = 0;
+      // v2.30: telemetry for SMELL WEAKNESS predator rider. Counts every
+      // cast where the bonus actually fired (enemy was Vuln/Weak at cast
+      // time) and aggregates the bonus damage for averages.
+      if ((result.predatorBonus || 0) > 0) {
+        telemetry.predatorTriggers = (telemetry.predatorTriggers || 0) + 1;
+        telemetry.predatorBonusTotal = (telemetry.predatorBonusTotal || 0) + result.predatorBonus;
+      }
       // Tray clears only when a cast actually fires.
       tray = { intro: null, subject: null, target: null, modifiers: [] };
     } else {
@@ -1093,6 +1123,10 @@ function simRun(forcedLane = null) {
     // number of "I SAID." casts; loudCountSum accumulates the loudCount
     // observed on each such cast so we can compute mean stack-size.
     iSaidCasts: 0, loudCountSum: 0, loudBonusSum: 0,
+    // v2.30: chutzpah smell-weakness telemetry. predatorTriggers counts
+    // casts where the +N bonus actually fired (enemy was Vuln/Weak at cast),
+    // predatorBonusTotal aggregates the +damage across the run.
+    predatorTriggers: 0, predatorBonusTotal: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1226,6 +1260,10 @@ function aggregate(results) {
     iSaidRuns: results.filter(r => (r.iSaidCasts || 0) > 0).length,
     loudCountSum: results.reduce((s, r) => s + (r.loudCountSum || 0), 0),
     loudBonusSum: results.reduce((s, r) => s + (r.loudBonusSum || 0), 0),
+    // v2.30: smell-weakness / predator metrics.
+    predatorTriggers: results.reduce((s, r) => s + (r.predatorTriggers || 0), 0),
+    predatorBonusTotal: results.reduce((s, r) => s + (r.predatorBonusTotal || 0), 0),
+    predatorRuns: results.filter(r => (r.predatorTriggers || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1294,6 +1332,11 @@ function buildReport(agg) {
   lines.push(`- Avg loudCount per cast: ${agg.iSaidCasts > 0 ? (agg.loudCountSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
   lines.push(`- Avg bonus damage per cast: ${agg.iSaidCasts > 0 ? (agg.loudBonusSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
   lines.push(`- Total bonus damage from louder: ${agg.loudBonusSum}`);
+  lines.push('');
+  lines.push(`## Chutzpah SMELL WEAKNESS (v2.30)`);
+  lines.push(`- Predator triggers (cast hit while enemy debuffed): ${agg.predatorTriggers} (runs: ${agg.predatorRuns} / ${agg.N}, ${pct(agg.predatorRuns / agg.N)})`);
+  lines.push(`- Total bonus damage from predator: ${agg.predatorBonusTotal}`);
+  lines.push(`- Avg bonus per trigger: ${agg.predatorTriggers > 0 ? (agg.predatorBonusTotal / agg.predatorTriggers).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
