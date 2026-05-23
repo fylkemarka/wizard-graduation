@@ -219,11 +219,43 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       // 10% buffer per spec — predicted must exceed remaining × 1.1.
       if (predicted < remaining * 1.1) continue;
     }
+    // v2.26: STORM OUT gate — only pick when this would be the last cast
+    // possible this turn (no other castable targets after this one would
+    // matter — the per-turn cap is 1), AND remaining energy after this
+    // card's cost is ≥ 2 (so the bonusPerEnergy actually pays off), AND
+    // predicted damage > 0.6 × remaining composure (it's a finisher).
+    const stormOut = !!c.effect?.stormOut;
+    if (stormOut && tray && enemy) {
+      // Need intro + subject staged to project damage; otherwise pass.
+      if (!tray.intro || !tray.subject) continue;
+      const energyAfterStage = energyLeft - (c.cost || 0);
+      if (energyAfterStage < 2) continue;
+      const preCtx = {
+        discardSize: state.discard.length,
+        deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+        missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+        stakeAmount: 0,
+      };
+      const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
+      const dmgType = c.effect?.damageType || 'composure';
+      const eff = enemy.effectiveness || {};
+      const enemyMult = (dmgType === 'physical') ? (eff.physical ?? 1.0) : (eff[c.effect?.scaleBy || c.lane || 'chutzpah'] ?? 1.0);
+      // bonusPerEnergy is paid out from energy LEFT at cast time. After this
+      // target stages (cost paid), the cast burns `energyAfterStage` energy.
+      const bonus = energyAfterStage * (c.effect?.bonusPerEnergy || 0);
+      const predicted = (preview.damage + bonus) * enemyMult * (state.playerDmgMult || 1);
+      const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
+      if (predicted <= 0) continue;
+      // Finisher heuristic: only fire when we're swinging at a meaningful
+      // chunk of the enemy's remaining bar.
+      if (predicted < remaining * 0.6) continue;
+    }
     const tier = c.tier || 1;
     const stat = c.stats?.[c.lane] || 0;
     let score = tier * 10 + stat;
     if (needsRage && rageActive) score += 30; // strongly prefer Bare Knuckles in RAGE
     if (doubleDown) score += 15; // prefer doubleDown when it WILL kill (gate already passed)
+    if (stormOut) score += 20;   // prefer stormOut when the finisher conditions matched
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
   return bestIdx;
@@ -265,6 +297,11 @@ function runCombat(state, enemyId, telemetry) {
   // HP per token at end of turn if the enemy is still alive. Resets each
   // turn either way (after billing).
   state.cornerTokens = 0;
+  // v2.26: STORMING OUT — hidden-intent flag. Sim AI doesn't peek at intents
+  // (it reacts to enemy.atk directly), so this flag is purely telemetric:
+  // we track that the player stormed out and what the next intent would have
+  // been hidden against. Reset per combat.
+  state.intentHidden = false;
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
@@ -559,6 +596,20 @@ function runCombat(state, enemyId, telemetry) {
       // refuses to stage it off-rage; defensive only.
       const rageMissing = !!tray.target.effect?.requiresRage && !state.rageActive;
       if (rageMissing) dmg = Math.round(dmg * 0.5);
+      // v2.26: STORM OUT — energy at cast time converts to flat damage,
+      // then burns to zero. Energy was already spent staging this target
+      // (cost paid up-front), so `state.energy` here represents what's left
+      // AFTER the card was committed — exactly the "remaining energy" the
+      // spec calls for.
+      const stormOut = !!tray.target.effect?.stormOut;
+      const stormOutBonusPerEnergy = tray.target.effect?.bonusPerEnergy || 0;
+      const stormOutEnergySpent = stormOut ? state.energy : 0;
+      if (stormOut && stormOutBonusPerEnergy > 0 && stormOutEnergySpent > 0) {
+        // Energy bonus is flat — not multiplied by enemy effectiveness or
+        // playerDmgMult. Keeps the math predictable: each point of energy
+        // is a clean +N damage at cast time.
+        dmg += stormOutEnergySpent * stormOutBonusPerEnergy;
+      }
 
       // Strip enemy block from modifier
       if (result.sideEffects.stripBlock) {
@@ -625,6 +676,20 @@ function runCombat(state, enemyId, telemetry) {
       if (tray.target.effect?.doubleDown) {
         state.cornerTokens = (state.cornerTokens || 0) + 1;
         telemetry.doubleDownCasts = (telemetry.doubleDownCasts || 0) + 1;
+      }
+      // v2.26: STORM OUT — record the cast, burn all remaining energy,
+      // flag the next intent as hidden. Telemetry captures the energy
+      // spent so we can sanity-check the heuristic gate (avg energy at
+      // cast should be ≥ 2). Setting energy to 0 + the per-turn cast cap
+      // already incremented means no further actions can fire this turn.
+      if (stormOut) {
+        telemetry.stormOutCasts = (telemetry.stormOutCasts || 0) + 1;
+        telemetry.stormOutEnergySpent = (telemetry.stormOutEnergySpent || 0) + stormOutEnergySpent;
+        state.energy = 0;
+        state.intentHidden = true;
+        // Sentinel: this end-of-turn carries the hidden-intent flag INTO the
+        // next player turn; do not clear it on this turn's wrap.
+        state.stormOutJustFired = true;
       }
 
       // Discharge cards: intro/subject/modifiers → discard; target exiles
@@ -745,6 +810,19 @@ function runCombat(state, enemyId, telemetry) {
       state.tunnelVision = 0;
       state.rageActive = false;
     }
+    // v2.26: STORM OUT — intentHidden persists through ONE upcoming player
+    // turn. The flag was set when the storm-out cast resolved THIS turn;
+    // the next player turn renders the hidden intent; the turn after that
+    // clears it. Two-step lifecycle mirrors App.jsx's stormOutFiredRef.
+    if (state.intentHidden) {
+      if (state.stormOutJustFired) {
+        // The hidden-intent turn the player is about to play. Keep the flag
+        // up but consume the "just fired" sentinel.
+        state.stormOutJustFired = false;
+      } else {
+        state.intentHidden = false;
+      }
+    }
     drawCards(state, HAND_SIZE);
   }
 
@@ -864,6 +942,8 @@ function simRun(forcedLane = null) {
     rageTriggers: 0, bareKnucklesCasts: 0, bareKnucklesMisfires: 0,
     // v2.25: chutzpah doubling-down telemetry.
     doubleDownCasts: 0, cornerTokenBills: 0, cornerTokenDamage: 0,
+    // v2.26: chutzpah storm-out telemetry.
+    stormOutCasts: 0, stormOutEnergySpent: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -979,6 +1059,10 @@ function aggregate(results) {
     cornerTokenBills: results.reduce((s, r) => s + (r.cornerTokenBills || 0), 0),
     cornerTokenDamage: results.reduce((s, r) => s + (r.cornerTokenDamage || 0), 0),
     cornerTokenKOs: results.filter(r => r.killedBy === 'cornerTokens').length,
+    // v2.26: storm-out metrics.
+    stormOutCasts: results.reduce((s, r) => s + (r.stormOutCasts || 0), 0),
+    stormOutRuns: results.filter(r => (r.stormOutCasts || 0) > 0).length,
+    stormOutEnergySpent: results.reduce((s, r) => s + (r.stormOutEnergySpent || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1026,6 +1110,10 @@ function buildReport(agg) {
   lines.push(`- Corner-token bills (enemy survived → -HP): ${agg.cornerTokenBills}`);
   lines.push(`- HP lost to corner-tokens: ${agg.cornerTokenDamage}`);
   lines.push(`- Runs KO'd by corner-tokens: ${agg.cornerTokenKOs}`);
+  lines.push('');
+  lines.push(`## Chutzpah STORMING OUT (v2.26)`);
+  lines.push(`- Storm Out casts: ${agg.stormOutCasts} (avg energy spent: ${agg.stormOutCasts > 0 ? (agg.stormOutEnergySpent / agg.stormOutCasts).toFixed(2) : '0.00'})`);
+  lines.push(`- Runs with at least one Storm Out: ${agg.stormOutRuns} / ${agg.N} (${pct(agg.stormOutRuns / agg.N)})`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

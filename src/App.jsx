@@ -3143,6 +3143,14 @@ export default function App() {
   // bravado that didn't close the deal. Resets to 0 every turn (after the
   // damage tick fires).
   const [cornerTokens, setCornerTokens] = useState(0);
+  // v2.26: chutzpah STORMING OUT — when a stormOut target casts, the enemy's
+  // next intent is HIDDEN from the UI (we don't render the telegraph). The
+  // flag persists through ONE upcoming player turn (the intent rolled during
+  // the storm-out endTurn), then clears at the END of THAT turn's endTurn so
+  // the next intent reveals normally. `stormOutFiredRef` is the cross-closure
+  // signal so the immediate storm-out endTurn doesn't clear its own flag.
+  const [intentHidden, setIntentHidden] = useState(false);
+  const stormOutFiredRef = useRef(false);
   const [combatRolls, setCombatRolls] = useState([]);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
@@ -4086,6 +4094,9 @@ export default function App() {
     setRageActive(false);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
+    // v2.26: chutzpah hidden-intent flag resets per combat.
+    setIntentHidden(false);
+    stormOutFiredRef.current = false;
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4659,6 +4670,18 @@ export default function App() {
       dmg = Math.round(dmg * 0.5);
       pushLog(`🔥 ${target.phrase || target.name} fired without RAGE — half damage, exiled.`);
     }
+    // v2.26: STORMING OUT — if the target carries stormOut, every remaining
+    // energy point AT CAST TIME (after the card's own cost was paid on stage)
+    // converts to +bonusPerEnergy damage. The energy burns to zero, the turn
+    // ends immediately after damage resolves, and the next intent is hidden.
+    const stormOut = !!target.effect?.stormOut;
+    const stormOutBonusPerEnergy = target.effect?.bonusPerEnergy || 0;
+    const stormOutEnergySpent = stormOut ? energy : 0;
+    if (stormOut && stormOutBonusPerEnergy > 0 && stormOutEnergySpent > 0) {
+      const bonus = stormOutEnergySpent * stormOutBonusPerEnergy;
+      dmg += bonus;
+      pushLog(`🚪 STORM OUT — spent ${stormOutEnergySpent} Energy → +${bonus} dmg.`);
+    }
 
     // Compose + log the full sentence.
     const sentence = composeSpellText(intro, subject, target, modifiers);
@@ -4785,6 +4808,20 @@ export default function App() {
     setTray(initialV2Tray({ effectFiredThisTurn: true }));
     applyPowerTriggers('onEffectCardPlayed');
     advanceTutorialStep('cast-spell');
+
+    // v2.26: STORMING OUT — burn all remaining energy, hide the next intent,
+    // and end the turn IMMEDIATELY. The bonus damage was already applied
+    // above; here we close out the turn so no further actions, no block
+    // phase, no end-of-turn-draw bonuses fire. The endTurn flow still runs
+    // its normal sequence (enemy intent, debuff decay, refill hand) — the
+    // ONLY thing we skip is the player's chance to keep acting.
+    if (stormOut) {
+      setEnergy(0);
+      setIntentHidden(true);
+      stormOutFiredRef.current = true;
+      pushLog(`🚪 Storm out. Door slams. You don't see what comes next.`);
+      setTimeout(() => endTurn(), 0);
+    }
   }
 
   function castStagedSpell() {
@@ -5588,6 +5625,17 @@ export default function App() {
       }
       setIntentTick(t => t + 1);
     }
+    // v2.26: storm-out intent-hiding lifecycle. If THIS endTurn was the one
+    // triggered by the storm-out cast itself, the ref is true — the intent
+    // we just rolled is the one we want to hide for the upcoming turn, so
+    // leave intentHidden true and just consume the ref. The NEXT endTurn
+    // (after the player has played their hidden-intent turn) finds ref=false
+    // and clears the flag — the intent rolled there reveals normally.
+    if (stormOutFiredRef.current) {
+      stormOutFiredRef.current = false;
+    } else if (intentHidden) {
+      setIntentHidden(false);
+    }
   }
 
   function applyEnemyIntent(intent) {
@@ -6112,7 +6160,7 @@ export default function App() {
       rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
       lastRoll={lastRoll} combatRolls={combatRolls}
       tunnelVision={tunnelVision} rageActive={rageActive}
-      cornerTokens={cornerTokens}
+      cornerTokens={cornerTokens} intentHidden={intentHidden}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -6896,7 +6944,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        castsThisTurn, maxCastsPerTurn,
                        isChutzpah, stakeAmount, setStakeAmount,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
-                       tunnelVision, rageActive, cornerTokens }) {
+                       tunnelVision, rageActive, cornerTokens, intentHidden }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -6993,9 +7041,13 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         <div className="flex gap-2 items-center flex-wrap">
           <div key={`intent-${intentTick}`}
                className="intent-flash px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700 cursor-help"
-               title={intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.'}>
+               title={intentHidden
+                 ? "You stormed out — you didn't see what they're winding up. Reveals next turn."
+                 : (intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.')}>
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
-            <div className="text-lg text-parchment-50">{enemyIntent?.telegraph || '...'}</div>
+            <div className="text-lg text-parchment-50">
+              {intentHidden ? '🌫 ???' : (enemyIntent?.telegraph || '...')}
+            </div>
           </div>
           {peekedNextIntent && (
             <div className="px-3 py-2 bg-iris-900 bg-opacity-60 rounded border border-iris-700"

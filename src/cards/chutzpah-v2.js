@@ -445,6 +445,17 @@ const UNIQUE_TARGETS = [
     effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure', doubleDown: true, rider: { weak: 1 } },
     desc: 'Cast: 10 + Chutzpah×4 comp · Weak 1. DOUBLE DOWN: +1 corner token. If enemy survives the turn, -2 HP.',
     flavor: 'Last words being a category that tends to multiply, in chutzpah.' },
+  // v2.26: STORMING OUT — chutzpah's commit-and-flee finisher. Cast burns
+  // every remaining energy point as +5 damage each, then ends the turn
+  // immediately (no draw, no block, no end-of-turn anything). Enemy's next
+  // intent is HIDDEN — the player doesn't get to peek. Strategic gate:
+  // close the kill in one swing or eat blind next turn.
+  { id: 'cv2-t-last-problem', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'effect',
+    phrase: 'is officially my last problem.', tags: ['dismissive', 'threatening', 'swaggering'],
+    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
+              stormOut: true, bonusPerEnergy: 5 },
+    desc: 'STORM OUT. Cast: 8 + Chutzpah×3 + 5/Energy. Burns all energy, ends turn, enemy intent hidden.',
+    flavor: "After this one, I'm leaving. Briefly. You won't see me go." },
 ];
 
 export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
