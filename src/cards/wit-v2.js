@@ -303,6 +303,14 @@ const MODIFIERS = [
     modifierKind: 'pre', phrase: 'With all due respect,', tags: ['academic'], stats: { wit: 1 },
     modifierEffect: { addsTag: 'academic' },
     flavor: 'Respect is, in this dialect, a verb tense.' },
+  // v2.35: FOOTNOTE supporting modifier. Pure hedge — pairs naturally with
+  // the footnote skill since this card's wit stat scales further every
+  // time it's footnoted. The 'continuing' tag makes it eligible for any
+  // future long-thread payoff card that keys off carrying the argument.
+  { id: 'wv2-m-on-reflection', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
+    modifierKind: 'pre', phrase: 'On reflection,', tags: ['hedge', 'continuing'], stats: { wit: 1 },
+    modifierEffect: { addsTag: 'hedge' },
+    flavor: 'Reflection being the second-most-honest of the rhetorical positions.' },
   { id: 'wv2-m-obviously', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'modifier',
     modifierKind: 'post', phrase: '— obviously,', tags: ['dismissive'],
     modifierEffect: { addsTag: 'dismissive', rider: { weak: 1 } },
@@ -397,6 +405,28 @@ const UNIQUE_TARGETS = [
     flavor: 'Every footnote has, eventually, a reckoning.' },
 ];
 
+// =============================================================================
+// SKILLS (v2.35) — wit non-tray utility. The FOOTNOTE skill installs a
+// permanent +1 wit rider on a chosen Word card instance — the phrase you
+// commit to making sharper.
+// =============================================================================
+const SKILLS = [
+  // v2.35: FOOTNOTE — the phrase-fragment install. Cost 1, exhausts on play.
+  // On play, the player picks a Word card (intro/subject/modifier) in hand
+  // OR discard. That instance gains footnotes += 1; footnotes adds to the
+  // card's wit stat in computeSpellDamage. Stacks (a card can be footnoted
+  // multiple times). Persists through deck reshuffles within combat — the
+  // footnotes field rides along on the card object's spread; the uid will
+  // change on each redraw but the rider survives. Reset between combats
+  // (card instances are rebuilt at combat start from buildStartingDeck).
+  { id: 'wv2-k-hewn-greaves-footnotes', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
+    name: 'As Hewn-Greaves notes in his footnotes,', phrase: 'As Hewn-Greaves notes in his footnotes,',
+    tags: ['rhetorical', 'elaborate'],
+    effects: { footnotePrompt: true, exhaust: true },
+    desc: 'Skill. Exhaust. Pick a Word card in hand or discard — that copy gains a permanent +1 wit footnote for the rest of combat. Stacks.',
+    flavor: 'Citation needed. Citation provided. Citation, you must understand, in the technical sense.' },
+];
+
 // v2.6: NEW MODIFIERS — say-again (×2 damage rare) + words-to-actions
 // (damage-type flip from composure to physical).
 const NEW_MODIFIERS_V26 = [
@@ -474,7 +504,7 @@ const ANNOTATIONS = [
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: SUBJECTS,
@@ -482,4 +512,5 @@ export const WIT_V2_BY_SLOT = {
   gesture: GESTURES,
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
   annotation: ANNOTATIONS,
+  skill: SKILLS,
 };

@@ -137,15 +137,38 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   // Stat contribution: sum across intro + subject + target's own stats.
   // (Targets typically don't carry stat contribution but the field is honored
   // for future hybrid cards.)
-  const introStat   = intro.stats?.[lane]   || 0;
-  const subjectStat = subject.stats?.[lane] || 0;
-  const targetStat  = target.stats?.[lane]  || 0;
+  // v2.35: FOOTNOTE — a Word card instance can carry a `footnotes: N`
+  // count, added on top of its base wit stat per slot. Footnotes are
+  // applied via the "As Hewn-Greaves notes in his footnotes," skill;
+  // each play bumps the chosen card's count by 1. The bonus scales
+  // through ALL stat-bearing slots (intro/subject/modifier) AND target's
+  // own stat block if hybrid. Targets without stats simply ignore it.
+  const introFn   = intro.footnotes   || 0;
+  const subjectFn = subject.footnotes || 0;
+  const targetFn  = target.footnotes  || 0;
+  const introStat   = (intro.stats?.[lane]   || 0) + introFn;
+  const subjectStat = (subject.stats?.[lane] || 0) + subjectFn;
+  const targetStat  = (target.stats?.[lane]  || 0) + targetFn;
   // Modifiers may also contribute stat (e.g. "I daresay," adds +1 wit).
-  const modStat = modifiers.reduce((s, m) => s + (m?.stats?.[lane] || 0), 0);
+  let modFnTotal = 0;
+  const modStat = modifiers.reduce(
+    (s, m) => {
+      const fn = m?.footnotes || 0;
+      modFnTotal += fn;
+      return s + (m?.stats?.[lane] || 0) + fn;
+    }, 0);
   const statTotal = introStat + subjectStat + targetStat + modStat;
+  const totalFootnotes = introFn + subjectFn + targetFn + modFnTotal;
 
   const tierMult = TIER_MULTIPLIER[tier] || 1.0;
   let damage = (eff.base + statTotal * eff.multiplier) * tierMult;
+  // v2.35: how much of `damage` came from the footnote stat-rider, for
+  // log/telemetry. Footnotes ride through `statTotal`, so each unit of
+  // footnote adds `eff.multiplier × tierMult` flat damage. Modifier-side
+  // multipliers (damageMult, conditionalMult, etc.) compound onto this
+  // too — we apply the SAME scaling chain when surfacing the bonus
+  // (post-loop) by ratioing the final damage against pre-footnote dmg.
+  const damageNoFootnotes = (eff.base + (statTotal - totalFootnotes) * eff.multiplier) * tierMult;
 
   // Handle target-side tier-3 conditions.
   if (eff.tier3Double && tier === 3) damage *= 2;
@@ -285,6 +308,20 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage += stakeBonus;
   }
 
+  // v2.35: footnote bonus = pre-modifier dmg delta the footnotes carried,
+  // surfaced for log/telemetry. Modifiers (damageMult etc.) compound onto
+  // this too — `damage - damageNoFootnotes` would be the modifier-aware
+  // bonus, but at this point in the code `damage` has had stakeBonus,
+  // loudBonus, predatorBonus, threadBonus added FLAT on top of the
+  // pre-stat math, so subtracting the no-footnote pre-stat math from the
+  // current damage isn't clean either. We surface the pre-modifier flat
+  // damage delta and let callers multiply by the visible final/base
+  // ratio if they want a fully accurate post-mod number.
+  const footnoteBonus = totalFootnotes > 0
+    ? Math.round((eff.base + statTotal * eff.multiplier) * tierMult
+                 - damageNoFootnotes)
+    : 0;
+
   return {
     damage: Math.max(0, Math.round(damage)),
     tier,
@@ -294,6 +331,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     loudBonus, // v2.29: how much damage came from saying-it-louder repetition
     predatorBonus, // v2.30: how much damage came from the predator rider
     threadBonus, // v2.34: how much damage came from the LONG THREAD scaling
+    footnoteBonus, // v2.35: how much damage came from FOOTNOTE stat-riders
     sideEffects: {
       drawCount,
       stripBlock,

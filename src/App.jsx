@@ -3152,6 +3152,14 @@ export default function App() {
   // turn. Read at end-of-turn by the long-thread bookkeeping. Reset at
   // the start of every player turn.
   const [castWitEffectThisTurn, setCastWitEffectThisTurn] = useState(false);
+  // v2.35: FOOTNOTE prompt — set true when the player plays the
+  // "As Hewn-Greaves notes in his footnotes," skill. While true, the
+  // hand AND discard piles render their Word cards (intro/subject/
+  // modifier) as clickable. Clicking one bumps that card instance's
+  // `footnotes` count by 1 and clears the prompt. Esc / cancel dismisses
+  // without applying. The skill is exhausted at play time either way —
+  // the prompt is the payoff window.
+  const [footnotePromptActive, setFootnotePromptActive] = useState(false);
   // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
   // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
@@ -4136,6 +4144,10 @@ export default function App() {
     setLongThread(0);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
+    // v2.35: FOOTNOTE prompt — never persists between combats. Card
+    // instances are rebuilt at combat start (uids re-issued, footnotes
+    // reset to 0 implicitly since no skill has fired yet).
+    setFootnotePromptActive(false);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
     // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
@@ -4674,7 +4686,7 @@ export default function App() {
       // v2.34: wit LONG THREAD — threadScaling targets read this for +N × LT
       longThread,
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
     if (loudBonus > 0) {
@@ -4698,6 +4710,15 @@ export default function App() {
       pushLog(`🧵 LONG THREAD ×${longThread} → +${threadBonus} dmg`);
       logEvent('wit.thread', {
         longThread, bonusDamage: threadBonus,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
+    // v2.35: FOOTNOTE — surface the stat-rider bonus when it fired. Each
+    // footnote unit feeds through statTotal → eff.multiplier × tierMult.
+    if (footnoteBonus > 0) {
+      pushLog(`📖 FOOTNOTE → +${footnoteBonus} dmg`);
+      logEvent('wit.footnote.cast', {
+        bonusDamage: footnoteBonus,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
@@ -5289,6 +5310,14 @@ export default function App() {
       setNotListeningCharges(c => c + fx.absorbNextDebuff);
       logBits.push(`🙉 +${fx.absorbNextDebuff} Sorry — what?`);
     }
+    // v2.35: FOOTNOTE skill — arm the picker. Hand AND discard cards (intros,
+    // subjects, modifiers) become clickable until the player picks one or
+    // cancels. The skill itself is exhausted by playCard's normal exhaust
+    // handling; the prompt is the payoff layer.
+    if (fx.footnotePrompt) {
+      setFootnotePromptActive(true);
+      logBits.push(`📖 pick a phrase to footnote`);
+    }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
@@ -5463,6 +5492,50 @@ export default function App() {
       return true;
     }
     return false;
+  }
+
+  // v2.35: FOOTNOTE — apply +1 footnote to the card instance with the given
+  // uid. Searches hand AND discard. The rider scales the card's wit stat
+  // in computeSpellDamage (introStat / subjectStat / modStat all read it).
+  // Persists through reshuffles because drawCards spreads the card object;
+  // the uid will change but `footnotes` rides along on the spread.
+  // No-op if the uid can't be found. Clears the prompt either way (the
+  // skill has already exhausted).
+  function applyFootnote(cardUid) {
+    if (!footnotePromptActive) return;
+    let applied = false;
+    setHand(h => h.map(c => {
+      if (c.uid === cardUid) {
+        applied = true;
+        return { ...c, footnotes: (c.footnotes || 0) + 1 };
+      }
+      return c;
+    }));
+    if (!applied) {
+      setDiscard(d => d.map(c => {
+        if (c.uid === cardUid) {
+          applied = true;
+          return { ...c, footnotes: (c.footnotes || 0) + 1 };
+        }
+        return c;
+      }));
+    }
+    setFootnotePromptActive(false);
+    if (applied) {
+      pushLog(`📖 Footnote attached.`);
+      logEvent('wit.footnote', { cardUid });
+    } else {
+      pushLog(`📖 Footnote skill expired (no eligible card).`);
+    }
+  }
+
+  // v2.35: FOOTNOTE — cancel an active prompt (Esc / click-outside / explicit
+  // dismiss button). The skill is already exhausted; the player just loses
+  // the install opportunity.
+  function cancelFootnotePrompt() {
+    if (!footnotePromptActive) return;
+    setFootnotePromptActive(false);
+    pushLog(`📖 Footnote skill dismissed without picking a phrase.`);
   }
 
   // Synchronous draw. Reads deck/discard/hand from closure (the state at
@@ -6402,6 +6475,9 @@ export default function App() {
       loudCount={loudCount}
       longThread={longThread}
       isWit={selectedCharacter?.lane === 'wit'}
+      footnotePromptActive={footnotePromptActive}
+      onApplyFootnote={applyFootnote}
+      onCancelFootnote={cancelFootnotePrompt}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7186,7 +7262,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        isChutzpah, stakeAmount, setStakeAmount,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
                        tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
-                       longThread = 0, isWit = false }) {
+                       longThread = 0, isWit = false,
+                       footnotePromptActive = false, onApplyFootnote, onCancelFootnote }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7521,6 +7598,23 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         </div>
       )}
 
+      {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
+          played the "As Hewn-Greaves notes in his footnotes," skill and
+          needs to pick a Word card (intro/subject/modifier) from hand or
+          discard. Clicking any eligible card bumps its `footnotes` count
+          by 1; cancelling dismisses the prompt without applying. */}
+      {footnotePromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-iris-500 bg-iris-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-iris-100">
+            <span className="font-bold">📖 Footnote:</span> click a Word card (intro / subject / modifier) in your hand or discard to attach a permanent +1 wit footnote.
+          </div>
+          <button onClick={onCancelFootnote}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
         {hand.map((card, i) => {
           // Amplify gets +1 cost per prior play this combat. UI shows the
@@ -7528,7 +7622,12 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           const effCost = card.id === 'c-amplify'
             ? (card.cost || 0) + (amplifyPlaysThisCombat || 0)
             : (card.cost || 0);
-          const playable = effCost <= energy;
+          // v2.35: FOOTNOTE picker — eligible cards are Word cards (intro,
+          // subject, modifier). When the prompt is active, those cards
+          // become clickable for footnoting INSTEAD of playing.
+          const isFootnoteEligible = footnotePromptActive
+            && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier');
+          const playable = !footnotePromptActive && effCost <= energy;
           const escalated = card.id === 'c-amplify' && amplifyPlaysThisCombat > 0;
           // Card frame tint. v2 cards: intro/subject = iris, target =
           // ember, modifier = gold. v1 fallback by card.type for utilities.
@@ -7571,9 +7670,12 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <motion.button key={card.uid}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-              onClick={() => onPlayCard(i)} disabled={!playable}
+              onClick={() => isFootnoteEligible ? onApplyFootnote(card.uid) : onPlayCard(i)}
+              disabled={!(playable || isFootnoteEligible)}
               className={`w-[180px] h-72 shrink-0 rounded-lg border-2 p-2.5 text-left flex flex-col gap-1.5 shadow-lg transition-all ${
-                playable
+                isFootnoteEligible
+                  ? `bg-iris-900/60 text-iris-100 border-iris-400 ring-2 ring-iris-400 hover:scale-105 hover:shadow-2xl cursor-pointer`
+                : playable
                   ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
@@ -7594,13 +7696,22 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 </div>
               )}
               {/* Word / intro / subject / modifier stats */}
-              {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+              {(card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq)) || (card.footnotes > 0) ? (
                 <div className="flex gap-1 flex-wrap text-xs font-mono">
-                  {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                  {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                  {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                  {card.stats?.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                  {/* v2.35: FOOTNOTE — show footnote rider inline with the wit
+                      stat. Live total = base + footnotes, with the
+                      asterisk count surfaced so the player knows which
+                      cards they've already invested in. */}
+                  {(card.stats?.wit || card.footnotes > 0) ? (
+                    <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800"
+                          title={card.footnotes > 0 ? `Wit ${(card.stats?.wit || 0) + card.footnotes} = base ${card.stats?.wit || 0} + footnotes ${card.footnotes}` : undefined}>
+                      ✨ {(card.stats?.wit || 0) + (card.footnotes || 0)}{card.footnotes > 0 ? ` ${'*'.repeat(Math.min(3, card.footnotes))}${card.footnotes > 3 ? `(${card.footnotes})` : ''}` : ''}
+                    </span>
+                  ) : null}
+                  {card.stats?.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
                 </div>
-              )}
+              ) : null}
               {/* On-stage status effects for intros/subjects — sized to be noticeable */}
               {card.effects && (card.effects.weak || card.effects.vulnerable || card.effects.block || card.effects.draw || card.effects.loseHp || card.effects.hp) && (
                 <div className="flex flex-col gap-0.5 text-sm font-bold uppercase tracking-wide">
@@ -7669,6 +7780,40 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           );
         })}
       </div>
+
+      {/* v2.35: FOOTNOTE — discard-pile picker. Renders inline below the
+          hand when the prompt is active. Only intros / subjects / modifiers
+          are eligible (target cards aren't word slots; gestures /
+          annotations / skills aren't wit-stat-bearing in the relevant
+          way). Filtering by slot keeps the picker focused on the
+          phrase-install spec. */}
+      {footnotePromptActive && (
+        <div className="mt-2 p-3 rounded border-2 border-iris-500/60 bg-iris-900/30">
+          <div className="text-xs uppercase tracking-wider text-iris-200 mb-2">
+            Discard pile — eligible cards ({discard.filter(c => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'modifier').length})
+          </div>
+          {discard.filter(c => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'modifier').length === 0 ? (
+            <div className="text-sm italic text-parchment-400">No eligible cards in discard. Pick from hand instead.</div>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              {discard.map((c, i) => {
+                if (c.slot !== 'intro' && c.slot !== 'subject' && c.slot !== 'modifier') return null;
+                const fn = c.footnotes || 0;
+                return (
+                  <button key={`${c.uid}-${i}`}
+                    onClick={() => onApplyFootnote(c.uid)}
+                    className="px-2 py-1.5 bg-iris-800 text-iris-100 rounded border border-iris-400 hover:bg-iris-700 hover:scale-105 text-xs transition-all">
+                    <div className="font-display text-sm">{c.name || c.phrase}</div>
+                    <div className="text-[10px] text-iris-300">
+                      {c.slot} · ✨ wit {(c.stats?.wit || 0) + fn}{fn > 0 ? ` (+${fn} *)` : ''}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="parchment-card p-3 max-h-40 overflow-y-auto text-sm font-quill text-parchment-200 space-y-0.5">
         {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}

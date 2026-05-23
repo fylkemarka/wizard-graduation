@@ -535,6 +535,63 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.35: FOOTNOTE skill play pass — wit lane only. Cost 1, exhausts.
+    // On play, scan hand + discard for the best wit-word card to footnote.
+    // Priority: highest base-wit card in DISCARD (those are out of rotation
+    // and re-surface via reshuffle, which makes them durable scaling); fall
+    // back to highest base-wit in HAND if discard is empty of word cards.
+    // Bias condition: only play it when a tier-2+ wit subject or intro is
+    // available to attach to (the +1 wit rider is worth ~+3 dmg post-tier
+    // on a single cast, and the card keeps scaling on every cast that
+    // re-uses it).
+    const isWitLane = state.lane === 'wit';
+    if (isWitLane) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if (c.id !== 'wv2-k-hewn-greaves-footnotes') continue;
+        if ((c.cost || 0) > state.energy) continue;
+        // Find best target. A "word" is intro / subject / modifier.
+        const isWord = (x) => x.slot === 'intro' || x.slot === 'subject' || x.slot === 'modifier';
+        const score = (x) => (x.stats?.wit || 0) + (x.footnotes || 0)
+          + (x.tier ? x.tier * 0.5 : 0);
+        let bestPile = null;
+        let bestIdx = -1;
+        let bestScore = -1;
+        for (let k = 0; k < state.discard.length; k++) {
+          const d = state.discard[k];
+          if (!isWord(d)) continue;
+          const s = score(d) + 0.5; // discard bias (preserves agency)
+          if (s > bestScore) { bestScore = s; bestPile = 'discard'; bestIdx = k; }
+        }
+        for (let k = 0; k < state.hand.length; k++) {
+          if (k === i) continue;
+          const d = state.hand[k];
+          if (!isWord(d)) continue;
+          const s = score(d);
+          if (s > bestScore) { bestScore = s; bestPile = 'hand'; bestIdx = k; }
+        }
+        // Only fire when a meaningful target exists: a tier-2+ word OR
+        // any word with base wit ≥ 2 (the +1 footnote turns base 2 → 3
+        // for free, scaling every reuse).
+        const target = bestPile === 'discard' ? state.discard[bestIdx]
+                     : bestPile === 'hand'    ? state.hand[bestIdx]
+                     : null;
+        if (!target) break;
+        const worthwhile = (target.tier || 1) >= 2 || (target.stats?.wit || 0) >= 2;
+        if (!worthwhile) break;
+        state.energy -= c.cost || 0;
+        if (bestPile === 'discard') {
+          state.discard[bestIdx] = { ...target, footnotes: (target.footnotes || 0) + 1 };
+        } else {
+          state.hand[bestIdx] = { ...target, footnotes: (target.footnotes || 0) + 1 };
+        }
+        state.exiled.push(c); // skill exhausts
+        state.hand.splice(i, 1);
+        telemetry.footnotesApplied = (telemetry.footnotesApplied || 0) + 1;
+        break;
+      }
+    }
+
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
     let passCount = 0;
@@ -947,6 +1004,14 @@ function runCombat(state, enemyId, telemetry) {
       if (tray.target?.id === 'wv2-t-natural-conclusion') {
         telemetry.naturalConclusionCasts = (telemetry.naturalConclusionCasts || 0) + 1;
       }
+      // v2.35: telemetry for FOOTNOTE-installed words contributing to the
+      // cast. footnoteBonus is the pre-modifier flat damage the rider
+      // added (each footnote ≈ multiplier × tierMult dmg). Counts every
+      // cast where the rider contributed and sums total bonus damage.
+      if ((result.footnoteBonus || 0) > 0) {
+        telemetry.footnoteCastsWithBonus = (telemetry.footnoteCastsWithBonus || 0) + 1;
+        telemetry.footnoteBonusDamage = (telemetry.footnoteBonusDamage || 0) + result.footnoteBonus;
+      }
       // v2.31: SYNERGY CAPSTONE — count "AND I'M NOT DONE." casts and the
       // total damage they dealt. The card's three riders (doubleDown,
       // loudScaling, predator) tick their own telemetry above; this is the
@@ -1237,6 +1302,21 @@ function awardReward(state) {
       return;
     }
   }
+  // v2.35: Hewn-Greaves footnote skill bias — wit lane only. The skill is
+  // uncommon (would naturally appear ~60% of rewards × ~10% slot weight
+  // for skills); the bias punches it up so sim engagement is reliably
+  // measurable. Caps at one copy so the AI doesn't hoard the prompt.
+  if (state.lane === 'wit') {
+    const ownsFootnoteSkill = allCards.some(c => c.id === 'wv2-k-hewn-greaves-footnotes');
+    if (!ownsFootnoteSkill) {
+      const fk = pool.find(c => c.id === 'wv2-k-hewn-greaves-footnotes');
+      if (fk && rnd() < 0.18) {
+        state.discard.push({ ...fk, uid: uid() });
+        state.rewardsTaken.push(fk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -1335,6 +1415,14 @@ function simRun(forcedLane = null) {
     longThreadPeakSum: 0, combatsWithThread: 0, longThreadBreaks: 0,
     threadScalingTriggers: 0, threadScalingBonusTotal: 0,
     naturalConclusionCasts: 0,
+    // v2.35: FOOTNOTE telemetry. footnotesApplied = number of times the
+    // Hewn-Greaves footnote skill resolved (incremented in the sim AI's
+    // play branch). footnoteCastsWithBonus = casts where the +footnote
+    // stat rider contributed >0 damage. footnoteBonusDamage = pre-modifier
+    // flat damage delta the riders carried in total.
+    footnotesApplied: 0,
+    footnoteCastsWithBonus: 0,
+    footnoteBonusDamage: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1485,6 +1573,11 @@ function aggregate(results) {
     threadScalingBonusTotal: results.reduce((s, r) => s + (r.threadScalingBonusTotal || 0), 0),
     naturalConclusionCasts: results.reduce((s, r) => s + (r.naturalConclusionCasts || 0), 0),
     threadRuns: results.filter(r => (r.combatsWithThread || 0) > 0).length,
+    // v2.35: FOOTNOTE metrics.
+    footnotesApplied: results.reduce((s, r) => s + (r.footnotesApplied || 0), 0),
+    footnoteCastsWithBonus: results.reduce((s, r) => s + (r.footnoteCastsWithBonus || 0), 0),
+    footnoteBonusDamage: results.reduce((s, r) => s + (r.footnoteBonusDamage || 0), 0),
+    footnoteRuns: results.filter(r => (r.footnotesApplied || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1572,6 +1665,12 @@ function buildReport(agg) {
   lines.push(`- Thread-scaling rider triggers: ${agg.threadScalingTriggers}`);
   lines.push(`- Total bonus damage from thread scaling: ${agg.threadScalingBonusTotal}`);
   lines.push(`- "natural conclusion." target casts: ${agg.naturalConclusionCasts}`);
+  lines.push('');
+  lines.push(`## Wit FOOTNOTE (v2.35)`);
+  lines.push(`- Footnotes applied: ${agg.footnotesApplied} (runs: ${agg.footnoteRuns} / ${agg.N}, ${pct(agg.footnoteRuns / agg.N)})`);
+  lines.push(`- Casts contributing footnote bonus: ${agg.footnoteCastsWithBonus}`);
+  lines.push(`- Total footnote bonus damage: ${agg.footnoteBonusDamage}`);
+  lines.push(`- Avg bonus per footnoted cast: ${agg.footnoteCastsWithBonus > 0 ? (agg.footnoteBonusDamage / agg.footnoteCastsWithBonus).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
