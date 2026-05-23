@@ -6227,7 +6227,115 @@ function TutorialCompleteScreen({ onStart, onMenu }) {
 
 // ---- CHARACTER SELECT ----
 
+// v2.19: per-character tutorial content. Each lane gets a modal that
+// teaches its signature mechanic — annotation/all-in/dice — with
+// concrete example beats. Surfaced under the character cards on the
+// selection screen so a new player can read before committing.
+const WIZARD_TUTORIALS = {
+  wit: {
+    color: 'iris',
+    icon: '📝',
+    title: 'The Wit Playstyle',
+    subtitle: 'Read the room. Read it aloud.',
+    overview: 'Wit wins by sticking persistent annotations on the enemy and letting them tick across multiple turns. Slow burn, big payoff. You are an unkindly correct librarian.',
+    sections: [
+      {
+        heading: '📝 ANNOTATION (the signature)',
+        body: 'Play an Annotation card to attach a persistent debuff to the enemy. ONE slot at a time — playing a new one replaces the old. Each annotation runs for 3 turns by default. The slot is visible as a dashed iris box under the enemy intent.',
+        examples: [
+          { name: 'Footnote on its credibility', text: '-2 to every incoming enemy attack' },
+          { name: 'Marginalia on its posture', text: 'Each card you draw deals 1 comp damage to the enemy' },
+          { name: 'Subtext, in italics', text: 'Your spells deal +4 bonus damage' },
+          { name: 'Asterisked with concern', text: 'Whenever enemy attacks, they take 3 comp damage (reactive)' },
+        ],
+      },
+      {
+        heading: '💥 BURST: Cash It In',
+        body: 'The target card "is finally answered, in full." requires an annotation attached. On cast, it EXILES the annotation and deals +5 damage per remaining turn. A 3-turn annotation cashes for +15 burst on top of the spell base. Long-duration annotations like Asterisked-with-concern (4 turns) can deliver +20.',
+      },
+      {
+        heading: '✨ AUTO-CITATION',
+        body: 'Every wit cast leaves a stub annotation (Cited in passing) if no annotation is attached — 1 composure damage per turn for 2 turns. Even casual wit casts leave a sting. Manual annotations OVERWRITE the stub, so you can plant a real annotation any turn you have one.',
+      },
+      {
+        heading: 'Your job, in one line',
+        body: 'Plant an annotation early. Cast spells under it. When the boss is close to dropping or you have a fat 4-turn annotation, fire the BURST.',
+      },
+    ],
+  },
+  chutzpah: {
+    color: 'ember',
+    icon: '💢',
+    title: 'The Chutzpah Playstyle',
+    subtitle: 'Commit. Loudly.',
+    overview: 'Chutzpah wins by trading HP for damage on the casts that matter. Big numbers, real stakes. You are Walter Sobchak at a meeting that has gone on too long.',
+    sections: [
+      {
+        heading: '💢 ALL IN (the signature)',
+        body: 'After staging a full spell (intro + subject + target), an ALL IN? row appears next to CAST. Spend 0–N HP to add bonus damage to that single cast. Bonus = HP staked × 1.0 (default). The max stake is floor(HP/4) — the stake alone can\'t kill you, but enemy attacks afterward might.',
+        examples: [
+          { name: 'No Half Measures (intro)', text: 'Stake gives +1.25 dmg per HP instead of +1' },
+          { name: '"or nothing, frankly." (target)', text: 'Stake gives +1.5 dmg per HP — common, easy pickup' },
+          { name: '"and I mean it." (target)', text: 'Refunds half the staked HP if the cast lands' },
+          { name: '"and I am not even half kidding." (modifier)', text: 'Doubles the stake bonus on this cast' },
+        ],
+      },
+      {
+        heading: '☠ Gated payoff',
+        body: '"is a big mistake. Huge." (rare target) requires 8+ HP staked. Base 18 + Chutzpah comp + 8 stake bonus = ~30 damage in a single cast. Pull this when you can afford to commit hard.',
+      },
+      {
+        heading: '🛡 Risk management',
+        body: 'Your starter has Defend (5 Block) and Compose Yourself (5 Poise) — both lane-agnostic. Stake on KILLING blows. Don\'t stake on every cast — the wasted HP adds up.',
+      },
+      {
+        heading: 'Your job, in one line',
+        body: 'Build the tray, calculate the kill, stake the gap. If you can\'t close, save the HP for the next turn.',
+      },
+    ],
+  },
+  jnsq: {
+    color: 'moss',
+    icon: '🎲',
+    title: 'The Jnsq Playstyle',
+    subtitle: 'The kitchen is rotating. Roll with it.',
+    overview: 'Jnsq wins by leaning into chaos. The dice are slightly in your favor; outcomes get weird; you draw extra cards. You are Kramer entering every room sideways.',
+    sections: [
+      {
+        heading: '🎲 CHAOS DICE (the signature)',
+        body: 'After staging a full spell, toggle 🎲 ROLL? next to CAST. On cast, a 1d6 result modifies the spell per a fixed outcome table:',
+        examples: [
+          { name: '1 — BACKFIRE', text: '0.5× damage, -3 HP (the bit didn\'t land)' },
+          { name: '2 — SPILLED IT', text: '1.0× damage, discard 1 random hand card' },
+          { name: '3 — HALF-BAKED', text: '0.75× damage, +1 Energy (the universe gives change)' },
+          { name: '4 — STICKS', text: '1.0× damage, draw 1' },
+          { name: '5 — SINGS', text: '1.25× damage, draw 1' },
+          { name: '6 — COSMIC', text: '1.75× damage, draw 2, +25% potency next cast' },
+        ],
+      },
+      {
+        heading: '📈 The math',
+        body: 'Average outcome is ~+4% damage on top of the spell, plus ~+0.5 cards drawn per cast. Rolling is statistically good over time — even with the 1-in-6 backfire. The chaos cards mitigate the downside.',
+        examples: [
+          { name: '"I have a feeling about this —" (intro)', text: 'Rerolls 1s and 2s once' },
+          { name: '"with loaded dice," (modifier, cost 0)', text: '+1 to the roll, caps at 6' },
+          { name: '"and the universe rolls a die," (modifier)', text: 'Forces a roll on this cast — no opt-in needed' },
+        ],
+      },
+      {
+        heading: '🌟 Gated payoff',
+        body: '"is the cosmic recoil." (rare target) requires you to have rolled a 6 earlier in this combat. When it fires, base 22 + Jnsq comp. The reward for chasing the chaos all the way home.',
+      },
+      {
+        heading: 'Your job, in one line',
+        body: 'Roll often. Embrace bad outcomes (they\'re survivable). Build toward a 6, then cash in with Cosmic Recoil.',
+      },
+    ],
+  },
+};
+
 function CharacterSelectScreen({ characters, onSelect }) {
+  const [tutorialLane, setTutorialLane] = useState(null);
   return (
     <div className="min-h-screen flex flex-col items-center p-6 gap-6 max-w-6xl mx-auto">
       <h2 className="font-display text-5xl text-gold-300 tracking-widest text-center">Choose Your Wizard</h2>
@@ -6237,35 +6345,99 @@ function CharacterSelectScreen({ characters, onSelect }) {
         The voice changes everything.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4 w-full">
-        {characters.map(c => (
-          <button key={c.id} onClick={() => onSelect(c.id)}
-            className="flex flex-col gap-3 p-6 bg-ink-700 border-2 border-ink-500 hover:border-gold-400 rounded-lg text-left shadow-lg transition hover:scale-[1.02] cursor-pointer">
-            <div className="text-xs uppercase tracking-widest text-gold-500">{c.lane}</div>
-            <h3 className="font-display text-3xl text-gold-300">{c.name}</h3>
-            <div className="text-sm italic text-parchment-200">{c.title}</div>
-            <p className="font-quill text-parchment-100 leading-relaxed text-sm">{c.desc}</p>
-            <div className="mt-auto pt-3 border-t border-ink-500">
-              <div className="text-xs text-stone-400 mb-1">Voice</div>
-              <div className="text-sm text-parchment-200">{c.voice}</div>
+        {characters.map(c => {
+          const tut = WIZARD_TUTORIALS[c.lane];
+          // Static class strings per lane so Tailwind's purge keeps them.
+          const tutBtnClass = c.lane === 'wit'      ? 'border-iris-500 bg-iris-900 text-iris-200 hover:bg-iris-800'
+                            : c.lane === 'chutzpah' ? 'border-ember-500 bg-ember-900 text-ember-200 hover:bg-ember-800'
+                            :                         'border-moss-500 bg-moss-900 text-moss-200 hover:bg-moss-800';
+          return (
+            <div key={c.id}
+              className="flex flex-col gap-3 p-6 bg-ink-700 border-2 border-ink-500 rounded-lg shadow-lg">
+              <div className="text-xs uppercase tracking-widest text-gold-500">{c.lane}</div>
+              <h3 className="font-display text-3xl text-gold-300">{c.name}</h3>
+              <div className="text-sm italic text-parchment-200">{c.title}</div>
+              <p className="font-quill text-parchment-100 leading-relaxed text-sm">{c.desc}</p>
+              <div className="mt-auto pt-3 border-t border-ink-500">
+                <div className="text-xs text-stone-400 mb-1">Voice</div>
+                <div className="text-sm text-parchment-200">{c.voice}</div>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {c.tagPalette.map(t => (
+                  <span key={t} className="text-[10px] uppercase tracking-wide bg-ink-600 text-parchment-300 px-2 py-0.5 rounded">{t}</span>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => onSelect(c.id)}
+                  className="flex-1 btn btn-gold text-sm py-2">
+                  Choose
+                </button>
+                {tut && (
+                  <button onClick={() => setTutorialLane(c.lane)}
+                    className={`text-sm py-2 px-3 border-2 rounded ${tutBtnClass}`}
+                    title={`Learn the ${c.lane} playstyle.`}>
+                    📖 How to play
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {c.tagPalette.map(t => (
-                <span key={t} className="text-[10px] uppercase tracking-wide bg-ink-600 text-parchment-300 px-2 py-0.5 rounded">{t}</span>
-              ))}
-            </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
       <p className="font-quill italic text-stone-400 text-xs text-center max-w-2xl mt-4">
-        Note: full per-character card pools (see design/*_V2_DESIGN.md) are in
-        progress. For now, supply-shop offers are weighted toward your lane —
-        the deck experience will deepen as each pool is implemented.
+        Each character has a unique combat mechanic. Click <b>How to play</b> for a walkthrough before committing.
       </p>
+      {tutorialLane && (
+        <WizardTutorialModal lane={tutorialLane} onClose={() => setTutorialLane(null)} />
+      )}
     </div>
   );
 }
 
-// ---- TOWN INTRO ----
+function WizardTutorialModal({ lane, onClose }) {
+  const tut = WIZARD_TUTORIALS[lane];
+  if (!tut) return null;
+  // Static class literals per lane so Tailwind's purge keeps them.
+  const c = lane === 'wit'      ? { border: 'border-iris-500',  bg: 'bg-iris-900',   accent: 'text-iris-300' }
+          : lane === 'chutzpah' ? { border: 'border-ember-500', bg: 'bg-ember-900',  accent: 'text-ember-300' }
+          :                       { border: 'border-moss-500',  bg: 'bg-moss-900',   accent: 'text-moss-300' };
+  return (
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4 overflow-y-auto">
+      <div className={`parchment-card-strong p-6 max-w-3xl w-full flex flex-col gap-4 border-2 ${c.border} my-4`}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className={`text-xs uppercase tracking-widest ${c.accent}`}>{tut.icon} How to play</div>
+            <h3 className={`font-display text-3xl ${c.accent}`}>{tut.title}</h3>
+            <p className="font-quill italic text-parchment-300 text-base">{tut.subtitle}</p>
+          </div>
+          <button onClick={onClose} className="btn bg-ink-700 text-parchment-200 text-sm px-3 py-1">Close</button>
+        </div>
+        <p className="font-quill text-parchment-100 leading-relaxed text-base">{tut.overview}</p>
+        <div className="flex flex-col gap-3">
+          {tut.sections.map((s, i) => (
+            <div key={i} className={`p-3 rounded border ${c.border} ${c.bg} bg-opacity-30`}>
+              <div className={`font-display text-lg ${c.accent}`}>{s.heading}</div>
+              <p className="text-sm font-quill text-parchment-100 leading-relaxed mt-1">{s.body}</p>
+              {s.examples && s.examples.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1">
+                  {s.examples.map((ex, j) => (
+                    <li key={j} className="text-xs text-parchment-200">
+                      <span className={`font-bold ${c.accent}`}>{ex.name}</span>
+                      <span className="text-parchment-300"> — {ex.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-center mt-2">
+          <button onClick={onClose} className="btn btn-gold text-base px-8 py-2">Got it</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SupplyShopScreen({ offers, onPick, character }) {
   if (!offers) return null;
