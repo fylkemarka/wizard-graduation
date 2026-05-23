@@ -547,12 +547,41 @@ const SMELL_WEAKNESS_CARDS = [
 const SMELL_WEAKNESS_SUBJECTS = SMELL_WEAKNESS_CARDS.filter(c => c.slot === 'subject');
 const SMELL_WEAKNESS_TARGETS  = SMELL_WEAKNESS_CARDS.filter(c => c.slot === 'target');
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS];
+// v2.31: SYNERGY CAPSTONE — "AND I'M NOT DONE." pulls together three existing
+// chutzpah primitives into one triple-rider rare. doubleDown banks a corner
+// token (Doubling Down's tax — if this doesn't kill, you bleed); loudScaling
+// reads the demanding-tag count built up that turn (Saying it Louder); and
+// predator adds +4 flat when the enemy is debuffed (Smell Weakness). All three
+// riders are already wired through computeSpellDamage and the cast pipeline —
+// this card is content-only convergence. Paired modifier "I've barely warmed
+// up," (tier-2 uncommon, demanding-tagged) lets a player stack a 3rd
+// demanding-tagged word per turn (intro+subject was the cap; modifier is the
+// extra slot), AND pumps tunnel vision toward RAGE on stage.
+const SYNERGY_CAPSTONE_CARDS = [
+  { id: 'cv2-t-and-im-not-done', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: "AND I'M NOT DONE.", tags: ['demanding', 'threatening', 'direct'],
+    effect: { scaleBy: 'chutzpah', base: 10, multiplier: 3, damageType: 'composure',
+              doubleDown: true, loudScaling: true, predator: 4 },
+    desc: 'Cast: 10 + Chutzpah×3 comp. DOUBLE DOWN (+corner token), LOUDER (+3/demanding), PREDATOR (+4 if debuffed).',
+    flavor: "The proof is that I'm still talking. Quod erat demonstrandum." },
+  { id: 'cv2-m-barely-warmed-up', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
+    modifierKind: 'pre', phrase: "I've barely warmed up,",
+    tags: ['demanding', 'swaggering'], stats: { chutzpah: 1 },
+    effects: { tunnelVision: 1 },
+    modifierEffect: { addsTag: 'demanding' },
+    desc: 'Stage: +1 Tunnel Vision. Carries demanding tag (feeds louder).',
+    flavor: 'Warmth being, in chutzpah, a one-way function.' },
+];
+
+const SYNERGY_CAPSTONE_TARGETS  = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'target');
+const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'modifier');
+
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
   intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS],
   subject: [...SUBJECTS, ...SMELL_WEAKNESS_SUBJECTS],
-  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS],
-  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS, ...SYNERGY_CAPSTONE_TARGETS],
+  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   gesture: GESTURES,
   power: [...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER],
   skill: FRANKLY_NO_SKILL,

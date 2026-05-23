@@ -839,6 +839,15 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.predatorTriggers = (telemetry.predatorTriggers || 0) + 1;
         telemetry.predatorBonusTotal = (telemetry.predatorBonusTotal || 0) + result.predatorBonus;
       }
+      // v2.31: SYNERGY CAPSTONE — count "AND I'M NOT DONE." casts and the
+      // total damage they dealt. The card's three riders (doubleDown,
+      // loudScaling, predator) tick their own telemetry above; this is the
+      // dedicated counter for the capstone itself so we can see how often
+      // it lands and how hard it hits relative to the other tier-3 targets.
+      if (tray.target?.id === 'cv2-t-and-im-not-done') {
+        telemetry.andImNotDoneCasts = (telemetry.andImNotDoneCasts || 0) + 1;
+        telemetry.andImNotDoneTotalDamage = (telemetry.andImNotDoneTotalDamage || 0) + dmg;
+      }
       // Tray clears only when a cast actually fires.
       tray = { intro: null, subject: null, target: null, modifiers: [] };
     } else {
@@ -1127,6 +1136,9 @@ function simRun(forcedLane = null) {
     // casts where the +N bonus actually fired (enemy was Vuln/Weak at cast),
     // predatorBonusTotal aggregates the +damage across the run.
     predatorTriggers: 0, predatorBonusTotal: 0,
+    // v2.31: synergy capstone — AND-IM-NOT-DONE casts + total damage. Rare-
+    // tier so the per-run count is expected to be 0-2 most runs.
+    andImNotDoneCasts: 0, andImNotDoneTotalDamage: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1264,6 +1276,10 @@ function aggregate(results) {
     predatorTriggers: results.reduce((s, r) => s + (r.predatorTriggers || 0), 0),
     predatorBonusTotal: results.reduce((s, r) => s + (r.predatorBonusTotal || 0), 0),
     predatorRuns: results.filter(r => (r.predatorTriggers || 0) > 0).length,
+    // v2.31: synergy-capstone metrics.
+    andImNotDoneCasts: results.reduce((s, r) => s + (r.andImNotDoneCasts || 0), 0),
+    andImNotDoneTotalDamage: results.reduce((s, r) => s + (r.andImNotDoneTotalDamage || 0), 0),
+    andImNotDoneRuns: results.filter(r => (r.andImNotDoneCasts || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1337,6 +1353,11 @@ function buildReport(agg) {
   lines.push(`- Predator triggers (cast hit while enemy debuffed): ${agg.predatorTriggers} (runs: ${agg.predatorRuns} / ${agg.N}, ${pct(agg.predatorRuns / agg.N)})`);
   lines.push(`- Total bonus damage from predator: ${agg.predatorBonusTotal}`);
   lines.push(`- Avg bonus per trigger: ${agg.predatorTriggers > 0 ? (agg.predatorBonusTotal / agg.predatorTriggers).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Chutzpah SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)`);
+  lines.push(`- Capstone casts: ${agg.andImNotDoneCasts} (runs: ${agg.andImNotDoneRuns} / ${agg.N}, ${pct(agg.andImNotDoneRuns / agg.N)})`);
+  lines.push(`- Total capstone damage: ${agg.andImNotDoneTotalDamage}`);
+  lines.push(`- Avg damage per capstone cast: ${agg.andImNotDoneCasts > 0 ? (agg.andImNotDoneTotalDamage / agg.andImNotDoneCasts).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
