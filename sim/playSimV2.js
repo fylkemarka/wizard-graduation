@@ -236,6 +236,8 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         playerDmgMult: state.playerDmgMult || 1.0, // v2.30
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
         longThread: state.longThread || 0, // v2.34
+        combatTurn: state._combatTurn || 1, // v2.39
+        openingExtended: !!state.openingExtended, // v2.39
       };
       // Reuse the shared formula via computeSpellDamage if intro+subject
       // are staged. Off-stage we can't compute reliably; default-pass
@@ -275,6 +277,8 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         playerDmgMult: state.playerDmgMult || 1.0, // v2.30
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
         longThread: state.longThread || 0, // v2.34
+        combatTurn: state._combatTurn || 1, // v2.39
+        openingExtended: !!state.openingExtended, // v2.39
       };
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
       const dmgType = c.effect?.damageType || 'composure';
@@ -305,6 +309,19 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
     // overrides higher-tier alternatives.
     if (c.effect?.threadScaling > 0 && state.lane === 'wit' && (state.longThread || 0) >= 1) {
       score += Math.min(25, (state.longThread || 0) * (c.effect.threadScaling || 0));
+    }
+    // v2.39: prefer openingBonus targets on turn 1 OR when openingExtended is
+    // armed. The bonus is flat +N so it most usefully lifts a tier-1 target
+    // into mid-tier territory; bias scales with the bonus to keep heavier
+    // openers (future +6/+8 variants) ahead of lighter ones. The +15 floor
+    // ensures a tier-1 opener edges out a tier-2 baseline target on turn 1
+    // (tier-2 baseline = 23, opener = 12 + 15 = 27).
+    if (c.effect?.openingBonus > 0 && state.lane === 'wit') {
+      const firstTurn = (state._combatTurn || 1) === 1;
+      const extended = !!state.openingExtended;
+      if (firstTurn || extended) {
+        score += Math.max(15, Math.min(25, (c.effect.openingBonus || 0) * 3));
+      }
     }
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
@@ -415,6 +432,11 @@ function runCombat(state, enemyId, telemetry) {
   // every end-of-turn AFTER auto-play resolves; deliver to hand when
   // turnsRemaining hits 0. Reset per combat.
   state.pendingMissteps = [];
+  // v2.39: OPENING STATEMENT — single-use bridge from the "to revisit my
+  // opening point," skill. While true, the next wit target cast in this
+  // combat gets the openingBonus even when combatTurn > 1. Consumed on
+  // any wit-lane target cast. Reset per combat.
+  state.openingExtended = false;
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
   // App's intent pool (real enemies in App.jsx fire Weak/Vuln intents AND
   // riders on attacks). Sim composite-atk model doesn't carry per-enemy
@@ -447,6 +469,10 @@ function runCombat(state, enemyId, telemetry) {
   let turns = 0;
   while (turns++ < MAX_COMBAT_TURNS) {
     state.energy = ENERGY_PER_TURN + (turns === 1 && fb.startCombatEnergy ? fb.startCombatEnergy : 0);
+    // v2.39: surface the loop's turn counter on state so pickBest* helpers and
+    // post-cast preview ctxes can read it without an extra arg. Turn 1 is the
+    // first player turn (turns++ post-increments inside the while-condition).
+    state._combatTurn = turns;
     // v2.29: reset saying-it-louder counter at the start of every player turn.
     state.loudCount = 0;
 
@@ -652,6 +678,30 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.39: OPENING STATEMENT — "to revisit my opening point," skill play
+    // pass. Wit lane only. Cost 1, non-exhaust. Conditions:
+    //   - turns > 1 (turn 1 already qualifies; no reason to spend the skill)
+    //   - openingExtended NOT already armed (no stacking — flag is boolean)
+    //   - an openingBonus target is in hand (otherwise the bridge has no
+    //     payoff to bridge TO).
+    // Single-use feel maintained by the flag-consume-on-cast in the post-cast
+    // block above.
+    if (isWitLane && (state._combatTurn || 1) > 1 && !state.openingExtended) {
+      const skillIdx = state.hand.findIndex(c => c.id === 'wv2-k-revisit-opening');
+      if (skillIdx >= 0) {
+        const sk = state.hand[skillIdx];
+        const hasOpeningTarget = state.hand.some(
+          c => c.slot === 'target' && c.lane === 'wit' && (c.effect?.openingBonus || 0) > 0);
+        if (hasOpeningTarget && (sk.cost || 0) <= state.energy) {
+          state.energy -= sk.cost || 0;
+          state.openingExtended = true;
+          state.discard.push(sk);
+          state.hand.splice(skillIdx, 1);
+          telemetry.revisitOpeningPlays = (telemetry.revisitOpeningPlays || 0) + 1;
+        }
+      }
+    }
+
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
     let passCount = 0;
@@ -835,6 +885,8 @@ function runCombat(state, enemyId, telemetry) {
           playerDmgMult: state.playerDmgMult || 1.0, // v2.30
           enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
           longThread: state.longThread || 0, // v2.34
+          combatTurn: state._combatTurn || 1, // v2.39
+          openingExtended: !!state.openingExtended, // v2.39
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const preMult = (tray.target.effect?.damageType === 'physical')
@@ -885,6 +937,8 @@ function runCombat(state, enemyId, telemetry) {
         playerDmgMult: state.playerDmgMult || 1.0, // v2.30
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
         longThread: state.longThread || 0, // v2.34
+        combatTurn: state._combatTurn || 1, // v2.39
+        openingExtended: !!state.openingExtended, // v2.39
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
@@ -1056,6 +1110,18 @@ function runCombat(state, enemyId, telemetry) {
       // scaling rider contributed across the sample.
       if (tray.target?.lane === 'wit') {
         state.castWitEffectThisTurn = true;
+        // v2.39: wit-target casts consume the openingExtended bridge. Mirrors
+        // App.jsx — the flag drops on ANY wit target, whether or not the
+        // target had an openingBonus. The bridge is spent the moment you
+        // bring the room back to the opening.
+        if (state.openingExtended) state.openingExtended = false;
+      }
+      // v2.39: telemetry for OPENING STATEMENT. Counts triggers + total
+      // bonus damage so the report can show "lifted N composure across
+      // M casts in the sample."
+      if ((result.openingBonus || 0) > 0) {
+        telemetry.openingBonusTriggers = (telemetry.openingBonusTriggers || 0) + 1;
+        telemetry.openingBonusDamageTotal = (telemetry.openingBonusDamageTotal || 0) + result.openingBonus;
       }
       if ((result.threadBonus || 0) > 0) {
         telemetry.threadScalingTriggers = (telemetry.threadScalingTriggers || 0) + 1;
@@ -1632,6 +1698,39 @@ function awardReward(state) {
       }
     }
   }
+  // v2.39: OPENING STATEMENT target bias — wit lane only. Common target with
+  // a built-in first-turn rider. ~32% bias because it's the heart of the new
+  // primitive; we want it in deck reliably so sim measures the mechanic and
+  // not draft variance. Cap at TWO copies — early turn-1 casts can chain
+  // through reshuffle if the deck cycles fast enough.
+  if (state.lane === 'wit') {
+    const openingCount = allCards.filter(c => c.id === 'wv2-t-let-me-begin').length;
+    if (openingCount < 2) {
+      const ok = pool.find(c => c.id === 'wv2-t-let-me-begin');
+      if (ok && rnd() < 0.32) {
+        state.discard.push({ ...ok, uid: uid() });
+        state.rewardsTaken.push(ok.id);
+        return;
+      }
+    }
+  }
+  // v2.39: REVISIT-OPENING skill bias — wit lane only. Uncommon Skill that
+  // pairs with the openingBonus target; only worth picking if the player
+  // already owns at least one opening target (otherwise the bridge has no
+  // payoff). ~18% bias gated by the prereq. Cap at one copy — the flag
+  // is boolean, two in hand stacks nothing.
+  if (state.lane === 'wit') {
+    const ownsOpening = allCards.some(c => c.id === 'wv2-t-let-me-begin');
+    const ownsRevisit = allCards.some(c => c.id === 'wv2-k-revisit-opening');
+    if (ownsOpening && !ownsRevisit) {
+      const rk = pool.find(c => c.id === 'wv2-k-revisit-opening');
+      if (rk && rnd() < 0.18) {
+        state.discard.push({ ...rk, uid: uid() });
+        state.rewardsTaken.push(rk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -1762,6 +1861,14 @@ function simRun(forcedLane = null) {
     missTepAutoPlayDamage: 0,
     missTepKills: 0,
     missTepDamageOut: 0,
+    // v2.39: OPENING STATEMENT telemetry. openingBonusTriggers = casts where
+    // the +N rider actually fired (turn 1 OR openingExtended armed);
+    // openingBonusDamageTotal = sum of flat bonus damage across the sample;
+    // revisitOpeningPlays = times the "to revisit my opening point," skill
+    // was played AND consumed for a target cast.
+    openingBonusTriggers: 0,
+    openingBonusDamageTotal: 0,
+    revisitOpeningPlays: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1939,6 +2046,14 @@ function aggregate(results) {
     missTepKills: results.reduce((s, r) => s + (r.missTepKills || 0), 0),
     missTepDamageOut: results.reduce((s, r) => s + (r.missTepDamageOut || 0), 0),
     missTepRuns: results.filter(r => (r.missTepCasts || 0) > 0).length,
+    // v2.39: OPENING STATEMENT aggregate. openingBonusTriggers = per-cast
+    // firings of the +N rider; openingBonusDamageTotal = total flat damage
+    // delivered by it; revisitOpeningPlays = times the bridge skill was
+    // played; openingBonusRuns = runs that hit at least one trigger.
+    openingBonusTriggers: results.reduce((s, r) => s + (r.openingBonusTriggers || 0), 0),
+    openingBonusDamageTotal: results.reduce((s, r) => s + (r.openingBonusDamageTotal || 0), 0),
+    revisitOpeningPlays: results.reduce((s, r) => s + (r.revisitOpeningPlays || 0), 0),
+    openingBonusRuns: results.filter(r => (r.openingBonusTriggers || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -2053,6 +2168,12 @@ function buildReport(agg) {
   lines.push(`- KOs by Misstep auto-play: ${agg.missTepKills}`);
   const avgDmgPerCast = agg.missTepCasts > 0 ? (agg.missTepDamageOut / agg.missTepCasts).toFixed(2) : '0.00';
   lines.push(`- Avg up-front damage / cast: ${avgDmgPerCast}`);
+  lines.push('');
+  lines.push(`## Wit OPENING STATEMENT (v2.39)`);
+  lines.push(`- Bonus triggers: ${agg.openingBonusTriggers} (runs: ${agg.openingBonusRuns} / ${agg.N}, ${pct(agg.openingBonusRuns / agg.N)})`);
+  lines.push(`- Total bonus damage: ${agg.openingBonusDamageTotal}`);
+  lines.push(`- Avg bonus / trigger: ${agg.openingBonusTriggers > 0 ? (agg.openingBonusDamageTotal / agg.openingBonusTriggers).toFixed(2) : '0.00'}`);
+  lines.push(`- Revisit-opening skill plays: ${agg.revisitOpeningPlays}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

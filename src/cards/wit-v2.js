@@ -304,6 +304,16 @@ const TARGETS = [
               delayedMisstep: { delay: 2, selfDamage: 3 } },
     desc: 'Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.',
     flavor: 'You said it with conviction. The conviction is, on reflection, the problem.' },
+  // v2.39: OPENING STATEMENT — wit's strong-start target. Tier-1 common with a
+  // built-in +4 first-turn rider. On turn 1 of combat (or in any turn extended
+  // by "to revisit my opening point,"), cast = 5 + Wit×3 + 4. Late-turn it
+  // drops back to a baseline 5 + Wit×3 — you held it too long. Pratchett-tone
+  // dovetails with the existing 'rhetorical' / 'continuing' wit cluster.
+  { id: 'wv2-t-let-me-begin', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
+    phrase: 'is what I propose to begin by saying.', tags: ['rhetorical', 'continuing'],
+    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', openingBonus: 4 },
+    desc: 'Cast: 5 + Wit×3 composure (+4 on turn 1 OR while the opening is extended).',
+    flavor: 'A standard convocation. The standard is the trick.' },
 ];
 
 // =============================================================================
@@ -463,6 +473,19 @@ const SKILLS = [
     effects: { holdOnPrep: true },
     desc: 'Skill. Arm: next enemy swing is reduced by your current Long Thread. Snapshotted on play. Clears when used OR at start of your next turn.',
     flavor: 'A pause given the same weight as the speech it interrupts.' },
+  // v2.39: TO REVISIT MY OPENING POINT — extends the opening into a later turn.
+  // Single-use per combat: on play, openingExtended flips true. The next wit
+  // target cast (this turn or a later turn) still receives its `openingBonus`
+  // damage even when combatTurn > 1; the flag clears after that cast. The
+  // skill itself is non-exhaust so the same physical copy can re-arm in a
+  // later combat, but the flag's single-use protects against multi-stacking
+  // within one fight.
+  { id: 'wv2-k-revisit-opening', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
+    name: 'to revisit my opening point,', phrase: 'to revisit my opening point,',
+    tags: ['rhetorical', 'hedge'],
+    effects: { extendOpening: true },
+    desc: 'Skill. Your next wit Effect cast this combat counts as turn 1 (its openingBonus still applies). Single-use per combat.',
+    flavor: 'Revisitation being, properly executed, a small civic ceremony.' },
 ];
 
 // v2.6: NEW MODIFIERS — say-again (×2 damage rare) + words-to-actions

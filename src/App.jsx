@@ -3216,6 +3216,13 @@ export default function App() {
   // to surface that an auto-play just fired (so the player sees the cost
   // land even on a busy log). Reset every endTurn.
   const [pendingMissteps, setPendingMissteps] = useState([]);
+  // v2.39: wit OPENING STATEMENT — first-turn scaling. combatTurn ticks +1
+  // at every endTurn (turn 1 on enterFight, turn 2 after first endTurn, etc.).
+  // openingExtended is the single-use bridge: the "to revisit my opening
+  // point," skill flips it true, and the next wit target cast consumes it
+  // (granting the openingBonus even past turn 1). Both reset per combat.
+  const [combatTurn, setCombatTurn] = useState(1);
+  const [openingExtended, setOpeningExtended] = useState(false);
   // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
   // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
@@ -4216,6 +4223,11 @@ export default function App() {
     // across fights (the apprentice gets a fresh slate when the next enemy
     // walks in).
     setPendingMissteps([]);
+    // v2.39: OPENING STATEMENT — combat turn counter reset to 1 (first turn)
+    // and any extend-opening flag from a previous combat cleared. The "to
+    // revisit my opening point," skill is intra-combat only; no carry.
+    setCombatTurn(1);
+    setOpeningExtended(false);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
     // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
@@ -4764,8 +4776,12 @@ export default function App() {
       playerDmgMult, enemyDmgMult,
       // v2.34: wit LONG THREAD — threadScaling targets read this for +N × LT
       longThread,
+      // v2.39: wit OPENING STATEMENT — openingBonus targets read combatTurn
+      // (firstTurn = 1) AND openingExtended (the "to revisit my opening point,"
+      // skill bridges a later turn back into the opening).
+      combatTurn, openingExtended,
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, openingBonus } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
     if (loudBonus > 0) {
@@ -4801,11 +4817,30 @@ export default function App() {
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
+    // v2.39: OPENING STATEMENT — surface the bonus when it fired AND consume
+    // the extend flag if it was the bridge that made this cast count. The
+    // flag drops on every wit target cast (whether the bonus actually applied
+    // or not — a wit target without `openingBonus` still spends the bridge).
+    if (openingBonus > 0) {
+      const viaExtended = openingExtended && combatTurn !== 1;
+      pushLog(`🎩 OPENING STATEMENT → +${openingBonus} dmg${viaExtended ? ' (revisited)' : ''}`);
+      logEvent('wit.opening', {
+        bonusDamage: openingBonus,
+        combatTurn, viaExtended,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
     // v2.34: any wit-lane target that resolves counts as casting a wit
     // Effect this turn — the player has "stayed on topic". End-of-turn
     // checks this together with unblockedThisTurn to tick the thread.
     if (target.lane === 'wit') {
       setCastWitEffectThisTurn(true);
+      // v2.39: a wit target cast consumes the extend flag if armed. We clear
+      // even when the target had no openingBonus (the bridge was spent the
+      // moment you brought the room back to the opening). On turn 1 the flag
+      // is mostly redundant (turn-1 already triggers the bonus), but we
+      // still consume so a future cast doesn't double-dip.
+      if (openingExtended) setOpeningExtended(false);
     }
     // Reset loudCount — the cast consumes the build-up. Future demanding
     // words in the same turn would re-arm if a second cast were possible,
@@ -5487,6 +5522,20 @@ export default function App() {
       if (snap > 0) logBits.push(`🛑 Hold on — armed (−${snap} next swing)`);
       else          logBits.push(`🛑 Hold on — armed (no thread)`);
     }
+    // v2.39: OPENING STATEMENT — "to revisit my opening point," skill arms
+    // the openingExtended flag. The next wit target cast (this turn or a
+    // later turn) still receives its openingBonus damage even past turn 1.
+    // Idempotent: re-playing the skill while already armed re-arms (cost
+    // already paid by playCard). Telemetry per play, regardless of whether
+    // a target ever cashes it in.
+    if (fx.extendOpening) {
+      setOpeningExtended(true);
+      logBits.push(`🎩 opening extended`);
+      logEvent('wit.opening.extend', {
+        combatTurn,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
@@ -6064,6 +6113,11 @@ export default function App() {
     setLoudCount(0);
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
+    // v2.39: OPENING STATEMENT — bump the combat-turn counter. The first
+    // player turn is combatTurn=1 (set on enterFight); after the first
+    // endTurn we move to turn 2, etc. openingExtended persists across
+    // turns until consumed by a wit target cast.
+    setCombatTurn(n => n + 1);
 
     // v2.24: RAGE entry. If the chutzpah TUNNEL VISION meter is at 5+
     // entering the new player turn, flip into RAGE: +50% potency for
@@ -6763,6 +6817,8 @@ export default function App() {
       holdOnArmed={holdOnArmed}
       holdOnValue={holdOnValue}
       pendingMissteps={pendingMissteps}
+      combatTurn={combatTurn}
+      openingExtended={openingExtended}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7551,7 +7607,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
                        holdOnArmed = false, holdOnValue = 0,
-                       pendingMissteps = [] }) {
+                       pendingMissteps = [],
+                       combatTurn = 1, openingExtended = false }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7708,7 +7765,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         playerHp={hp}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
         lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
-        playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult} />
+        playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
+        combatTurn={combatTurn} openingExtended={openingExtended} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -7790,6 +7848,18 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div title={`Long Thread — wit's consecutive-turn scaling. Ticks +1 at end of turn IF you cast a wit Effect AND took no unblocked HP damage. Take an unblocked hit, lose the thread. Wit threadScaling targets get +N × Long Thread on cast.`}>
               <div className="text-xs uppercase text-iris-300">Thread</div>
               <div className="text-2xl font-mono text-iris-200">🧵 {longThread}</div>
+            </div>
+          )}
+          {/* v2.39: OPENING STATEMENT — show "OPENING" pip while combat is
+              on turn 1, or "REVISIT" pip while the to-revisit-my-opening-
+              point bridge is armed. The pip tells the wit player whether
+              their openingBonus cards are currently active. */}
+          {isWit && (combatTurn === 1 || openingExtended) && (
+            <div title={openingExtended
+              ? `Opening extended — your next wit Effect cast still benefits from openingBonus damage, even though it's now turn ${combatTurn}.`
+              : `Turn 1 — wit Effect cards with openingBonus deal their bonus damage. Cast now or hold "to revisit my opening point," to keep the bonus alive into a later turn.`}>
+              <div className="text-xs uppercase text-iris-300">{openingExtended ? 'Revisit' : 'Opening'}</div>
+              <div className="text-2xl font-mono text-iris-200">🎩{openingExtended ? '↩' : ''}</div>
             </div>
           )}
           {/* v2.37: HOLD ON armed indicator. Shows the snapshotted reduction
@@ -8165,7 +8235,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
                        playerHp = 70,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
                        lastRoll = null, combatRolls = [], loudCount = 0,
-                       playerDmgMult = 1.0, enemyDmgMult = 1.0 }) {
+                       playerDmgMult = 1.0, enemyDmgMult = 1.0,
+                       combatTurn = 1, openingExtended = false }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -8181,8 +8252,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
   let predicted = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders, stakeBonus, loudBonus, predatorBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult });
-    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0 };
+    const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended });
+    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: openingBonus || 0 };
   }
   // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
   // /3 → /4 (keeps "I bleed for damage" without uncapped spirals).

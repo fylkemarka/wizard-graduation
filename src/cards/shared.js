@@ -291,6 +291,22 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage += threadBonus;
   }
 
+  // v2.39: wit OPENING STATEMENT — first-turn scaling. Targets carrying
+  // `openingBonus: N` add N flat damage on cast IF cast on the first
+  // player turn of combat OR if the "to revisit my opening point," skill
+  // has extended the opening into this turn. Flat (not tier-multiplied)
+  // so the math reads as "+N because the room hasn't settled yet."
+  // Caller passes context.combatTurn (1-indexed) AND context.openingExtended.
+  let openingBonusDmg = 0;
+  if (eff.openingBonus > 0) {
+    const firstTurn = (context.combatTurn || 0) === 1;
+    const extended = !!context.openingExtended;
+    if (firstTurn || extended) {
+      openingBonusDmg = eff.openingBonus;
+      damage += openingBonusDmg;
+    }
+  }
+
   // v2.11: chutzpah ALL IN — per-cast HP wager. context.stakeAmount is
   // the staked HP. Per-card stakeMultiplier picks the MAX value (so a
   // staged Double-or-Nothing target overrides the default 1.5×). If any
@@ -332,6 +348,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     predatorBonus, // v2.30: how much damage came from the predator rider
     threadBonus, // v2.34: how much damage came from the LONG THREAD scaling
     footnoteBonus, // v2.35: how much damage came from FOOTNOTE stat-riders
+    openingBonus: openingBonusDmg, // v2.39: how much damage came from OPENING STATEMENT
     sideEffects: {
       drawCount,
       stripBlock,
