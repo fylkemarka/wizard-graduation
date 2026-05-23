@@ -3136,6 +3136,13 @@ export default function App() {
   // 0 and restore the +0.5 bonus.
   const [tunnelVision, setTunnelVision] = useState(0);
   const [rageActive, setRageActive] = useState(false);
+  // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
+  // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
+  // (not fizzled). At end of player turn, if the enemy is still alive,
+  // the player takes cornerTokens * 2 unblocked HP damage — the bill for
+  // bravado that didn't close the deal. Resets to 0 every turn (after the
+  // damage tick fires).
+  const [cornerTokens, setCornerTokens] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
@@ -4077,6 +4084,8 @@ export default function App() {
     // v2.24: chutzpah tunnel-vision meter and RAGE state reset per combat.
     setTunnelVision(0);
     setRageActive(false);
+    // v2.25: chutzpah corner-token counter resets per combat.
+    setCornerTokens(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4756,6 +4765,16 @@ export default function App() {
       pushLog(`🩸 -${sideEffects.selfHpCost} HP (self)`);
     }
 
+    // v2.25: DOUBLING DOWN — bank a corner token when a chutzpah target
+    // with `doubleDown: true` resolves a cast. The token bills at end of
+    // turn if the enemy is still alive. Counted on RAGE-missing casts too
+    // — the cast still resolved (just at half damage), so the bravado
+    // happened and the bill comes due.
+    if (target.effect?.doubleDown) {
+      setCornerTokens(n => n + 1);
+      pushLog(`🏚 Backed into a corner: +1 token.`);
+    }
+
     // Discharge cards. Intro / subject / modifiers → discard. Target →
     // exile if requiresTier3 failed AND exhaustOnFail is set; else discard.
     // v2.24: RAGE-required targets also exile on a rage-missing cast.
@@ -5370,6 +5389,18 @@ export default function App() {
       setTunnelVision(0);
       setRageActive(false);
       pushLog(`🔥 Rage dissipates.`);
+    }
+    // v2.25: DOUBLING DOWN billing. If the player landed any chutzpah
+    // doubleDown casts this turn and the enemy is still alive, eat
+    // cornerTokens × 2 unblocked HP. Reset tokens either way.
+    if (cornerTokens > 0) {
+      const enemyAlive = enemy && enemyComposure > 0 && enemyHp > 0;
+      if (enemyAlive) {
+        const dmg = cornerTokens * 2;
+        setHp(h => Math.max(0, h - dmg));
+        pushLog(`🏚 Backed into a corner: -${dmg} HP (didn't close the deal).`);
+      }
+      setCornerTokens(0);
     }
 
     // v2.1: persistent tray. Cards staged into intro/subject/target/modifier
@@ -6080,6 +6111,8 @@ export default function App() {
       isJnsq={selectedCharacter?.lane === 'jnsq'}
       rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
       lastRoll={lastRoll} combatRolls={combatRolls}
+      tunnelVision={tunnelVision} rageActive={rageActive}
+      cornerTokens={cornerTokens}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -6862,7 +6895,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
                        castsThisTurn, maxCastsPerTurn,
                        isChutzpah, stakeAmount, setStakeAmount,
-                       isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls }) {
+                       isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
+                       tunnelVision, rageActive, cornerTokens }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7045,7 +7079,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
               meter has anything in it OR rage is active. Color: ember (chutzpah
               palette). */}
-          {(selectedCharacter?.lane === 'chutzpah' || tunnelVision > 0 || rageActive) && (
+          {(isChutzpah || tunnelVision > 0 || rageActive) && (
             <div title={`Tunnel Vision — chutzpah rage meter. At 5+ entering a turn, you enter RAGE: +50% potency for that turn, then the meter resets.`}>
               <div className="text-xs uppercase text-ember-300">Tunnel</div>
               <div className="flex items-center gap-2">
@@ -7057,6 +7091,15 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                   </span>
                 )}
               </div>
+            </div>
+          )}
+          {/* v2.25: chutzpah DOUBLING DOWN pip. Each token bills 2 unblocked
+              HP at end of turn IF the enemy is still alive. Resets every turn.
+              Shown only when non-zero. */}
+          {cornerTokens > 0 && (
+            <div title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: if enemy isn't dead, you take ${cornerTokens * 2} unblocked HP. Resets each turn.`}>
+              <div className="text-xs uppercase text-ember-300">Corner</div>
+              <div className="text-2xl font-mono text-ember-300">🏚 {cornerTokens}</div>
             </div>
           )}
           <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>

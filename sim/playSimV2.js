@@ -182,7 +182,11 @@ function pickBestForSlot(state, slot, energyLeft) {
 // v2.24: target-slot variant. Like pickBestForSlot but lets requiresRage
 // targets through ONLY when state.rageActive is true. Also prioritizes
 // Bare Knuckles when rage IS active (it's the rage payoff card).
-function pickBestForSlotRageAware(state, slot, energyLeft, rageActive) {
+// v2.25: also gates DOUBLE DOWN targets by predicted-kill — only pick a
+// doubleDown target when the predicted damage would clear the enemy's
+// remaining composure (with a 10% buffer for variance). If the cast
+// wouldn't kill, the corner-token bill is real and the AI should pass.
+function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, enemy) {
   let bestIdx = -1, bestScore = -Infinity;
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
@@ -190,10 +194,36 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive) {
     if ((c.cost || 0) > energyLeft) continue;
     const needsRage = !!c.effect?.requiresRage;
     if (needsRage && !rageActive) continue;
+    // v2.25: doubleDown gate — only pick if predicted damage kills.
+    const doubleDown = !!c.effect?.doubleDown;
+    if (doubleDown && tray && enemy) {
+      // Predict cast damage with this target staged. Mirrors the sim's
+      // own cast pipeline: base + statSum × multiplier, × tierMult, × enemy
+      // effectiveness, × playerDmgMult. Conservative — modifiers excluded.
+      const preCtx = {
+        discardSize: state.discard.length,
+        deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+        missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+        stakeAmount: 0,
+      };
+      // Reuse the shared formula via computeSpellDamage if intro+subject
+      // are staged. Off-stage we can't compute reliably; default-pass
+      // (treat as if cast wouldn't kill → skip).
+      if (!tray.intro || !tray.subject) continue;
+      const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
+      const dmgType = c.effect?.damageType || 'composure';
+      const eff = enemy.effectiveness || {};
+      const enemyMult = (dmgType === 'physical') ? (eff.physical ?? 1.0) : (eff[c.effect?.scaleBy || c.lane || 'chutzpah'] ?? 1.0);
+      const predicted = preview.damage * enemyMult * (state.playerDmgMult || 1);
+      const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
+      // 10% buffer per spec — predicted must exceed remaining × 1.1.
+      if (predicted < remaining * 1.1) continue;
+    }
     const tier = c.tier || 1;
     const stat = c.stats?.[c.lane] || 0;
     let score = tier * 10 + stat;
     if (needsRage && rageActive) score += 30; // strongly prefer Bare Knuckles in RAGE
+    if (doubleDown) score += 15; // prefer doubleDown when it WILL kill (gate already passed)
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
   return bestIdx;
@@ -230,6 +260,11 @@ function runCombat(state, enemyId, telemetry) {
   // v2.24: chutzpah TUNNEL VISION + RAGE state — per combat.
   state.tunnelVision = 0;
   state.rageActive = false;
+  // v2.25: chutzpah DOUBLING DOWN — per-turn corner-token counter.
+  // Bumped on cast when target has `doubleDown: true`. Bills 2 unblocked
+  // HP per token at end of turn if the enemy is still alive. Resets each
+  // turn either way (after billing).
+  state.cornerTokens = 0;
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
@@ -402,7 +437,9 @@ function runCombat(state, enemyId, telemetry) {
       if (!tray.target) {
         // v2.24: prefer Bare Knuckles (requiresRage) when RAGE is active.
         // Otherwise block it from staging entirely (mirrors App.jsx gate).
-        const idx = pickBestForSlotRageAware(state, 'target', state.energy, state.rageActive);
+        // v2.25: also gates doubleDown targets — only pick if the cast
+        // would kill (tray + enemy passed for damage prediction).
+        const idx = pickBestForSlotRageAware(state, 'target', state.energy, state.rageActive, tray, enemy);
         if (idx >= 0) {
           tray.target = state.hand[idx];
           state.energy -= tray.target.cost || 0;
@@ -582,6 +619,14 @@ function runCombat(state, enemyId, telemetry) {
       if (result.sideEffects.selfComposureCost) state.composure = Math.max(0, state.composure - result.sideEffects.selfComposureCost);
       if (result.sideEffects.selfHpCost) state.hp = Math.max(0, state.hp - result.sideEffects.selfHpCost);
 
+      // v2.25: DOUBLING DOWN — bank a corner token when a chutzpah
+      // doubleDown target resolved a cast. The bill comes due at end of
+      // turn if the enemy is still alive.
+      if (tray.target.effect?.doubleDown) {
+        state.cornerTokens = (state.cornerTokens || 0) + 1;
+        telemetry.doubleDownCasts = (telemetry.doubleDownCasts || 0) + 1;
+      }
+
       // Discharge cards: intro/subject/modifiers → discard; target exiles
       // on tier-3-required failure (or v2.24 rage-missing), else discard.
       state.discard.push(tray.intro, tray.subject, ...tray.modifiers);
@@ -622,7 +667,25 @@ function runCombat(state, enemyId, telemetry) {
     if (enemy.currentComp <= 0 || enemy.currentHp <= 0) {
       // v2.9: onKillHeal (Crow).
       if (fb.onKillHeal) state.hp = Math.min(state.maxHp, state.hp + fb.onKillHeal);
+      // v2.25: enemy died this turn — corner tokens DON'T bill. The kill
+      // covers the bravado. Reset for sanity, although combat is over.
+      state.cornerTokens = 0;
       return { outcome: 'won', turns, telemetry };
+    }
+
+    // v2.25: DOUBLING DOWN billing. Enemy survived → corner tokens bill
+    // unblocked HP (2 per token). Resets to 0 either way. Fires BEFORE the
+    // enemy turn so the player can be killed by an enemy attack that
+    // lands on top of the self-inflicted bill.
+    if ((state.cornerTokens || 0) > 0) {
+      const dmg = state.cornerTokens * 2;
+      state.hp = Math.max(0, state.hp - dmg);
+      telemetry.cornerTokenDamage = (telemetry.cornerTokenDamage || 0) + dmg;
+      telemetry.cornerTokenBills = (telemetry.cornerTokenBills || 0) + 1;
+      state.cornerTokens = 0;
+      if (state.hp <= 0) {
+        return { outcome: 'lost', turns, killedBy: 'cornerTokens', telemetry };
+      }
     }
 
     // Enemy turn
@@ -799,6 +862,8 @@ function simRun(forcedLane = null) {
     combatTurns: 0, combatCount: 0,
     // v2.24: chutzpah tunnel-vision / rage telemetry.
     rageTriggers: 0, bareKnucklesCasts: 0, bareKnucklesMisfires: 0,
+    // v2.25: chutzpah doubling-down telemetry.
+    doubleDownCasts: 0, cornerTokenBills: 0, cornerTokenDamage: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -908,6 +973,12 @@ function aggregate(results) {
     rageTriggerRuns: results.filter(r => (r.rageTriggers || 0) > 0).length,
     bareKnucklesCasts: results.reduce((s, r) => s + (r.bareKnucklesCasts || 0), 0),
     bareKnucklesMisfires: results.reduce((s, r) => s + (r.bareKnucklesMisfires || 0), 0),
+    // v2.25: doubling-down metrics.
+    doubleDownCasts: results.reduce((s, r) => s + (r.doubleDownCasts || 0), 0),
+    doubleDownRuns: results.filter(r => (r.doubleDownCasts || 0) > 0).length,
+    cornerTokenBills: results.reduce((s, r) => s + (r.cornerTokenBills || 0), 0),
+    cornerTokenDamage: results.reduce((s, r) => s + (r.cornerTokenDamage || 0), 0),
+    cornerTokenKOs: results.filter(r => r.killedBy === 'cornerTokens').length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -948,6 +1019,13 @@ function buildReport(agg) {
   lines.push(`- Total RAGE triggers: ${agg.rageTriggers}`);
   lines.push(`- Runs with at least one RAGE turn: ${agg.rageTriggerRuns} / ${agg.N} (${pct(agg.rageTriggerRuns / agg.N)})`);
   lines.push(`- Bare Knuckles casts: ${agg.bareKnucklesCasts} (misfires: ${agg.bareKnucklesMisfires})`);
+  lines.push('');
+  lines.push(`## Chutzpah DOUBLING DOWN (v2.25)`);
+  lines.push(`- Total double-down casts: ${agg.doubleDownCasts}`);
+  lines.push(`- Runs with at least one double-down cast: ${agg.doubleDownRuns} / ${agg.N} (${pct(agg.doubleDownRuns / agg.N)})`);
+  lines.push(`- Corner-token bills (enemy survived → -HP): ${agg.cornerTokenBills}`);
+  lines.push(`- HP lost to corner-tokens: ${agg.cornerTokenDamage}`);
+  lines.push(`- Runs KO'd by corner-tokens: ${agg.cornerTokenKOs}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

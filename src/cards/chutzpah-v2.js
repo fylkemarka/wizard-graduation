@@ -431,6 +431,20 @@ const UNIQUE_TARGETS = [
     effect: { scaleBy: 'chutzpah', base: 12, multiplier: 4, damageType: 'composure', requiresRage: true },
     desc: 'REQUIRES RAGE. 12 + Chutzpah×4 comp. Off-rage: half damage, exiled.',
     flavor: 'The discussion has moved past words.' },
+  // v2.25: DOUBLING DOWN cards — chutzpah's consequence-stack mechanic.
+  // Each `doubleDown: true` cast banks a "Backed Into A Corner" token. If
+  // the enemy is still alive at end of turn, you take 2 HP per token.
+  // Strategic gate: cast only when you're sure of the kill, or eat the bill.
+  { id: 'cv2-t-blinks-first', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
+    phrase: "or we'll see who blinks first.", tags: ['threatening', 'demanding'],
+    effect: { scaleBy: 'chutzpah', base: 6, multiplier: 3, damageType: 'composure', doubleDown: true },
+    desc: 'Cast: 6 + Chutzpah×3 comp. DOUBLE DOWN: +1 corner token. If enemy survives the turn, -2 HP.',
+    flavor: 'Blinking, in this dialect, is a verb with sequelae.' },
+  { id: 'cv2-t-last-word', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: "and that's the LAST word on it.", tags: ['demanding', 'direct', 'threatening'],
+    effect: { scaleBy: 'chutzpah', base: 10, multiplier: 4, damageType: 'composure', doubleDown: true, rider: { weak: 1 } },
+    desc: 'Cast: 10 + Chutzpah×4 comp · Weak 1. DOUBLE DOWN: +1 corner token. If enemy survives the turn, -2 HP.',
+    flavor: 'Last words being a category that tends to multiply, in chutzpah.' },
 ];
 
 export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
