@@ -409,6 +409,12 @@ function runCombat(state, enemyId, telemetry) {
   // combat.
   state.holdOnArmed = false;
   state.holdOnValue = 0;
+  // v2.38: SAYING SOMETHING WRONG — pending Misstep token queue. Each
+  // entry is `{ turnsRemaining: N, selfDamage: N }`. Created when the
+  // target's delayedMisstep rider fires on a successful cast. Decrement
+  // every end-of-turn AFTER auto-play resolves; deliver to hand when
+  // turnsRemaining hits 0. Reset per combat.
+  state.pendingMissteps = [];
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
   // App's intent pool (real enemies in App.jsx fire Weak/Vuln intents AND
   // riders on attacks). Sim composite-atk model doesn't carry per-enemy
@@ -443,6 +449,45 @@ function runCombat(state, enemyId, telemetry) {
     state.energy = ENERGY_PER_TURN + (turns === 1 && fb.startCombatEnergy ? fb.startCombatEnergy : 0);
     // v2.29: reset saying-it-louder counter at the start of every player turn.
     state.loudCount = 0;
+
+    // v2.38: SAYING SOMETHING WRONG — Misstep token discard pass. Pay 1
+    // Energy each to harmlessly discard tokens that landed in hand last
+    // turn. AI logic: ALWAYS discard if HP would not survive the auto-play
+    // self-damage (existential — eating 3 HP at <=3 HP is fatal); discard
+    // when boss/elite + HP fraction low (preserves attrition runway);
+    // otherwise let it auto-play (the 1 Energy was worth more this turn).
+    // Decides BEFORE the rest of turn planning so the energy decision is
+    // visible to the staging/casting loops below.
+    {
+      const tokIdxs = [];
+      for (let i = 0; i < state.hand.length; i++) {
+        if (state.hand[i]?.id === 'wv2-tok-misstep') tokIdxs.push(i);
+      }
+      if (tokIdxs.length > 0) {
+        const hpFrac = state.hp / state.maxHp;
+        const tougher = (enemy.tier === 'boss' || enemy.tier === 'elite');
+        // Discard policy: per-token decision (energy permitting).
+        // - Existential: hp <= selfDamage → must discard (would KO).
+        // - Low HP on boss/elite: hpFrac < 0.35 → discard.
+        // - Otherwise: eat it. The +1 cast we save matters more than the 3 HP.
+        // Iterate descending to keep indices stable as we splice.
+        for (let k = tokIdxs.length - 1; k >= 0; k--) {
+          const idx = tokIdxs[k];
+          const tok = state.hand[idx];
+          if (!tok) continue;
+          const sd = tok.selfDamage || 3;
+          const existential = state.hp <= sd;
+          const lowHpTough = tougher && hpFrac < 0.35;
+          const wantsDiscard = existential || lowHpTough;
+          if (wantsDiscard && (tok.cost || 1) <= state.energy) {
+            state.energy -= tok.cost || 1;
+            state.exiled.push(tok);
+            state.hand.splice(idx, 1);
+            telemetry.missTepDiscards = (telemetry.missTepDiscards || 0) + 1;
+          }
+        }
+      }
+    }
     // v2.9: start-of-turn block from familiar (e.g. Hedgehog).
     if (fb.startOfTurnBlock) state.block += fb.startOfTurnBlock;
     // v2.24: chutzpah RAGE entry check. If TUNNEL VISION >= 5, this turn
@@ -1049,6 +1094,20 @@ function runCombat(state, enemyId, telemetry) {
         dmgType, enemyMult: mult, physMult: mult,
         playerDmgMult: state.playerDmgMult || 1.0,
       };
+      // v2.38: SAYING SOMETHING WRONG — queue a delayed Misstep token if
+      // the cast target carried the rider. App-side fires on the SAME
+      // event (resolved cast); sim mirrors. Telemetry: missTepCasts counts
+      // the queue events, missTepDamageOut accumulates the cast's outgoing
+      // damage so we can read the up-front payoff vs the back-end cost.
+      if (tray.target?.effect?.delayedMisstep) {
+        const dm = tray.target.effect.delayedMisstep;
+        state.pendingMissteps.push({
+          turnsRemaining: dm.delay || 2,
+          selfDamage: dm.selfDamage || 3,
+        });
+        telemetry.missTepCasts = (telemetry.missTepCasts || 0) + 1;
+        telemetry.missTepDamageOut = (telemetry.missTepDamageOut || 0) + dmg;
+      }
       // Tray clears only when a cast actually fires.
       tray = { intro: null, subject: null, target: null, modifiers: [] };
     } else {
@@ -1328,6 +1387,29 @@ function runCombat(state, enemyId, telemetry) {
       return { outcome: 'lost', turns, killedBy: enemy.id, telemetry };
     }
 
+    // v2.38: SAYING SOMETHING WRONG — auto-play any Misstep tokens still in
+    // hand at end of turn. Each token = -selfDamage HP (default 3) and
+    // routes to exile (NOT discard — the token leaves play). Telemetry
+    // tracks per-run autoplay count + total self-damage; missTepKills
+    // increments if the auto-play KOs the player here.
+    {
+      const inHand = state.hand.filter(c => c?.id === 'wv2-tok-misstep');
+      if (inHand.length > 0) {
+        let totalSelfDmg = 0;
+        for (const tok of inHand) totalSelfDmg += (tok.selfDamage || 3);
+        state.hp = Math.max(0, state.hp - totalSelfDmg);
+        for (const tok of inHand) state.exiled.push(tok);
+        state.hand = state.hand.filter(c => c?.id !== 'wv2-tok-misstep');
+        telemetry.missTepAutoPlays = (telemetry.missTepAutoPlays || 0) + inHand.length;
+        telemetry.missTepAutoPlayDamage = (telemetry.missTepAutoPlayDamage || 0) + totalSelfDmg;
+        if (state.hp <= 0) {
+          telemetry.missTepKills = (telemetry.missTepKills || 0) + 1;
+          flushThreadPeak();
+          return { outcome: 'lost', turns, killedBy: 'misstep', telemetry };
+        }
+      }
+    }
+
     // End-of-turn cleanup
     state.discard.push(...state.hand);
     state.hand = [];
@@ -1386,6 +1468,31 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
     drawCards(state, HAND_SIZE);
+    // v2.38: SAYING SOMETHING WRONG — decrement pending Misstep timers and
+    // deliver any that hit zero into the freshly-drawn hand. Mirrors the
+    // App's endTurn ordering: decrement runs AFTER hand reshuffle so the
+    // token shows up "on top" of the new hand. uid is omitted (sim doesn't
+    // use it for behavior). selfDamage rides along so future variants can
+    // deliver heavier missteps without changing this code.
+    if (state.pendingMissteps.length > 0) {
+      const nextPending = [];
+      let delivered = 0;
+      for (const pm of state.pendingMissteps) {
+        const next = (pm.turnsRemaining || 0) - 1;
+        if (next <= 0) {
+          state.hand.push({ id: 'wv2-tok-misstep', name: 'Misstep', cost: 1, type: 'skill',
+                            lane: 'wit', effects: { exhaust: true, missTepDiscard: true },
+                            selfDamage: pm.selfDamage || 3 });
+          delivered += 1;
+        } else {
+          nextPending.push({ ...pm, turnsRemaining: next });
+        }
+      }
+      state.pendingMissteps = nextPending;
+      if (delivered > 0) {
+        telemetry.missTepDeliveries = (telemetry.missTepDeliveries || 0) + delivered;
+      }
+    }
   }
 
   // Stall
@@ -1503,6 +1610,24 @@ function awardReward(state) {
       if (hk && rnd() < 0.20) {
         state.discard.push({ ...hk, uid: uid() });
         state.rewardsTaken.push(hk.id);
+        return;
+      }
+    }
+  }
+  // v2.38: SAYING SOMETHING WRONG — wit lane rare target bias. Higher pick
+  // rate (~22%) than the skills because it's a damage-dealing target the
+  // tray actively needs and the deferred cost lets the player schedule it
+  // around their own hand. Caps at one copy — chaining missteps every two
+  // turns is a possible build but the auto-play accumulates fast (the
+  // 1-copy cap keeps the cost lifecycle legible in sim numbers; if Alan
+  // wants 2-copy builds tested later we can bump it).
+  if (state.lane === 'wit') {
+    const ownsSsw = allCards.some(c => c.id === 'wv2-t-saying-something-wrong');
+    if (!ownsSsw) {
+      const sk = pool.find(c => c.id === 'wv2-t-saying-something-wrong');
+      if (sk && rnd() < 0.22) {
+        state.discard.push({ ...sk, uid: uid() });
+        state.rewardsTaken.push(sk.id);
         return;
       }
     }
@@ -1627,6 +1752,16 @@ function simRun(forcedLane = null) {
     // don't count toward the impact metric).
     holdOnPlays: 0,
     holdOnDamagePrevented: 0,
+    // v2.38: SAYING SOMETHING WRONG telemetry. missTepCasts = queued; deliveries
+    // = landed in hand; discards = paid 1 Energy; autoPlays = ate -3; kills =
+    // KO'd by auto-play; damageOut = the up-front cast damage from the target.
+    missTepCasts: 0,
+    missTepDeliveries: 0,
+    missTepDiscards: 0,
+    missTepAutoPlays: 0,
+    missTepAutoPlayDamage: 0,
+    missTepKills: 0,
+    missTepDamageOut: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1791,6 +1926,19 @@ function aggregate(results) {
     holdOnPlays: results.reduce((s, r) => s + (r.holdOnPlays || 0), 0),
     holdOnDamagePrevented: results.reduce((s, r) => s + (r.holdOnDamagePrevented || 0), 0),
     holdOnRuns: results.filter(r => (r.holdOnPlays || 0) > 0).length,
+    // v2.38: SAYING SOMETHING WRONG aggregate. missTepCasts = number of
+    // times the cast resolved AND queued a token. missTepDeliveries =
+    // number of tokens that actually landed in hand. missTepDiscards =
+    // tokens paid off for 1 Energy. missTepAutoPlays = tokens eaten by
+    // auto-play. missTepKills = runs where the auto-play KO'd the player.
+    missTepCasts: results.reduce((s, r) => s + (r.missTepCasts || 0), 0),
+    missTepDeliveries: results.reduce((s, r) => s + (r.missTepDeliveries || 0), 0),
+    missTepDiscards: results.reduce((s, r) => s + (r.missTepDiscards || 0), 0),
+    missTepAutoPlays: results.reduce((s, r) => s + (r.missTepAutoPlays || 0), 0),
+    missTepAutoPlayDamage: results.reduce((s, r) => s + (r.missTepAutoPlayDamage || 0), 0),
+    missTepKills: results.reduce((s, r) => s + (r.missTepKills || 0), 0),
+    missTepDamageOut: results.reduce((s, r) => s + (r.missTepDamageOut || 0), 0),
+    missTepRuns: results.filter(r => (r.missTepCasts || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1895,6 +2043,16 @@ function buildReport(agg) {
   lines.push(`- Plays: ${agg.holdOnPlays} (runs: ${agg.holdOnRuns} / ${agg.N}, ${pct(agg.holdOnRuns / agg.N)})`);
   lines.push(`- Total damage prevented: ${agg.holdOnDamagePrevented}`);
   lines.push(`- Avg prevention / play: ${agg.holdOnPlays > 0 ? (agg.holdOnDamagePrevented / agg.holdOnPlays).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Wit SAYING SOMETHING WRONG (v2.38)`);
+  lines.push(`- Casts that queued a Misstep: ${agg.missTepCasts} (runs: ${agg.missTepRuns} / ${agg.N}, ${pct(agg.missTepRuns / agg.N)})`);
+  lines.push(`- Up-front damage dealt by those casts: ${agg.missTepDamageOut}`);
+  lines.push(`- Tokens delivered to hand: ${agg.missTepDeliveries}`);
+  lines.push(`- Discarded (1 Energy paid): ${agg.missTepDiscards}`);
+  lines.push(`- Auto-played (-3 HP eaten): ${agg.missTepAutoPlays} (total damage: ${agg.missTepAutoPlayDamage})`);
+  lines.push(`- KOs by Misstep auto-play: ${agg.missTepKills}`);
+  const avgDmgPerCast = agg.missTepCasts > 0 ? (agg.missTepDamageOut / agg.missTepCasts).toFixed(2) : '0.00';
+  lines.push(`- Avg up-front damage / cast: ${avgDmgPerCast}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

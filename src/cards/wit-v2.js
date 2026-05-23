@@ -291,6 +291,19 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 14, multiplier: 3, damageType: 'composure',
              requiresTier3: { failureDamageMult: 0.5, exhaustOnFail: true } },
     flavor: 'Em dashes can carry a great deal. Not, however, this.' },
+  // v2.38: SAYING SOMETHING WRONG — wit's delayed-consequence target. Heavy
+  // damage now; in TWO turns a "Misstep" token appears in your hand. The
+  // token can be paid off for 1 Energy (discard, exhaust) or it auto-plays
+  // at end of that turn for 3 HP self-damage and exhausts. The Pratchettian
+  // beat is the long pause between the assertion and the realising-you-
+  // were-wrong; mechanically it's the wit version of chutzpah's corner
+  // tokens — bravado that has to be reckoned with later.
+  { id: 'wv2-t-saying-something-wrong', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is, I am afraid, where you said something rather wrong.', tags: ['academic', 'cutting'],
+    effect: { scaleBy: 'wit', base: 13, multiplier: 3, damageType: 'composure',
+              delayedMisstep: { delay: 2, selfDamage: 3 } },
+    desc: 'Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.',
+    flavor: 'You said it with conviction. The conviction is, on reflection, the problem.' },
 ];
 
 // =============================================================================

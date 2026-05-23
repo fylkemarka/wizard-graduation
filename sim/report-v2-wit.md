@@ -3,32 +3,32 @@
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **4 wins / 100** = **4.0%**
-- Losses by acts-cleared: 0=50 · 1=39 · 2=7 · 3=0
+- **6 wins / 100** = **6.0%**
+- Losses by acts-cleared: 0=52 · 1=36 · 2=6 · 3=0
 
 ## Lane outcomes
-- **wit**: 100 runs · 4 wins (4.0%)
+- **wit**: 100 runs · 6 wins (6.0%)
 - **chutzpah**: 0 runs · 0 wins (0.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-mouse**: 10 runs · 1 wins (10.0%)
-- **fam-rabbit**: 10 runs · 1 wins (10.0%)
-- **fam-snake**: 10 runs · 1 wins (10.0%)
-- **fam-raven**: 14 runs · 1 wins (7.1%)
-- **fam-crow**: 10 runs · 0 wins (0.0%)
-- **fam-owl**: 10 runs · 0 wins (0.0%)
-- **fam-beetle**: 11 runs · 0 wins (0.0%)
-- **fam-cat**: 7 runs · 0 wins (0.0%)
-- **fam-toad**: 8 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 10 runs · 0 wins (0.0%)
+- **fam-rabbit**: 9 runs · 3 wins (33.3%)
+- **fam-raven**: 7 runs · 1 wins (14.3%)
+- **fam-crow**: 10 runs · 1 wins (10.0%)
+- **fam-hedgehog**: 11 runs · 1 wins (9.1%)
+- **fam-toad**: 17 runs · 0 wins (0.0%)
+- **fam-mouse**: 13 runs · 0 wins (0.0%)
+- **fam-cat**: 11 runs · 0 wins (0.0%)
+- **fam-snake**: 10 runs · 0 wins (0.0%)
+- **fam-owl**: 4 runs · 0 wins (0.0%)
+- **fam-beetle**: 8 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 2034
-- Tier 1 (COHERENT): 1906 (93.7%)
-- Tier 2 (RESONANT): 127 (6.2%)
-- Tier 3 (DEVASTATING): 1 (0.0%)
-- Holds (turn ended without cast — tray persists): 1159 (36.3%)
+- Total casts: 1981
+- Tier 1 (COHERENT): 1723 (87.0%)
+- Tier 2 (RESONANT): 246 (12.4%)
+- Tier 3 (DEVASTATING): 12 (0.6%)
+- Holds (turn ended without cast — tray persists): 1144 (36.6%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -74,49 +74,57 @@ N = **100** runs simulated with a greedy v2 AI.
 - Avg absorbs per skill cast: 0.00
 
 ## Wit LONG THREAD (v2.34)
-- Combats reaching LT ≥ 1: 266 (runs: 87 / 100, 87.0%)
-- Avg peak LT per run (across all combats): 2.96
-- Avg peak LT per threaded combat: 1.11
-- Thread breaks (unblocked hit reset a non-zero meter): 188
-- Thread-scaling rider triggers: 1
-- Total bonus damage from thread scaling: 3
-- "natural conclusion." target casts: 32
+- Combats reaching LT ≥ 1: 237 (runs: 89 / 100, 89.0%)
+- Avg peak LT per run (across all combats): 2.48
+- Avg peak LT per threaded combat: 1.05
+- Thread breaks (unblocked hit reset a non-zero meter): 164
+- Thread-scaling rider triggers: 2
+- Total bonus damage from thread scaling: 6
+- "natural conclusion." target casts: 10
 
 ## Wit FOOTNOTE (v2.35)
-- Footnotes applied: 57 (runs: 55 / 100, 55.0%)
-- Casts contributing footnote bonus: 185
-- Total footnote bonus damage: 570
-- Avg bonus per footnoted cast: 3.08
+- Footnotes applied: 54 (runs: 54 / 100, 54.0%)
+- Casts contributing footnote bonus: 188
+- Total footnote bonus damage: 610
+- Avg bonus per footnoted cast: 3.24
 
 ## Wit ACTUALLY— (v2.36)
-- Re-fires resolved: 168 (runs: 39 / 100, 39.0%)
-- Total re-fire damage: 4719
-- Avg damage / re-fire: 28.09
-- Enemy bonus from arguing-back: 46 (cost side fired)
+- Re-fires resolved: 170 (runs: 42 / 100, 42.0%)
+- Total re-fire damage: 4977
+- Avg damage / re-fire: 29.28
+- Enemy bonus from arguing-back: 66 (cost side fired)
 
 ## Wit HOLD ON — (v2.37)
-- Plays: 10 (runs: 8 / 100, 8.0%)
-- Total damage prevented: 9
-- Avg prevention / play: 0.90
+- Plays: 7 (runs: 7 / 100, 7.0%)
+- Total damage prevented: 5
+- Avg prevention / play: 0.71
+
+## Wit SAYING SOMETHING WRONG (v2.38)
+- Casts that queued a Misstep: 159 (runs: 42 / 100, 42.0%)
+- Up-front damage dealt by those casts: 5364
+- Tokens delivered to hand: 57
+- Discarded (1 Energy paid): 0
+- Auto-played (-3 HP eaten): 48 (total damage: 144)
+- KOs by Misstep auto-play: 0
+- Avg up-front damage / cast: 33.74
 
 ## Combat pacing
-- Avg turns / combat: 4.34
-- Avg damage / run: 410
-- Mean final deck size: 13.3
+- Avg turns / combat: 4.25
+- Avg damage / run: 431
+- Mean final deck size: 14.3
 
 ## Archetype of winning decks
-- mid-t2t3: 4
+- mid-t2t3: 5
+- low-tier: 1
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 28
-- e2-silent-spinner (The Silent Spinner): 13
-- e3-boss-anvil (The Anvil-Forged): 13
-- e3-vein-devourer (Vein Devourer): 12
-- e2-pattern-maker (The Pattern-Maker): 9
+- e2-boss-tapestry (The Tapestry Walker): 32
+- e2-silent-spinner (The Silent Spinner): 15
+- e3-boss-anvil (The Anvil-Forged): 15
+- e3-vein-devourer (Vein Devourer): 14
 - e1-boss-thornlord (The Thornlord): 5
-- e3-glow-mite (Glow-Mite Swarm): 4
+- e2-pattern-maker (The Pattern-Maker): 5
 - e3-geode-crab (Geode Crab): 4
-- e3-crystal-beetle (Crystal Beetle): 3
-- e3-quartz-sentinel (Quartz Sentinel): 3
+- e3-quartz-sentinel (Quartz Sentinel): 2
+- e3-glow-mite (Glow-Mite Swarm): 1
 - e1-thicket (Living Thicket): 1
-- e1-tutor (Stern Tutor): 1

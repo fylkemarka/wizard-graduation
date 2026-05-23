@@ -408,6 +408,25 @@ const FAMILIARS = [
 const FAMILIARS_BY_ID = Object.fromEntries(FAMILIARS.map(f => [f.id, f]));
 const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 
+// v2.38: MISSTEP TOKEN — the delayed-consequence card delivered to hand
+// 2 turns after casting "Saying Something Wrong." Not in the draft pool;
+// only spawned by the delayedMisstep mechanic. Manual play: pay 1 Energy,
+// exhausts (the player paid for the silence). Auto-play at end of turn
+// while still in hand: 3 HP self-damage, exhausts (the realisation lands
+// on you, hard). Either way it leaves play — it never enters discard.
+const MISSTEP_TOKEN = {
+  id: 'wv2-tok-misstep',
+  name: 'Misstep',
+  type: 'skill',
+  lane: 'wit',
+  rarity: 'token',
+  cost: 1,
+  tags: ['token', 'consequence'],
+  effects: { exhaust: true, missTepDiscard: true },
+  desc: 'Token. Discard for 1 Energy (exhausts). If still in hand at end of turn: -3 HP and exhausts.',
+  flavor: 'A sentence you said two turns ago. It has, in the meantime, ripened.',
+};
+
 // 11-card starter. One word per stat (chutzpah / wit / jnsq), one
 // composure effect per stat (Bluster / Persuade / Bewilder), Spark for
 // a guaranteed physical option against verbal-immune enemies, Channel
@@ -3186,6 +3205,17 @@ export default function App() {
   // interrupt the NEXT thing they say"). Reset to false / 0 in enterFight.
   const [holdOnArmed, setHoldOnArmed] = useState(false);
   const [holdOnValue, setHoldOnValue] = useState(0);
+  // v2.38: SAYING SOMETHING WRONG — pending misstep tokens. Each entry is
+  // `{ turnsRemaining: N }`. Created when Saying Something Wrong casts
+  // (delay 2). Decrements at end of each player turn AFTER auto-play
+  // resolves; when an entry reaches 0, a Misstep token card is delivered
+  // into the new turn's hand during the endTurn pile-composition pass.
+  // Reset to [] in enterFight (never persists between combats).
+  //
+  // missTepAutoPlayedThisTurn is the per-turn flag used by the UI banner
+  // to surface that an auto-play just fired (so the player sees the cost
+  // land even on a busy log). Reset every endTurn.
+  const [pendingMissteps, setPendingMissteps] = useState([]);
   // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
   // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
@@ -4181,6 +4211,11 @@ export default function App() {
     // v2.37: HOLD ON — reactive interrupt flag + snapshot reset per combat.
     setHoldOnArmed(false);
     setHoldOnValue(0);
+    // v2.38: SAYING SOMETHING WRONG — pending tokens reset per combat. The
+    // delay/consequence loop is intra-combat only; a misstep doesn't carry
+    // across fights (the apprentice gets a fresh slate when the next enemy
+    // walks in).
+    setPendingMissteps([]);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
     // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
@@ -4519,6 +4554,17 @@ export default function App() {
       return;
     }
 
+    // v2.38: SAYING SOMETHING WRONG — Misstep token manual discard. The
+    // token enters the regular skill-play path; we intercept here to log
+    // the "took it back" choice cleanly and add telemetry. The token's
+    // `exhaust: true` flag routes it to exiled via the standard path
+    // below, so we fall through after the log + event.
+    if (card.id === MISSTEP_TOKEN.id) {
+      pushLog(`📜 Misstep discarded (1 Energy spent). The room moves on.`);
+      logEvent('wit.missTepDiscarded', {
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
     // SKILL CARD — pure utility, no stat / spell. Fires immediately.
     const fx = card.effects || {};
     applySideEffects(fx, logBits);
@@ -4954,6 +5000,24 @@ export default function App() {
     if (target.effect?.doubleDown) {
       setCornerTokens(n => n + 1);
       pushLog(`🏚 Backed into a corner: +1 token.`);
+    }
+
+    // v2.38: SAYING SOMETHING WRONG — queue a delayed Misstep token. The
+    // rider fires on every successful cast of the target (including
+    // RAGE-missing casts and tier-3 fails — the words were said either
+    // way, the realisation arrives on the same timetable). `turnsRemaining`
+    // starts at delay+1 because the endTurn decrement fires BEFORE the
+    // delivery check, so an initial value of 2 means "lands two end-of-turns
+    // from now" — i.e. delivered to hand at the start of turn N+2.
+    if (target.effect?.delayedMisstep) {
+      const dm = target.effect.delayedMisstep;
+      const delay = dm.delay || 2;
+      setPendingMissteps(arr => [...arr, { turnsRemaining: delay, selfDamage: dm.selfDamage || 3 }]);
+      pushLog(`📜 A misstep is in motion — lands in ${delay} turn${delay === 1 ? '' : 's'}.`);
+      logEvent('wit.missTepQueued', {
+        delay, selfDamage: dm.selfDamage || 3,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
     }
 
     // v2.36: ACTUALLY— snapshot. Capture intro/subject/target/modifiers plus
@@ -5745,6 +5809,40 @@ export default function App() {
       setCornerTokens(0);
     }
 
+    // v2.38: SAYING SOMETHING WRONG — auto-play any Misstep tokens still in
+    // hand at end of turn. Each token = -3 HP self-damage (snapshotted from
+    // the queue, default 3) and exhausts. This happens BEFORE the hand
+    // merges into discard so the tokens are diverted to exile, not cycled
+    // back into the deck. The "did the player let it ride" branch — they
+    // either pay 1 Energy to discard during their turn, or eat it now.
+    // Telemetry routed through logEvent so the report can read aggregate
+    // auto-play counts.
+    const missteppedInHand = hand.filter(c => c?.id === MISSTEP_TOKEN.id);
+    let endTurnHand = hand;
+    let postMisstepHp = hp;
+    if (missteppedInHand.length > 0) {
+      let totalSelfDmg = 0;
+      for (const tok of missteppedInHand) totalSelfDmg += (tok.selfDamage || 3);
+      postMisstepHp = Math.max(0, hp - totalSelfDmg);
+      setHp(postMisstepHp);
+      setExiled(ex => [...ex, ...missteppedInHand]);
+      pushLog(`📜 Misstep × ${missteppedInHand.length} auto-played: -${totalSelfDmg} HP. (You should not have said that.)`);
+      logEvent('wit.missTepAutoPlay', {
+        count: missteppedInHand.length, selfDamage: totalSelfDmg,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+      endTurnHand = hand.filter(c => c?.id !== MISSTEP_TOKEN.id);
+      // If the misstep just killed the player, route into the defeat screen
+      // (same path as enemy KO) and short-circuit the rest of endTurn so
+      // we don't run the enemy intent / hand reshuffle on a corpse.
+      if (postMisstepHp <= 0) {
+        logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: 0, composureAfter: composure });
+        logEvent(TE.RUN_END, { outcome: 'lost', killedBy: 'misstep', actIdx: currentActIdx, finalDeckSize: deck.length + hand.length + discard.length + exiled.length });
+        setTimeout(() => setStage('defeat'), 200);
+        return;
+      }
+    }
+
     // v2.1: persistent tray. Cards staged into intro/subject/target/modifier
     // slots carry across turns until the spell casts. This replaces the old
     // fizzle-on-turn-end behavior — players can now compose a sentence
@@ -5857,7 +5955,9 @@ export default function App() {
 
     // 4-5. Compose the new turn's piles + start-of-turn triggers
     //      synchronously, then commit all related state in one pass.
-    const stagedDiscard = [...discard, ...hand];
+    // v2.38: endTurnHand is hand minus any Misstep tokens that auto-played
+    // above — those went to exile, not discard, and shouldn't recycle.
+    const stagedDiscard = [...discard, ...endTurnHand];
     const drawn = drawFromPiles(deck, stagedDiscard, HAND_SIZE);
     let wDeck     = drawn.deck;
     let wDiscard  = drawn.discard;
@@ -5923,6 +6023,32 @@ export default function App() {
       }
       pushLog(bits.join(' · '));
     }
+
+    // v2.38: SAYING SOMETHING WRONG — decrement pending Misstep timers and
+    // deliver any that hit zero into the new turn's hand. Decrement runs
+    // EVERY endTurn (it's the "two turns later" clock); a delay-2 cast on
+    // turn N ticks at end of turn N (→1), end of turn N+1 (→0, delivered
+    // into the wHand for turn N+2). The fresh token has a new uid and the
+    // selfDamage payload it was created with, so a future card variant
+    // that delivers heavier missteps can ride the same pipe.
+    let nextPending = [];
+    let deliveredCount = 0;
+    for (const pm of pendingMissteps) {
+      const next = (pm.turnsRemaining || 0) - 1;
+      if (next <= 0) {
+        wHand.push({ ...MISSTEP_TOKEN, uid: uid(), selfDamage: pm.selfDamage || 3 });
+        deliveredCount += 1;
+      } else {
+        nextPending.push({ ...pm, turnsRemaining: next });
+      }
+    }
+    if (deliveredCount > 0) {
+      pushLog(`📜 Misstep × ${deliveredCount} surfaces in your hand. Play it (1 Energy) or eat -3 HP.`);
+      logEvent('wit.missTepDelivered', {
+        count: deliveredCount, enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
+    setPendingMissteps(nextPending);
 
     // Commit.
     setDeck(wDeck);
@@ -6636,6 +6762,7 @@ export default function App() {
       arguingBackThisTurn={arguingBackThisTurn}
       holdOnArmed={holdOnArmed}
       holdOnValue={holdOnValue}
+      pendingMissteps={pendingMissteps}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7423,7 +7550,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        longThread = 0, isWit = false,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
-                       holdOnArmed = false, holdOnValue = 0 }) {
+                       holdOnArmed = false, holdOnValue = 0,
+                       pendingMissteps = [] }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7675,6 +7803,25 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               <div className="text-2xl font-mono text-iris-200">🛑 −{holdOnValue}</div>
             </div>
           )}
+          {/* v2.38: SAYING SOMETHING WRONG pip. Shows pending Misstep tokens
+              counting down (the off-stage clock) AND the count of Misstep
+              tokens currently in hand (the actual decision). Together: how
+              many shoes are about to drop, and how many are already on the
+              floor. Iris palette since this is a wit mechanic. */}
+          {(pendingMissteps.length > 0 || (hand || []).some(c => c?.id === 'wv2-tok-misstep')) && (() => {
+            const inHand = (hand || []).filter(c => c?.id === 'wv2-tok-misstep').length;
+            const pendingTxt = pendingMissteps.length > 0
+              ? pendingMissteps.map(p => `T-${p.turnsRemaining}`).join(' · ')
+              : '—';
+            return (
+              <div title={`Missteps in flight. ${inHand > 0 ? `${inHand} in hand: discard for 1 Energy, or end-of-turn = -3 HP each. ` : ''}Pending: ${pendingTxt}.`}>
+                <div className="text-xs uppercase text-iris-300">Misstep</div>
+                <div className="text-2xl font-mono text-iris-200">
+                  📜 {inHand > 0 ? <span className="text-ember-300">{inHand}!</span> : pendingMissteps.length}
+                </div>
+              </div>
+            );
+          })()}
           <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
             <div className="text-xs uppercase text-parchment-300">Deck</div>
             <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
@@ -7815,9 +7962,14 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           const actuallyBlocked = isActuallySkill && !lastCastSnapshot;
           const playable = !footnotePromptActive && effCost <= energy && !actuallyBlocked;
           const escalated = card.id === 'c-amplify' && amplifyPlaysThisCombat > 0;
+          // v2.38: Misstep token override — bright red dashed border so it
+          // stands out as an active hazard in hand. Pratchett tone: the
+          // realisation that you said something wrong is visible on you.
+          const isMisstepTok = card.id === 'wv2-tok-misstep';
           // Card frame tint. v2 cards: intro/subject = iris, target =
           // ember, modifier = gold. v1 fallback by card.type for utilities.
-          const tint = card.slot === 'intro' || card.slot === 'subject' ? 'border-iris-500'
+          const tint = isMisstepTok ? 'border-red-500 border-dashed'
+                     : card.slot === 'intro' || card.slot === 'subject' ? 'border-iris-500'
                      : card.slot === 'target' ? 'border-ember-500'
                      : card.slot === 'modifier' ? 'border-gold-500'
                      : card.slot === 'annotation' ? 'border-iris-400 border-dashed' // v2.10
