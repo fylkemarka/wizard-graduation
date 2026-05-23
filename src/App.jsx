@@ -3160,6 +3160,20 @@ export default function App() {
   // without applying. The skill is exhausted at play time either way —
   // the prompt is the payoff window.
   const [footnotePromptActive, setFootnotePromptActive] = useState(false);
+  // v2.36: ACTUALLY— state. lastCastSnapshot captures the most recent cast
+  // this turn (intro/subject/target/modifiers + the ctx that was used to
+  // resolve damage). Reset to null at the start of every player turn AND
+  // on combat entry. When the player plays the "Actually—" skill, the
+  // refireLastCast effect re-computes damage from this snapshot at ×1.5
+  // and applies it to the enemy. We deliberately re-fire DAMAGE ONLY
+  // (no rider re-application, no annotation auto-attach, no tray clear)
+  // so the side-effects don't double-trigger.
+  //
+  // arguingBackThisTurn is the player-side stacking debuff. Each Actually—
+  // played this turn bumps it +1; enemy attacks this turn add this value
+  // to their raw damage. Reset to 0 at end of every player turn.
+  const [lastCastSnapshot, setLastCastSnapshot] = useState(null);
+  const [arguingBackThisTurn, setArguingBackThisTurn] = useState(0);
   // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
   // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
@@ -4148,6 +4162,10 @@ export default function App() {
     // instances are rebuilt at combat start (uids re-issued, footnotes
     // reset to 0 implicitly since no skill has fired yet).
     setFootnotePromptActive(false);
+    // v2.36: ACTUALLY— state. lastCastSnapshot starts null (no casts yet);
+    // arguingBackThisTurn starts 0. Both never persist between combats.
+    setLastCastSnapshot(null);
+    setArguingBackThisTurn(0);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
     // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
@@ -4923,6 +4941,26 @@ export default function App() {
       pushLog(`🏚 Backed into a corner: +1 token.`);
     }
 
+    // v2.36: ACTUALLY— snapshot. Capture intro/subject/target/modifiers plus
+    // the ctx that drove damage, BEFORE we discharge the cards. The
+    // re-fire path re-calls computeSpellDamage on this snapshot at ×1.5,
+    // so the staged-card references must be the SAME objects (footnote
+    // riders, tier, tags, etc.) that resolved this cast — not freshly-
+    // drawn copies. Snapshot taken on every successful cast (last write
+    // wins), reset to null at end-of-turn.
+    setLastCastSnapshot({
+      intro, subject, target, modifiers,
+      ctx, // re-use the same context that drove the original cast
+      // Capture the resolved damage path so the re-fire applies through
+      // the same effectiveness + pool routing. flippedDmgType wins over
+      // eff.damageType when set (modifier-driven physical/composure flip).
+      dmgType,
+      enemyMult, physMult, // captured AFTER pierce resolved
+      // playerDmgMult drifts each turn; capture the value used so the
+      // re-fire on the SAME turn matches what the original cast saw.
+      playerDmgMult,
+    });
+
     // Discharge cards. Intro / subject / modifiers → discard. Target →
     // exile if requiresTier3 failed AND exhaustOnFail is set; else discard.
     // v2.24: RAGE-required targets also exile on a rage-missing cast.
@@ -5317,6 +5355,44 @@ export default function App() {
     if (fx.footnotePrompt) {
       setFootnotePromptActive(true);
       logBits.push(`📖 pick a phrase to footnote`);
+    }
+    // v2.36: ACTUALLY— re-fire the last cast at ×1.5. Reads lastCastSnapshot
+    // captured at the end of castV2SentenceSpell. If null (no cast this turn),
+    // no-op — the UI should have disabled the card already. Re-applies DAMAGE
+    // ONLY (we deliberately skip rider re-application, annotation auto-attach,
+    // sideEffect re-resolution, and tray clearing — the spec says "directly
+    // re-resolve the last cast's damage formula"). Also stacks +1 to
+    // arguingBackThisTurn (player-side debuff that bumps enemy raw damage).
+    if (fx.refireLastCast) {
+      if (lastCastSnapshot) {
+        const snap = lastCastSnapshot;
+        const reResult = computeSpellDamage(
+          snap.intro, snap.subject, snap.target, snap.modifiers || [], snap.ctx || {});
+        let reDmg = reResult.damage;
+        // Re-apply the same effectiveness + playerDmgMult routing the snapshot
+        // resolved through. We use the captured per-fire multipliers so any
+        // drift between the original cast and the re-fire (turn-end decay)
+        // doesn't change the math — Actually— recasts the room as it was.
+        if (snap.dmgType === 'physical') reDmg = Math.round(reDmg * (snap.physMult ?? 1.0));
+        else                              reDmg = Math.round(reDmg * (snap.enemyMult ?? 1.0));
+        reDmg = Math.round(reDmg * (snap.playerDmgMult ?? 1.0));
+        reDmg = Math.round(reDmg * 1.5);
+        if (snap.dmgType === 'physical') applyDamageToEnemyHp(reDmg);
+        else                              applyDamageToEnemyComposure(reDmg);
+        pushLog(`✏ Actually— ${reDmg} ${snap.dmgType === 'physical' ? 'phys' : 'comp'} (re-fire ×1.5).`);
+        logEvent('wit.actually', {
+          bonusDamage: reDmg, dmgType: snap.dmgType,
+          enemyId: enemy?.id, enemyTier: enemy?.tier,
+        });
+      } else {
+        // Defensive — UI should have blocked this, but log if it slipped.
+        pushLog(`✏ Actually— … but there's nothing to correct.`);
+      }
+      // The "arguing back" cost stacks regardless of whether a snapshot
+      // existed (cast already exhausted via playCard, so the energy was
+      // spent — the bill comes due either way).
+      setArguingBackThisTurn(n => n + 1);
+      logBits.push(`🗣 +1 arguing back`);
     }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
@@ -5715,6 +5791,15 @@ export default function App() {
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
 
+    // v2.36: ACTUALLY— reset per-turn state. arguingBackThisTurn is the
+    // enemy-side surcharge; it cleared during the enemy intent that already
+    // resolved above (the bill came due this turn). lastCastSnapshot is the
+    // re-fire target; nuking it ensures Actually— on turn N+1 has no cast
+    // from N-1 to re-fire — only THIS turn's casts qualify. Both clear
+    // post-enemy-intent so the damage bump and re-fire both fire this turn.
+    setArguingBackThisTurn(0);
+    setLastCastSnapshot(null);
+
     // 2.5. Block fades — explicit log so the player sees expiry happen even
     //      when a Hedgehog/Felt re-grant immediately tops it back up below.
     //      `block` here is the closure value at the top of the event handler;
@@ -5874,6 +5959,12 @@ export default function App() {
       // vice versa — forces dual defense management.
       const targetsComposure = intent.pool === 'composure';
       let raw = Math.round(intent.value * enemyDmgMult);
+      // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
+      // turn adds +1 to enemy raw damage value. Applied BEFORE annotation
+      // reduction so a strong annotation can still scrub the surcharge (the
+      // wit-defender's existing answer), but AFTER the enemyDmgMult roll so
+      // the +1 is a clean flat bump, not multiplied by Vuln.
+      if (arguingBackThisTurn > 0) raw += arguingBackThisTurn;
       // v2.10: annotation reduces incoming attack BEFORE shield routing.
       const annAtkRed = annoFx('enemyAtkReduction');
       if (annAtkRed > 0) raw = Math.max(0, raw - annAtkRed);
@@ -6478,6 +6569,8 @@ export default function App() {
       footnotePromptActive={footnotePromptActive}
       onApplyFootnote={applyFootnote}
       onCancelFootnote={cancelFootnotePrompt}
+      lastCastSnapshot={lastCastSnapshot}
+      arguingBackThisTurn={arguingBackThisTurn}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7263,7 +7356,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
                        tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
                        longThread = 0, isWit = false,
-                       footnotePromptActive = false, onApplyFootnote, onCancelFootnote }) {
+                       footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
+                       lastCastSnapshot = null, arguingBackThisTurn = 0 }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7367,6 +7461,16 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-lg text-parchment-50">
               {intentHidden ? '🌫 ???' : (enemyIntent?.telegraph || '...')}
             </div>
+            {/* v2.36: ACTUALLY— arguing-back surcharge. Each Actually—
+                played this turn adds +1 to this enemy attack's raw damage.
+                Shown inline with intent so the player sees the cost of
+                their re-fires before the swing lands. */}
+            {arguingBackThisTurn > 0 && (
+              <div className="text-xs font-mono text-iris-300 mt-0.5"
+                   title={`You corrected yourself ${arguingBackThisTurn}× — the enemy is paying attention. Next attack: +${arguingBackThisTurn} damage. Clears at end of your turn.`}>
+                🗣 +{arguingBackThisTurn} (arguing back)
+              </div>
+            )}
           </div>
           {peekedNextIntent && (
             <div className="px-3 py-2 bg-iris-900 bg-opacity-60 rounded border border-iris-700"
@@ -7627,7 +7731,12 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           // become clickable for footnoting INSTEAD of playing.
           const isFootnoteEligible = footnotePromptActive
             && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier');
-          const playable = !footnotePromptActive && effCost <= energy;
+          // v2.36: ACTUALLY— gate. The skill is unplayable when no cast has
+          // landed this turn (lastCastSnapshot === null). UI disables; sim
+          // AI skips for the same reason.
+          const isActuallySkill = !!card.effects?.refireLastCast;
+          const actuallyBlocked = isActuallySkill && !lastCastSnapshot;
+          const playable = !footnotePromptActive && effCost <= energy && !actuallyBlocked;
           const escalated = card.id === 'c-amplify' && amplifyPlaysThisCombat > 0;
           // Card frame tint. v2 cards: intro/subject = iris, target =
           // ember, modifier = gold. v1 fallback by card.type for utilities.

@@ -425,6 +425,18 @@ const SKILLS = [
     effects: { footnotePrompt: true, exhaust: true },
     desc: 'Skill. Exhaust. Pick a Word card in hand or discard — that copy gains a permanent +1 wit footnote for the rest of combat. Stacks.',
     flavor: 'Citation needed. Citation provided. Citation, you must understand, in the technical sense.' },
+  // v2.36: ACTUALLY— the correction. Single-turn re-fire of the last cast
+  // at +50% scaling. Cost 1, can be played multiple times in a turn (if you
+  // hold multiples) — each play stacks an arguing-back debuff on YOU (+1
+  // damage from every enemy attack this turn, per stack). Unplayable if no
+  // cast has landed this turn. Non-exhaust so the same copy can recur each
+  // turn the player keeps lining up cast → correct.
+  { id: 'wv2-k-actually', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
+    name: 'Actually—', phrase: 'Actually—',
+    tags: ['rhetorical', 'continuing'],
+    effects: { refireLastCast: true },
+    desc: 'Skill. Re-fire your last cast this turn at ×1.5 damage. Each play this turn: +1 damage from every enemy attack this turn. Needs a cast.',
+    flavor: 'Actually being a word that, in wit, recasts the room.' },
 ];
 
 // v2.6: NEW MODIFIERS — say-again (×2 damage rare) + words-to-actions

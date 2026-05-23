@@ -394,6 +394,14 @@ function runCombat(state, enemyId, telemetry) {
   // notListeningCharges tracks pending absorbs (set by playing the
   // "Sorry — what?" skill, decremented on first enemy Weak/Vuln attempt).
   state.notListeningCharges = 0;
+  // v2.36: ACTUALLY— per-combat snapshot + per-turn arguing-back counter.
+  // lastCastSnapshot stores the last cast's intro/subject/target/modifiers
+  // + ctx so re-fires re-compute damage from the SAME inputs. Reset to null
+  // at every player-turn boundary (only THIS turn's casts qualify for
+  // re-fire). arguingBackThisTurn is the +N enemy raw-damage surcharge;
+  // resets each turn.
+  state.lastCastSnapshot = null;
+  state.arguingBackThisTurn = 0;
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
   // App's intent pool (real enemies in App.jsx fire Weak/Vuln intents AND
   // riders on attacks). Sim composite-atk model doesn't carry per-enemy
@@ -1021,12 +1029,85 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.andImNotDoneCasts = (telemetry.andImNotDoneCasts || 0) + 1;
         telemetry.andImNotDoneTotalDamage = (telemetry.andImNotDoneTotalDamage || 0) + dmg;
       }
+      // v2.36: ACTUALLY— snapshot. Stash the resolved cast's inputs +
+      // multipliers so a subsequent Actually— skill can re-fire damage at
+      // ×1.5. The captured `mult` here is the enemy-effectiveness multiplier
+      // that was applied above (matches the App's enemyMult / physMult
+      // capture). playerDmgMult and stake/loud/predator/thread/footnote
+      // contributions are already baked into `result.damage`.
+      state.lastCastSnapshot = {
+        intro: tray.intro, subject: tray.subject, target: tray.target,
+        modifiers: tray.modifiers,
+        ctx: simCtx,
+        dmgType, enemyMult: mult, physMult: mult,
+        playerDmgMult: state.playerDmgMult || 1.0,
+      };
       // Tray clears only when a cast actually fires.
       tray = { intro: null, subject: null, target: null, modifiers: [] };
     } else {
       // No cast this turn — partial stage remains in the tray. Count it
       // as a "hold" rather than a fizzle (no card discard penalty).
       telemetry.holds++;
+    }
+
+    // v2.36: ACTUALLY— post-cast skill pass. Wit-lane only. Plays AFTER the
+    // tray cast resolves so the snapshot is fresh. Loops while:
+    //   - any Actually— card is in hand
+    //   - the player has at least 1 Energy
+    //   - lastCastSnapshot exists (one was just resolved THIS turn)
+    //   - predicted re-fire damage covers >20% of remaining composure
+    //     (meaningfully closes the enemy — the cost side of arguing-back
+    //     isn't worth eating if the swing is filler).
+    // Stacks: arguingBackThisTurn ticks +1 per play, telemetry tracked.
+    if (state.lane === 'wit') {
+      while (state.lastCastSnapshot && state.energy >= 1) {
+        const actuallyIdx = state.hand.findIndex(c => c.id === 'wv2-k-actually');
+        if (actuallyIdx < 0) break;
+        const snap = state.lastCastSnapshot;
+        // Predict damage from the snapshot at ×1.5.
+        const reResult = computeSpellDamage(
+          snap.intro, snap.subject, snap.target, snap.modifiers || [], snap.ctx || {});
+        const dmgTypeRe = snap.dmgType || 'composure';
+        const eff = (dmgTypeRe === 'physical' ? snap.physMult : snap.enemyMult) ?? 1.0;
+        let reDmg = Math.round(reResult.damage * eff);
+        reDmg = Math.round(reDmg * (snap.playerDmgMult || 1.0));
+        reDmg = Math.round(reDmg * 1.5);
+        const remaining = dmgTypeRe === 'physical' ? enemy.currentHp : enemy.currentComp;
+        // Gate: only fire when the re-fire is a meaningful chunk of what's
+        // left. Boss/elite gets a smaller threshold since their pools are
+        // bigger and a 20% bite still matters.
+        const thresholdFrac = (enemy.tier === 'boss' || enemy.tier === 'elite') ? 0.15 : 0.20;
+        if (reDmg <= 0) break;
+        if (reDmg < remaining * thresholdFrac) break;
+        // Pay cost, fire.
+        const c = state.hand[actuallyIdx];
+        state.energy -= c.cost || 0;
+        // Apply through enemy block (mirrors cast-time absorption).
+        let remainingDmg = reDmg;
+        if (enemy.block > 0 && dmgTypeRe !== 'physical') {
+          // Composure damage bypasses physical block in the App (block is
+          // HP-side); the sim's block is generic. Match the App: enemy
+          // block intercepts whichever pool the dmg is routed at.
+          const absorbed = Math.min(enemy.block, remainingDmg);
+          enemy.block -= absorbed; remainingDmg -= absorbed;
+        } else if (enemy.block > 0) {
+          const absorbed = Math.min(enemy.block, remainingDmg);
+          enemy.block -= absorbed; remainingDmg -= absorbed;
+        }
+        if (dmgTypeRe === 'physical') {
+          enemy.currentHp = Math.max(0, enemy.currentHp - remainingDmg);
+        } else {
+          enemy.currentComp = Math.max(0, enemy.currentComp - remainingDmg);
+        }
+        state.arguingBackThisTurn = (state.arguingBackThisTurn || 0) + 1;
+        state.discard.push(c);
+        state.hand.splice(actuallyIdx, 1);
+        telemetry.actuallyCasts = (telemetry.actuallyCasts || 0) + 1;
+        telemetry.actuallyExtraDamage = (telemetry.actuallyExtraDamage || 0) + reDmg;
+        telemetry.totalDamageDealt += reDmg;
+        // Early exit if the re-fire killed the enemy — no more arguing.
+        if (enemy.currentComp <= 0 || enemy.currentHp <= 0) break;
+      }
     }
 
     // v2.10: annotation damageOnTurnEnd + damageOnDraw (after the player
@@ -1091,6 +1172,14 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
     let incoming = enemy.atk;
+    // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
+    // turn adds +1 to enemy raw damage. Tracked for telemetry so the cost
+    // side is visible in reports.
+    if ((state.arguingBackThisTurn || 0) > 0) {
+      const bonus = state.arguingBackThisTurn;
+      incoming += bonus;
+      telemetry.arguingBackEnemyBonus = (telemetry.arguingBackEnemyBonus || 0) + bonus;
+    }
     // v2.10: annotation enemyAtkReduction.
     if (enemy.annotation?.effect?.enemyAtkReduction) {
       incoming = Math.max(0, incoming - enemy.annotation.effect.enemyAtkReduction);
@@ -1212,6 +1301,11 @@ function runCombat(state, enemyId, telemetry) {
     }
     state.unblockedThisTurn = false;
     state.castWitEffectThisTurn = false;
+    // v2.36: ACTUALLY— per-turn reset. arguingBackThisTurn cleared after the
+    // enemy attack resolved (the bill came due). lastCastSnapshot nuked so
+    // next turn's Actually— can only re-fire what's cast THIS turn.
+    state.arguingBackThisTurn = 0;
+    state.lastCastSnapshot = null;
     // v2.26: STORM OUT — intentHidden persists through ONE upcoming player
     // turn. The flag was set when the storm-out cast resolved THIS turn;
     // the next player turn renders the hidden intent; the turn after that
@@ -1313,6 +1407,21 @@ function awardReward(state) {
       if (fk && rnd() < 0.18) {
         state.discard.push({ ...fk, uid: uid() });
         state.rewardsTaken.push(fk.id);
+        return;
+      }
+    }
+  }
+  // v2.36: ACTUALLY— skill bias — wit lane only. Uncommon Skill, the same
+  // ~18% bias rate as Footnote so sim engagement is comparable. Caps at
+  // two copies — the spec allows multiple plays per turn for stacking
+  // arguing-back, so the AI should be able to chain two re-fires.
+  if (state.lane === 'wit') {
+    const actuallyCount = allCards.filter(c => c.id === 'wv2-k-actually').length;
+    if (actuallyCount < 2) {
+      const ak = pool.find(c => c.id === 'wv2-k-actually');
+      if (ak && rnd() < 0.18) {
+        state.discard.push({ ...ak, uid: uid() });
+        state.rewardsTaken.push(ak.id);
         return;
       }
     }
@@ -1423,6 +1532,14 @@ function simRun(forcedLane = null) {
     footnotesApplied: 0,
     footnoteCastsWithBonus: 0,
     footnoteBonusDamage: 0,
+    // v2.36: ACTUALLY— telemetry. actuallyCasts = number of re-fires that
+    // resolved; actuallyExtraDamage = total damage delivered by re-fires
+    // (pre-block-absorb); arguingBackEnemyBonus = total +damage the enemy
+    // dealt thanks to arguing-back stacks. The cost-vs-payoff ratio
+    // shows whether the mechanic is paying its own bill.
+    actuallyCasts: 0,
+    actuallyExtraDamage: 0,
+    arguingBackEnemyBonus: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1578,6 +1695,11 @@ function aggregate(results) {
     footnoteCastsWithBonus: results.reduce((s, r) => s + (r.footnoteCastsWithBonus || 0), 0),
     footnoteBonusDamage: results.reduce((s, r) => s + (r.footnoteBonusDamage || 0), 0),
     footnoteRuns: results.filter(r => (r.footnotesApplied || 0) > 0).length,
+    // v2.36: ACTUALLY— metrics.
+    actuallyCasts: results.reduce((s, r) => s + (r.actuallyCasts || 0), 0),
+    actuallyExtraDamage: results.reduce((s, r) => s + (r.actuallyExtraDamage || 0), 0),
+    arguingBackEnemyBonus: results.reduce((s, r) => s + (r.arguingBackEnemyBonus || 0), 0),
+    actuallyRuns: results.filter(r => (r.actuallyCasts || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1671,6 +1793,12 @@ function buildReport(agg) {
   lines.push(`- Casts contributing footnote bonus: ${agg.footnoteCastsWithBonus}`);
   lines.push(`- Total footnote bonus damage: ${agg.footnoteBonusDamage}`);
   lines.push(`- Avg bonus per footnoted cast: ${agg.footnoteCastsWithBonus > 0 ? (agg.footnoteBonusDamage / agg.footnoteCastsWithBonus).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Wit ACTUALLY— (v2.36)`);
+  lines.push(`- Re-fires resolved: ${agg.actuallyCasts} (runs: ${agg.actuallyRuns} / ${agg.N}, ${pct(agg.actuallyRuns / agg.N)})`);
+  lines.push(`- Total re-fire damage: ${agg.actuallyExtraDamage}`);
+  lines.push(`- Avg damage / re-fire: ${agg.actuallyCasts > 0 ? (agg.actuallyExtraDamage / agg.actuallyCasts).toFixed(2) : '0.00'}`);
+  lines.push(`- Enemy bonus from arguing-back: ${agg.arguingBackEnemyBonus} (cost side fired)`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
