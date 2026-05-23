@@ -23,28 +23,15 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/ca
 // =============================================================================
 
 const ENEMIES = [
-  // Act 1 (placeholder bosses come from each path's act)
-  { id: 'e1-acolyte',       act: 4, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e1-imp',           act: 4, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e1-shrine-rat',    act: 4, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 } },
-  { id: 'e1-tutor',         act: 4, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 } },
-  { id: 'e1-thicket',       act: 4, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e1-boss-thornlord',act: 4, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 } }, // v2.16: compressed extremes
-  // Act 2
-  // v2.9: bumped composure + atk values to match App.jsx. Elites in
-  // particular need to feel like a wall.
+  // Act 1 — Thread Path (the countryside)
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 44, hp: 999, tier: 'normal', atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
   { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 38, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 46, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
   { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 72, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 85, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
-  // v2.17: rogue wizards
   { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 } },
-  // Act 3
-  // v2.4: sharper act-2 effectiveness so each enemy has a clear lane
-  // favorite + resistor rather than the flat "0.7 everywhere" tax that
-  // walled all three lanes equally.
+  // Act 2 — Forge Path (the mines and caves)
   { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 34, hp: 16,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 } },
   { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
@@ -52,35 +39,32 @@ const ENEMIES = [
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
   { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 } },
   { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 48, hp: 26, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 } },
-  // Act 4
-  { id: 'e4-apprentice-shade',act:3,name: "Apprentice's Shade",  comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 0.5 } },
-  { id: 'e4-failed-initiate',act:3, name: 'Failed Initiate',     comp: 30, hp: 999, tier: 'normal', atk: 5, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
-  { id: 'e4-test-wraith',   act: 3, name: 'Test-Day Wraith',     comp: 36, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
-  { id: 'e4-forgotten-master',act:3,name: 'Forgotten Master',    comp: 45, hp: 999, tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e4-boss-headmasters-hat',act:3,name:"The Headmaster's Hat",comp:88,hp:999,tier:'boss',    atk: 11, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 0.4 } },
-  { id: 'e-rogue-calloway-trinket', act: 3, name: 'Mistress Calloway-Trinket', comp: 68, hp: 999, tier: 'elite', atk: 9, effectiveness: { chutzpah: 0.6, wit: 1.0, jnsq: 1.4, physical: 0.7 } },
-  { id: 'e-rogue-ashweather', act: 4, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 } },
+  // Act 3 — Staff Path (the deep forest, final act)
+  { id: 'e1-acolyte',       act: 3, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
+  { id: 'e1-imp',           act: 3, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
+  { id: 'e1-shrine-rat',    act: 3, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 } },
+  { id: 'e1-tutor',         act: 3, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 } },
+  { id: 'e1-thicket',       act: 3, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 } },
+  { id: 'e1-boss-thornlord',act: 3, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 } },
+  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 } },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
 const ACTS = [
   { id: 1, bossId: 'e2-boss-tapestry' },
   { id: 2, bossId: 'e3-boss-anvil' },
-  { id: 3, bossId: 'e4-boss-headmasters-hat' },
-  { id: 4, bossId: 'e1-boss-thornlord' },
+  { id: 3, bossId: 'e1-boss-thornlord' },
 ];
 
 const ACT_NORMALS = {
   1: ['e2-hollow-weaver', 'e2-silk-wraith', 'e2-loom-familiar'],
   2: ['e3-geode-crab', 'e3-glow-mite', 'e3-crystal-beetle'],
-  3: ['e4-apprentice-shade', 'e4-failed-initiate', 'e4-test-wraith'],
-  4: ['e1-acolyte', 'e1-imp', 'e1-shrine-rat'],
+  3: ['e1-acolyte', 'e1-imp', 'e1-shrine-rat'],
 };
 const ACT_ELITES = {
   1: ['e2-pattern-maker', 'e2-silent-spinner'],
   2: ['e3-quartz-sentinel', 'e3-vein-devourer'],
-  3: ['e4-forgotten-master'],
-  4: ['e1-tutor', 'e1-thicket'],
+  3: ['e1-tutor', 'e1-thicket'],
 };
 
 const STARTING_MAX_HP = 70;

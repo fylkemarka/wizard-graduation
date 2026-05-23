@@ -466,8 +466,8 @@ const STARTER_DECK = buildStarterDeckForLane('wit');
 //                   (a Lich does not laugh). Values >1 = susceptible.
 // behaviors[*]: { kind, value, weight, telegraph, count? } — unchanged.
 const ENEMIES = [
-  // ===== ACT 1 — The Staff Path =====
-  { id: 'e1-acolyte', act: 4, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
+  // ===== ACT 3 — The Staff Path (the deep forest, final act) =====
+  { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic', // Wants someone to explain what they're doing here.
     behaviors: [
@@ -475,7 +475,7 @@ const ENEMIES = [
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
     ] },
-  { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
+  { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
     // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah in act 1).
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'threat', // Bullies fold the moment you don't.
@@ -484,7 +484,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
-  { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
+  { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
     // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
     // partly because Shrine Rat and Thicket were freebies for it.
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
@@ -497,7 +497,7 @@ const ENEMIES = [
   // v2.17: rogue wizard — was about to claim his staff. Got too close
   // to the work. The staff turned him to wood. He is, the records will
   // show, both. The bureaucracy is unclear on the matter.
-  { id: 'e-rogue-ashweather', act: 4, name: 'Doctor Phin Ashweather (recently inanimate)',
+  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather (recently inanimate)',
     composureMax: 36, hpMax: 32, tier: 'normal',
     // failure mode: mystical mishap (transformation). Chutzpah 0.6 —
     // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
@@ -510,7 +510,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (the staff insists)' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
     ] },
-  { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
+  { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     softSpot: 'logic', // Will argue the methodology over the outcome.
     behaviors: [
@@ -519,7 +519,7 @@ const ENEMIES = [
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (cutting remark)' },
     ] },
-  { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
+  { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 },
@@ -529,7 +529,7 @@ const ENEMIES = [
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
     ] },
-  { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 95, hpMax: 115, tier: 'boss',
+  { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 95, hpMax: 115, tier: 'boss',
     // v2.16: was killing 182/500 chutzpah runs. First pass 0.7→0.85
     // overcorrected (chutzpah jumped to 41%). Settled at 0.75: still
     // a chutzpah-hostile boss, just not a trap.
@@ -543,7 +543,7 @@ const ENEMIES = [
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (bramble-whisper)' },
     ] },
 
-  // ===== ACT 2 — The Thread Path =====
+  // ===== ACT 1 — The Thread Path (the countryside) =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 44, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
@@ -626,7 +626,7 @@ const ENEMIES = [
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
     ] },
 
-  // ===== ACT 3 — The Stone Path =====
+  // ===== ACT 2 — The Forge Path (the mines and caves) =====
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 44, hpMax: 22, tier: 'normal',
     // v2.4: sharpened from flat-low to chutzpah-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
@@ -707,81 +707,6 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (hammer-rhythm)' },
-    ] },
-
-  // ===== ACT 4 — The Forge Path =====
-  { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 0.5 },
-    softSpot: 'flattery', // Failed apprentice. Pretend the work was good.
-    behaviors: [
-      { kind: 'attack', value: 10, weight: 3, telegraph: '⚔ 10' },
-      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10' },
-      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1 (resentful)', riders: { weak: 1 } },
-    ] },
-  { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
-    softSpot: 'flattery', // Same shape, fresher wound.
-    behaviors: [
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
-      { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
-    ] },
-  { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 1.0, physical: 0.5 },
-    softSpot: 'logic', // Reflects what you ARE. Reason at it, see yourself.
-    behaviors: [
-      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'vulnerable', value: 2, weight: 2, telegraph: '🩸 Vuln 2' },
-      { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8 + ⛧ Weak 1', riders: { weak: 1 } },
-    ] },
-  { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
-    softSpot: 'flattery', // Forgotten = wants to be remembered. Name him.
-    behaviors: [
-      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (corrects your form)' },
-    ] },
-  // v2.17: rogue wizard — primary chutzpah-puncher elite. Knit her hat
-  // too tight; the hat dampens her thoughts AND incoming threats.
-  { id: 'e-rogue-calloway-trinket', act: 3, name: 'Mistress Calloway-Trinket (un-millinered)',
-    composureMax: 68, hpMax: 999, tier: 'elite',
-    // failure mode: mystical mishap. Chutzpah 0.6 — her felt absorbs
-    // direct pressure as easily as it dampens her own arguments. Jnsq
-    // 1.4 — chaos cuts through the wool. Wit 1.0 — neutral; she can
-    // be argued with but it takes work.
-    effectiveness: { chutzpah: 0.6, wit: 1.0, jnsq: 1.4, physical: 0.7 },
-    softSpot: 'flattery', // Compliment the hat. The hat is the only thing left.
-    insultVulnerabilities: ['absurd', 'observational'],
-    behaviors: [
-      { kind: 'attack-multi', value: 3, count: 3, weight: 2, telegraph: '⚔ 3×3 (the hat hums)' },
-      { kind: 'attack', value: 9, pool: 'composure', weight: 2, telegraph: '🎭 9 (the hat speaks for her)' },
-      { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12 + ⛧ Weak 1 (felt thickens)', riders: { weak: 1 } },
-      // single-pool burst — composure side, the hat dredges up who she was
-      { kind: 'attack', value: 14, pool: 'composure', weight: 1, telegraph: '🎭 14 (THE HAT REMINDS HER WHO SHE WAS)' },
-    ] },
-  { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
-    // Cycle 3 floor bump: wit 0 → 0.5. Still wit-resistant (jnsq 1.5 is the
-    // intended channel) but committed wit decks have a path.
-    effectiveness: { chutzpah: 1.0, wit: 0.5, jnsq: 1.5, physical: 0.5 },
-    softSpot: 'logic', // It IS a test. Show your work.
-    behaviors: [
-      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1 + 🩸 Vuln 1', riders: { weak: 1, vulnerable: 1 } },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (impossible question)' },
-      { kind: 'weak',   value: 2, weight: 1, telegraph: '⛧ Weak 2' },
-      { kind: 'attack-multi', value: 3, count: 4, weight: 1, telegraph: '⚔ 3×4' },
-    ] },
-  { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 88, hpMax: 999, tier: 'boss',
-    // Cycle 3 floor bump: physical 0 → 0.4. Still verbal-favored (wit 1.5)
-    // but physical-built decks aren't shut out entirely.
-    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 0.4 },
-    softSpot: 'flattery', // It is a HAT that wants to be the headmaster. Acknowledge that.
-    insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Vain authority; mocking the hat-ness lands.
-    behaviors: [
-      { kind: 'attack', value: 12, weight: 2, telegraph: '⚔ 12' },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 8, pool: 'composure', weight: 1, telegraph: '🎭 8 (withering remark)' },
-      { kind: 'vulnerable', value: 2, weight: 1, telegraph: '🩸 Vuln 2' },
     ] },
 
   // ===== TUTORIAL =====
@@ -1048,7 +973,7 @@ const SIDEQUEST_TEMPLATES = {
         ] },
     ] },
 
-  'sq-last-will-sneeze': { id: 'sq-last-will-sneeze', title: 'The Last Will of a Sneeze', act: 4,
+  'sq-last-will-sneeze': { id: 'sq-last-will-sneeze', title: 'The Last Will of a Sneeze', act: 3,
     intro: 'A thin man in a suit is representing a sneeze. The sneeze is forty years old. The sneeze has assets.',
     nodes: [
       { kind: 'choice', title: 'The Hearing',
@@ -1295,7 +1220,7 @@ const SIDEQUEST_TEMPLATES = {
         ] },
     ] },
 
-  'sq-wedding-crash': { id: 'sq-wedding-crash', title: 'The Wedding Crash', act: 4,
+  'sq-wedding-crash': { id: 'sq-wedding-crash', title: 'The Wedding Crash', act: 3,
     intro: 'Two families both believe they\'re hosting the same wedding. The bride doesn\'t exist.',
     nodes: [
       { kind: 'narrative', title: 'The Venue',
@@ -1306,16 +1231,16 @@ const SIDEQUEST_TEMPLATES = {
         choices: [
           { label: 'Try to find the truth.', effects: {} },
         ] },
-      { kind: 'combat', enemyId: 'e4-apprentice-shade',
+      { kind: 'combat', enemyId: 'e1-acolyte',
         flavor: 'The first family\'s enforcer challenges you when you suggest the bride isn\'t real.' },
-      { kind: 'combat', enemyId: 'e4-failed-initiate',
+      { kind: 'combat', enemyId: 'e1-imp',
         flavor: 'The OTHER family\'s enforcer arrives. They thought you were with the first.' },
       { kind: 'narrative', title: 'The Resolution',
         flavor: 'Both families realize together. They marry each other\'s matriarchs. The cake is consumed in relief.',
         next: { effects: { maxHp: 3, gainUncommonCard: 1 } } },
     ] },
 
-  'sq-apprentice-of-apprentice': { id: 'sq-apprentice-of-apprentice', title: 'The Apprentice\'s Apprentice', act: 4,
+  'sq-apprentice-of-apprentice': { id: 'sq-apprentice-of-apprentice', title: 'The Apprentice\'s Apprentice', act: 3,
     intro: 'Master Doone\'s apprentice Yves was surpassed by his apprentice Coriander. Everyone is upset.',
     nodes: [
       { kind: 'choice', title: 'The Three',
@@ -1341,7 +1266,7 @@ const SIDEQUEST_TEMPLATES = {
         next: { effects: { maxHp: 2 } } },
     ] },
 
-  'sq-drunk-oracle': { id: 'sq-drunk-oracle', title: 'The Drunk Oracle', act: 4,
+  'sq-drunk-oracle': { id: 'sq-drunk-oracle', title: 'The Drunk Oracle', act: 3,
     intro: 'Hannelore the Half-Seen has prophesied your death. By Tuesday. By a turnip.',
     nodes: [
       { kind: 'choice', title: 'The Prophecy',
@@ -1367,7 +1292,7 @@ const SIDEQUEST_TEMPLATES = {
         next: { effects: { maxHp: 3, gainUncommonCard: 1 } } },
     ] },
 
-  'sq-unfinished-symphony': { id: 'sq-unfinished-symphony', title: 'The Unfinished Symphony', act: 4, bossShortcut: true,
+  'sq-unfinished-symphony': { id: 'sq-unfinished-symphony', title: 'The Unfinished Symphony', act: 3, bossShortcut: true,
     intro: 'Maestro Calvert Ainsworth\'s masterwork has been declared unfinishable. He wants the critic killed. The critic is, frankly, correct.',
     nodes: [
       { kind: 'choice', title: 'The Score',
@@ -1392,7 +1317,7 @@ const SIDEQUEST_TEMPLATES = {
         flavor: 'Ainsworth has placed you in the boss\'s path. He\'s deeply apologetic.' },
     ] },
 
-  'sq-borrowed-death': { id: 'sq-borrowed-death', title: 'The Borrowed Death', act: 4, bossShortcut: true,
+  'sq-borrowed-death': { id: 'sq-borrowed-death', title: 'The Borrowed Death', act: 3, bossShortcut: true,
     intro: 'Death, polite and slightly annoyed. Someone borrowed his scythe and hasn\'t returned it.',
     nodes: [
       { kind: 'choice', title: 'Death\'s Apology',
@@ -1413,13 +1338,13 @@ const SIDEQUEST_TEMPLATES = {
       { kind: 'narrative', title: 'The Cuts',
         flavor: 'A cut in a hedge. A cut in a sentence. A cut in your memory of the act.',
         next: { effects: { loseRandomCard: true } } },
-      { kind: 'combat', enemyId: 'e4-forgotten-master',
+      { kind: 'combat', enemyId: 'e1-tutor',
         flavor: 'The thief. Using the scythe inexpertly. Cannot use it well. Cannot stop.' },
       { kind: 'boss',
         flavor: 'Death thanks you. He mentions, casually, that he was on his way to a specific appointment. The appointment was the act boss. He offers you a lift.' },
     ] },
 
-  'sq-lovers-quarrel': { id: 'sq-lovers-quarrel', title: 'The Lover\'s Quarrel', act: 4,
+  'sq-lovers-quarrel': { id: 'sq-lovers-quarrel', title: 'The Lover\'s Quarrel', act: 3,
     intro: 'Two gods are having a domestic. You\'ve been called in to referee. Gods are not allowed to mediate other gods.',
     nodes: [
       { kind: 'choice', title: 'The Two Gods',
@@ -2415,25 +2340,19 @@ const SKILL_EVENTS = [
 // run's capstone item, crafted in the final act).
 const ACTS = [
   { id: 1, slot: 'robes', name: 'The Thread Path',
-    flavor: 'Threads, looms, and the things that walk between them. The right robes find the right wearer.',
+    flavor: 'The countryside outside the town. Cottages with looms, threads worth walking miles for, and the things that walk between them. The right robes find the right wearer.',
     rows: 15, width: 4,
     bossId: 'e2-boss-tapestry',
     craft: 'weaving',
   },
   { id: 2, slot: 'ring',  name: 'The Forge Path',
-    flavor: 'Coal, anvil, and a metal with opinions of its own. A ring earned at the forge fits no other hand.',
+    flavor: 'Down into the mines and cave systems beneath the hills. Coal, anvil, and a metal with opinions of its own. A ring earned in the dark fits no other hand.',
     rows: 15, width: 4,
     bossId: 'e3-boss-anvil',
     craft: 'smithing',
   },
-  { id: 3, slot: 'hat',   name: "The Milliner's Path",
-    flavor: "The hat does not, in itself, want to be worn. It does, however, have very specific opinions about by whom.",
-    rows: 15, width: 4,
-    bossId: 'e4-boss-headmasters-hat',
-    craft: 'felting',
-  },
-  { id: 4, slot: 'staff', name: 'The Staff Path',
-    flavor: 'The capstone. You walk into the deepest wood to claim a staff fit to graduate with. The school will know if you return without it.',
+  { id: 3, slot: 'staff', name: 'The Staff Path',
+    flavor: 'The capstone. You walk into the deep forest to claim a staff fit to graduate with. The school will know if you return without it. The hat, mercifully, is provided.',
     rows: 15, width: 4,
     bossId: 'e1-boss-thornlord',
     craft: 'whittling',
@@ -3598,6 +3517,15 @@ export default function App() {
     setCurrentNodeId(null);
     setClearedNodes([]);
     pushLog(`🌅 ${nextAct.name} begins.`);
+    // School-granted Master Hat on entry to the final act. The hat slot
+    // is no longer a player-crafted equipment — the school provides it
+    // as part of graduation outfitting before the deep-forest journey.
+    if (nextIdx === ACTS.length - 1) {
+      const hat = { ...EQUIPMENT.hat.master, uid: uid() };
+      setEquipment(prev => [...prev, hat]);
+      applyEquipmentMaxHp(hat);
+      pushLog(`🎓 The school sends a runner: "${hat.name} — provided by the bursar's office. Don't lose it."`);
+    }
     setStage('map');
   }
 
