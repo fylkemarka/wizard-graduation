@@ -5453,9 +5453,13 @@ export default function App() {
     setPoise(0);
 
     // 3. Debuff decay.
-    // Multiplier drift: shift toward 1.0 by 0.25 per turn.
-    setEnemyDmgMult(m  => m > 1 ? Math.max(1, m - 0.5) : m < 1 ? Math.min(1, m + 0.5) : m);
-    setPlayerDmgMult(m => m > 1 ? Math.max(1, m - 0.5) : m < 1 ? Math.min(1, m + 0.5) : m);
+    // v2.21: drift was 0.5/turn (debuffs vanished in one turn — Sap
+    // cost 1 energy for a single-turn impact). Now 0.25/turn matching
+    // tooltip and sim. A single Sap (-25%) lasts the enemy's next
+    // attack PLUS partially the one after; a double Sap (-50%) carries
+    // through 2 enemy turns meaningfully.
+    setEnemyDmgMult(m  => m > 1 ? Math.max(1, m - 0.25) : m < 1 ? Math.min(1, m + 0.25) : m);
+    setPlayerDmgMult(m => m > 1 ? Math.max(1, m - 0.25) : m < 1 ? Math.min(1, m + 0.25) : m);
 
     // 4-5. Compose the new turn's piles + start-of-turn triggers
     //      synchronously, then commit all related state in one pass.
@@ -6946,6 +6950,15 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               </div>
             )}
             <div className="text-base">🛡 {enemyBlock}</div>
+            {/* v2.21: Sap / Amplify / drift status surfaced on the enemy
+                stat block (not just the intent row) so players see it
+                where they expect. */}
+            {enemyDmgMult !== 1.0 && (
+              <div className={`text-sm font-mono ${enemyDmgMult < 1 ? 'text-iris-300' : 'text-ember-400'}`}
+                   title={`Enemy outgoing damage ×${enemyDmgMult.toFixed(2)}. Drifts back to 1.00 by 0.25/turn.`}>
+                💢 Atk ×{enemyDmgMult.toFixed(2)}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
