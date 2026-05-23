@@ -2568,6 +2568,38 @@ function upgradeCard(card) {
         // No clean upgrade hook → bump the lane stat instead.
         next.stats = { ...card.stats, [card.lane]: (card.stats?.[card.lane] || 0) + 1 };
       }
+    } else if (card.slot === 'gesture' && card.gestureEffect) {
+      // v2.18: gesture upgrade — bump damage +3 (the main payload) AND
+      // any present rider value by +1. Falls back to damage-only.
+      const ge = card.gestureEffect;
+      const nextGE = { ...ge };
+      nextGE.damage = (ge.damage || 0) + 3;
+      if (ge.stripEnemyBlock) nextGE.stripEnemyBlock = ge.stripEnemyBlock + 2;
+      if (ge.draw) nextGE.draw = ge.draw + 1;
+      if (ge.rider) {
+        const nextRider = { ...ge.rider };
+        for (const k of Object.keys(nextRider)) {
+          if (typeof nextRider[k] === 'number') nextRider[k] = nextRider[k] + 1;
+        }
+        nextGE.rider = nextRider;
+      }
+      next.gestureEffect = nextGE;
+    } else if (card.slot === 'annotation' && card.annotationEffect) {
+      // v2.18: annotation upgrade — +1 duration AND bump every numeric
+      // effect value by 1. So Subtext-in-italics (bonusSpellDamage 4)
+      // upgrades to 4 turns of +5 dmg/cast.
+      next.duration = (card.duration || 3) + 1;
+      const ae = card.annotationEffect;
+      const nextAE = { ...ae };
+      for (const k of Object.keys(nextAE)) {
+        if (typeof nextAE[k] === 'number') nextAE[k] = nextAE[k] + 1;
+      }
+      next.annotationEffect = nextAE;
+    } else {
+      // v2.18: defensive catch-all — any v2 card slot we don't have an
+      // explicit handler for still gets the lane-stat bump so the
+      // upgrade flow never silently no-ops.
+      next.stats = { ...card.stats, [card.lane]: (card.stats?.[card.lane] || 0) + 1 };
     }
     return next;
   }
@@ -8277,6 +8309,28 @@ function UpgradePreviewCard({ card, label, tone }) {
             <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
               {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
             </span>
+          </div>
+        )}
+        {/* v2.18: surface gesture / annotation specifics so upgrade diff is visible */}
+        {card.slot === 'gesture' && card.gestureEffect && (
+          <div className="text-sm font-mono text-ink-700">
+            {card.gestureEffect.icon || '✊'} {card.gestureEffect.damage} {card.gestureEffect.damageType === 'physical' ? 'phys' : 'comp'}
+            {card.gestureEffect.stripEnemyBlock ? ` · strip ${card.gestureEffect.stripEnemyBlock}` : ''}
+            {card.gestureEffect.draw ? ` · draw ${card.gestureEffect.draw}` : ''}
+            {card.gestureEffect.rider && Object.keys(card.gestureEffect.rider).length > 0
+              ? ' · ' + Object.entries(card.gestureEffect.rider).map(([k,v]) => `${k}${v}`).join('·') : ''}
+          </div>
+        )}
+        {card.slot === 'annotation' && card.annotationEffect && (
+          <div className="text-sm font-mono text-ink-700">
+            📝 {card.duration} turns · {Object.entries(card.annotationEffect).map(([k,v]) => `${k}:${v}`).join(' · ')}
+          </div>
+        )}
+        {card.slot === 'modifier' && card.modifierEffect && (
+          <div className="text-sm font-mono text-ink-700">
+            {card.modifierEffect.damageMult ? `×${card.modifierEffect.damageMult} dmg` : ''}
+            {card.modifierEffect.rider?.block ? ` · block ${card.modifierEffect.rider.block}` : ''}
+            {card.modifierEffect.diceShift ? ` · roll +${card.modifierEffect.diceShift}` : ''}
           </div>
         )}
         <div className="text-base font-quill leading-snug flex-1">{card.desc}</div>
