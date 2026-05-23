@@ -3143,6 +3143,12 @@ export default function App() {
   // bravado that didn't close the deal. Resets to 0 every turn (after the
   // damage tick fires).
   const [cornerTokens, setCornerTokens] = useState(0);
+  // v2.29: chutzpah SAYING IT LOUDER — per-turn counter of chutzpah word
+  // cards (intro/subject/modifier) carrying the 'demanding' tag. Reset at
+  // the start of every player turn. Read by `loudScaling` targets to add
+  // +loudCount * 3 to spell damage. The combo path is: stack as many
+  // demanding-tagged words into one turn as possible, then fire I SAID.
+  const [loudCount, setLoudCount] = useState(0);
   // v2.26: chutzpah STORMING OUT — when a stormOut target casts, the enemy's
   // next intent is HIDDEN from the UI (we don't render the telegraph). The
   // flag persists through ONE upcoming player turn (the intent rolled during
@@ -4111,6 +4117,8 @@ export default function App() {
     setRageActive(false);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
+    // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
+    setLoudCount(0);
     // v2.26: chutzpah hidden-intent flag resets per combat.
     setIntentHidden(false);
     stormOutFiredRef.current = false;
@@ -4298,6 +4306,14 @@ export default function App() {
     // outcome (replace, success) calls this AFTER the new card is committed.
     const bumpTunnelVisionIfChutzpah = () => {
       if (card.lane === 'chutzpah') setTunnelVision(n => n + 1);
+      // v2.29: saying-it-louder. Chutzpah word cards (intro/subject/modifier)
+      // with the 'demanding' tag are the repetition beats. Targets don't
+      // count — they consume loudCount, they don't add to it.
+      if (card.lane === 'chutzpah'
+          && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
+          && (card.tags || []).includes('demanding')) {
+        setLoudCount(n => n + 1);
+      }
     };
     // v2.24: target-side guard. "Bare knuckles." (and any future card with
     // `requiresRage: true`) is castable only while RAGE is active.
@@ -4635,9 +4651,22 @@ export default function App() {
       deckSize: deck.length + hand.length + discard.length + exiled.length,
       missingHpFrac: maxHp > 0 ? (maxHp - hp) / maxHp : 0,
       stakeAmount, // v2.11: chutzpah ALL IN
+      loudCount, // v2.29: chutzpah SAYING IT LOUDER
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
+    // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
+    if (loudBonus > 0) {
+      pushLog(`📢 SAID IT LOUDER ×${loudCount} → +${loudBonus} dmg`);
+      logEvent('chutzpah.loud', {
+        loudCount, bonusDamage: loudBonus,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
+    // Reset loudCount — the cast consumes the build-up. Future demanding
+    // words in the same turn would re-arm if a second cast were possible,
+    // but the cast cap is 1/turn so this is mostly a sanity reset.
+    if (target.effect?.loudScaling) setLoudCount(0);
     // v2.11: deduct HP for stake immediately on cast. Refund (if any)
     // happens after damage lands.
     if (stakeAmount > 0) {
@@ -5634,6 +5663,8 @@ export default function App() {
     setCastsThisTurn(0);
     // v2.11: forget uncommitted stakes at turn boundary.
     setStakeAmount(0);
+    // v2.29: reset saying-it-louder counter at turn boundary.
+    setLoudCount(0);
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
 
@@ -6258,6 +6289,7 @@ export default function App() {
       lastRoll={lastRoll} combatRolls={combatRolls}
       tunnelVision={tunnelVision} rageActive={rageActive}
       cornerTokens={cornerTokens} intentHidden={intentHidden}
+      loudCount={loudCount}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7041,7 +7073,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        castsThisTurn, maxCastsPerTurn,
                        isChutzpah, stakeAmount, setStakeAmount,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
-                       tunnelVision, rageActive, cornerTokens, intentHidden }) {
+                       tunnelVision, rageActive, cornerTokens, intentHidden, loudCount }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7187,7 +7219,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         isChutzpah={isChutzpah} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
         playerHp={hp}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
-        lastRoll={lastRoll} combatRolls={combatRolls} />
+        lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -7251,6 +7283,15 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: if enemy isn't dead, you take ${cornerTokens * 2} unblocked HP. Resets each turn.`}>
               <div className="text-xs uppercase text-ember-300">Corner</div>
               <div className="text-2xl font-mono text-ember-300">🏚 {cornerTokens}</div>
+            </div>
+          )}
+          {/* v2.29: chutzpah SAYING IT LOUDER pip. Each demanding-tagged
+              chutzpah word card staged this turn adds +1; a target with
+              loudScaling reads it for +3 dmg/loud. Resets each turn. */}
+          {loudCount > 0 && (
+            <div title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged this turn. A target with "Said It Louder" gets +${loudCount * 3} flat dmg on cast. Resets each turn.`}>
+              <div className="text-xs uppercase text-ember-300">Loud</div>
+              <div className="text-2xl font-mono text-ember-300">📢 {loudCount}</div>
             </div>
           )}
           <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
@@ -7508,7 +7549,7 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
                        isChutzpah = false, stakeAmount = 0, setStakeAmount = () => {},
                        playerHp = 70,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
-                       lastRoll = null, combatRolls = [] }) {
+                       lastRoll = null, combatRolls = [], loudCount = 0 }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -7524,8 +7565,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
   let predicted = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders, stakeBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount });
-    predicted = { damage, riders, stakeBonus: stakeBonus || 0 };
+    const { damage, riders, stakeBonus, loudBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount });
+    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0 };
   }
   // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
   // /3 → /4 (keeps "I bleed for damage" without uncapped spirals).

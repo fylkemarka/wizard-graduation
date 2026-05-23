@@ -230,6 +230,18 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     ? (eff.damageType === 'physical' ? 'composure' : 'physical')
     : null;
 
+  // v2.29: chutzpah SAYING IT LOUDER — repetition scaling. Each demanding-
+  // tagged chutzpah WORD card staged this turn (intro/subject/modifier)
+  // bumps context.loudCount. Targets with `loudScaling: true` get a flat
+  // +loudCount × 3 added AFTER the tier-multiplied base. Note: this is a
+  // flat bonus (not multiplied by tier or stakeMult) so the math reads as
+  // "every louder say is +3 damage on the finisher" no matter the tier.
+  let loudBonus = 0;
+  if (eff.loudScaling && context.loudCount > 0) {
+    loudBonus = context.loudCount * 3;
+    damage += loudBonus;
+  }
+
   // v2.11: chutzpah ALL IN — per-cast HP wager. context.stakeAmount is
   // the staked HP. Per-card stakeMultiplier picks the MAX value (so a
   // staged Double-or-Nothing target overrides the default 1.5×). If any
@@ -253,6 +265,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     riders,
     flippedDmgType, // v2.6: null or the new damage type to use
     stakeBonus, // v2.11: how much damage came from the stake (for UI/log)
+    loudBonus, // v2.29: how much damage came from saying-it-louder repetition
     sideEffects: {
       drawCount,
       stripBlock,

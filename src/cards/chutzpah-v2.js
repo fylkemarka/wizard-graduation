@@ -458,6 +458,25 @@ const UNIQUE_TARGETS = [
     flavor: "After this one, I'm leaving. Briefly. You won't see me go." },
 ];
 
+// v2.29: SAYING IT LOUDER — repetition scaling. Each chutzpah word card
+// (intro/subject/modifier) with the 'demanding' tag played this turn bumps
+// `loudCount`. "I SAID." target reads loudCount and scales damage by ×3
+// per louder say. "I said," is the cheap intro that exists purely to be
+// re-said — it doesn't bump on its own use beyond carrying the tag, but
+// stacking multiple demanding-tagged words is the combo path.
+const SAYING_IT_LOUDER_CARDS = [
+  { id: 'cv2-i-i-said', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'I said,', tags: ['demanding', 'direct'], stats: { chutzpah: 2 },
+    desc: '+1 loud (demanding) this turn.',
+    flavor: 'The comma is a load-bearing wall.' },
+  { id: 'cv2-t-i-said-loud', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'I SAID.', tags: ['demanding', 'threatening'],
+    effect: { scaleBy: 'chutzpah', base: 6, multiplier: 3, damageType: 'composure',
+              loudScaling: true, rider: { weak: 1 } },
+    desc: 'Cast: 6 + Chutzpah×3 comp · Weak 1. +3 dmg per demanding chutzpah word played this turn.',
+    flavor: 'Bold all-caps is, technically, three louds.' },
+];
+
 // v2.27: HIT ME AGAIN — chutzpah's reactive power. Cost 1, installs on the
 // field for the duration of combat. Every enemy attack that LANDS (blocked
 // or not) adds +1 to a `hitMeAgainCharges` counter. At the START of every
@@ -502,9 +521,17 @@ const FRANKLY_NO_SKILL = [
     flavor: "It's a complete sentence. People keep adding to it." },
 ];
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL];
+// v2.29: split SAYING_IT_LOUDER_CARDS by slot for the by-slot export.
+const SAYING_IT_LOUDER_INTROS = SAYING_IT_LOUDER_CARDS.filter(c => c.slot === 'intro');
+const SAYING_IT_LOUDER_TARGETS = SAYING_IT_LOUDER_CARDS.filter(c => c.slot === 'target');
+
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER, ...FRANKLY_NO_SKILL, ...SAYING_IT_LOUDER_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
-  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26], gesture: GESTURES,
+  intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS],
+  subject: SUBJECTS,
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS],
+  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26],
+  gesture: GESTURES,
   power: [...HIT_ME_AGAIN_POWER, ...STUBBORN_BLOCK_POWER],
   skill: FRANKLY_NO_SKILL,
 };

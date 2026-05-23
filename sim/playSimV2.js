@@ -156,6 +156,11 @@ function drawCards(state, n) {
 // the player can afford this turn. Returns hand index or -1.
 function pickBestForSlot(state, slot, energyLeft) {
   let bestIdx = -1, bestTier = -1, bestStat = -1;
+  // v2.29: detect if a loudScaling target ("I SAID.") is in hand. If so,
+  // bias toward chutzpah cards carrying the 'demanding' tag in same-tier
+  // slot picks — each demanding word adds +3 to the eventual cast for free.
+  const hasLoudTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier')
+    && state.hand.some(c => c.lane === 'chutzpah' && c.effect?.loudScaling);
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
     if (c.slot !== slot) continue;
@@ -172,8 +177,15 @@ function pickBestForSlot(state, slot, energyLeft) {
       if (c.effects?.tunnelVision && (state.tunnelVision || 0) < 5) score += 5;
       if (c.lane === 'chutzpah' && (state.tunnelVision || 0) >= 4 && (state.tunnelVision || 0) < 5) score += 4;
     }
-    if (score > bestTier * 10 + bestStat) {
-      bestIdx = i; bestTier = tier; bestStat = stat;
+    // v2.29: when an I SAID. finisher is in hand, demanding-tagged chutzpah
+    // words break ties WITHIN tier. Keep the cmp against bestTier*10+bestStat
+    // so this doesn't override the existing tier-first preference.
+    let effectiveStat = stat;
+    if (hasLoudTarget && c.lane === 'chutzpah' && (c.tags || []).includes('demanding')) {
+      effectiveStat = stat + 3;
+    }
+    if (tier * 10 + effectiveStat > bestTier * 10 + bestStat) {
+      bestIdx = i; bestTier = tier; bestStat = effectiveStat;
     }
   }
   return bestIdx;
@@ -205,6 +217,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
         missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
         stakeAmount: 0,
+        loudCount: state.loudCount || 0, // v2.29
       };
       // Reuse the shared formula via computeSpellDamage if intro+subject
       // are staged. Off-stage we can't compute reliably; default-pass
@@ -235,6 +248,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
         missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
         stakeAmount: 0,
+        loudCount: state.loudCount || 0, // v2.29
       };
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
       const dmgType = c.effect?.damageType || 'composure';
@@ -261,7 +275,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
   return bestIdx;
 }
 
-function pickBestModifier(state, energyLeft, tier, bossFight) {
+function pickBestModifier(state, energyLeft, tier, bossFight, loudTargetStaged = false) {
   let bestIdx = -1, bestScore = -1;
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
@@ -276,6 +290,12 @@ function pickBestModifier(state, energyLeft, tier, bossFight) {
     if (me.rider?.weak)  score += me.rider.weak * 2;
     if (me.rider?.vulnerable) score += me.rider.vulnerable * 3;
     if (me.stripEnemyBlock && bossFight) score += me.stripEnemyBlock * 2;
+    // v2.29: if a loudScaling target is already staged AND this modifier is
+    // chutzpah-lane with the 'demanding' tag, stacking it adds +3 to the
+    // pending cast (more than a small damageMult, less than a tier3Payoff).
+    if (loudTargetStaged && c.lane === 'chutzpah' && (c.tags || []).includes('demanding')) {
+      score += 5;
+    }
     score -= (c.cost || 0); // prefer cheap mods
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
@@ -297,6 +317,10 @@ function runCombat(state, enemyId, telemetry) {
   // HP per token at end of turn if the enemy is still alive. Resets each
   // turn either way (after billing).
   state.cornerTokens = 0;
+  // v2.29: chutzpah SAYING IT LOUDER — per-turn counter of demanding-tagged
+  // chutzpah words staged this turn. Read by loudScaling targets for +3
+  // dmg per louder say. Reset per turn (below) and per combat (here).
+  state.loudCount = 0;
   // v2.26: STORMING OUT — hidden-intent flag. Sim AI doesn't peek at intents
   // (it reacts to enemy.atk directly), so this flag is purely telemetric:
   // we track that the player stormed out and what the next intent would have
@@ -339,6 +363,8 @@ function runCombat(state, enemyId, telemetry) {
   let turns = 0;
   while (turns++ < MAX_COMBAT_TURNS) {
     state.energy = ENERGY_PER_TURN + (turns === 1 && fb.startCombatEnergy ? fb.startCombatEnergy : 0);
+    // v2.29: reset saying-it-louder counter at the start of every player turn.
+    state.loudCount = 0;
     // v2.9: start-of-turn block from familiar (e.g. Hedgehog).
     if (fb.startOfTurnBlock) state.block += fb.startOfTurnBlock;
     // v2.24: chutzpah RAGE entry check. If TUNNEL VISION >= 5, this turn
@@ -495,8 +521,15 @@ function runCombat(state, enemyId, telemetry) {
       };
       // v2.24: bumps the chutzpah RAGE meter when a chutzpah-lane card
       // commits to a slot. Mirrors bumpTunnelVisionIfChutzpah() in App.jsx.
+      // v2.29: also bumps the saying-it-louder counter when a chutzpah
+      // word card (intro/subject/modifier) with the 'demanding' tag stages.
       const bumpTunnelOnStage = (card) => {
         if (card?.lane === 'chutzpah') state.tunnelVision = (state.tunnelVision || 0) + 1;
+        if (card?.lane === 'chutzpah'
+            && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
+            && (card.tags || []).includes('demanding')) {
+          state.loudCount = (state.loudCount || 0) + 1;
+        }
       };
       if (!tray.intro) {
         const idx = pickBestForSlot(state, 'intro', state.energy);
@@ -541,12 +574,15 @@ function runCombat(state, enemyId, telemetry) {
       if (tray.intro && tray.subject && tray.target && tray.modifiers.length < 2) {
         const tier = computeSpellTier(tray.intro, tray.subject, tray.target);
         const bossFight = enemy.tier === 'boss';
-        const idx = pickBestModifier(state, state.energy, tier, bossFight);
+        const idx = pickBestModifier(state, state.energy, tier, bossFight, !!tray.target?.effect?.loudScaling);
         if (idx >= 0) {
           const m = state.hand[idx];
           tray.modifiers.push(m);
           state.energy -= m.cost || 0;
           state.hand.splice(idx, 1);
+          // v2.29: modifier staging also bumps loud-count + tunnel-vision.
+          // (Was missing — only intro/subject/target called bumpTunnelOnStage.)
+          bumpTunnelOnStage(m);
           progressed = true;
           continue;
         }
@@ -567,6 +603,7 @@ function runCombat(state, enemyId, telemetry) {
           deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
           missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
           stakeAmount: 0,
+          loudCount: state.loudCount || 0, // v2.29
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const preMult = (tray.target.effect?.damageType === 'physical')
@@ -613,6 +650,7 @@ function runCombat(state, enemyId, telemetry) {
         deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
         missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
         stakeAmount: stake, // v2.11
+        loudCount: state.loudCount || 0, // v2.29
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
@@ -760,6 +798,17 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.bareKnucklesCasts = (telemetry.bareKnucklesCasts || 0) + 1;
         if (rageMissing) telemetry.bareKnucklesMisfires = (telemetry.bareKnucklesMisfires || 0) + 1;
       }
+      // v2.29: telemetry for SAYING IT LOUDER. Counts every cast that read
+      // loudCount for a bonus, plus aggregate loudCount and bonus damage
+      // for averages in the report.
+      if (tray.target?.effect?.loudScaling) {
+        telemetry.iSaidCasts = (telemetry.iSaidCasts || 0) + 1;
+        telemetry.loudCountSum = (telemetry.loudCountSum || 0) + (state.loudCount || 0);
+        telemetry.loudBonusSum = (telemetry.loudBonusSum || 0) + (result.loudBonus || 0);
+      }
+      // v2.29: the cast consumes the loud build-up. Reset to 0 either way
+      // (the per-turn cap is 1, so this is mainly defensive).
+      if (tray.target?.effect?.loudScaling) state.loudCount = 0;
       // Tray clears only when a cast actually fires.
       tray = { intro: null, subject: null, target: null, modifiers: [] };
     } else {
@@ -1040,6 +1089,10 @@ function simRun(forcedLane = null) {
     hitMeAgainInstalls: 0, hitMeAgainRecoilTotal: 0, hitMeAgainKills: 0,
     // v2.28: chutzpah stubborn-block telemetry.
     stubbornBlockInstalls: 0, stubbornBlockConverted: 0,
+    // v2.29: chutzpah saying-it-louder telemetry. iSaidCasts counts the
+    // number of "I SAID." casts; loudCountSum accumulates the loudCount
+    // observed on each such cast so we can compute mean stack-size.
+    iSaidCasts: 0, loudCountSum: 0, loudBonusSum: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1168,6 +1221,11 @@ function aggregate(results) {
     stubbornBlockInstalls: results.reduce((s, r) => s + (r.stubbornBlockInstalls || 0), 0),
     stubbornBlockInstallRuns: results.filter(r => (r.stubbornBlockInstalls || 0) > 0).length,
     stubbornBlockConverted: results.reduce((s, r) => s + (r.stubbornBlockConverted || 0), 0),
+    // v2.29: saying-it-louder metrics.
+    iSaidCasts: results.reduce((s, r) => s + (r.iSaidCasts || 0), 0),
+    iSaidRuns: results.filter(r => (r.iSaidCasts || 0) > 0).length,
+    loudCountSum: results.reduce((s, r) => s + (r.loudCountSum || 0), 0),
+    loudBonusSum: results.reduce((s, r) => s + (r.loudBonusSum || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1230,6 +1288,12 @@ function buildReport(agg) {
   lines.push(`- Stubborn Block installs: ${agg.stubbornBlockInstalls} (runs: ${agg.stubbornBlockInstallRuns} / ${agg.N}, ${pct(agg.stubbornBlockInstallRuns / agg.N)})`);
   lines.push(`- Total Block converted from unspent Energy: ${agg.stubbornBlockConverted}`);
   lines.push(`- Avg converted per install: ${agg.stubbornBlockInstalls > 0 ? (agg.stubbornBlockConverted / agg.stubbornBlockInstalls).toFixed(1) : '0.0'}`);
+  lines.push('');
+  lines.push(`## Chutzpah SAYING IT LOUDER (v2.29)`);
+  lines.push(`- "I SAID." casts: ${agg.iSaidCasts} (runs: ${agg.iSaidRuns} / ${agg.N}, ${pct(agg.iSaidRuns / agg.N)})`);
+  lines.push(`- Avg loudCount per cast: ${agg.iSaidCasts > 0 ? (agg.loudCountSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
+  lines.push(`- Avg bonus damage per cast: ${agg.iSaidCasts > 0 ? (agg.loudBonusSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
+  lines.push(`- Total bonus damage from louder: ${agg.loudBonusSum}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
