@@ -3,49 +3,53 @@
 N = **500** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **180 wins / 500** = **36.0%**
-- Losses by acts-cleared: 0=7 · 1=13 · 2=168 · 3=132
+- **2 wins / 500** = **0.4%**
+- Losses by acts-cleared: 0=111 · 1=235 · 2=135 · 3=17
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
-- **chutzpah**: 500 runs · 180 wins (36.0%)
+- **chutzpah**: 500 runs · 2 wins (0.4%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-beetle**: 42 runs · 22 wins (52.4%)
-- **fam-rabbit**: 45 runs · 20 wins (44.4%)
-- **fam-cat**: 53 runs · 20 wins (37.7%)
-- **fam-raven**: 60 runs · 22 wins (36.7%)
-- **fam-toad**: 50 runs · 18 wins (36.0%)
-- **fam-owl**: 53 runs · 19 wins (35.8%)
-- **fam-mouse**: 46 runs · 15 wins (32.6%)
-- **fam-crow**: 54 runs · 16 wins (29.6%)
-- **fam-hedgehog**: 51 runs · 15 wins (29.4%)
-- **fam-snake**: 46 runs · 13 wins (28.3%)
+- **fam-beetle**: 39 runs · 1 wins (2.6%)
+- **fam-rabbit**: 52 runs · 1 wins (1.9%)
+- **fam-snake**: 59 runs · 0 wins (0.0%)
+- **fam-mouse**: 57 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 52 runs · 0 wins (0.0%)
+- **fam-raven**: 43 runs · 0 wins (0.0%)
+- **fam-toad**: 60 runs · 0 wins (0.0%)
+- **fam-crow**: 48 runs · 0 wins (0.0%)
+- **fam-cat**: 45 runs · 0 wins (0.0%)
+- **fam-owl**: 45 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 19280
-- Tier 1 (COHERENT): 13346 (69.2%)
-- Tier 2 (RESONANT): 5508 (28.6%)
-- Tier 3 (DEVASTATING): 426 (2.2%)
-- Holds (turn ended without cast — tray persists): 13137 (40.5%)
+- Total casts: 11339
+- Tier 1 (COHERENT): 9124 (80.5%)
+- Tier 2 (RESONANT): 2116 (18.7%)
+- Tier 3 (DEVASTATING): 99 (0.9%)
+- Holds (turn ended without cast — tray persists): 6832 (37.6%)
 
 ## Combat pacing
-- Avg turns / combat: 3.67
-- Avg damage / run: 1012
-- Mean final deck size: 25.6
+- Avg turns / combat: 3.71
+- Avg damage / run: 565
+- Mean final deck size: 16.4
 
 ## Archetype of winning decks
-- mid-t2t3: 92
-- low-tier: 88
+- mid-t2t3: 2
 
 ## Top killer enemies
-- e4-boss-headmasters-hat (The Headmaster's Hat): 161
-- e1-boss-thornlord (The Thornlord): 129
-- e3-boss-anvil (The Anvil-Forged): 10
-- e2-boss-tapestry (The Tapestry Walker): 7
-- e4-forgotten-master (Forgotten Master): 7
-- e1-thicket (Living Thicket): 3
-- e3-crystal-beetle (Crystal Beetle): 1
-- e3-vein-devourer (Vein Devourer): 1
-- e3-quartz-sentinel (Quartz Sentinel): 1
+- e2-boss-tapestry (The Tapestry Walker): 104
+- e3-boss-anvil (The Anvil-Forged): 74
+- e4-boss-headmasters-hat (The Headmaster's Hat): 67
+- e4-forgotten-master (Forgotten Master): 62
+- e3-quartz-sentinel (Quartz Sentinel): 59
+- e3-vein-devourer (Vein Devourer): 46
+- e3-crystal-beetle (Crystal Beetle): 37
+- e1-boss-thornlord (The Thornlord): 11
+- e3-glow-mite (Glow-Mite Swarm): 11
+- e3-geode-crab (Geode Crab): 8
+- e2-pattern-maker (The Pattern-Maker): 7
+- e1-thicket (Living Thicket): 6
+- e4-test-wraith (Test-Day Wraith): 3
+- e4-apprentice-shade (Apprentice's Shade): 3

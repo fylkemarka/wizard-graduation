@@ -2989,7 +2989,7 @@ const HAND_SIZE = 5;
 // Cycle 3 batch 3: 0.40 → 0.55. Players reaching Act 3+ are too damaged
 // to survive late-act bosses. Bigger between-act recovery gives a real
 // shot at deep runs.
-const INTER_ACT_HEAL_RATIO = 0.55;
+const INTER_ACT_HEAL_RATIO = 0.35; // v2.22: was 0.55 — too generous; 0.25 was too harsh. 0.35 lands middle.
 
 // v2 tray initial state. The intro/subject/target/modifiers fields are the
 // primary truth. Legacy fields (chutzpah/wit/jnsq totals, tags, words array,
@@ -5689,11 +5689,12 @@ export default function App() {
       return;
     }
     pushLog(`✓ ${enemy.name} defeated.`);
-    // v2.6: post-combat heal nerfed 15% → 8%. Live playtest said combat
-    // felt too safe; the 15% restore was washing out attrition that
-    // SHOULD pressure the player into defense decisions.
-    const healHp = Math.floor(maxHp * 0.08);
-    const healComp = Math.floor(composureMax * 0.08);
+    // v2.22: post-combat heal nerfed 8% → 4% maxHp. Live playtest:
+    // user finished act 1 hovering 50-70 HP, "truly hasn't worried about
+    // damage taken once." Cutting to zero overshot in sim (0% wins).
+    // 4% is a token recovery — meaningful only across many fights.
+    const healHp = Math.floor(maxHp * 0.04);
+    const healComp = Math.floor(composureMax * 0.04);
     if (healHp > 0) {
       setHp(h => clamp(h + healHp, 0, maxHp));
       setComposure(c => clamp(c + healComp, 0, composureMax));

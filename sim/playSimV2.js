@@ -87,7 +87,7 @@ const STARTING_MAX_HP = 70;
 const STARTING_MAX_COMPOSURE = 30;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 5;
-const INTER_ACT_HEAL_RATIO = 0.55;
+const INTER_ACT_HEAL_RATIO = 0.35; // v2.22: 0.55 → 0.35 (live-play attrition fix)
 const MAX_COMBAT_TURNS = 30;  // safety net
 
 const LANE_POOL = { wit: WIT_V2, chutzpah: CHUTZPAH_V2, jnsq: JNSQ_V2 };
@@ -747,14 +747,13 @@ function simRun(forcedLane = null) {
   let lastResult = null;
   let actsCleared = 0;
 
-  // v2.2: mid-combat heal — 15% HP + composure restore after every won
-  // combat. Lets the player limp through an act without dying to attrition
-  // before the rare-card-honing loop has a chance to differentiate the deck.
-  const POST_COMBAT_HEAL_RATIO = 0.15;
+  // v2.22: post-combat heal nerfed 15% → 4% (live-play attrition fix;
+  // user hovered 50-70 HP through whole act 1).
+  const POST_COMBAT_HEAL_RATIO = 0.04;
   const postCombatHeal = () => {
     state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * POST_COMBAT_HEAL_RATIO));
     state.composure = Math.min(state.maxComposure, state.composure + Math.floor(state.maxComposure * POST_COMBAT_HEAL_RATIO));
-    // v2.9: familiar combat-end heal.
+    // v2.9: familiar combat-end heal (Owl, Toad).
     if (state.familiarBonus?.combatEndHeal) {
       state.hp = Math.min(state.maxHp, state.hp + state.familiarBonus.combatEndHeal);
     }
