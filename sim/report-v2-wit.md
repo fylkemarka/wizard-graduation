@@ -3,32 +3,32 @@
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **5 wins / 100** = **5.0%**
-- Losses by acts-cleared: 0=52 · 1=36 · 2=7 · 3=0
+- **4 wins / 100** = **4.0%**
+- Losses by acts-cleared: 0=50 · 1=39 · 2=7 · 3=0
 
 ## Lane outcomes
-- **wit**: 100 runs · 5 wins (5.0%)
+- **wit**: 100 runs · 4 wins (4.0%)
 - **chutzpah**: 0 runs · 0 wins (0.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-mouse**: 8 runs · 2 wins (25.0%)
-- **fam-rabbit**: 10 runs · 2 wins (20.0%)
-- **fam-cat**: 12 runs · 1 wins (8.3%)
-- **fam-owl**: 7 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 8 runs · 0 wins (0.0%)
-- **fam-snake**: 14 runs · 0 wins (0.0%)
-- **fam-toad**: 11 runs · 0 wins (0.0%)
-- **fam-crow**: 12 runs · 0 wins (0.0%)
-- **fam-beetle**: 13 runs · 0 wins (0.0%)
-- **fam-raven**: 5 runs · 0 wins (0.0%)
+- **fam-mouse**: 10 runs · 1 wins (10.0%)
+- **fam-rabbit**: 10 runs · 1 wins (10.0%)
+- **fam-snake**: 10 runs · 1 wins (10.0%)
+- **fam-raven**: 14 runs · 1 wins (7.1%)
+- **fam-crow**: 10 runs · 0 wins (0.0%)
+- **fam-owl**: 10 runs · 0 wins (0.0%)
+- **fam-beetle**: 11 runs · 0 wins (0.0%)
+- **fam-cat**: 7 runs · 0 wins (0.0%)
+- **fam-toad**: 8 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 10 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 2058
-- Tier 1 (COHERENT): 1869 (90.8%)
-- Tier 2 (RESONANT): 182 (8.8%)
-- Tier 3 (DEVASTATING): 7 (0.3%)
-- Holds (turn ended without cast — tray persists): 1101 (34.9%)
+- Total casts: 2034
+- Tier 1 (COHERENT): 1906 (93.7%)
+- Tier 2 (RESONANT): 127 (6.2%)
+- Tier 3 (DEVASTATING): 1 (0.0%)
+- Holds (turn ended without cast — tray persists): 1159 (36.3%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -74,43 +74,49 @@ N = **100** runs simulated with a greedy v2 AI.
 - Avg absorbs per skill cast: 0.00
 
 ## Wit LONG THREAD (v2.34)
-- Combats reaching LT ≥ 1: 269 (runs: 89 / 100, 89.0%)
-- Avg peak LT per run (across all combats): 2.84
-- Avg peak LT per threaded combat: 1.06
+- Combats reaching LT ≥ 1: 266 (runs: 87 / 100, 87.0%)
+- Avg peak LT per run (across all combats): 2.96
+- Avg peak LT per threaded combat: 1.11
 - Thread breaks (unblocked hit reset a non-zero meter): 188
-- Thread-scaling rider triggers: 5
-- Total bonus damage from thread scaling: 15
-- "natural conclusion." target casts: 21
+- Thread-scaling rider triggers: 1
+- Total bonus damage from thread scaling: 3
+- "natural conclusion." target casts: 32
 
 ## Wit FOOTNOTE (v2.35)
-- Footnotes applied: 58 (runs: 56 / 100, 56.0%)
-- Casts contributing footnote bonus: 196
-- Total footnote bonus damage: 636
-- Avg bonus per footnoted cast: 3.24
+- Footnotes applied: 57 (runs: 55 / 100, 55.0%)
+- Casts contributing footnote bonus: 185
+- Total footnote bonus damage: 570
+- Avg bonus per footnoted cast: 3.08
 
 ## Wit ACTUALLY— (v2.36)
-- Re-fires resolved: 131 (runs: 35 / 100, 35.0%)
-- Total re-fire damage: 4184
-- Avg damage / re-fire: 31.94
-- Enemy bonus from arguing-back: 37 (cost side fired)
+- Re-fires resolved: 168 (runs: 39 / 100, 39.0%)
+- Total re-fire damage: 4719
+- Avg damage / re-fire: 28.09
+- Enemy bonus from arguing-back: 46 (cost side fired)
+
+## Wit HOLD ON — (v2.37)
+- Plays: 10 (runs: 8 / 100, 8.0%)
+- Total damage prevented: 9
+- Avg prevention / play: 0.90
 
 ## Combat pacing
 - Avg turns / combat: 4.34
-- Avg damage / run: 422
-- Mean final deck size: 13.7
+- Avg damage / run: 410
+- Mean final deck size: 13.3
 
 ## Archetype of winning decks
 - mid-t2t3: 4
-- low-tier: 1
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 32
-- e3-vein-devourer (Vein Devourer): 13
-- e2-silent-spinner (The Silent Spinner): 12
-- e3-boss-anvil (The Anvil-Forged): 10
-- e2-pattern-maker (The Pattern-Maker): 8
-- e3-quartz-sentinel (Quartz Sentinel): 7
-- e3-glow-mite (Glow-Mite Swarm): 5
+- e2-boss-tapestry (The Tapestry Walker): 28
+- e2-silent-spinner (The Silent Spinner): 13
+- e3-boss-anvil (The Anvil-Forged): 13
+- e3-vein-devourer (Vein Devourer): 12
+- e2-pattern-maker (The Pattern-Maker): 9
 - e1-boss-thornlord (The Thornlord): 5
-- e1-thicket (Living Thicket): 2
-- e3-geode-crab (Geode Crab): 1
+- e3-glow-mite (Glow-Mite Swarm): 4
+- e3-geode-crab (Geode Crab): 4
+- e3-crystal-beetle (Crystal Beetle): 3
+- e3-quartz-sentinel (Quartz Sentinel): 3
+- e1-thicket (Living Thicket): 1
+- e1-tutor (Stern Tutor): 1

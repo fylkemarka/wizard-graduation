@@ -437,6 +437,19 @@ const SKILLS = [
     effects: { refireLastCast: true },
     desc: 'Skill. Re-fire your last cast this turn at ×1.5 damage. Each play this turn: +1 damage from every enemy attack this turn. Needs a cast.',
     flavor: 'Actually being a word that, in wit, recasts the room.' },
+  // v2.37: HOLD ON — the reactive interrupt. Arms a one-shot flag that
+  // reduces the next enemy attack's first swing by the player's current
+  // Long Thread (snapshotted at play time). Makes Long Thread defend
+  // itself: the higher the thread, the bigger the interrupt — but
+  // spending the thread on defense costs the offensive scaling that
+  // threadScaling targets read. Non-exhaust so the same copy can recur
+  // each turn.
+  { id: 'wv2-k-hold-on', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
+    name: 'Hold on, hold on —', phrase: 'Hold on, hold on —',
+    tags: ['rhetorical', 'continuing'],
+    effects: { holdOnPrep: true },
+    desc: 'Skill. Arm: next enemy swing is reduced by your current Long Thread. Snapshotted on play. Clears when used OR at start of your next turn.',
+    flavor: 'A pause given the same weight as the speech it interrupts.' },
 ];
 
 // v2.6: NEW MODIFIERS — say-again (×2 damage rare) + words-to-actions

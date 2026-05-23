@@ -402,6 +402,13 @@ function runCombat(state, enemyId, telemetry) {
   // resets each turn.
   state.lastCastSnapshot = null;
   state.arguingBackThisTurn = 0;
+  // v2.37: HOLD ON — reactive interrupt. holdOnArmed flips true on play
+  // of the "Hold on, hold on —" skill; holdOnValue snapshots longThread
+  // at play time. Consumed by the next enemy attack (first swing). Auto-
+  // clears at the start of the player's next turn if unused. Reset per
+  // combat.
+  state.holdOnArmed = false;
+  state.holdOnValue = 0;
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
   // App's intent pool (real enemies in App.jsx fire Weak/Vuln intents AND
   // riders on attacks). Sim composite-atk model doesn't carry per-enemy
@@ -1110,6 +1117,44 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.37: HOLD ON — wit's reactive interrupt skill. AI plays it before
+    // the enemy attack lands when:
+    //   - lane is wit
+    //   - the skill is in hand AND affordable
+    //   - longThread >= 1 (any LT translates to real prevention; the cost is
+    //     just 1 energy)
+    //   - the upcoming swing would punch through block (atk > block+poise+2)
+    //   - not already armed (don't waste a second cast — flag doesn't stack)
+    // The greedy AI is unsophisticated: it can't see Weak/Vuln-modified
+    // values precisely (those drift back during enemy turn), so we use
+    // enemy.atk as a reasonable proxy.
+    if (state.lane === 'wit' && !state.holdOnArmed) {
+      const holdOnIdx = state.hand.findIndex(c => c.id === 'wv2-k-hold-on');
+      if (holdOnIdx >= 0) {
+        const c = state.hand[holdOnIdx];
+        const lt = state.longThread || 0;
+        const expectedSwing = enemy.atk;
+        const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+        // Play when LT≥2 (any swing benefits), OR LT≥1 on boss/elite when the
+        // hit punches through block. Don't play at LT=0 — no prevention to be
+        // had (the spec lets the flag still consume on 0, but greedy AI should
+        // never voluntarily burn 1 energy for 0 prevention).
+        const tougher = (enemy.tier === 'boss' || enemy.tier === 'elite');
+        const worthPlaying = (
+          (lt >= 2 && unblockedExpected >= 4) ||
+          (lt >= 1 && tougher && unblockedExpected >= 6)
+        ) && (c.cost || 0) <= state.energy;
+        if (worthPlaying) {
+          state.energy -= c.cost || 0;
+          state.holdOnArmed = true;
+          state.holdOnValue = lt;
+          state.discard.push(c);
+          state.hand.splice(holdOnIdx, 1);
+          telemetry.holdOnPlays = (telemetry.holdOnPlays || 0) + 1;
+        }
+      }
+    }
+
     // v2.10: annotation damageOnTurnEnd + damageOnDraw (after the player
     // has played their full turn). damageOnDraw fires per card drawn this
     // turn; the sim doesn't track per-call draws, so it fires at end of
@@ -1183,6 +1228,19 @@ function runCombat(state, enemyId, telemetry) {
     // v2.10: annotation enemyAtkReduction.
     if (enemy.annotation?.effect?.enemyAtkReduction) {
       incoming = Math.max(0, incoming - enemy.annotation.effect.enemyAtkReduction);
+    }
+    // v2.37: HOLD ON consumes here. The sim models the enemy turn as a
+    // single composite swing, so the "first swing" reduction applies to
+    // the whole incoming value. The flag clears regardless of whether
+    // the reduction was meaningful (no free re-cast). Telemetry tracks
+    // total damage prevented across all runs.
+    if (state.holdOnArmed) {
+      const reduced = Math.max(0, incoming - (state.holdOnValue || 0));
+      const prevented = incoming - reduced;
+      incoming = reduced;
+      telemetry.holdOnDamagePrevented = (telemetry.holdOnDamagePrevented || 0) + prevented;
+      state.holdOnArmed = false;
+      state.holdOnValue = 0;
     }
     // v2.9: Beetle's first-hit absorb consumes once per combat.
     if (state.beetleAbsorb > 0 && incoming > 0) {
@@ -1306,6 +1364,14 @@ function runCombat(state, enemyId, telemetry) {
     // next turn's Actually— can only re-fire what's cast THIS turn.
     state.arguingBackThisTurn = 0;
     state.lastCastSnapshot = null;
+    // v2.37: HOLD ON auto-clear. If the player armed Hold On but no enemy
+    // attack consumed it (e.g. the enemy's intent was a block/buff that
+    // turn), the flag clears here. Telemetry doesn't count an unused arm
+    // as damage-prevented — only actual reductions count.
+    if (state.holdOnArmed) {
+      state.holdOnArmed = false;
+      state.holdOnValue = 0;
+    }
     // v2.26: STORM OUT — intentHidden persists through ONE upcoming player
     // turn. The flag was set when the storm-out cast resolved THIS turn;
     // the next player turn renders the hidden intent; the turn after that
@@ -1426,6 +1492,21 @@ function awardReward(state) {
       }
     }
   }
+  // v2.37: HOLD ON — wit lane only. ~18% bias matching Actually/Footnote
+  // so engagement is reliably measurable. Caps at one copy — the spec is
+  // one-and-done arming (a second copy in hand can't stack the flag, only
+  // re-arm it after consumption), so two is overkill for a defensive skill.
+  if (state.lane === 'wit') {
+    const ownsHoldOn = allCards.some(c => c.id === 'wv2-k-hold-on');
+    if (!ownsHoldOn) {
+      const hk = pool.find(c => c.id === 'wv2-k-hold-on');
+      if (hk && rnd() < 0.20) {
+        state.discard.push({ ...hk, uid: uid() });
+        state.rewardsTaken.push(hk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -1540,6 +1621,12 @@ function simRun(forcedLane = null) {
     actuallyCasts: 0,
     actuallyExtraDamage: 0,
     arguingBackEnemyBonus: 0,
+    // v2.37: HOLD ON telemetry. holdOnPlays = number of times the skill
+    // was played; holdOnDamagePrevented = sum of incoming damage reduced
+    // across all consumed arms (excludes unused arms — auto-cleared ones
+    // don't count toward the impact metric).
+    holdOnPlays: 0,
+    holdOnDamagePrevented: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1700,6 +1787,10 @@ function aggregate(results) {
     actuallyExtraDamage: results.reduce((s, r) => s + (r.actuallyExtraDamage || 0), 0),
     arguingBackEnemyBonus: results.reduce((s, r) => s + (r.arguingBackEnemyBonus || 0), 0),
     actuallyRuns: results.filter(r => (r.actuallyCasts || 0) > 0).length,
+    // v2.37: HOLD ON aggregate.
+    holdOnPlays: results.reduce((s, r) => s + (r.holdOnPlays || 0), 0),
+    holdOnDamagePrevented: results.reduce((s, r) => s + (r.holdOnDamagePrevented || 0), 0),
+    holdOnRuns: results.filter(r => (r.holdOnPlays || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1799,6 +1890,11 @@ function buildReport(agg) {
   lines.push(`- Total re-fire damage: ${agg.actuallyExtraDamage}`);
   lines.push(`- Avg damage / re-fire: ${agg.actuallyCasts > 0 ? (agg.actuallyExtraDamage / agg.actuallyCasts).toFixed(2) : '0.00'}`);
   lines.push(`- Enemy bonus from arguing-back: ${agg.arguingBackEnemyBonus} (cost side fired)`);
+  lines.push('');
+  lines.push(`## Wit HOLD ON — (v2.37)`);
+  lines.push(`- Plays: ${agg.holdOnPlays} (runs: ${agg.holdOnRuns} / ${agg.N}, ${pct(agg.holdOnRuns / agg.N)})`);
+  lines.push(`- Total damage prevented: ${agg.holdOnDamagePrevented}`);
+  lines.push(`- Avg prevention / play: ${agg.holdOnPlays > 0 ? (agg.holdOnDamagePrevented / agg.holdOnPlays).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

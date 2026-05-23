@@ -3174,6 +3174,18 @@ export default function App() {
   // to their raw damage. Reset to 0 at end of every player turn.
   const [lastCastSnapshot, setLastCastSnapshot] = useState(null);
   const [arguingBackThisTurn, setArguingBackThisTurn] = useState(0);
+  // v2.37: HOLD ON — wit's reactive interrupt. When the player plays the
+  // "Hold on, hold on —" skill, holdOnArmed flips true and holdOnValue is
+  // SNAPSHOTTED from the player's current longThread at play time (so a
+  // later thread-tick or thread-break doesn't change the interrupt's
+  // strength). On the very next enemy attack/attack-multi, the first
+  // swing's `raw` value is reduced by holdOnValue (clamped at 0) and the
+  // flag clears regardless of whether the reduction was meaningful (no
+  // free re-cast — you spent the energy). Auto-clears at the START of the
+  // player's NEXT turn if no enemy attack consumed it ("you only get to
+  // interrupt the NEXT thing they say"). Reset to false / 0 in enterFight.
+  const [holdOnArmed, setHoldOnArmed] = useState(false);
+  const [holdOnValue, setHoldOnValue] = useState(0);
   // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
   // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
@@ -4166,6 +4178,9 @@ export default function App() {
     // arguingBackThisTurn starts 0. Both never persist between combats.
     setLastCastSnapshot(null);
     setArguingBackThisTurn(0);
+    // v2.37: HOLD ON — reactive interrupt flag + snapshot reset per combat.
+    setHoldOnArmed(false);
+    setHoldOnValue(0);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
     // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
@@ -5394,6 +5409,20 @@ export default function App() {
       setArguingBackThisTurn(n => n + 1);
       logBits.push(`🗣 +1 arguing back`);
     }
+    // v2.37: HOLD ON — arm a reactive interrupt that reduces the next
+    // enemy attack's first swing by the player's CURRENT longThread
+    // (snapshotted at play time). The flag arms regardless of LT value
+    // — even at LT=0 the play still burns the slot (no free re-cast).
+    // Consumed when applyEnemyIntent processes the next attack/attack-
+    // multi; otherwise auto-clears at the start of the player's next
+    // turn (see endTurn).
+    if (fx.holdOnPrep) {
+      const snap = longThread || 0;
+      setHoldOnArmed(true);
+      setHoldOnValue(snap);
+      if (snap > 0) logBits.push(`🛑 Hold on — armed (−${snap} next swing)`);
+      else          logBits.push(`🛑 Hold on — armed (no thread)`);
+    }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
@@ -5800,6 +5829,15 @@ export default function App() {
     setArguingBackThisTurn(0);
     setLastCastSnapshot(null);
 
+    // v2.37: HOLD ON — auto-clear if unused. The flag is meant to interrupt
+    // the NEXT enemy attack, not linger as a delayed counter. If applyEnemyIntent
+    // already consumed it, holdOnArmed is already false — this is a no-op.
+    if (holdOnArmed) {
+      pushLog(`🛑 Hold on — released, no one was talking.`);
+      setHoldOnArmed(false);
+      setHoldOnValue(0);
+    }
+
     // 2.5. Block fades — explicit log so the player sees expiry happen even
     //      when a Hedgehog/Felt re-grant immediately tops it back up below.
     //      `block` here is the closure value at the top of the event handler;
@@ -5968,6 +6006,29 @@ export default function App() {
       // v2.10: annotation reduces incoming attack BEFORE shield routing.
       const annAtkRed = annoFx('enemyAtkReduction');
       if (annAtkRed > 0) raw = Math.max(0, raw - annAtkRed);
+      // v2.37: HOLD ON — reactive interrupt. If the player armed the
+      // "Hold on, hold on —" skill, the next attack's FIRST swing is
+      // reduced by holdOnValue (snapshotted at skill play time). On an
+      // attack-multi we apply the reduction once to the pre-swing-loop
+      // `raw` value: the loop reuses `raw` for every swing, so reducing
+      // it once would persist the reduction to ALL swings. Instead, we
+      // capture the reduced raw as a per-first-swing override and
+      // restore the unreduced raw for swings 2..N. The flag clears
+      // unconditionally — no free re-cast.
+      let holdOnFirstSwingRaw = null;
+      if (holdOnArmed) {
+        const reduced = Math.max(0, raw - (holdOnValue || 0));
+        const prevented = raw - reduced;
+        holdOnFirstSwingRaw = reduced;
+        pushLog(`🛑 Hold on — reduced damage by ${holdOnValue || 0}.`);
+        logEvent('wit.holdOn', {
+          longThreadAtPlay: holdOnValue || 0,
+          damagePrevented: prevented,
+          enemyId: enemy?.id, enemyTier: enemy?.tier,
+        });
+        setHoldOnArmed(false);
+        setHoldOnValue(0);
+      }
       const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
                          + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
       const reduction = Math.min(2, rawReduction);
@@ -6012,7 +6073,9 @@ export default function App() {
             break;
           }
         }
-        let remaining = raw;
+        // v2.37: HOLD ON applies ONLY to the first swing of an attack/
+        // attack-multi. swings 1..N use the unreduced `raw`.
+        let remaining = (i === 0 && holdOnFirstSwingRaw != null) ? holdOnFirstSwingRaw : raw;
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
         let landed = false;
         if (targetsComposure) {
@@ -6571,6 +6634,8 @@ export default function App() {
       onCancelFootnote={cancelFootnotePrompt}
       lastCastSnapshot={lastCastSnapshot}
       arguingBackThisTurn={arguingBackThisTurn}
+      holdOnArmed={holdOnArmed}
+      holdOnValue={holdOnValue}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7357,7 +7422,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
                        longThread = 0, isWit = false,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
-                       lastCastSnapshot = null, arguingBackThisTurn = 0 }) {
+                       lastCastSnapshot = null, arguingBackThisTurn = 0,
+                       holdOnArmed = false, holdOnValue = 0 }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -7596,6 +7662,17 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div title={`Long Thread — wit's consecutive-turn scaling. Ticks +1 at end of turn IF you cast a wit Effect AND took no unblocked HP damage. Take an unblocked hit, lose the thread. Wit threadScaling targets get +N × Long Thread on cast.`}>
               <div className="text-xs uppercase text-iris-300">Thread</div>
               <div className="text-2xl font-mono text-iris-200">🧵 {longThread}</div>
+            </div>
+          )}
+          {/* v2.37: HOLD ON armed indicator. Shows the snapshotted reduction
+              that the next enemy swing will eat. Persists across turns
+              until consumed (or auto-cleared at start of next turn — but
+              endTurn fires the clear AFTER the enemy intent, so the
+              indicator only disappears once the swing happened). */}
+          {holdOnArmed && (
+            <div title={`Hold On — armed. The next enemy swing's damage is reduced by ${holdOnValue} (snapshotted from your Long Thread at play time). Clears when the next attack resolves OR at the start of your next turn.`}>
+              <div className="text-xs uppercase text-iris-300">Hold</div>
+              <div className="text-2xl font-mono text-iris-200">🛑 −{holdOnValue}</div>
             </div>
           )}
           <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
