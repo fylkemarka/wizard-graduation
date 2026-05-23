@@ -3151,6 +3151,16 @@ export default function App() {
   // signal so the immediate storm-out endTurn doesn't clear its own flag.
   const [intentHidden, setIntentHidden] = useState(false);
   const stormOutFiredRef = useRef(false);
+  // v2.27: HIT ME AGAIN — chutzpah's reactive recoil power. While the
+  // `cv2-p-hit-me-again` power is installed (mirrored on this flag so the
+  // attack-resolution path doesn't have to walk `powers` on every swing),
+  // each enemy hit landing on the player arms +1 to `hitMeAgainCharges`.
+  // The NEXT swing eats `charges` recoil before resolving its damage —
+  // for attack-multi, each swing both eats recoil AND arms a new charge,
+  // so the bleed snowballs. Charges never reset within a combat. Both
+  // reset to 0 / false in enterFight.
+  const [hitMeAgainInstalled, setHitMeAgainInstalled] = useState(false);
+  const [hitMeAgainCharges, setHitMeAgainCharges] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
@@ -4097,6 +4107,9 @@ export default function App() {
     // v2.26: chutzpah hidden-intent flag resets per combat.
     setIntentHidden(false);
     stormOutFiredRef.current = false;
+    // v2.27: chutzpah Hit Me Again — power install + charges reset.
+    setHitMeAgainInstalled(false);
+    setHitMeAgainCharges(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4258,6 +4271,11 @@ export default function App() {
     if (card.type === 'power') {
       setPowers(ps => [...ps, card]);
       setHand(h => h.filter((_, i) => i !== handIdx));
+      // v2.27: Hit Me Again — surface a fast-read flag so the per-swing
+      // attack-resolution doesn't walk `powers` every hit.
+      if (card.installPower?.id === 'hit-me-again' || card.id === 'cv2-p-hit-me-again') {
+        setHitMeAgainInstalled(true);
+      }
       pushLog(`📿 ${card.name} — power active.`);
       return;
     }
@@ -5670,23 +5688,77 @@ export default function App() {
       let wPoise = poise;
       let wHp = hp;
       let wComp = composure;
+      // v2.27: Hit Me Again — per-swing recoil + charge accrual. Each swing
+      // first eats `charges` self-damage on the enemy (composure if hp:999
+      // sentinel, else HP — physical pool first if HP is real). Then resolves
+      // its damage on the player. Then arms a new charge if the swing landed
+      // (any damage > 0 reaching the player counts — block-absorbed still
+      // counts per spec). Mutates local copies of enemy pools so the multi-
+      // swing path doesn't lose state between swings.
+      let recoilWComp = enemyComposure;
+      let recoilWHp = enemyHp;
+      let recoilCharges = hitMeAgainCharges;
+      let recoilTotal = 0;
       for (let i = 0; i < hits; i++) {
+        // Recoil fires BEFORE the swing's player-damage resolves.
+        if (hitMeAgainInstalled && recoilCharges > 0) {
+          const recoil = recoilCharges;
+          // Prefer HP if it's a real pool; fall back to composure for hp:999
+          // sentinels (Hollow Weaver, Silk Wraith, etc.).
+          const enemyHpIsReal = (enemy?.hpMax || 0) < 900;
+          if (enemyHpIsReal && recoilWHp > 0) {
+            recoilWHp = Math.max(0, recoilWHp - recoil);
+          } else {
+            recoilWComp = Math.max(0, recoilWComp - recoil);
+          }
+          recoilTotal += recoil;
+          if (recoilWComp <= 0 || (enemyHpIsReal && recoilWHp <= 0)) {
+            // Enemy died to its own swing — stop here.
+            break;
+          }
+        }
         let remaining = raw;
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
+        let landed = false;
         if (targetsComposure) {
           if (wPoise > 0) {
             const absorbed = Math.min(wPoise, remaining);
             wPoise -= absorbed; remaining -= absorbed;
+            if (absorbed > 0) landed = true;
           }
-          wComp = Math.max(0, wComp - remaining);
+          if (remaining > 0) {
+            const before = wComp;
+            wComp = Math.max(0, wComp - remaining);
+            if (before > wComp) landed = true;
+          }
         } else {
           if (wBlock > 0) {
             const absorbed = Math.min(wBlock, remaining);
             wBlock -= absorbed; remaining -= absorbed;
+            if (absorbed > 0) landed = true;
           }
-          wHp = Math.max(0, wHp - remaining);
+          if (remaining > 0) {
+            const before = wHp;
+            wHp = Math.max(0, wHp - remaining);
+            if (before > wHp) landed = true;
+          }
         }
+        // Arm a new charge — the swing landed somewhere (block or pool).
+        // Per spec: "whether absorbed by block or hitting HP."
+        if (hitMeAgainInstalled && landed) recoilCharges += 1;
         if (wHp <= 0 || wComp <= 0) break;
+      }
+      // Commit recoil + charge state.
+      if (hitMeAgainInstalled && recoilTotal > 0) {
+        setEnemyComposure(recoilWComp);
+        setEnemyHp(recoilWHp);
+        pushLog(`⚡ Hit me again recoils: -${recoilTotal} on ${enemy?.name || 'enemy'}.`);
+        if (recoilWComp <= 0 || ((enemy?.hpMax || 0) < 900 && recoilWHp <= 0)) {
+          setTimeout(() => onEnemyDefeated(), 200);
+        }
+      }
+      if (hitMeAgainInstalled && recoilCharges !== hitMeAgainCharges) {
+        setHitMeAgainCharges(recoilCharges);
       }
       setBlock(wBlock);
       setPoise(wPoise);
@@ -7226,17 +7298,26 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       )}
 
       {/* Active Powers row — visible only while at least one power is on
-          the field. Hover shows the trigger + flavor. */}
+          the field. Hover shows the trigger + flavor. v2.27: Hit Me Again
+          shows a `⚡N` charge pip next to its chip. */}
       {powers.length > 0 && (
         <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
           <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
-          {powers.map((p, i) => (
-            <span key={p.uid || i}
-              title={`${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
-              className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
-              {p.name}
-            </span>
-          ))}
+          {powers.map((p, i) => {
+            const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
+            return (
+              <span key={p.uid || i}
+                title={`${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
+                className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
+                {p.name}
+                {isHitMeAgain && (
+                  <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
+                    ⚡{hitMeAgainCharges}
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 

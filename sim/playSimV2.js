@@ -302,6 +302,13 @@ function runCombat(state, enemyId, telemetry) {
   // we track that the player stormed out and what the next intent would have
   // been hidden against. Reset per combat.
   state.intentHidden = false;
+  // v2.27: HIT ME AGAIN — per-combat install flag + recoil charges. While
+  // installed, the enemy eats `charges` self-damage at the start of every
+  // attack (sim models each enemy turn as one composite swing, so charges
+  // arm +1 per landed turn). Recoil bypasses enemy block. Charges never
+  // reset within a combat. Mirrors hitMeAgainInstalled/Charges in App.jsx.
+  state.hitMeAgainInstalled = false;
+  state.hitMeAgainCharges = 0;
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
@@ -375,6 +382,25 @@ function runCombat(state, enemyId, telemetry) {
             effect: c.annotationEffect || {},
             turnsRemaining: c.duration || 3,
           };
+          state.discard.push(c);
+          state.hand.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // v2.27: HIT ME AGAIN install pass. If the power card is in hand and
+    // not yet installed, install it on the cheapest turn possible — the
+    // recoil engine values early installs (charges only accumulate while
+    // installed). Cost 1, so the AI hangs on to it through a turn-1 fight
+    // start and plays it once energy is spare.
+    if (!state.hitMeAgainInstalled) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if (c.id === 'cv2-p-hit-me-again' && (c.cost || 0) <= state.energy) {
+          state.energy -= c.cost || 0;
+          state.hitMeAgainInstalled = true;
+          telemetry.hitMeAgainInstalls = (telemetry.hitMeAgainInstalls || 0) + 1;
           state.discard.push(c);
           state.hand.splice(i, 1);
           break;
@@ -754,6 +780,27 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // Enemy turn
+    // v2.27: HIT ME AGAIN recoil fires BEFORE the enemy's swing damage.
+    // The sim models each enemy turn as one composite attack (no per-swing
+    // model), so charges arm +1 per landed turn — a lower bound vs the
+    // App's per-swing accrual on attack-multi. Recoil bypasses enemy block.
+    // Pool routing: HP first if it's a real pool, fall back to composure
+    // for hp:999 sentinels.
+    if (state.hitMeAgainInstalled && state.hitMeAgainCharges > 0) {
+      const recoil = state.hitMeAgainCharges;
+      const enemyHpIsReal = enemy.hp < 900;
+      if (enemyHpIsReal && enemy.currentHp > 0) {
+        enemy.currentHp = Math.max(0, enemy.currentHp - recoil);
+      } else {
+        enemy.currentComp = Math.max(0, enemy.currentComp - recoil);
+      }
+      telemetry.hitMeAgainRecoilTotal = (telemetry.hitMeAgainRecoilTotal || 0) + recoil;
+      // Check kill — if the enemy's own swing killed itself, end combat.
+      if (enemy.currentComp <= 0 || (enemyHpIsReal && enemy.currentHp <= 0)) {
+        telemetry.hitMeAgainKills = (telemetry.hitMeAgainKills || 0) + 1;
+        return { outcome: 'won', turns, telemetry };
+      }
+    }
     let incoming = enemy.atk;
     // v2.10: annotation enemyAtkReduction.
     if (enemy.annotation?.effect?.enemyAtkReduction) {
@@ -788,6 +835,13 @@ function runCombat(state, enemyId, telemetry) {
     }
     state.composure = Math.max(0, state.composure - compIncoming);
     state.hp = Math.max(0, state.hp - hpIncoming);
+
+    // v2.27: HIT ME AGAIN — arm a charge for next turn if ANY damage made
+    // it through this turn (block-absorbed counts per spec). Sim composite
+    // model: +1 per landed enemy turn. Charges never reset within combat.
+    if (state.hitMeAgainInstalled && incoming > 0) {
+      state.hitMeAgainCharges = (state.hitMeAgainCharges || 0) + 1;
+    }
 
     // v2.10: annotation damageOnEnemyAttack (reactive).
     if (enemy.annotation?.effect?.damageOnEnemyAttack && (compIncoming + hpIncoming) > 0) {
@@ -944,6 +998,8 @@ function simRun(forcedLane = null) {
     doubleDownCasts: 0, cornerTokenBills: 0, cornerTokenDamage: 0,
     // v2.26: chutzpah storm-out telemetry.
     stormOutCasts: 0, stormOutEnergySpent: 0,
+    // v2.27: chutzpah hit-me-again telemetry.
+    hitMeAgainInstalls: 0, hitMeAgainRecoilTotal: 0, hitMeAgainKills: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1063,6 +1119,11 @@ function aggregate(results) {
     stormOutCasts: results.reduce((s, r) => s + (r.stormOutCasts || 0), 0),
     stormOutRuns: results.filter(r => (r.stormOutCasts || 0) > 0).length,
     stormOutEnergySpent: results.reduce((s, r) => s + (r.stormOutEnergySpent || 0), 0),
+    // v2.27: hit-me-again metrics.
+    hitMeAgainInstalls: results.reduce((s, r) => s + (r.hitMeAgainInstalls || 0), 0),
+    hitMeAgainInstallRuns: results.filter(r => (r.hitMeAgainInstalls || 0) > 0).length,
+    hitMeAgainRecoilTotal: results.reduce((s, r) => s + (r.hitMeAgainRecoilTotal || 0), 0),
+    hitMeAgainKills: results.reduce((s, r) => s + (r.hitMeAgainKills || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1114,6 +1175,12 @@ function buildReport(agg) {
   lines.push(`## Chutzpah STORMING OUT (v2.26)`);
   lines.push(`- Storm Out casts: ${agg.stormOutCasts} (avg energy spent: ${agg.stormOutCasts > 0 ? (agg.stormOutEnergySpent / agg.stormOutCasts).toFixed(2) : '0.00'})`);
   lines.push(`- Runs with at least one Storm Out: ${agg.stormOutRuns} / ${agg.N} (${pct(agg.stormOutRuns / agg.N)})`);
+  lines.push('');
+  lines.push(`## Chutzpah HIT ME AGAIN (v2.27)`);
+  lines.push(`- Hit Me Again installs: ${agg.hitMeAgainInstalls} (runs: ${agg.hitMeAgainInstallRuns} / ${agg.N}, ${pct(agg.hitMeAgainInstallRuns / agg.N)})`);
+  lines.push(`- Total recoil damage to enemies: ${agg.hitMeAgainRecoilTotal}`);
+  lines.push(`- Enemies killed by their own recoil: ${agg.hitMeAgainKills}`);
+  lines.push(`- Avg recoil per install: ${agg.hitMeAgainInstalls > 0 ? (agg.hitMeAgainRecoilTotal / agg.hitMeAgainInstalls).toFixed(1) : '0.0'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

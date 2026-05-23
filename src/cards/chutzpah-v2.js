@@ -458,7 +458,26 @@ const UNIQUE_TARGETS = [
     flavor: "After this one, I'm leaving. Briefly. You won't see me go." },
 ];
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
+// v2.27: HIT ME AGAIN — chutzpah's reactive power. Cost 1, installs on the
+// field for the duration of combat. Every enemy attack that LANDS (blocked
+// or not) adds +1 to a `hitMeAgainCharges` counter. At the START of every
+// subsequent enemy attack — including each swing of an attack-multi — the
+// enemy first eats `charges` self-damage to their composure pool (or HP if
+// the composure pool is the immortal sentinel). Charges DO NOT reset; they
+// snowball. First swing of the combat is free for the enemy; each swing
+// after that costs them more than the last. Lane-defining offensive-defense
+// — you don't dodge, you bill.
+const HIT_ME_AGAIN_POWER = [
+  { id: 'cv2-p-hit-me-again', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
+    name: 'Hit me again.', phrase: 'Hit me again.',
+    tags: ['swaggering', 'threatening', 'demanding'],
+    installPower: { id: 'hit-me-again' },
+    desc: 'Power. Each enemy hit on you arms +1 recoil. Next enemy swing (including each in a multi) takes that much self-damage BEFORE it lands. Recoil never resets.',
+    flavor: 'Keep hitting me. Watch what it costs you.' },
+];
+
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER];
 export const CHUTZPAH_V2_BY_SLOT = {
   intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26], gesture: GESTURES,
+  power: HIT_ME_AGAIN_POWER,
 };
