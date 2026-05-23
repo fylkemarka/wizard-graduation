@@ -160,11 +160,41 @@ function pickBestForSlot(state, slot, energyLeft) {
     const c = state.hand[i];
     if (c.slot !== slot) continue;
     if ((c.cost || 0) > energyLeft) continue;
+    // v2.24: prefer chutzpah-lane cards when the rage meter is climbing.
+    // Skip cards that require rage when rage isn't active (gates Bare Knuckles).
+    if (c.effect?.requiresRage) continue;
     const tier = c.tier || 1;
     const stat = c.stats?.[c.lane] || 0;
-    if (tier > bestTier || (tier === bestTier && stat > bestStat)) {
+    // v2.24: bias toward tunnel-vision-pumping cards while meter is low,
+    // and toward chutzpah cards in general while we're close to 5.
+    let score = tier * 10 + stat;
+    if (state.lane === 'chutzpah') {
+      if (c.effects?.tunnelVision && (state.tunnelVision || 0) < 5) score += 5;
+      if (c.lane === 'chutzpah' && (state.tunnelVision || 0) >= 4 && (state.tunnelVision || 0) < 5) score += 4;
+    }
+    if (score > bestTier * 10 + bestStat) {
       bestIdx = i; bestTier = tier; bestStat = stat;
     }
+  }
+  return bestIdx;
+}
+
+// v2.24: target-slot variant. Like pickBestForSlot but lets requiresRage
+// targets through ONLY when state.rageActive is true. Also prioritizes
+// Bare Knuckles when rage IS active (it's the rage payoff card).
+function pickBestForSlotRageAware(state, slot, energyLeft, rageActive) {
+  let bestIdx = -1, bestScore = -Infinity;
+  for (let i = 0; i < state.hand.length; i++) {
+    const c = state.hand[i];
+    if (c.slot !== slot) continue;
+    if ((c.cost || 0) > energyLeft) continue;
+    const needsRage = !!c.effect?.requiresRage;
+    if (needsRage && !rageActive) continue;
+    const tier = c.tier || 1;
+    const stat = c.stats?.[c.lane] || 0;
+    let score = tier * 10 + stat;
+    if (needsRage && rageActive) score += 30; // strongly prefer Bare Knuckles in RAGE
+    if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
   return bestIdx;
 }
@@ -197,6 +227,9 @@ function runCombat(state, enemyId, telemetry) {
   state.block = 0;
   state.poise = 0; // v2.9: composure-shield
   state.combatRolls = []; // v2.12: track chaos rolls this combat
+  // v2.24: chutzpah TUNNEL VISION + RAGE state — per combat.
+  state.tunnelVision = 0;
+  state.rageActive = false;
   // v2.9: familiar start-of-combat bonuses.
   const fb = state.familiarBonus || {};
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
@@ -225,6 +258,14 @@ function runCombat(state, enemyId, telemetry) {
     state.energy = ENERGY_PER_TURN + (turns === 1 && fb.startCombatEnergy ? fb.startCombatEnergy : 0);
     // v2.9: start-of-turn block from familiar (e.g. Hedgehog).
     if (fb.startOfTurnBlock) state.block += fb.startOfTurnBlock;
+    // v2.24: chutzpah RAGE entry check. If TUNNEL VISION >= 5, this turn
+    // is a RAGE turn — +50% potency bonus applied to playerDmgMult, with
+    // a track flag so end-of-turn knows to roll it back.
+    if (!state.rageActive && (state.tunnelVision || 0) >= 5) {
+      state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.5);
+      state.rageActive = true;
+      telemetry.rageTriggers = (telemetry.rageTriggers || 0) + 1;
+    }
     // v2.10: annotation start-of-turn effects.
     if (enemy.annotation?.effect) {
       const annE = enemy.annotation.effect;
@@ -326,6 +367,13 @@ function runCombat(state, enemyId, telemetry) {
         if (fx.energy)     state.energy += fx.energy;
         if (fx.hp)         state.hp = Math.min(state.maxHp, state.hp + fx.hp);
         if (fx.loseHp)     state.hp = Math.max(0, state.hp - fx.loseHp);
+        // v2.24: tunnel-vision pump (Foaming at the mouth, and any future card).
+        if (fx.tunnelVision) state.tunnelVision = (state.tunnelVision || 0) + fx.tunnelVision;
+      };
+      // v2.24: bumps the chutzpah RAGE meter when a chutzpah-lane card
+      // commits to a slot. Mirrors bumpTunnelVisionIfChutzpah() in App.jsx.
+      const bumpTunnelOnStage = (card) => {
+        if (card?.lane === 'chutzpah') state.tunnelVision = (state.tunnelVision || 0) + 1;
       };
       if (!tray.intro) {
         const idx = pickBestForSlot(state, 'intro', state.energy);
@@ -334,6 +382,7 @@ function runCombat(state, enemyId, telemetry) {
           state.energy -= tray.intro.cost || 0;
           state.hand.splice(idx, 1);
           applyStageEffects(tray.intro);
+          bumpTunnelOnStage(tray.intro);
           progressed = true;
           continue;
         }
@@ -345,16 +394,20 @@ function runCombat(state, enemyId, telemetry) {
           state.energy -= tray.subject.cost || 0;
           state.hand.splice(idx, 1);
           applyStageEffects(tray.subject);
+          bumpTunnelOnStage(tray.subject);
           progressed = true;
           continue;
         }
       }
       if (!tray.target) {
-        const idx = pickBestForSlot(state, 'target', state.energy);
+        // v2.24: prefer Bare Knuckles (requiresRage) when RAGE is active.
+        // Otherwise block it from staging entirely (mirrors App.jsx gate).
+        const idx = pickBestForSlotRageAware(state, 'target', state.energy, state.rageActive);
         if (idx >= 0) {
           tray.target = state.hand[idx];
           state.energy -= tray.target.cost || 0;
           state.hand.splice(idx, 1);
+          bumpTunnelOnStage(tray.target);
           progressed = true;
           continue;
         }
@@ -463,6 +516,12 @@ function runCombat(state, enemyId, telemetry) {
         cashedTurns = enemy.annotation.turnsRemaining || 0;
         dmg += cashedTurns * (cashIn.damagePerTurn || 0);
       }
+      // v2.24: RAGE-only target safety net. If a requiresRage target made
+      // it to cast time without RAGE active, half-damage + exile. The AI
+      // shouldn't normally arrive here because pickBestForSlotRageAware
+      // refuses to stage it off-rage; defensive only.
+      const rageMissing = !!tray.target.effect?.requiresRage && !state.rageActive;
+      if (rageMissing) dmg = Math.round(dmg * 0.5);
 
       // Strip enemy block from modifier
       if (result.sideEffects.stripBlock) {
@@ -524,9 +583,9 @@ function runCombat(state, enemyId, telemetry) {
       if (result.sideEffects.selfHpCost) state.hp = Math.max(0, state.hp - result.sideEffects.selfHpCost);
 
       // Discharge cards: intro/subject/modifiers → discard; target exiles
-      // on tier-3-required failure, else discard.
+      // on tier-3-required failure (or v2.24 rage-missing), else discard.
       state.discard.push(tray.intro, tray.subject, ...tray.modifiers);
-      if (result.sideEffects.exhaustTarget) state.exiled.push(tray.target);
+      if (result.sideEffects.exhaustTarget || rageMissing) state.exiled.push(tray.target);
       else state.discard.push(tray.target);
 
       cast = true;
@@ -535,6 +594,11 @@ function runCombat(state, enemyId, telemetry) {
       if (result.tier === 3) telemetry.tier3Casts++;
       if (result.tier === 2) telemetry.tier2Casts++;
       if (result.tier === 1) telemetry.tier1Casts++;
+      // v2.24: telemetry for Bare Knuckles / RAGE casts.
+      if (tray.target?.id === 'cv2-t-bare-knuckles') {
+        telemetry.bareKnucklesCasts = (telemetry.bareKnucklesCasts || 0) + 1;
+        if (rageMissing) telemetry.bareKnucklesMisfires = (telemetry.bareKnucklesMisfires || 0) + 1;
+      }
       // Tray clears only when a cast actually fires.
       tray = { intro: null, subject: null, target: null, modifiers: [] };
     } else {
@@ -612,6 +676,12 @@ function runCombat(state, enemyId, telemetry) {
     state.hand = [];
     state.block = 0;
     state.poise = 0; // v2.9: poise fades end-of-turn like block
+    // v2.24: RAGE turn ends. Roll the +0.5 potency bump back, reset meter.
+    if (state.rageActive) {
+      state.playerDmgMult = Math.max(0.5, (state.playerDmgMult || 1) - 0.5);
+      state.tunnelVision = 0;
+      state.rageActive = false;
+    }
     drawCards(state, HAND_SIZE);
   }
 
@@ -727,6 +797,8 @@ function simRun(forcedLane = null) {
     castsAttempted: 0, fizzles: 0, holds: 0, totalDamageDealt: 0,
     tier1Casts: 0, tier2Casts: 0, tier3Casts: 0,
     combatTurns: 0, combatCount: 0,
+    // v2.24: chutzpah tunnel-vision / rage telemetry.
+    rageTriggers: 0, bareKnucklesCasts: 0, bareKnucklesMisfires: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -831,6 +903,11 @@ function aggregate(results) {
     tier1Casts: results.reduce((s, r) => s + (r.tier1Casts || 0), 0),
     tier2Casts: results.reduce((s, r) => s + (r.tier2Casts || 0), 0),
     tier3Casts: results.reduce((s, r) => s + (r.tier3Casts || 0), 0),
+    // v2.24: tunnel-vision / rage metrics.
+    rageTriggers: results.reduce((s, r) => s + (r.rageTriggers || 0), 0),
+    rageTriggerRuns: results.filter(r => (r.rageTriggers || 0) > 0).length,
+    bareKnucklesCasts: results.reduce((s, r) => s + (r.bareKnucklesCasts || 0), 0),
+    bareKnucklesMisfires: results.reduce((s, r) => s + (r.bareKnucklesMisfires || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -866,6 +943,11 @@ function buildReport(agg) {
   lines.push(`- Tier 2 (RESONANT): ${agg.tier2Casts} (${pct(agg.tier2Casts/tot)})`);
   lines.push(`- Tier 3 (DEVASTATING): ${agg.tier3Casts} (${pct(agg.tier3Casts/tot)})`);
   lines.push(`- Holds (turn ended without cast — tray persists): ${agg.totalHolds} (${pct(agg.totalHolds / (agg.totalCasts + agg.totalHolds))})`);
+  lines.push('');
+  lines.push(`## Chutzpah TUNNEL VISION (v2.24)`);
+  lines.push(`- Total RAGE triggers: ${agg.rageTriggers}`);
+  lines.push(`- Runs with at least one RAGE turn: ${agg.rageTriggerRuns} / ${agg.N} (${pct(agg.rageTriggerRuns / agg.N)})`);
+  lines.push(`- Bare Knuckles casts: ${agg.bareKnucklesCasts} (misfires: ${agg.bareKnucklesMisfires})`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

@@ -3127,6 +3127,15 @@ export default function App() {
   // synergy cards like Cosmic Recoil).
   const [rollOptIn, setRollOptIn] = useState(false);
   const [lastRoll, setLastRoll] = useState(null);
+  // v2.24: chutzpah TUNNEL VISION meter. Fills +1 per chutzpah-lane card
+  // played (intro/subject/modifier/target — anywhere staging completes).
+  // At >= 5 at start of your turn, you enter RAGE for that turn:
+  // playerDmgMult +0.5 (channeled through adjustPlayerDmg so it interacts
+  // with the existing Weak/Strengthened plumbing) and RAGE-only cards
+  // (Bare Knuckles) become castable. At end of RAGE turn, reset meter to
+  // 0 and restore the +0.5 bonus.
+  const [tunnelVision, setTunnelVision] = useState(0);
+  const [rageActive, setRageActive] = useState(false);
   const [combatRolls, setCombatRolls] = useState([]);
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
@@ -4065,6 +4074,9 @@ export default function App() {
     setRollOptIn(false);
     setLastRoll(null);
     setCombatRolls([]);
+    // v2.24: chutzpah tunnel-vision meter and RAGE state reset per combat.
+    setTunnelVision(0);
+    setRageActive(false);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -4230,6 +4242,20 @@ export default function App() {
       return;
     }
 
+    // v2.24: tunnel-vision +1 helper. Bumps the meter when a chutzpah-lane
+    // card lands a successful stage. Does NOT fire on refunds — the staging
+    // outcome (replace, success) calls this AFTER the new card is committed.
+    const bumpTunnelVisionIfChutzpah = () => {
+      if (card.lane === 'chutzpah') setTunnelVision(n => n + 1);
+    };
+    // v2.24: target-side guard. "Bare knuckles." (and any future card with
+    // `requiresRage: true`) is castable only while RAGE is active.
+    if (card.slot === 'target' && card.effect?.requiresRage && !rageActive) {
+      setEnergy(e => e + (card.cost || 0));
+      pushLog(`🔥 ${card.phrase || card.name} needs RAGE — chutzpah isn't there yet.`);
+      return;
+    }
+
     // v2 sentence engine routing by slot.
     if (card.slot === 'intro' || card.slot === 'subject') {
       const prev = tray[card.slot];
@@ -4241,6 +4267,7 @@ export default function App() {
       setTray(p => syncTrayLegacy({ ...p, [card.slot]: card }));
       applySideEffects(card.effects || {}, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
+      bumpTunnelVisionIfChutzpah();
       pushLog(logBits.join(' · ') + `  →  📜 ${card.slot} staged`);
       advanceTutorialStep('played-word');
       return;
@@ -4255,6 +4282,7 @@ export default function App() {
       setTray(p => syncTrayLegacy({ ...p, modifiers: [...(p.modifiers || []), card] }));
       applySideEffects(card.effects || {}, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
+      bumpTunnelVisionIfChutzpah();
       pushLog(logBits.join(' · ') + `  →  ✨ modifier staged`);
       return;
     }
@@ -4273,6 +4301,7 @@ export default function App() {
       }
       setTray(p => syncTrayLegacy({ ...p, target: card }));
       setHand(h => h.filter((_, i) => i !== handIdx));
+      bumpTunnelVisionIfChutzpah();
       pushLog(`🎯 Target staged: ${card.phrase} — hit CAST when ready.`);
       return;
     }
@@ -4612,6 +4641,15 @@ export default function App() {
     const annPerCast = annoFx('bonusSpellDamagePerCast');
     if (annPerCast > 0) dmg += annPerCast * castsThisCombat;
     setCastsThisCombat(c => c + 1);
+    // v2.24: RAGE-only target safety net — if a requiresRage target made it
+    // to cast time without RAGE active (e.g. the rage turn ended while the
+    // card was staged), half-damage + exile-on-resolve. Staging is the
+    // primary gate; this is the fallback.
+    const rageMissing = !!target.effect?.requiresRage && !rageActive;
+    if (rageMissing) {
+      dmg = Math.round(dmg * 0.5);
+      pushLog(`🔥 ${target.phrase || target.name} fired without RAGE — half damage, exiled.`);
+    }
 
     // Compose + log the full sentence.
     const sentence = composeSpellText(intro, subject, target, modifiers);
@@ -4720,9 +4758,10 @@ export default function App() {
 
     // Discharge cards. Intro / subject / modifiers → discard. Target →
     // exile if requiresTier3 failed AND exhaustOnFail is set; else discard.
+    // v2.24: RAGE-required targets also exile on a rage-missing cast.
     setDiscard(d => [...d, intro, subject, ...modifiers]);
-    if (sideEffects.exhaustTarget) setExiled(ex => [...ex, target]);
-    else                           setDiscard(d => [...d, target]);
+    if (sideEffects.exhaustTarget || rageMissing) setExiled(ex => [...ex, target]);
+    else                                          setDiscard(d => [...d, target]);
 
     setTray(initialV2Tray({ effectFiredThisTurn: true }));
     applyPowerTriggers('onEffectCardPlayed');
@@ -5105,6 +5144,13 @@ export default function App() {
       setEnemy(e => e ? { ...e, dot: { damage: d.damage, turnsRemaining: d.turns, total: d.turns } } : e);
       logBits.push(`🩸 Bleed ${d.damage}/turn × ${d.turns}`);
     }
+    // v2.24: tunnel-vision pump from card side effects (Foaming at the mouth,).
+    // Pushes the chutzpah RAGE meter without requiring the card to be played
+    // as a particular slot — the effect itself is what fills.
+    if (fx.tunnelVision) {
+      setTunnelVision(n => n + fx.tunnelVision);
+      logBits.push(`🔥 +${fx.tunnelVision} Tunnel`);
+    }
     // Reveal enemy's next intent. Jnsq "the next thing you'll do".
     if (fx.revealNextIntent) {
       // Pre-roll the upcoming intent and store it for UI display.
@@ -5316,6 +5362,16 @@ export default function App() {
     if (stage !== 'combat') return;
     logEvent(TE.TURN_END, { enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length, trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0) });
 
+    // v2.24: RAGE turn ending — reset meter + undo the +0.5 potency bump.
+    // We check this BEFORE the multiplier-drift block so the restore-to-1
+    // doesn't double-count with the natural drift.
+    if (rageActive) {
+      adjustPlayerDmg(-0.5);
+      setTunnelVision(0);
+      setRageActive(false);
+      pushLog(`🔥 Rage dissipates.`);
+    }
+
     // v2.1: persistent tray. Cards staged into intro/subject/target/modifier
     // slots carry across turns until the spell casts. This replaces the old
     // fizzle-on-turn-end behavior — players can now compose a sentence
@@ -5469,6 +5525,16 @@ export default function App() {
     setStakeAmount(0);
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
+
+    // v2.24: RAGE entry. If the chutzpah TUNNEL VISION meter is at 5+
+    // entering the new player turn, flip into RAGE: +50% potency for
+    // this turn. The bonus is applied to playerDmgMult (clamped at 1.5)
+    // and rolled back at the top of the next endTurn call.
+    if (tunnelVision >= 5 && !rageActive) {
+      adjustPlayerDmg(+0.5);
+      setRageActive(true);
+      pushLog(`🔥 RAGE — chutzpah unleashed (+50% damage).`);
+    }
 
     // 6. New intent. Track what just fired and force a switch if the
     // enemy has already done the same kind twice in a row — saves the
@@ -6976,6 +7042,23 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-xs uppercase text-parchment-300">Energy <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
           </div>
+          {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
+              meter has anything in it OR rage is active. Color: ember (chutzpah
+              palette). */}
+          {(selectedCharacter?.lane === 'chutzpah' || tunnelVision > 0 || rageActive) && (
+            <div title={`Tunnel Vision — chutzpah rage meter. At 5+ entering a turn, you enter RAGE: +50% potency for that turn, then the meter resets.`}>
+              <div className="text-xs uppercase text-ember-300">Tunnel</div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-mono text-ember-300">🔥 {tunnelVision}</span>
+                {rageActive && (
+                  <span className="px-2 py-1 rounded text-xs font-bold bg-ember-700 text-parchment-50 border border-ember-500"
+                        title="RAGE — chutzpah unleashed (+50% damage this turn). Resets at end of turn.">
+                    RAGE
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
             <div className="text-xs uppercase text-parchment-300">Deck</div>
             <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>

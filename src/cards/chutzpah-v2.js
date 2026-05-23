@@ -78,6 +78,13 @@ const INTROS = [
     phrase: 'Skin in the game,', tags: ['threatening', 'swaggering'], stats: { chutzpah: 3 },
     effects: { loseHp: 2 },
     flavor: "The skin in question is yours. Both yours, really. That's the bargain." },
+  // v2.24: TUNNEL VISION pump intro — Cycle 1 of the chutzpah meter arc.
+  // Heavier chutzpah stat than a basic intro AND +2 to the rage meter.
+  { id: 'cv2-i-foaming', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'Foaming at the mouth,', tags: ['threatening', 'swaggering'], stats: { chutzpah: 3 },
+    effects: { tunnelVision: 2 },
+    desc: 'Stage: +2 Tunnel Vision.',
+    flavor: 'The chemical analysis is inconclusive. The vibe is not.' },
 
   // ---- Uncommon (6) ----
   { id: 'cv2-i-now-you-listen', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -416,6 +423,14 @@ const UNIQUE_TARGETS = [
     phrase: "doesn't get to make me say it twice.", tags: ['threatening', 'direct'],
     effect: { scaleBy: 'chutzpah', base: 8, multiplier: 2, damageType: 'composure', missingHpBonus: 0.5 },
     flavor: 'The first time was a courtesy. The second would be a confession.' },
+  // v2.24: RAGE payoff target. Big base + multiplier, but ONLY castable
+  // while Tunnel Vision is at 5+ (RAGE turn). Off-rage cast = half damage +
+  // exile (the punishment for swinging without the heat behind it).
+  { id: 'cv2-t-bare-knuckles', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'Bare knuckles.', tags: ['threatening', 'direct'],
+    effect: { scaleBy: 'chutzpah', base: 12, multiplier: 4, damageType: 'composure', requiresRage: true },
+    desc: 'REQUIRES RAGE. 12 + Chutzpah×4 comp. Off-rage: half damage, exiled.',
+    flavor: 'The discussion has moved past words.' },
 ];
 
 export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
