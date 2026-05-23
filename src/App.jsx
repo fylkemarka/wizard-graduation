@@ -3167,19 +3167,13 @@ export default function App() {
   // reset to 0 / false in enterFight.
   const [hitMeAgainInstalled, setHitMeAgainInstalled] = useState(false);
   const [hitMeAgainCharges, setHitMeAgainCharges] = useState(0);
-  // v2.28: STUBBORN BLOCK — chutzpah's first defensive power. While
-  // installed, end-of-player-turn converts each unspent energy point into
-  // +2 Block, AND the normal start-of-next-turn block reset is SKIPPED so
-  // accumulated block carries over. Resets at enterFight. Pairs with
-  // "Frankly, no." (cost 0, +4 Block) so players can drop a fresh slab
-  // without burning energy that would otherwise feed the converter.
-  const [stubbornBlockInstalled, setStubbornBlockInstalled] = useState(false);
-  // v2.32: NOT LISTENING — dismissive defense. While installed, the FIRST
-  // application of Weak OR Vulnerable from an enemy this combat is ignored
-  // (notListeningCharges starts at 1, decrements on first absorb, does NOT
-  // refill mid-combat). PLUS: every chutzpah-lane card play grants +1 Block.
-  // Both reset in enterFight.
-  const [notListeningInstalled, setNotListeningInstalled] = useState(false);
+  // v2.33: Stubborn Block was removed (Power that converted unspent energy
+  // to carry-over Block — wit-flavored on a lane whose defensive identity is
+  // "bill them for the hit," not "accumulate Block").
+  // v2.33: NOT LISTENING refactored from a Power to a one-shot SKILL.
+  // notListeningCharges = number of pending "absorb the next debuff" tokens
+  // (0 by default; +1 each time the player plays the "Sorry — what?" skill).
+  // The on-cast Block rider from the old Power is GONE.
   const [notListeningCharges, setNotListeningCharges] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
 
@@ -4132,10 +4126,7 @@ export default function App() {
     // v2.27: chutzpah Hit Me Again — power install + charges reset.
     setHitMeAgainInstalled(false);
     setHitMeAgainCharges(0);
-    // v2.28: chutzpah Stubborn Block — power install resets per combat.
-    setStubbornBlockInstalled(false);
-    // v2.32: chutzpah Not Listening — install + absorb charges reset per combat.
-    setNotListeningInstalled(false);
+    // v2.33: chutzpah Not Listening — pending absorb charges reset per combat.
     setNotListeningCharges(0);
 
     // Apply start-of-combat effects from equipment AND relics.
@@ -4303,15 +4294,6 @@ export default function App() {
       if (card.installPower?.id === 'hit-me-again' || card.id === 'cv2-p-hit-me-again') {
         setHitMeAgainInstalled(true);
       }
-      // v2.28: Stubborn Block — fast-read flag for the endTurn converter.
-      if (card.installPower?.id === 'stubborn-block' || card.id === 'cv2-p-stubborn-block') {
-        setStubbornBlockInstalled(true);
-      }
-      // v2.32: Not Listening — fast-read flag + arm 1 absorb charge.
-      if (card.installPower?.id === 'not-listening' || card.id === 'cv2-p-sorry-what') {
-        setNotListeningInstalled(true);
-        setNotListeningCharges(1);
-      }
       pushLog(`📿 ${card.name} — power active.`);
       return;
     }
@@ -4328,11 +4310,6 @@ export default function App() {
           && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
           && (card.tags || []).includes('demanding')) {
         setLoudCount(n => n + 1);
-      }
-      // v2.32: NOT LISTENING on-cast block — while installed, every chutzpah-
-      // lane card play (intro/subject/modifier/target stage) grants +1 Block.
-      if (notListeningInstalled && card.lane === 'chutzpah') {
-        setBlock(b => b + 1);
       }
     };
     // v2.24: target-side guard. "Bare knuckles." (and any future card with
@@ -5268,6 +5245,14 @@ export default function App() {
       setEnemyDmgMult(target);
       logBits.push(`🙉 cleansed Vulnerable`);
     }
+    // v2.33: NOT LISTENING — absorbNextDebuff arms a one-shot token that
+    // intercepts the next enemy Weak OR Vulnerable application this combat.
+    // Tokens stack (replaying the skill arms +1). Decremented in the enemy-
+    // attack flow (intent.kind === 'weak'/'vulnerable' and the rider checks).
+    if (fx.absorbNextDebuff) {
+      setNotListeningCharges(c => c + fx.absorbNextDebuff);
+      logBits.push(`🙉 +${fx.absorbNextDebuff} Sorry — what?`);
+    }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
@@ -5606,7 +5591,7 @@ export default function App() {
     //      when a Hedgehog/Felt re-grant immediately tops it back up below.
     //      `block` here is the closure value at the top of the event handler;
     //      good enough for "you had block; it's gone now."
-    if (block > 0 && !stubbornBlockInstalled) pushLog(`🛡 Block fades.`);
+    if (block > 0) pushLog(`🛡 Block fades.`);
     if (poise > 0) pushLog(`🪞 Poise fades.`);
     setPoise(0);
 
@@ -5627,19 +5612,8 @@ export default function App() {
     let wDiscard  = drawn.discard;
     const wHand   = [...drawn.hand];
     let wEnergy   = energyPerTurnRefill();
-    // v2.28: STUBBORN BLOCK — while installed, end-of-turn converts each
-    // unspent energy point to +2 Block, AND the normal start-of-next-turn
-    // block reset is skipped. `block` here is the closure value at the top
-    // of the event handler (pre-reset); we read remaining `energy` the same
-    // way. The converted block stacks on top of whatever block carried over.
+    // v2.33: Stubborn Block removed — block always resets to 0 at start of turn.
     let wBlock    = 0;
-    if (stubbornBlockInstalled) {
-      const carry = Math.max(0, block);
-      const converted = Math.max(0, energy) * 2;
-      wBlock = carry + converted;
-      if (converted > 0) pushLog(`🪨 Stubborn: +${converted} Block from ${energy} unspent Energy (carry ${carry}).`);
-      else if (carry > 0) pushLog(`🪨 Stubborn: ${carry} Block carries over.`);
-    }
 
     // v2.10: annotation start-of-turn effects fire BEFORE the decrement.
     const annTurnStartDmg = annoFx('damageOnTurnStart');
@@ -5884,7 +5858,7 @@ export default function App() {
     } else if (intent.kind === 'vulnerable') {
       // Enemy applies vulnerable to player → enemy hits harder.
       // v2.32: NOT LISTENING — first debuff (Weak/Vuln) per combat is ignored.
-      if (notListeningInstalled && notListeningCharges > 0) {
+      if (notListeningCharges > 0) {
         setNotListeningCharges(c => Math.max(0, c - 1));
         pushLog(`🙉 ${e.name}: ${intent.telegraph} — didn't hear it.`);
       } else {
@@ -5894,7 +5868,7 @@ export default function App() {
     } else if (intent.kind === 'weak') {
       // Enemy applies weak to player → player spells weaker.
       // v2.32: NOT LISTENING absorb.
-      if (notListeningInstalled && notListeningCharges > 0) {
+      if (notListeningCharges > 0) {
         setNotListeningCharges(c => Math.max(0, c - 1));
         pushLog(`🙉 ${e.name}: ${intent.telegraph} — didn't hear it.`);
       } else {
@@ -5915,7 +5889,7 @@ export default function App() {
       // burns one charge (the first one), per the "one absorb per combat" rule.
       let nlConsumed = false;
       const tryNlAbsorb = (label) => {
-        if (notListeningInstalled && !nlConsumed && notListeningCharges > 0) {
+        if (!nlConsumed && notListeningCharges > 0) {
           nlConsumed = true;
           setNotListeningCharges(c => Math.max(0, c - 1));
           pushLog(`🙉 ${label} rider — didn't hear it.`);
@@ -7308,11 +7282,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div className="text-xs uppercase text-parchment-300">Composure <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
           </div>
-          <div title={stubbornBlockInstalled
-              ? "Block — absorbs PHYSICAL damage. STUBBORN BLOCK installed: Block carries over between turns and each unspent Energy at end of turn adds +2 Block."
-              : "Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn."}>
+          <div title="Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn.">
             <div className="text-xs uppercase text-parchment-300">Block <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-iris-300">{stubbornBlockInstalled ? '🪨' : '🛡'} {block}</div>
+            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
           </div>
           <div title="Poise — absorbs incoming COMPOSURE damage (🎭 mental attacks). Separate from Block. Resets to 0 at the start of your next turn.">
             <div className="text-xs uppercase text-parchment-300">Poise <span className="text-parchment-500">ⓘ</span></div>
@@ -7442,15 +7414,14 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         </div>
       )}
 
-      {/* Active Powers row — visible only while at least one power is on
-          the field. Hover shows the trigger + flavor. v2.27: Hit Me Again
-          shows a `⚡N` charge pip next to its chip. */}
-      {powers.length > 0 && (
+      {/* Active Powers row — visible while at least one power is on the
+          field OR a pending "Sorry — what?" absorb is armed. Hover shows
+          the trigger + flavor. */}
+      {(powers.length > 0 || notListeningCharges > 0) && (
         <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
           <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
           {powers.map((p, i) => {
             const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
-            const isNotListening = p.installPower?.id === 'not-listening' || p.id === 'cv2-p-sorry-what';
             return (
               <span key={p.uid || i}
                 title={`${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
@@ -7461,14 +7432,18 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                     ⚡{hitMeAgainCharges}
                   </span>
                 )}
-                {isNotListening && (
-                  <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
-                    🙉{notListeningCharges > 0 ? notListeningCharges : '·'}
-                  </span>
-                )}
               </span>
             );
           })}
+          {notListeningCharges > 0 && (
+            <span title="Sorry — what? — pending: the next enemy Weak/Vulnerable attempt is ignored."
+              className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
+              Sorry — what?
+              <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
+                🙉{notListeningCharges}
+              </span>
+            </span>
+          )}
         </div>
       )}
 

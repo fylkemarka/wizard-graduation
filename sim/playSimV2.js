@@ -246,8 +246,13 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       const enemyMult = (dmgType === 'physical') ? (eff.physical ?? 1.0) : (eff[c.effect?.scaleBy || c.lane || 'chutzpah'] ?? 1.0);
       const predicted = preview.damage * enemyMult * (state.playerDmgMult || 1);
       const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
-      // 10% buffer per spec — predicted must exceed remaining × 1.1.
-      if (predicted < remaining * 1.1) continue;
+      // v2.33: gate loosened 1.1 → 0.8 because at 1.0 the preview excludes
+      // modifiers (cast time adds them, real dmg > predicted) so all 1.0-gated
+      // casts killed → 0 corner-token bills (toothless punishment side).
+      // At 0.8 the AI gambles when predicted is 20% short of kill — modifiers
+      // may close it, may not. Bills fire against blocker enemies and cold
+      // variance. Per creator brief: "exposes the punishment side."
+      if (predicted < remaining * 0.8) continue;
     }
     // v2.26: STORM OUT gate — only pick when this would be the last cast
     // possible this turn (no other castable targets after this one would
@@ -352,15 +357,10 @@ function runCombat(state, enemyId, telemetry) {
   // reset within a combat. Mirrors hitMeAgainInstalled/Charges in App.jsx.
   state.hitMeAgainInstalled = false;
   state.hitMeAgainCharges = 0;
-  // v2.28: STUBBORN BLOCK — per-combat install flag. While installed,
-  // end-of-player-turn converts remaining energy × 2 → Block and the normal
-  // start-of-turn block reset is skipped (block carries over).
-  state.stubbornBlockInstalled = false;
-  // v2.32: NOT LISTENING — per-combat install flag + absorb charges. While
-  // installed, the FIRST enemy debuff (Weak or Vulnerable) attempt this combat
-  // is ignored; the charge does NOT refill mid-combat. Plus +1 Block on every
-  // chutzpah-lane card play.
-  state.notListeningInstalled = false;
+  // v2.33: Stubborn Block REMOVED — no install flag.
+  // v2.33: NOT LISTENING refactored to a one-shot SKILL — no install flag.
+  // notListeningCharges tracks pending absorbs (set by playing the
+  // "Sorry — what?" skill, decremented on first enemy Weak/Vuln attempt).
   state.notListeningCharges = 0;
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
   // App's intent pool (real enemies in App.jsx fire Weak/Vuln intents AND
@@ -453,12 +453,13 @@ function runCombat(state, enemyId, telemetry) {
     // v2.27: HIT ME AGAIN install pass. If the power card is in hand and
     // not yet installed, install it on the cheapest turn possible — the
     // recoil engine values early installs (charges only accumulate while
-    // installed). Cost 1, so the AI hangs on to it through a turn-1 fight
-    // start and plays it once energy is spare.
+    // installed). v2.33: only install when energy is SPARE (≥2 after the
+    // 1-cost install pays). Avoids choking turn 1 staging when energy is
+    // tight; the install can wait a turn without losing much value.
     if (!state.hitMeAgainInstalled) {
       for (let i = 0; i < state.hand.length; i++) {
         const c = state.hand[i];
-        if (c.id === 'cv2-p-hit-me-again' && (c.cost || 0) <= state.energy) {
+        if (c.id === 'cv2-p-hit-me-again' && (c.cost || 0) <= state.energy && state.energy >= 3) {
           state.energy -= c.cost || 0;
           state.hitMeAgainInstalled = true;
           telemetry.hitMeAgainInstalls = (telemetry.hitMeAgainInstalls || 0) + 1;
@@ -469,36 +470,32 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
-    // v2.28: STUBBORN BLOCK install pass. Same shape as hit-me-again —
-    // install when affordable. The power pays off ONLY for chutzpah players
-    // (it's chutzpah-only by design + draft pool), so the gate is just
-    // affordability and not-yet-installed. Early install matters because
-    // every turn the converter fires from then on; cost 1.
-    if (!state.stubbornBlockInstalled) {
-      for (let i = 0; i < state.hand.length; i++) {
-        const c = state.hand[i];
-        if (c.id === 'cv2-p-stubborn-block' && (c.cost || 0) <= state.energy) {
-          state.energy -= c.cost || 0;
-          state.stubbornBlockInstalled = true;
-          telemetry.stubbornBlockInstalls = (telemetry.stubbornBlockInstalls || 0) + 1;
-          state.discard.push(c);
-          state.hand.splice(i, 1);
-          break;
-        }
-      }
-    }
+    // v2.33: Tunnel-Vision skill HOLD — chutzpah lane only. When TUNNEL VISION
+    // is at 4+ (one chutzpah-card stage away from triggering RAGE), playing
+    // SKILL cards this turn wastes the impending +50% damage window because
+    // skills don't stage chutzpah words (no tunnel-vision bump) AND they
+    // consume the turn's action economy that should be feeding the rage spike.
+    // Suppresses Sorry-what specifically — defensive skills (Defend/Mend/
+    // cleanse) still play through because they're hit-prevention and the
+    // RAGE bonus doesn't matter if we're KO'd.
+    const tvSkillHold = state.lane === 'chutzpah'
+      && (state.tunnelVision || 0) >= 4
+      && !state.rageActive;
 
-    // v2.32: NOT LISTENING install pass. Install on the earliest affordable
-    // turn — the absorb is per-combat, the on-cast block bonus accrues per
-    // chutzpah card cast. Cost 1 — same shape as the other chutzpah powers.
-    if (!state.notListeningInstalled) {
+    // v2.33: NOT LISTENING skill play pass. Cost-0 one-shot skill that arms
+    // a pending absorb. Only play it when it's actually likely to pay off:
+    //   - elite/boss fights (rich intent pools — debuffs come)
+    //   - OR the player has already seen a debuff attempt this combat
+    //     (enemyDebuffRolls > 0 — proven debuffer)
+    // Skip on normals unless debuffs are confirmed. Don't double-arm.
+    const debuffsExpected = enemy.tier === 'elite' || enemy.tier === 'boss' || (state.enemyDebuffRolls || 0) > 0;
+    if (!tvSkillHold && debuffsExpected && state.notListeningCharges < 1) {
       for (let i = 0; i < state.hand.length; i++) {
         const c = state.hand[i];
-        if (c.id === 'cv2-p-sorry-what' && (c.cost || 0) <= state.energy) {
+        if (c.id === 'cv2-k-sorry-what' && (c.cost || 0) <= state.energy) {
           state.energy -= c.cost || 0;
-          state.notListeningInstalled = true;
-          state.notListeningCharges = 1;
-          telemetry.notListeningInstalls = (telemetry.notListeningInstalls || 0) + 1;
+          state.notListeningCharges += (c.effects?.absorbNextDebuff || 1);
+          telemetry.notListeningSkillCasts = (telemetry.notListeningSkillCasts || 0) + 1;
           state.discard.push(c);
           state.hand.splice(i, 1);
           break;
@@ -526,9 +523,7 @@ function runCombat(state, enemyId, telemetry) {
       if (state.block < expectedHpHit) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
-          // v2.28: include "Frankly, no." (cv2-k-frankly-no) — 0-cost +4 Block.
-          // Always playable, and frees energy to feed Stubborn Block.
-          if (c.type === 'skill' && (c.id === 'c-defend' || c.id === 'c-mend' || c.id === 'cv2-k-frankly-no') && (c.cost || 0) <= state.energy) {
+          if (c.type === 'skill' && (c.id === 'c-defend' || c.id === 'c-mend') && (c.cost || 0) <= state.energy) {
             state.energy -= c.cost || 0;
             state.block += c.effects?.block || 0;
             state.discard.push(c);
@@ -613,12 +608,6 @@ function runCombat(state, enemyId, telemetry) {
             && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
             && (card.tags || []).includes('demanding')) {
           state.loudCount = (state.loudCount || 0) + 1;
-        }
-        // v2.32: NOT LISTENING on-cast block — every chutzpah-lane card play
-        // (intro/subject/modifier/target stage) grants +1 Block while installed.
-        if (state.notListeningInstalled && card?.lane === 'chutzpah') {
-          state.block += 1;
-          telemetry.notListeningOnCastBlock = (telemetry.notListeningOnCastBlock || 0) + 1;
         }
       };
       if (!tray.intro) {
@@ -1018,7 +1007,7 @@ function runCombat(state, enemyId, telemetry) {
       // first hit per combat. Tracks telemetry on both attempts and absorbs.
       const tryApply = (kind) => {
         state.enemyDebuffRolls += 1;
-        if (state.notListeningInstalled && state.notListeningCharges > 0) {
+        if (state.notListeningCharges > 0) {
           state.notListeningCharges -= 1;
           telemetry.notListeningAbsorbs = (telemetry.notListeningAbsorbs || 0) + 1;
           return; // absorbed — no debuff applied
@@ -1073,20 +1062,8 @@ function runCombat(state, enemyId, telemetry) {
     // End-of-turn cleanup
     state.discard.push(...state.hand);
     state.hand = [];
-    // v2.28: STUBBORN BLOCK conversion. If the power is installed, each
-    // unspent energy at end of turn converts to +2 Block AND the normal
-    // block reset is skipped (block carries over to next turn). Without
-    // the power, block resets to 0 as usual.
-    if (state.stubbornBlockInstalled) {
-      const converted = Math.max(0, state.energy) * 2;
-      if (converted > 0) {
-        state.block += converted;
-        telemetry.stubbornBlockConverted = (telemetry.stubbornBlockConverted || 0) + converted;
-      }
-      // Skip the block-reset — stubbornness DOESN'T move.
-    } else {
-      state.block = 0;
-    }
+    // v2.33: Block always resets at end of turn (Stubborn Block removed).
+    state.block = 0;
     state.poise = 0; // v2.9: poise fades end-of-turn like block
     // v2.24: RAGE turn ends. Roll the +0.5 potency bump back, reset meter.
     if (state.rageActive) {
@@ -1118,7 +1095,7 @@ function runCombat(state, enemyId, telemetry) {
 // subjects + 15 targets + 10 modifiers — uniform random oversamples
 // intros/subjects and undersamples the targets the player actually
 // needs to cast. Slot weights keep target draws healthy as deck grows.
-const SLOT_WEIGHTS = { target: 35, intro: 25, subject: 25, modifier: 15 };
+const SLOT_WEIGHTS = { target: 35, intro: 25, subject: 25, modifier: 15, skill: 18, power: 18 };
 function pickSlotWeighted(cards) {
   if (cards.length === 0) return null;
   const total = cards.reduce((s, c) => s + (SLOT_WEIGHTS[c.slot] || 10), 0);
@@ -1156,6 +1133,33 @@ function awardReward(state) {
     return;
   }
   const pool = LANE_POOL[state.lane];
+  // v2.33: Power-card bias. Per creator review, the sim under-installs
+  // Powers because the rarity/slot draft doesn't weight them up. If the
+  // player owns ZERO Power cards (slot === 'power') AND the lane pool has
+  // any, fire a ~15% draft of a Power before the normal pick. Conservative
+  // value so word-card variety isn't diluted; one-and-done early in run.
+  const ownsAnyPower = allCards.some(c => c.slot === 'power');
+  if (!ownsAnyPower) {
+    const powers = pool.filter(c => c.slot === 'power');
+    if (powers.length && rnd() < 0.15) {
+      const card = pickRandom(powers);
+      state.discard.push({ ...card, uid: uid() });
+      state.rewardsTaken.push(card.id);
+      return;
+    }
+  }
+  // v2.33: Sorry-what skill bias. ~12% per-reward draft when the player
+  // owns ZERO copies — calibrated to hit ~10%+ per-run engagement without
+  // eating into the engine-card slot count too aggressively.
+  const ownsSorryWhat = allCards.some(c => c.id === 'cv2-k-sorry-what');
+  if (!ownsSorryWhat) {
+    const sw = pool.find(c => c.id === 'cv2-k-sorry-what');
+    if (sw && rnd() < 0.12) {
+      state.discard.push({ ...sw, uid: uid() });
+      state.rewardsTaken.push(sw.id);
+      return;
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -1230,8 +1234,7 @@ function simRun(forcedLane = null) {
     stormOutCasts: 0, stormOutEnergySpent: 0,
     // v2.27: chutzpah hit-me-again telemetry.
     hitMeAgainInstalls: 0, hitMeAgainRecoilTotal: 0, hitMeAgainKills: 0,
-    // v2.28: chutzpah stubborn-block telemetry.
-    stubbornBlockInstalls: 0, stubbornBlockConverted: 0,
+    // v2.33: stubborn-block REMOVED.
     // v2.29: chutzpah saying-it-louder telemetry. iSaidCasts counts the
     // number of "I SAID." casts; loudCountSum accumulates the loudCount
     // observed on each such cast so we can compute mean stack-size.
@@ -1243,11 +1246,10 @@ function simRun(forcedLane = null) {
     // v2.31: synergy capstone — AND-IM-NOT-DONE casts + total damage. Rare-
     // tier so the per-run count is expected to be 0-2 most runs.
     andImNotDoneCasts: 0, andImNotDoneTotalDamage: 0,
-    // v2.32: NOT LISTENING — install count + absorb count + on-cast block
-    // accrual. notListeningAbsorbs counts enemy debuffs that landed on the
-    // power and were ignored; notListeningOnCastBlock counts +1 Block grants
-    // from chutzpah-card casts.
-    notListeningInstalls: 0, notListeningAbsorbs: 0, notListeningOnCastBlock: 0,
+    // v2.33: NOT LISTENING refactored to a SKILL. notListeningSkillCasts =
+    // how many times the "Sorry — what?" skill was played; notListeningAbsorbs
+    // = enemy debuff attempts that were absorbed by an armed token.
+    notListeningSkillCasts: 0, notListeningAbsorbs: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -1372,10 +1374,7 @@ function aggregate(results) {
     hitMeAgainInstallRuns: results.filter(r => (r.hitMeAgainInstalls || 0) > 0).length,
     hitMeAgainRecoilTotal: results.reduce((s, r) => s + (r.hitMeAgainRecoilTotal || 0), 0),
     hitMeAgainKills: results.reduce((s, r) => s + (r.hitMeAgainKills || 0), 0),
-    // v2.28: stubborn-block metrics.
-    stubbornBlockInstalls: results.reduce((s, r) => s + (r.stubbornBlockInstalls || 0), 0),
-    stubbornBlockInstallRuns: results.filter(r => (r.stubbornBlockInstalls || 0) > 0).length,
-    stubbornBlockConverted: results.reduce((s, r) => s + (r.stubbornBlockConverted || 0), 0),
+    // v2.33: stubborn-block REMOVED — no metrics.
     // v2.29: saying-it-louder metrics.
     iSaidCasts: results.reduce((s, r) => s + (r.iSaidCasts || 0), 0),
     iSaidRuns: results.filter(r => (r.iSaidCasts || 0) > 0).length,
@@ -1389,11 +1388,10 @@ function aggregate(results) {
     andImNotDoneCasts: results.reduce((s, r) => s + (r.andImNotDoneCasts || 0), 0),
     andImNotDoneTotalDamage: results.reduce((s, r) => s + (r.andImNotDoneTotalDamage || 0), 0),
     andImNotDoneRuns: results.filter(r => (r.andImNotDoneCasts || 0) > 0).length,
-    // v2.32: not-listening metrics.
-    notListeningInstalls: results.reduce((s, r) => s + (r.notListeningInstalls || 0), 0),
-    notListeningInstallRuns: results.filter(r => (r.notListeningInstalls || 0) > 0).length,
+    // v2.33: not-listening skill metrics.
+    notListeningSkillCasts: results.reduce((s, r) => s + (r.notListeningSkillCasts || 0), 0),
+    notListeningSkillRuns: results.filter(r => (r.notListeningSkillCasts || 0) > 0).length,
     notListeningAbsorbs: results.reduce((s, r) => s + (r.notListeningAbsorbs || 0), 0),
-    notListeningOnCastBlock: results.reduce((s, r) => s + (r.notListeningOnCastBlock || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -1452,11 +1450,6 @@ function buildReport(agg) {
   lines.push(`- Enemies killed by their own recoil: ${agg.hitMeAgainKills}`);
   lines.push(`- Avg recoil per install: ${agg.hitMeAgainInstalls > 0 ? (agg.hitMeAgainRecoilTotal / agg.hitMeAgainInstalls).toFixed(1) : '0.0'}`);
   lines.push('');
-  lines.push(`## Chutzpah STUBBORN BLOCK (v2.28)`);
-  lines.push(`- Stubborn Block installs: ${agg.stubbornBlockInstalls} (runs: ${agg.stubbornBlockInstallRuns} / ${agg.N}, ${pct(agg.stubbornBlockInstallRuns / agg.N)})`);
-  lines.push(`- Total Block converted from unspent Energy: ${agg.stubbornBlockConverted}`);
-  lines.push(`- Avg converted per install: ${agg.stubbornBlockInstalls > 0 ? (agg.stubbornBlockConverted / agg.stubbornBlockInstalls).toFixed(1) : '0.0'}`);
-  lines.push('');
   lines.push(`## Chutzpah SAYING IT LOUDER (v2.29)`);
   lines.push(`- "I SAID." casts: ${agg.iSaidCasts} (runs: ${agg.iSaidRuns} / ${agg.N}, ${pct(agg.iSaidRuns / agg.N)})`);
   lines.push(`- Avg loudCount per cast: ${agg.iSaidCasts > 0 ? (agg.loudCountSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
@@ -1473,11 +1466,10 @@ function buildReport(agg) {
   lines.push(`- Total capstone damage: ${agg.andImNotDoneTotalDamage}`);
   lines.push(`- Avg damage per capstone cast: ${agg.andImNotDoneCasts > 0 ? (agg.andImNotDoneTotalDamage / agg.andImNotDoneCasts).toFixed(2) : '0.00'}`);
   lines.push('');
-  lines.push(`## Chutzpah NOT LISTENING — "Sorry — what?" (v2.32)`);
-  lines.push(`- Installs: ${agg.notListeningInstalls} (runs: ${agg.notListeningInstallRuns} / ${agg.N}, ${pct(agg.notListeningInstallRuns / agg.N)})`);
+  lines.push(`## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)`);
+  lines.push(`- Skill casts: ${agg.notListeningSkillCasts} (runs: ${agg.notListeningSkillRuns} / ${agg.N}, ${pct(agg.notListeningSkillRuns / agg.N)})`);
   lines.push(`- Total debuff absorbs: ${agg.notListeningAbsorbs}`);
-  lines.push(`- Avg absorbs per install: ${agg.notListeningInstalls > 0 ? (agg.notListeningAbsorbs / agg.notListeningInstalls).toFixed(2) : '0.00'}`);
-  lines.push(`- Total on-cast Block from chutzpah plays: ${agg.notListeningOnCastBlock}`);
+  lines.push(`- Avg absorbs per skill cast: ${agg.notListeningSkillCasts > 0 ? (agg.notListeningAbsorbs / agg.notListeningSkillCasts).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
