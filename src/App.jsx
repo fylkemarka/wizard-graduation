@@ -3615,7 +3615,6 @@ export default function App() {
     setComposure(STARTING_MAX_COMPOSURE);
     setBlock(0);
     setEnergy(ENERGY_PER_TURN);
-    setStartingPicksSelected([]);
     setSidequestActive(null);
     setSidequestCombatActive(false);
     setPostcardState('idle');
