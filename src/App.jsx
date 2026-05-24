@@ -123,24 +123,25 @@ const CARDS = [
     desc: 'Gain 16 Block.' },
 
   // ---- MODIFIER SKILLS — stacking toward [0.5, 1.5] caps ----
-  // Dedicated stack-builders for the multiplier system that replaced
-  // Weak/Vulnerable. Each application shifts a multiplier by 0.25;
-  // two stacks reach the cap. Drift toward 1.0 by 0.5/turn keeps
-  // things bounded.
+  // v2.65: per-play shift dropped 0.25 → 0.15. Combined with the
+  // slower 0.10/turn drift, you now need 3-4 plays to reach the cap
+  // — the "stacks" text on the card is meaningful again, but the
+  // payoff curve is smoother. A single play is +15% (was +25%), so
+  // a 2-Amplify burst is +30% (was +50%, too strong per playtest).
   { id: 'c-sap', name: 'Sap', cost: 1, type: 'skill', rarity: 'common',
-    effects: { enemyDmgMod: -0.25 },
-    upgrade: { effects: { enemyDmgMod: -0.25, draw: 1 } },
-    desc: 'Reduce enemy attack damage by 25% (stacks; caps at −50%).',
+    effects: { enemyDmgMod: -0.15 },
+    upgrade: { effects: { enemyDmgMod: -0.15, draw: 1 } },
+    desc: 'Reduce enemy attack damage by 15% (stacks; caps at −50%).',
     flavor: 'You did not finish your sentence. They did not finish theirs, either.' },
   { id: 'c-amplify', name: 'Amplify', cost: 1, type: 'skill', rarity: 'common',
-    effects: { playerDmgMod: +0.25 },
-    upgrade: { effects: { playerDmgMod: +0.25, draw: 1 } },
-    desc: 'Increase your spell potency by 25% (stacks; caps at +50%). Each play this combat costs +1 energy more than the last.',
+    effects: { playerDmgMod: +0.15 },
+    upgrade: { effects: { playerDmgMod: +0.15, draw: 1 } },
+    desc: 'Increase your spell potency by 15% (stacks; caps at +50%). Each play this combat costs +1 energy more than the last.',
     flavor: 'You feel taller. It is, demonstrably, a feeling.' },
   { id: 'c-dispel', name: 'Dispel', cost: 0, type: 'skill', rarity: 'uncommon',
-    effects: { enemyDmgMod: -0.25, playerDmgMod: +0.25, exhaust: true },
-    upgrade: { effects: { enemyDmgMod: -0.5, playerDmgMod: +0.5, exhaust: true } },
-    desc: 'Enemy attack −25%, your potency +25%. Exhaust.',
+    effects: { enemyDmgMod: -0.15, playerDmgMod: +0.15, exhaust: true },
+    upgrade: { effects: { enemyDmgMod: -0.30, playerDmgMod: +0.30, exhaust: true } },
+    desc: 'Enemy attack −15%, your potency +15%. Exhaust.',
     flavor: 'You wave a hand. Several small certainties fall out of the air.' },
 
   // =============================================================================
@@ -6617,13 +6618,14 @@ export default function App() {
     setPoise(0);
 
     // 3. Debuff decay.
-    // v2.21: drift was 0.5/turn (debuffs vanished in one turn — Sap
-    // cost 1 energy for a single-turn impact). Now 0.25/turn matching
-    // tooltip and sim. A single Sap (-25%) lasts the enemy's next
-    // attack PLUS partially the one after; a double Sap (-50%) carries
-    // through 2 enemy turns meaningfully.
-    setEnemyDmgMult(m  => m > 1 ? Math.max(1, m - 0.25) : m < 1 ? Math.min(1, m + 0.25) : m);
-    setPlayerDmgMult(m => m > 1 ? Math.max(1, m - 0.25) : m < 1 ? Math.min(1, m + 0.25) : m);
+    // v2.21: drift was 0.5/turn. v2.65: now 0.10/turn. 0.25 was eating
+    // the whole +0.25 stack of Amplify/Sap in a single turn, which made
+    // the cards' "stacks; caps at +50%" text a lie — you could never
+    // actually reach the cap. At 0.10/turn a single play survives 2-3
+    // turns and stacking is achievable. The chip tooltips already say
+    // "drifts toward 1.00 by 0.10/turn" so they're consistent.
+    setEnemyDmgMult(m  => m > 1 ? Math.max(1, m - 0.10) : m < 1 ? Math.min(1, m + 0.10) : m);
+    setPlayerDmgMult(m => m > 1 ? Math.max(1, m - 0.10) : m < 1 ? Math.min(1, m + 0.10) : m);
 
     // 4-5. Compose the new turn's piles + start-of-turn triggers
     //      synchronously, then commit all related state in one pass.
@@ -8423,15 +8425,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               </div>
             )}
             <div className="text-base">🛡 {enemyBlock}</div>
-            {/* v2.21: Sap / Amplify / drift status surfaced on the enemy
-                stat block (not just the intent row) so players see it
-                where they expect. */}
-            {enemyDmgMult !== 1.0 && (
-              <div className={`text-sm font-mono ${enemyDmgMult < 1 ? 'text-iris-300' : 'text-ember-400'}`}
-                   title={`Enemy outgoing damage ×${enemyDmgMult.toFixed(2)}. Drifts back to 1.00 by 0.25/turn.`}>
-                💢 Atk ×{enemyDmgMult.toFixed(2)}
-              </div>
-            )}
+            {/* v2.65: removed duplicate Atk ×N chip — the STATUS row
+                below now surfaces enemyDmgMult / playerDmgMult shifts
+                more prominently. */}
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
@@ -8469,23 +8465,46 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               <div className="text-sm italic text-parchment-50">{enemy.annotation.phrase} <span className="text-iris-300">({enemy.annotation.turnsRemaining}t)</span></div>
             </div>
           )}
-          {enemyDmgMult !== 1.0 && (
-            <span className={`px-2 py-1 rounded text-sm ${enemyDmgMult > 1 ? 'bg-ember-700 text-parchment-50' : 'bg-iris-700 text-parchment-50'}`}
-              title={`Enemy attack damage ×${enemyDmgMult.toFixed(2)} (drifts toward 1.00 by 0.25/turn).`}>
-              💢 Atk ×{enemyDmgMult.toFixed(2)}
-            </span>
-          )}
-          {playerDmgMult !== 1.0 && (
-            <span className={`px-2 py-1 rounded text-sm ${playerDmgMult > 1 ? 'bg-iris-700 text-parchment-50' : 'bg-ember-700 text-parchment-50'}`}
-              title={`Your spell potency ×${playerDmgMult.toFixed(2)} (drifts toward 1.00 by 0.25/turn).`}>
-              💫 Spell ×{playerDmgMult.toFixed(2)}
-            </span>
-          )}
           <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 Chutz {eff_label(eff.chutzpah ?? 1)}</span>
           <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ Wit {eff_label(eff.wit ?? 1)}</span>
           <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 Jnsq {eff_label(eff.jnsq ?? 1)}</span>
           <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ Phys {eff_label(eff.physical ?? 1)}</span>
         </div>
+        {/* v2.65: STATUS row — what YOU have done to the enemy this combat
+            (and what they've done to you). Pulled out from the lane-chip
+            row to a dedicated band with bigger styling so the player can
+            see at a glance "I have +30% spell potency from 2 Amplifies"
+            without parsing a row of similar-looking chips. Hidden when
+            both multipliers are at baseline. */}
+        {(playerDmgMult !== 1.0 || enemyDmgMult !== 1.0) && (
+          <div className="mt-2 p-2 rounded bg-ink-700/60 border border-ink-500 flex gap-3 flex-wrap items-center">
+            <span className="text-[10px] uppercase tracking-widest text-parchment-300">In effect</span>
+            {playerDmgMult > 1.0 && (
+              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400"
+                title={`Your spells deal ×${playerDmgMult.toFixed(2)} damage. Drifts toward 1.00 by 0.10/turn. From Amplify, Vulnerable on enemy, etc.`}>
+                💫 Spell potency +{Math.round((playerDmgMult - 1) * 100)}%
+              </span>
+            )}
+            {playerDmgMult < 1.0 && (
+              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500"
+                title={`Weak — your spells deal ×${playerDmgMult.toFixed(2)} damage. Drifts toward 1.00 by 0.10/turn.`}>
+                ⛧ Weak {Math.round((playerDmgMult - 1) * 100)}%
+              </span>
+            )}
+            {enemyDmgMult > 1.0 && (
+              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500"
+                title={`Vulnerable — incoming damage ×${enemyDmgMult.toFixed(2)}. Drifts toward 1.00 by 0.10/turn.`}>
+                🩸 Vulnerable +{Math.round((enemyDmgMult - 1) * 100)}%
+              </span>
+            )}
+            {enemyDmgMult < 1.0 && (
+              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400"
+                title={`Sap — enemy attack damage ×${enemyDmgMult.toFixed(2)}. Drifts toward 1.00 by 0.10/turn. From Sap, Weak applied to enemy, etc.`}>
+                🛡 Enemy atk {Math.round((enemyDmgMult - 1) * 100)}%
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* v2 SENTENCE TRAY — intro + subject + target + 0-2 modifiers.
