@@ -8746,6 +8746,34 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                   {card.modifierEffect.stripEnemyBlock ? ` · strip ${card.modifierEffect.stripEnemyBlock} block` : ''}
                 </div>
               )}
+              {/* v2.63: Gesture summary — base damage, trayMultiplier
+                  scaling, riders, strip, draw, exhaust status. Gestures
+                  bypass the spell tray and fire immediately on play,
+                  so the player needs the full mechanic surfaced in the
+                  card itself. */}
+              {card.slot === 'gesture' && card.gestureEffect && (() => {
+                const ge = card.gestureEffect;
+                const laneLabel = (card.lane || 'wit').toUpperCase();
+                const dmgType = ge.damageType === 'physical' ? 'phys' : 'comp';
+                return (
+                  <div className="text-sm font-mono text-ink-700 leading-tight">
+                    <div className="font-bold">
+                      {ge.icon || '✊'} {ge.damage} {dmgType}
+                      {ge.trayMultiplier ? ` + ${laneLabel}×${ge.trayMultiplier}` : ''}
+                    </div>
+                    {ge.rider && Object.keys(ge.rider).length > 0 && (
+                      <div className="text-xs text-ember-700 font-bold uppercase">
+                        {Object.entries(ge.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')}
+                      </div>
+                    )}
+                    {ge.stripEnemyBlock ? <div className="text-xs text-iris-700">🛇 strip {ge.stripEnemyBlock} block</div> : null}
+                    {ge.draw ? <div className="text-xs text-moss-700">📥 draw {ge.draw}</div> : null}
+                    <div className="text-[10px] italic text-ink-500">
+                      {ge.exhaust === false ? 'Reusable · bypasses spell tray' : 'Exhausts · bypasses spell tray'}
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="text-sm flex-1 font-quill leading-snug italic">{displayDesc}</div>
               {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
               {/* Resonance / tag row — separated visually so it reads as
