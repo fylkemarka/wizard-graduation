@@ -8613,13 +8613,16 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       {relics.length > 0 && (
         <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
           <span className="text-[10px] uppercase tracking-widest text-gold-300 mr-1">📿 Relics</span>
-          {relics.map(r => (
-            <span key={r.id}
-              title={`${r.desc}${r.flavor ? '\n\n' + r.flavor : ''}`}
-              className="px-2 py-1 bg-gold-700 text-parchment-50 rounded border border-gold-500 text-xs cursor-help">
-              {r.name}
-            </span>
-          ))}
+          {relics.map(r => {
+            const summary = relicEffectSummary(r);
+            return (
+              <span key={r.id}
+                title={`${r.name}\n\n${r.desc || ''}${summary ? '\n\nEffects:\n' + summary : ''}${r.flavor ? '\n\n"' + r.flavor + '"' : ''}`}
+                className="px-2 py-1 bg-gold-700 text-parchment-50 rounded border border-gold-500 text-xs cursor-help">
+                {r.name}
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -10389,6 +10392,81 @@ function equipmentEffectSummary(equipment) {
     if (oc.hp)     lines.push(`• +${oc.hp} HP at the start of every combat`);
   }
   return lines.join('\n');
+}
+
+// v2.81: relic effect chips + tooltip string — same math-bar pattern
+// applied to passive relics. Used on the relic HUD chips and (when a
+// grant screen lands) on the relic preview. New relic effect keys must
+// be handled in BOTH functions to surface to players.
+function relicEffectSummary(relic) {
+  const e = relic?.effect || {};
+  const lines = [];
+  if (e.passiveStrikeBonus)        lines.push(`• +${e.passiveStrikeBonus} dmg to any Effect named "Strike"`);
+  if (e.permanentEnergyBonus)      lines.push(`• +${e.permanentEnergyBonus} Energy every turn (permanent)`);
+  if (e.onCombatStart) {
+    const oc = e.onCombatStart;
+    if (oc.block)  lines.push(`• +${oc.block} Block at the start of every combat`);
+    if (oc.draw)   lines.push(`• +${oc.draw} cards drawn on turn 1 of every combat`);
+    if (oc.energy) lines.push(`• +${oc.energy} Energy on turn 1 of every combat`);
+    if (oc.hp)     lines.push(`• +${oc.hp} HP at the start of every combat`);
+  }
+  if (e.onEnemyDefeated) {
+    const od = e.onEnemyDefeated;
+    if (od.heal)   lines.push(`• +${od.heal} HP each time you defeat an enemy`);
+    if (od.draw)   lines.push(`• Draw ${od.draw} when you defeat an enemy`);
+    if (od.energy) lines.push(`• +${od.energy} Energy when you defeat an enemy`);
+  }
+  if (e.onCombatEnd) {
+    const ce = e.onCombatEnd;
+    if (ce.heal)   lines.push(`• +${ce.heal} HP at the end of every combat won`);
+  }
+  if (e.everyNthEffect) {
+    const en = e.everyNthEffect;
+    lines.push(`• Every ${en.n}th Effect you cast deals +${en.extraDamage} damage`);
+  }
+  return lines.join('\n');
+}
+
+function RelicEffectBreakdown({ relic }) {
+  const e = relic?.effect || {};
+  const chips = [];
+  if (e.passiveStrikeBonus)        chips.push({ icon: '⚔',  label: `+${e.passiveStrikeBonus} dmg on Strike casts`, title: `Any Effect card named "Strike" gets +${e.passiveStrikeBonus} base damage.` });
+  if (e.permanentEnergyBonus)      chips.push({ icon: '⚡',  label: `+${e.permanentEnergyBonus} Energy every turn`, title: `Permanent: your Energy refill is +${e.permanentEnergyBonus} above baseline every turn.` });
+  if (e.onCombatStart) {
+    const oc = e.onCombatStart;
+    if (oc.block)  chips.push({ icon: '🛡', label: `+${oc.block} Block at combat start`, title: `Every combat begins with ${oc.block} Block.` });
+    if (oc.draw)   chips.push({ icon: '🃏', label: `+${oc.draw} draw at combat start`,   title: `Draw ${oc.draw} extra cards on turn 1 of every combat.` });
+    if (oc.energy) chips.push({ icon: '⚡', label: `+${oc.energy} Energy on turn 1`,     title: `Gain ${oc.energy} extra Energy on turn 1 (one-shot per combat).` });
+    if (oc.hp)     chips.push({ icon: '💚', label: `+${oc.hp} HP at combat start`,        title: `Heal ${oc.hp} HP at the start of every combat.` });
+  }
+  if (e.onEnemyDefeated) {
+    const od = e.onEnemyDefeated;
+    if (od.heal)   chips.push({ icon: '💚', label: `+${od.heal} HP per enemy defeated`, title: `Heal ${od.heal} HP each time you defeat an enemy.` });
+    if (od.draw)   chips.push({ icon: '🃏', label: `+${od.draw} draw per enemy defeated`, title: `Draw ${od.draw} when you defeat an enemy.` });
+    if (od.energy) chips.push({ icon: '⚡', label: `+${od.energy} Energy per enemy defeated`, title: `+${od.energy} Energy when you defeat an enemy.` });
+  }
+  if (e.onCombatEnd) {
+    const ce = e.onCombatEnd;
+    if (ce.heal)   chips.push({ icon: '💚', label: `+${ce.heal} HP at combat end`,      title: `Heal ${ce.heal} HP at the end of every combat won.` });
+  }
+  if (e.everyNthEffect) {
+    const en = e.everyNthEffect;
+    chips.push({ icon: '✦', label: `Every ${en.n}th cast +${en.extraDamage} dmg`, title: `Every ${en.n}th Effect you cast deals +${en.extraDamage} bonus damage.` });
+  }
+  if (chips.length === 0) return null;
+  return (
+    <div className="mt-3 pt-2 border-t border-ink-500">
+      <div className="text-[10px] uppercase tracking-widest text-gold-300 font-bold mb-1.5">Effects</div>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c, i) => (
+          <span key={i} title={c.title}
+            className="text-[11px] font-mono px-2 py-1 rounded bg-gold-800/50 border border-gold-600 text-parchment-100 cursor-help">
+            {c.icon} {c.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function EquipmentEffectBreakdown({ equipment }) {
