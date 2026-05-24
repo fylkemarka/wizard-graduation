@@ -541,7 +541,8 @@ const INSULT_VULN_CARDS = [
   // insultable enemy), 'observational' (a wit-cluster tag that's NOT in the
   // current vuln pools, included for general utility on non-insult casts).
   { id: 'wv2-s-manner-of-speaking', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your manner of speaking,', tags: ['petty', 'dismissive', 'observational'], stats: { wit: 2 },
+    phrase: 'your manner of speaking,', tags: ['petty', 'dismissive', 'observational'], stats: { wit: 3 },
+    effects: { vulnerable: 1 },
     flavor: 'A subject one returns to with the certainty of an honest critic.' },
   // Target — pierceVulnerableInsult: 4. With the manner-of-speaking subject
   // staged on a vulnerable target (dismissive+petty in the list), the cast
