@@ -207,6 +207,19 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     const count = allTags.filter(t => eff.perLaneTag.tags.includes(t)).length;
     damage += eff.perLaneTag.bonus * count * tagAmp;
   }
+  // v2.51: SYNERGY CAPSTONE — `perTagBonus` mirrors `perLaneTag` but is
+  // gated to the jnsq capstone target ("universe sideways"). Counts every
+  // matching tag across the tray WITH multiplicity (a card with both
+  // 'chaotic' and 'absurd' counts as 2, two cards each with 'mystical'
+  // count as 2). Practical cap is the visible tag count of staged cards;
+  // a fully-tagged jnsq tray (intro+subject+target+2 modifiers each
+  // carrying 2-3 matching tags) lands ~6-9 bonus at bonus=3. Honors the
+  // same tagAmp pipeline as perLaneTag for consistency with v2.7.
+  if (eff.perTagBonus) {
+    const allTags = trayTags(intro, subject, target, modifiers);
+    const count = allTags.filter(t => eff.perTagBonus.tags.includes(t)).length;
+    damage += eff.perTagBonus.bonus * count * tagAmp;
+  }
 
   // v2.5: unique target scaling mechanics. Caller passes world state via
   // `context`; if it's missing the field, that scaling contributes 0.

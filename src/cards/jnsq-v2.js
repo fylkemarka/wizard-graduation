@@ -561,11 +561,46 @@ const TANGENT_CARDS = [
     flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS, ...V250_CONTENT_CARDS];
+// v2.51: SYNERGY CAPSTONE — pulls three live jnsq primitives into one rare:
+// (1) `tangentOnCast` — NEW rider; on resolve, immediately fires the Tangent
+//     dispatcher (discard 1 from draw, fire random jnsq from discard). Same
+//     pipeline as the "That reminds me," skill (v2.44), invoked AS PART OF
+//     this cast, so the surfaced card might be a Word (stages but can't
+//     recast this turn — per-turn cap), a Skill (resolves), or another Target
+//     (fizzles since the tray was just consumed by the capstone itself).
+//     Chaos by design.
+// (2) `mustPlayAnotherJnsq` — Won't Shut Up chain. Bills 3 HP at end of turn
+//     if the player doesn't play another jnsq-lane card after the cast.
+// (3) `perTagBonus` — +3 damage per matching tag across the tray (chaotic /
+//     absurd / mystical) WITH multiplicity. A fully-themed tray (intro+
+//     subject+target+2 modifiers averaging 2 matching tags each) clears 6-9
+//     bonus damage. Wired in shared.js mirroring the perLaneTag pattern.
+// The paired uncommon intro "oh — actually, three things, sorry," draws 2
+// cards on stage — the jnsq "I've got more to say" intro that feeds the
+// chaos engine + smooths the rare's mustPlayAnotherJnsq follow-up.
+const V251_SYNERGY_CAPSTONE_CARDS = [
+  { id: 'jv2-t-universe-sideways', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'and then the entire universe — and I mean THIS universe — went sideways.',
+    tags: ['chaotic', 'absurd', 'mystical'],
+    effect: { scaleBy: 'jnsq', base: 9, multiplier: 3, damageType: 'composure',
+              tangentOnCast: true, mustPlayAnotherJnsq: true,
+              perTagBonus: { tags: ['chaotic', 'absurd', 'mystical'], bonus: 3 } },
+    desc: 'Cast: 9 + Jnsq comp ×3. On cast: TANGENT fires (random jnsq from discard). +3 dmg per chaotic/absurd/mystical tag on staged cards. Must follow with another jnsq card or take 3 HP.',
+    flavor: 'THIS universe being one of approximately several.' },
+  { id: 'jv2-i-three-things-sorry', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'oh — actually, three things, sorry,',
+    tags: ['chaotic', 'absurd', 'hedge'],
+    stats: { jnsq: 2 },
+    effects: { draw: 2 },
+    desc: 'Stages as intro. Draw 2 cards.',
+    flavor: "The three things, by the time they're enumerated, will be approximately five." },
+];
+
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS, ...V250_CONTENT_CARDS, ...V251_SYNERGY_CAPSTONE_CARDS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: [...INTROS, APOLOGY_CARDS[1], V250_CONTENT_CARDS[0]],
+  intro: [...INTROS, APOLOGY_CARDS[1], V250_CONTENT_CARDS[0], V251_SYNERGY_CAPSTONE_CARDS[1]],
   subject: [...SUBJECTS, V250_CONTENT_CARDS[1]],
-  target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS, V250_CONTENT_CARDS[2]],
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS, V250_CONTENT_CARDS[2], V251_SYNERGY_CAPSTONE_CARDS[0]],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1], BABBLING_CARDS[1]],
   gesture: GESTURES,
   power: [DRUNKEN_CONFIDENCE_CARDS[0], BABBLING_CARDS[0]],

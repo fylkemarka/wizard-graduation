@@ -406,6 +406,26 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       if (firstTurn) score += 12;
       if ((state.longThread || 0) >= 2) score += Math.min(20, (state.longThread || 0) * 4);
     }
+    // v2.51: jnsq SYNERGY CAPSTONE — "universe sideways." Boost when (a) the
+    // tray's intro+subject already carry ≥2 chaotic/absurd/mystical-tagged
+    // staged cards (perTagBonus rider will pay out) AND (b) the existing
+    // mustFollowUp gate above already passed (i.e. a jnsq follow-up exists in
+    // hand). The +3-per-tag rider on a fully-themed tray (4-6 matching tags
+    // available across intro+subject+target+modifiers) is meaningful at
+    // tier-3 multiplier; this nudge biases the AI toward draft AND cast when
+    // the synergy is actually live, instead of falling back to a baseline
+    // tier-3 target.
+    if (c.id === 'jv2-t-universe-sideways' && state.lane === 'jnsq') {
+      const staged = [tray?.intro, tray?.subject].filter(Boolean);
+      const themeTags = ['chaotic', 'absurd', 'mystical'];
+      let themeCount = 0;
+      for (const s of staged) themeCount += (s.tags || []).filter(t => themeTags.includes(t)).length;
+      // Also count the target's own tags (the capstone carries all three).
+      themeCount += (c.tags || []).filter(t => themeTags.includes(t)).length;
+      if (themeCount >= 5) score += 22;
+      else if (themeCount >= 4) score += 16;
+      else if (themeCount >= 3) score += 10;
+    }
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
   return bestIdx;
@@ -1752,6 +1772,47 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.inSummaryCasts = (telemetry.inSummaryCasts || 0) + 1;
         telemetry.inSummaryTotalDamage = (telemetry.inSummaryTotalDamage || 0) + dmg;
       }
+      // v2.51: jnsq SYNERGY CAPSTONE — "universe sideways." Counts every
+      // resolved cast and the total damage. Three riders share existing
+      // wiring: mustPlayAnotherJnsq → state.wontShutUpArmed (above), per-
+      // TagBonus → baked into result.damage via shared.js, tangentOnCast
+      // → fires the Tangent dispatcher below AS PART OF this resolve.
+      if (tray.target?.id === 'jv2-t-universe-sideways') {
+        telemetry.universeSidewaysCasts = (telemetry.universeSidewaysCasts || 0) + 1;
+        telemetry.universeSidewaysTotalDamage = (telemetry.universeSidewaysTotalDamage || 0) + dmg;
+      }
+      // v2.51: TANGENT-ON-CAST rider — fire the v2.44 Tangent dispatcher
+      // (random jnsq from discard → stage/cast). Reuses resolveTangentSim
+      // (defined ~line 1001 in this turn-loop) so the surfaced-card pipeline
+      // matches the "That reminds me," skill exactly. Caveat: the tray is
+      // about to be cleared by the cast resolution (line ~1783), so a
+      // surfaced target falls into the no-intro/subject branch and fizzles
+      // back to discard — chaos by design. Word surfacing stages for next
+      // turn; the per-turn cast cap stops a 2nd cast this turn regardless.
+      if (tray.target?.effect?.tangentOnCast) {
+        telemetry.tangentOnCastFires = (telemetry.tangentOnCastFires || 0) + 1;
+        // Step 1: discard random from draw.
+        if (state.deck.length > 0) {
+          const ridx = Math.floor(rnd() * state.deck.length);
+          const lost = state.deck[ridx];
+          state.deck.splice(ridx, 1);
+          state.discard.push(lost);
+        }
+        // Step 2 + 3: pull a random jnsq card from discard and resolve.
+        // Discard at this point still contains every staged-and-cast card
+        // EXCEPT the universe-sideways target itself (still in `tray.target`
+        // — discharged below at line 1662). That's fine: a wider pool is a
+        // chaos feature, not a bug.
+        const jnsqIdxs = state.discard
+          .map((d, i) => (d.lane === 'jnsq' ? i : -1))
+          .filter(i => i >= 0);
+        if (jnsqIdxs.length > 0) {
+          const pick = jnsqIdxs[Math.floor(rnd() * jnsqIdxs.length)];
+          const fired = state.discard[pick];
+          state.discard.splice(pick, 1);
+          resolveTangentSim(fired);
+        }
+      }
       // v2.36: ACTUALLY— snapshot. Stash the resolved cast's inputs +
       // multipliers so a subsequent Actually— skill can re-fire damage at
       // ×1.5. The captured `mult` here is the enemy-effectiveness multiplier
@@ -2821,6 +2882,30 @@ function awardReward(state) {
       }
     }
   }
+  // v2.51: SYNERGY CAPSTONE bias — jnsq lane only. The "universe sideways"
+  // capstone rewards a tag-cohesive jnsq deck (perTagBonus reads chaotic /
+  // absurd / mystical across the tray). Bias UP when the deck already
+  // contains multiple chaotic/absurd/mystical-tagged jnsq cards — the rider
+  // pays out only when those tags actually show up in the tray. Cap at one
+  // copy (mustPlayAnotherJnsq + tangentOnCast make >1 redundant within a
+  // single combat). ~18% baseline mirrors the wit in-summary capstone bias,
+  // ~28% when the deck is already themed.
+  if (state.lane === 'jnsq') {
+    const ownsCapstone = allCards.some(c => c.id === 'jv2-t-universe-sideways');
+    if (!ownsCapstone) {
+      const themeTags = ['chaotic', 'absurd', 'mystical'];
+      const themedJnsqCount = allCards.filter(c =>
+        c.lane === 'jnsq' && (c.tags || []).some(t => themeTags.includes(t))
+      ).length;
+      const rate = themedJnsqCount >= 6 ? 0.28 : 0.18;
+      const ck = pool.find(c => c.id === 'jv2-t-universe-sideways');
+      if (ck && rnd() < rate) {
+        state.discard.push({ ...ck, uid: uid() });
+        state.rewardsTaken.push(ck.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -3031,6 +3116,14 @@ function simRun(forcedLane = null) {
     // doubleOnSecondCast active (cast as the 2nd cast under Babbling).
     gettingAwayCasts: 0,
     gettingAwayDoubled: 0,
+    // v2.51: SYNERGY CAPSTONE — "universe sideways." casts = resolved cast
+    // count; totalDamage = sum of resolved damage (used to compute avg);
+    // tangentOnCastFires = times the on-cast Tangent dispatcher fired (= casts
+    // when no edge cases — exposed separately to surface broken pipeline
+    // states if they ever diverge).
+    universeSidewaysCasts: 0,
+    universeSidewaysTotalDamage: 0,
+    tangentOnCastFires: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -3292,6 +3385,11 @@ function aggregate(results) {
     gettingAwayCasts: results.reduce((s, r) => s + (r.gettingAwayCasts || 0), 0),
     gettingAwayDoubled: results.reduce((s, r) => s + (r.gettingAwayDoubled || 0), 0),
     gettingAwayRuns: results.filter(r => (r.gettingAwayCasts || 0) > 0).length,
+    // v2.51: SYNERGY CAPSTONE aggregate (universe sideways).
+    universeSidewaysCasts: results.reduce((s, r) => s + (r.universeSidewaysCasts || 0), 0),
+    universeSidewaysTotalDamage: results.reduce((s, r) => s + (r.universeSidewaysTotalDamage || 0), 0),
+    universeSidewaysRuns: results.filter(r => (r.universeSidewaysCasts || 0) > 0).length,
+    tangentOnCastFires: results.reduce((s, r) => s + (r.tangentOnCastFires || 0), 0),
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -3477,6 +3575,12 @@ function buildReport(agg) {
   lines.push(`## Jnsq GETTING-AWAY-FROM-ME (v2.50)`);
   lines.push(`- Rare casts: ${agg.gettingAwayCasts} (runs: ${agg.gettingAwayRuns} / ${agg.N}, ${pct(agg.gettingAwayRuns / agg.N)})`);
   lines.push(`- Doubled fires (cast #2 under Babbling): ${agg.gettingAwayDoubled} (${agg.gettingAwayCasts > 0 ? pct(agg.gettingAwayDoubled / agg.gettingAwayCasts) : '0%'} of casts)`);
+  lines.push('');
+  lines.push(`## Jnsq SYNERGY CAPSTONE — "universe sideways" (v2.51)`);
+  lines.push(`- Capstone casts: ${agg.universeSidewaysCasts} (runs: ${agg.universeSidewaysRuns} / ${agg.N}, ${pct(agg.universeSidewaysRuns / agg.N)})`);
+  lines.push(`- Total capstone damage: ${agg.universeSidewaysTotalDamage}`);
+  lines.push(`- Avg damage / capstone cast: ${agg.universeSidewaysCasts > 0 ? (agg.universeSidewaysTotalDamage / agg.universeSidewaysCasts).toFixed(2) : '0.00'}`);
+  lines.push(`- Tangent-on-cast fires: ${agg.tangentOnCastFires}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

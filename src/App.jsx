@@ -3326,6 +3326,14 @@ export default function App() {
   // CastDamage = total damage delivered by those 2nd casts.
   const [babblingTelemetry, setBabblingTelemetry] = useState({ installs: 0, secondCasts: 0, secondCastDamage: 0 });
 
+  // v2.51: UNIVERSE-SIDEWAYS — synergy capstone metrics.
+  //   casts            = total resolved casts of jv2-t-universe-sideways
+  //   totalDamage      = sum of resolved damage (for avg-per-cast in reports)
+  //   tangentOnCastFires = times the on-cast Tangent dispatcher fired (= casts)
+  const [universeSidewaysTelemetry, setUniverseSidewaysTelemetry] = useState({
+    casts: 0, totalDamage: 0, tangentOnCastFires: 0,
+  });
+
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
   // (see advanceTutorialStep). `tutorialActive` short-circuits onEnemyDefeated
@@ -5307,6 +5315,35 @@ export default function App() {
       logEvent('jnsq.wontShutUp.armed', {
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
+    }
+
+    // v2.51: TANGENT-ON-CAST — universe-sideways capstone fires the Tangent
+    // dispatcher AS PART OF this resolve. Reuses applyEffectsCore's
+    // `tangentFire` branch (v2.44) so the discard-from-draw + fire-random-
+    // jnsq-from-discard pipeline matches the skill exactly. The tray was
+    // just consumed by the capstone itself, so a surfaced target will
+    // fizzle (resolveTangentCard guards on missing intro/subject) — that's
+    // fine; the chaos is the point. Word/skill surfacing still has value.
+    if (target.effect?.tangentOnCast) {
+      setUniverseSidewaysTelemetry(t => ({
+        ...t,
+        tangentOnCastFires: (t.tangentOnCastFires || 0) + 1,
+      }));
+      pushLog(`🌀 ...and tangentially —`);
+      // Defer to setTimeout to avoid running this inside the cast's
+      // synchronous setState chain ([[feedback_react_pure_updaters]]).
+      const tangentBits = [];
+      setTimeout(() => applyEffectsCore({ tangentFire: true }, { logBits: tangentBits }), 0);
+    }
+    // v2.51: synergy-capstone cast counter (universe-sideways specifically).
+    // Tracked alongside the tangent fires so a session report can compute
+    // avg damage per capstone cast in-App.
+    if (target.id === 'jv2-t-universe-sideways') {
+      setUniverseSidewaysTelemetry(t => ({
+        ...t,
+        casts: (t.casts || 0) + 1,
+        totalDamage: (t.totalDamage || 0) + dmg,
+      }));
     }
 
     // Discharge cards. Intro / subject / modifiers → discard. Target →
