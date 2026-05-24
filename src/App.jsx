@@ -102,7 +102,7 @@ const CARDS = [
   // Cycle 4 batch 3: chutzpah sustain + next-cast boost. Pairs with
   // Don't Hold Back / Go For The Throat / Corner Them — heal the chip
   // damage your own deck inflicts, then go big on the next chutzpah cast.
-  { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'chutzpah',
     effects: { heal: 5, boostNextChutzpahCast: 0.5 },
     upgrade: { effects: { heal: 8, boostNextChutzpahCast: 0.5 } },
     desc: 'Heal 5 HP. Your next Chutzpah Effect this turn deals +50% damage.',
