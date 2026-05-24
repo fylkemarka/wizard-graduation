@@ -204,9 +204,15 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null) {
     // v2.29: when an I SAID. finisher is in hand, demanding-tagged chutzpah
     // words break ties WITHIN tier. Keep the cmp against bestTier*10+bestStat
     // so this doesn't override the existing tier-first preference.
+    // v2.53: bumped from +3 to +7 so demanding-tagged words ALSO outscore
+    // adjacent non-demanding picks across the tier boundary in close cases.
+    // Previously the +3 only broke same-tier ties; the report showed avg
+    // loudCount per cast = 0.51, meaning the AI was almost always missing
+    // the stack on cast. +7 lifts demanding tier-1 words above non-demanding
+    // tier-2 baselines when an I SAID. target is in hand and committed.
     let effectiveStat = stat;
     if (hasLoudTarget && c.lane === 'chutzpah' && (c.tags || []).includes('demanding')) {
-      effectiveStat = stat + 3;
+      effectiveStat = stat + 7;
     }
     // v2.30: when a predator target is in hand, bias toward debuff-appliers
     // (vulnerable or weak) staged BEFORE the cast. The bonus is +6 flat —
@@ -281,10 +287,13 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       // v2.33: gate loosened 1.1 → 0.8 because at 1.0 the preview excludes
       // modifiers (cast time adds them, real dmg > predicted) so all 1.0-gated
       // casts killed → 0 corner-token bills (toothless punishment side).
-      // At 0.8 the AI gambles when predicted is 20% short of kill — modifiers
-      // may close it, may not. Bills fire against blocker enemies and cold
-      // variance. Per creator brief: "exposes the punishment side."
-      if (predicted < remaining * 0.8) continue;
+      // v2.53: loosened further 0.8 → 0.65. At 0.8 the modifier guesswork
+      // still closed almost every kill in practice; bills stayed at 0.
+      // At 0.65 the AI gambles when predicted is 35% short — modifiers may
+      // close, enemy block may eat it, the bill comes due against blocker
+      // and high-defense enemies. The double-down rare's identity is the
+      // gambit, not the safe pick.
+      if (predicted < remaining * 0.65) continue;
     }
     // v2.26: STORM OUT gate — only pick when this would be the last cast
     // possible this turn (no other castable targets after this one would
@@ -346,6 +355,22 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
     if (doubleDown) score += 15; // prefer doubleDown when it WILL kill (gate already passed)
     if (stormOut) score += 20;   // prefer stormOut when the finisher conditions matched
     if (mustFollowUp) score += 5; // mild preference when the gate passed — stays competitive with rare targets, doesn't dominate
+    // v2.53: tier-3 boss/elite finisher bias. Lane rares (tier-3 targets) are
+    // explicitly designed as finishers but the AI's baseline score (tier*10 +
+    // stat = ~33) often loses to a tier-2 baseline with a strong rider
+    // (~23 + 8 from rider). When the enemy has substantial remaining
+    // composure/HP (≥ 50%) AND it's a boss/elite, bump tier-3 cards another
+    // +8 so they actually edge ahead. On near-dead enemies, the bias drops
+    // off — a finisher's value collapses to a baseline target when the bar
+    // is already 15% remaining.
+    if (slot === 'target' && tier === 3 && enemy && (enemy.tier === 'boss' || enemy.tier === 'elite')) {
+      const dmgType = c.effect?.damageType || 'composure';
+      const pool = dmgType === 'physical'
+        ? (enemy.currentHp || 0) / Math.max(1, enemy.hp || 999)
+        : (enemy.currentComp || 0) / Math.max(1, enemy.comp || 99);
+      if (pool >= 0.5) score += 8;
+      else if (pool >= 0.25) score += 4;
+    }
     // v2.34: wit LONG THREAD bias — when wit-committed AND we hold a
     // threadScaling target AND the meter is already ≥ 1, prefer it. The
     // bonus damage from threadScaling is `N × longThread` flat. Even at
@@ -425,6 +450,19 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       if (themeCount >= 5) score += 22;
       else if (themeCount >= 4) score += 16;
       else if (themeCount >= 3) score += 10;
+    }
+    // v2.53: when Babbling is installed AND we're picking a target for the
+    // FIRST cast AND the rare "Getting Away" is in hand AND another target
+    // exists, hold the rare for the 2nd cast (where doubleOnSecondCast
+    // doubles damage). The 2nd-cast restage will prefer the rare specifically
+    // (see ~line 1919). Without this, the rare gets cast first and Babbling's
+    // 2nd-cast restage uses a baseline target at the 0.6× scalar.
+    if (slot === 'target' && state.babblingInstalled
+        && c.id === 'jv2-t-getting-away-from-me') {
+      const otherTargetExists = state.hand.some((other, j) =>
+        j !== i && other.slot === 'target' && other.lane === 'jnsq'
+        && (other.cost || 0) <= energyLeft);
+      if (otherTargetExists) score -= 25;
     }
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
@@ -1917,18 +1955,19 @@ function runCombat(state, enemyId, telemetry) {
             if (c.slot !== 'target' || c.lane !== 'jnsq') continue;
             if ((c.cost || 0) > tgtEnergy) continue;
             if (c.id === 'jv2-t-getting-away-from-me') {
-              // Gate: hand must contain a follow-up jnsq card (not intro/subj
-              // /target slots already committed) so the mustPlayAnotherJnsq
-              // flag can be cleared this turn. Energy-affordable follow-up
-              // (any jnsq card with cost ≤ remaining energy AFTER target).
-              const afterTgt = tgtEnergy - (c.cost || 0);
-              const hasFollowUp = state.hand.some((other, j) =>
-                j !== introIdx && j !== subjIdx && j !== i
-                && other.lane === 'jnsq'
-                && (other.cost || 0) <= afterTgt
-              );
-              if (hasFollowUp) gettingAwayIdx = i;
-              continue; // never pick rare on the cheapest-cost branch
+              // v2.53: loosened gate. The rare's mustPlayAnotherJnsq is
+              // armed AFTER the 2nd-cast (see post-restage block below); the
+              // post-cast wontShutUp follow-up pass at ~line 2094 then tries
+              // ANY remaining jnsq card. We only need to know one exists in
+              // hand — cost doesn't matter because the followup pass also
+              // gets remaining energy. Even if it can't clear, the -3 HP
+              // bill is usually a worthwhile trade for the 2× × 0.6× = 1.2×
+              // damage multiplier on a tier-3 rare. ALSO drop the strict
+              // "must have follow-up" — if no jnsq card is around, the bill
+              // is still cheap relative to the cast payoff (rare's base 9
+              // × jnsq comp × 1.2 > 3 HP value most of the time).
+              gettingAwayIdx = i;
+              continue; // skip the cheapest-cost branch — rare gets explicit pick
             }
             if ((c.cost || 0) < tgtCost) {
               tgtIdx = i; tgtCost = c.cost || 0;
@@ -1989,6 +2028,16 @@ function runCombat(state, enemyId, telemetry) {
               if (tray.target.effect?.doubleOnSecondCast) {
                 telemetry.gettingAwayDoubled = (telemetry.gettingAwayDoubled || 0) + 1;
               }
+            }
+            // v2.53: arm wontShutUpArmed if the 2nd-cast target carries
+            // mustPlayAnotherJnsq, mirroring the main cast path. Previously
+            // the 2nd-cast inline block skipped this, which let the rare
+            // "Getting Away" target cheese its commitment. The post-cast
+            // followup pass at ~line 2094 will clear it if a jnsq card is
+            // affordable; otherwise -3 HP bill at end of turn.
+            if (tray.target?.effect?.mustPlayAnotherJnsq) {
+              state.wontShutUpArmed = true;
+              telemetry.wontShutUpArmed = (telemetry.wontShutUpArmed || 0) + 1;
             }
             // Apply through enemy block.
             if (result2.sideEffects.stripBlock) {
@@ -3704,8 +3753,14 @@ if (isMain) {
   const forcedLane = ['wit', 'chutzpah', 'jnsq'].includes(laneArg) ? laneArg : null;
   console.log(`Running ${N} v2 playtests${forcedLane ? ` (lane=${forcedLane})` : ''}…`);
   const results = [];
+  // v2.53: when no lane filter is supplied, force ROUND-ROBIN across the
+  // three lanes so the aggregate report has balanced per-lane telemetry
+  // (previously the random picker would skew the distribution and dilute
+  // per-lane signal — chutzpah/wit cards' triggers got under-counted).
+  const LANE_ROTATION = ['chutzpah', 'wit', 'jnsq'];
   for (let i = 0; i < N; i++) {
-    results.push(simRun(forcedLane));
+    const lane = forcedLane || LANE_ROTATION[i % LANE_ROTATION.length];
+    results.push(simRun(lane));
     if ((i + 1) % 50 === 0) console.log(`  …${i + 1} done`);
   }
   const agg = aggregate(results);

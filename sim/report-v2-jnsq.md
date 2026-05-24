@@ -3,32 +3,32 @@
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **3 wins / 100** = **3.0%**
-- Losses by acts-cleared: 0=46 · 1=47 · 2=4 · 3=0
+- **2 wins / 100** = **2.0%**
+- Losses by acts-cleared: 0=54 · 1=44 · 2=0 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
 - **chutzpah**: 0 runs · 0 wins (0.0%)
-- **jnsq**: 100 runs · 3 wins (3.0%)
+- **jnsq**: 100 runs · 2 wins (2.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-rabbit**: 13 runs · 2 wins (15.4%)
-- **fam-mouse**: 10 runs · 1 wins (10.0%)
+- **fam-hedgehog**: 13 runs · 1 wins (7.7%)
+- **fam-toad**: 16 runs · 1 wins (6.3%)
+- **fam-owl**: 9 runs · 0 wins (0.0%)
+- **fam-crow**: 10 runs · 0 wins (0.0%)
 - **fam-cat**: 8 runs · 0 wins (0.0%)
-- **fam-crow**: 8 runs · 0 wins (0.0%)
-- **fam-beetle**: 16 runs · 0 wins (0.0%)
-- **fam-raven**: 11 runs · 0 wins (0.0%)
-- **fam-snake**: 9 runs · 0 wins (0.0%)
-- **fam-owl**: 10 runs · 0 wins (0.0%)
-- **fam-toad**: 8 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 7 runs · 0 wins (0.0%)
+- **fam-mouse**: 9 runs · 0 wins (0.0%)
+- **fam-rabbit**: 12 runs · 0 wins (0.0%)
+- **fam-raven**: 10 runs · 0 wins (0.0%)
+- **fam-snake**: 6 runs · 0 wins (0.0%)
+- **fam-beetle**: 7 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 2078
-- Tier 1 (COHERENT): 1944 (93.6%)
-- Tier 2 (RESONANT): 134 (6.4%)
+- Total casts: 1894
+- Tier 1 (COHERENT): 1807 (95.4%)
+- Tier 2 (RESONANT): 87 (4.6%)
 - Tier 3 (DEVASTATING): 0 (0.0%)
-- Holds (turn ended without cast — tray persists): 1154 (35.7%)
+- Holds (turn ended without cast — tray persists): 993 (34.4%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -70,7 +70,7 @@ N = **100** runs simulated with a greedy v2 AI.
 
 ## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
 - Skill casts: 0 (runs: 0 / 100, 0.0%)
-- Total debuff absorbs: 21
+- Total debuff absorbs: 24
 - Avg absorbs per skill cast: 0.00
 
 ## Wit LONG THREAD (v2.34)
@@ -135,80 +135,79 @@ N = **100** runs simulated with a greedy v2 AI.
 - Avg bonus per cast: 0.00
 
 ## Jnsq TANGENT (v2.44)
-- "That reminds me," skill plays: 13 (runs: 13 / 100, 13.0%)
-- Detours that cast a target: 26
-- Detours that staged a word/modifier: 36
+- "That reminds me," skill plays: 9 (runs: 8 / 100, 8.0%)
+- Detours that cast a target: 9
+- Detours that staged a word/modifier: 27
 - Detours that fizzled (target hit incomplete tray): 0
-- Outcome ratio: cast / staged / fizzle: 26 / 36 / 0
+- Outcome ratio: cast / staged / fizzle: 9 / 27 / 0
 
 ## Jnsq APOLOGY (v2.45)
-- "I shouldn't have said that —" plays: 24 (runs: 13 / 100, 13.0%)
-- Total HP healed: 96
-- Total tray cards discarded by reset: 16
-- Avg tray cards / cast: 0.67
+- "I shouldn't have said that —" plays: 23 (runs: 10 / 100, 10.0%)
+- Total HP healed: 92
+- Total tray cards discarded by reset: 20
+- Avg tray cards / cast: 0.87
 
 ## Jnsq WON'T SHUT UP (v2.46)
-- Rider armed (soup target cast): 134 (runs: 42 / 100, 42.0%)
-- Dodges (kept going — follow-up jnsq played): 130 (97.0%)
-- Damage fires (-3 HP each): 3 (2.2%)
-- Total HP lost to commitment: 9
+- Rider armed (soup target cast): 112 (runs: 36 / 100, 36.0%)
+- Dodges (kept going — follow-up jnsq played): 105 (93.8%)
+- Damage fires (-3 HP each): 4 (3.6%)
+- Total HP lost to commitment: 12
 
 ## Jnsq DRUNKEN CONFIDENCE (v2.47)
-- Installs (per-combat): 118 (runs: 27 / 100, 27.0%)
+- Installs (per-combat): 107 (runs: 34 / 100, 34.0%)
 - Uninstalls (sober second thought): 0
-- Casts that received the +50%: 213
-- Total bonus damage from +50% on casts: 2371
-- Total +2 incoming penalty taken: 548
-- Net trade: 1823 (positive = paying off)
+- Casts that received the +50%: 207
+- Total bonus damage from +50% on casts: 1982
+- Total +2 incoming penalty taken: 576
+- Net trade: 1406 (positive = paying off)
 
 ## Jnsq AWKWARD PAUSE (v2.48)
-- "...go on, I'm listening." plays: 94 (runs: 40 / 100, 40.0%)
-- Doubled casts (bank cashed in): 75
-- Total extra damage from doubling: 968
-- Avg extra damage / doubled cast: 12.9
-- Cash-in ratio (doubled casts / pauses): 79.8%
+- "...go on, I'm listening." plays: 63 (runs: 29 / 100, 29.0%)
+- Doubled casts (bank cashed in): 57
+- Total extra damage from doubling: 713
+- Avg extra damage / doubled cast: 12.5
+- Cash-in ratio (doubled casts / pauses): 90.5%
 
 ## Jnsq BABBLING (v2.49)
-- Installs (per-combat): 121 (runs: 27 / 100, 27.0%)
-- 2nd casts fired: 25
-- Total damage delivered by 2nd casts: 337
-- Avg damage / 2nd cast: 13.5
-- 2nd-cast rate per install: 0.21
+- Installs (per-combat): 56 (runs: 17 / 100, 17.0%)
+- 2nd casts fired: 10
+- Total damage delivered by 2nd casts: 173
+- Avg damage / 2nd cast: 17.3
+- 2nd-cast rate per install: 0.18
 
 ## Jnsq GETTING-AWAY-FROM-ME (v2.50)
-- Rare casts: 27 (runs: 9 / 100, 9.0%)
-- Doubled fires (cast #2 under Babbling): 0 (0.0% of casts)
+- Rare casts: 29 (runs: 12 / 100, 12.0%)
+- Doubled fires (cast #2 under Babbling): 2 (6.9% of casts)
 
 ## Jnsq SYNERGY CAPSTONE — "universe sideways" (v2.51)
-- Capstone casts: 61 (runs: 21 / 100, 21.0%)
-- Total capstone damage: 3073
-- Avg damage / capstone cast: 50.38
-- Tangent-on-cast fires: 61
+- Capstone casts: 33 (runs: 15 / 100, 15.0%)
+- Total capstone damage: 1454
+- Avg damage / capstone cast: 44.06
+- Tangent-on-cast fires: 33
 
 ## Jnsq DRUNKEN STAGGER (v2.52)
-- "sorry, I lost my balance" plays: 52 (runs: 24 / 100, 24.0%)
-- Swings missed (50% dodge fired): 23
-- Total damage avoided: 195
-- Avg damage avoided / play: 3.8
-- Dodge rate (misses / plays): 44.2%
+- "sorry, I lost my balance" plays: 30 (runs: 13 / 100, 13.0%)
+- Swings missed (50% dodge fired): 10
+- Total damage avoided: 80
+- Avg damage avoided / play: 2.7
+- Dodge rate (misses / plays): 33.3%
 
 ## Combat pacing
-- Avg turns / combat: 4.36
-- Avg damage / run: 457
-- Mean final deck size: 13.4
+- Avg turns / combat: 4.38
+- Avg damage / run: 406
+- Mean final deck size: 12.6
 
 ## Archetype of winning decks
-- mid-t2t3: 2
-- low-tier: 1
+- low-tier: 2
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 27
-- e3-boss-anvil (The Anvil-Forged): 19
-- e2-pattern-maker (The Pattern-Maker): 15
-- e3-vein-devourer (Vein Devourer): 9
-- e3-quartz-sentinel (Quartz Sentinel): 8
-- e3-crystal-beetle (Crystal Beetle): 7
-- e3-geode-crab (Geode Crab): 4
-- e2-silent-spinner (The Silent Spinner): 4
-- e1-boss-thornlord (The Thornlord): 2
-- e1-thicket (Living Thicket): 2
+- e2-boss-tapestry (The Tapestry Walker): 25
+- e2-pattern-maker (The Pattern-Maker): 20
+- e3-vein-devourer (Vein Devourer): 16
+- e3-boss-anvil (The Anvil-Forged): 15
+- e2-silent-spinner (The Silent Spinner): 8
+- e3-crystal-beetle (Crystal Beetle): 4
+- e3-quartz-sentinel (Quartz Sentinel): 4
+- e3-geode-crab (Geode Crab): 3
+- e3-glow-mite (Glow-Mite Swarm): 2
+- e2-hollow-weaver (Hollow Weaver): 1
