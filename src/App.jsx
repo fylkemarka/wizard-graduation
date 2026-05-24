@@ -8432,7 +8432,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
         combatTurn={combatTurn} openingExtended={openingExtended}
-        pauseHeldActive={pauseHeldActive} />
+        pauseHeldActive={pauseHeldActive} enemy={enemy} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -8967,7 +8967,7 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
                        lastRoll = null, combatRolls = [], loudCount = 0,
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
                        combatTurn = 1, openingExtended = false,
-                       pauseHeldActive = false }) {
+                       pauseHeldActive = false, enemy = null }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
