@@ -404,6 +404,24 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
+// v2.48: AWKWARD PAUSE — jnsq tray-hold mechanic (migrated from wit per
+// creator critique; gambler's instinct, not careful-arguer's). Cost-0 Skill
+// that arms `pauseHeld` for the rest of the turn. At end of turn, pauseHeld
+// graduates to `pauseHeldActive` and the tray persists (default behavior
+// already; the flag is the doubling key). Next turn's cast doubles every
+// staged-card stat contribution (intro/subject/target/modifier × jnsq stats).
+// The doubling applies ONCE — as soon as a cast fires, the flag clears.
+// If the player doesn't cast, the flag carries forward (multi-turn buildup).
+// Cost: you skip a casting turn (enemy still acts).
+const AWKWARD_PAUSE_CARDS = [
+  { id: 'jv2-k-go-on-im-listening', slot: null, tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
+    name: '"...go on, I\'m listening."', phrase: '"...go on, I\'m listening."',
+    tags: ['chaotic', 'hedge'],
+    effects: { awkwardPause: true },
+    desc: 'Skip casting this turn. Your tray persists. NEXT cast doubles every staged card\'s jnsq stat contribution.',
+    flavor: 'Said in a tone that means the precise opposite. The room understands.' },
+];
+
 // v2.47: DRUNKEN CONFIDENCE — damage-trade Power + companion removal Skill.
 // Install pays for itself when you're casting big and eating chip; turns sour
 // when the enemy starts swinging hard. Discardable for free via the matching
@@ -482,9 +500,9 @@ const TANGENT_CARDS = [
     flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS];
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS];
 export const JNSQ_V2_BY_SLOT = {
   intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
   power: [DRUNKEN_CONFIDENCE_CARDS[0]],
-  skill: [DRUNKEN_CONFIDENCE_CARDS[1]],
+  skill: [DRUNKEN_CONFIDENCE_CARDS[1], AWKWARD_PAUSE_CARDS[0]],
 };

@@ -550,6 +550,14 @@ function runCombat(state, enemyId, telemetry) {
   // end-of-turn billing (-3 HP). Per-combat reset; per-turn clear lives
   // in the end-of-turn billing block.
   state.wontShutUpArmed = false;
+  // v2.48: AWKWARD PAUSE — jnsq tray-hold mechanic. pauseHeld is set on
+  // the skill play and graduates to pauseHeldActive at end of turn (the
+  // doubling-pending bank for the NEXT cast). pauseHeldActive doubles
+  // every staged-card stat contribution on the next cast. Cleared on
+  // cast. If no cast fires, the active flag carries forward (multi-turn
+  // buildup). Both reset per combat.
+  state.pauseHeld = false;
+  state.pauseHeldActive = false;
   // v2.44: TANGENT — counters live on `telemetry` directly (cross-combat).
   // Incremented in the tangent skill-play pass below + resolveTangentSim.
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
@@ -1293,6 +1301,72 @@ function runCombat(state, enemyId, telemetry) {
       if (!progressed) break;
     }
 
+    // v2.48: AWKWARD PAUSE skill play pass — jnsq lane only. Fires AFTER
+    // staging so we know the full tray state. Conditions:
+    //   - in hand (cost 0 so affordability is free)
+    //   - tray.intro AND tray.subject staged (no point doubling an empty tray)
+    //   - NOT already pauseHeld or pauseHeldActive (no double-arming)
+    //   - the predicted damage of casting THIS turn (with full tray) would be
+    //     < 0.4 × remaining enemy pool — i.e., not about to kill. If we're
+    //     chambered to kill, cast now; only skip on chip turns.
+    //   - the held-turn enemy swing isn't lethal (we need to be alive next
+    //     turn to cash in the doubled cast).
+    // Heuristic: skip without traySetup will rarely fire because the loop
+    // above filled both intro+subject for any decent hand. The intent is
+    // "you have a sentence; the cast won't kill; hold for double."
+    if (state.lane === 'jnsq' && !state.pauseHeld && !state.pauseHeldActive) {
+      const pauseIdx = state.hand.findIndex(c => c.id === 'jv2-k-go-on-im-listening');
+      if (pauseIdx >= 0) {
+        const c = state.hand[pauseIdx];
+        const traySetup = !!(tray.intro && tray.subject);
+        if ((c.cost || 0) <= state.energy && traySetup) {
+          let castNowKills = false;
+          let predictedNow = 0;
+          const targetCard = tray.target;
+          if (targetCard) {
+            const preCtx = {
+              discardSize: state.discard.length,
+              deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+              missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+              stakeAmount: 0,
+              loudCount: state.loudCount || 0,
+              playerDmgMult: state.playerDmgMult || 1.0,
+              enemyDmgMult: state.enemyDmgMult || 1.0,
+              longThread: state.longThread || 0,
+              combatTurn: state._combatTurn || 1,
+              openingExtended: !!state.openingExtended,
+              insultVulnerabilities: enemy?.insultVulnerabilities || [],
+              pauseDoubled: false,
+            };
+            const preview = computeSpellDamage(tray.intro, tray.subject, targetCard, tray.modifiers || [], preCtx);
+            const dmgType = targetCard.effect?.damageType || 'composure';
+            const eff = enemy.effectiveness || {};
+            const enemyMult = (dmgType === 'physical')
+              ? (eff.physical ?? 1.0)
+              : (eff[targetCard.effect?.scaleBy || targetCard.lane || 'jnsq'] ?? 1.0);
+            predictedNow = preview.damage * enemyMult * (state.playerDmgMult || 1);
+            const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
+            castNowKills = predictedNow >= remaining;
+          }
+          const remainingPool = enemy.currentComp || enemy.currentHp || 1;
+          // Without a target staged the cast threshold is the cast-pool itself
+          // — we still skip if we don't have a cast queued, the doubling next
+          // turn is the whole reason to pause.
+          const lowDamage = !targetCard || predictedNow < 0.4 * remainingPool;
+          const expectedSwing = enemy.atk;
+          const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+          const wouldSurvive = state.hp - unblockedExpected > 0;
+          if (!castNowKills && lowDamage && wouldSurvive) {
+            state.energy -= c.cost || 0;
+            state.hand.splice(pauseIdx, 1);
+            state.discard.push(c);
+            state.pauseHeld = true;
+            telemetry.awkwardPauses = (telemetry.awkwardPauses || 0) + 1;
+          }
+        }
+      }
+    }
+
     // Cast if all three slots filled. v2.9: hard cap 1 cast per turn.
     if (tray.intro && tray.subject && tray.target && castsThisTurn < 1) {
       castsThisTurn++;
@@ -1366,9 +1440,22 @@ function runCombat(state, enemyId, telemetry) {
         combatTurn: state._combatTurn || 1, // v2.39
         openingExtended: !!state.openingExtended, // v2.39
         insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
+        pauseDoubled: !!state.pauseHeldActive, // v2.48
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
+      // v2.48: AWKWARD PAUSE — compute the doubling delta for telemetry by
+      // re-running the formula WITHOUT the doubling. Single-use; clear the
+      // flag once we've computed the bonus. Telemetry: doubledCasts and
+      // doubledExtraDamage (raw damage delta, pre-enemy-effectiveness so
+      // it's comparable across enemies).
+      if (state.pauseHeldActive) {
+        const singleResult = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, { ...simCtx, pauseDoubled: false });
+        const pauseDelta = Math.max(0, result.damage - singleResult.damage);
+        telemetry.doubledCasts = (telemetry.doubledCasts || 0) + 1;
+        telemetry.doubledExtraDamage = (telemetry.doubledExtraDamage || 0) + pauseDelta;
+        state.pauseHeldActive = false;
+      }
       const eff = tray.target.effect || {};
       const stat = eff.scaleBy || tray.target.lane || 'wit';
       const dmgType = eff.damageType || 'composure';
@@ -2046,6 +2133,14 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.48: AWKWARD PAUSE — graduate pauseHeld (this-turn arm) into
+    // pauseHeldActive (next-cast doubling bank). If pauseHeldActive was
+    // already set (multi-turn buildup — no cast last turn either), it
+    // stays set. Tray persists by default; this flag is the doubling key.
+    if (state.pauseHeld) {
+      state.pauseHeld = false;
+      state.pauseHeldActive = true;
+    }
     // End-of-turn cleanup
     state.discard.push(...state.hand);
     state.hand = [];
@@ -2484,6 +2579,22 @@ function awardReward(state) {
       }
     }
   }
+  // v2.48: "...go on, I'm listening." skill bias — jnsq lane only. Common
+  // cost-0 Skill (tray-hold + doubling bank). ~25% bias, cap at one — only
+  // the first copy lights the bank, additional copies sit dead in hand
+  // while the bank is armed. The skill is strong enough to want consistent
+  // draft into a jnsq deck so the doubled-cast payoff is reachable.
+  if (state.lane === 'jnsq') {
+    const ownsGoOn = allCards.some(c => c.id === 'jv2-k-go-on-im-listening');
+    if (!ownsGoOn) {
+      const gk = pool.find(c => c.id === 'jv2-k-go-on-im-listening');
+      if (gk && rnd() < 0.25) {
+        state.discard.push({ ...gk, uid: uid() });
+        state.rewardsTaken.push(gk.id);
+        return;
+      }
+    }
+  }
   // v2.47: "Hold my drink," power bias — jnsq lane only. Uncommon Power.
   // The generic power bias (~15%) at top of awardReward fires only when
   // the player owns ZERO power cards; for jnsq we also want a targeted
@@ -2690,6 +2801,13 @@ function simRun(forcedLane = null) {
     drunkenCasts: 0,
     drunkenCastBonus: 0,
     drunkenIncomingPenalty: 0,
+    // v2.48: AWKWARD PAUSE telemetry. awkwardPauses = skill plays (each is
+    // one held turn arming the doubling); doubledCasts = casts that resolved
+    // with the pauseDoubled context flag set (the bank cashed in); doubled-
+    // ExtraDamage = raw damage delta vs the same cast without doubling.
+    awkwardPauses: 0,
+    doubledCasts: 0,
+    doubledExtraDamage: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -2933,6 +3051,15 @@ function aggregate(results) {
     drunkenCastBonus: results.reduce((s, r) => s + (r.drunkenCastBonus || 0), 0),
     drunkenIncomingPenalty: results.reduce((s, r) => s + (r.drunkenIncomingPenalty || 0), 0),
     drunkenRuns: results.filter(r => (r.drunkenInstalls || 0) > 0).length,
+    // v2.48: AWKWARD PAUSE aggregate. pauses = skill plays (turns where
+    // the player skipped a cast to bank the doubling); doubledCasts =
+    // casts that fired with the bank cashed in; doubledExtraDamage = sum
+    // of raw damage delta (post-double minus pre-double, pre-enemy-eff).
+    // runs = runs with at least one pause.
+    awkwardPauses: results.reduce((s, r) => s + (r.awkwardPauses || 0), 0),
+    doubledCasts: results.reduce((s, r) => s + (r.doubledCasts || 0), 0),
+    doubledExtraDamage: results.reduce((s, r) => s + (r.doubledExtraDamage || 0), 0),
+    awkwardPauseRuns: results.filter(r => (r.awkwardPauses || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -3100,6 +3227,13 @@ function buildReport(agg) {
   lines.push(`- Total bonus damage from +50% on casts: ${agg.drunkenCastBonus}`);
   lines.push(`- Total +2 incoming penalty taken: ${agg.drunkenIncomingPenalty}`);
   lines.push(`- Net trade: ${agg.drunkenCastBonus - agg.drunkenIncomingPenalty} (positive = paying off)`);
+  lines.push('');
+  lines.push(`## Jnsq AWKWARD PAUSE (v2.48)`);
+  lines.push(`- "...go on, I'm listening." plays: ${agg.awkwardPauses} (runs: ${agg.awkwardPauseRuns} / ${agg.N}, ${pct(agg.awkwardPauseRuns / agg.N)})`);
+  lines.push(`- Doubled casts (bank cashed in): ${agg.doubledCasts}`);
+  lines.push(`- Total extra damage from doubling: ${agg.doubledExtraDamage}`);
+  lines.push(`- Avg extra damage / doubled cast: ${agg.doubledCasts > 0 ? (agg.doubledExtraDamage / agg.doubledCasts).toFixed(1) : '0.0'}`);
+  lines.push(`- Cash-in ratio (doubled casts / pauses): ${agg.awkwardPauses > 0 ? pct(agg.doubledCasts / agg.awkwardPauses) : '0%'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

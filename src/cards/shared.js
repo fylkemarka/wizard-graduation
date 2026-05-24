@@ -146,19 +146,26 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   const introFn   = intro.footnotes   || 0;
   const subjectFn = subject.footnotes || 0;
   const targetFn  = target.footnotes  || 0;
-  const introStat   = (intro.stats?.[lane]   || 0) + introFn;
-  const subjectStat = (subject.stats?.[lane] || 0) + subjectFn;
-  const targetStat  = (target.stats?.[lane]  || 0) + targetFn;
+  // v2.48: AWKWARD PAUSE — when context.pauseDoubled is set (caller pressed
+  // the "...go on, I'm listening." skip-turn skill last turn, banking a
+  // doubled-stat cast for this turn), every staged-card stat contribution
+  // doubles. Doubles the BASE stat AND the footnote-rider, since footnotes
+  // ride through statTotal and a held-and-doubled tray's footnotes should
+  // double too. Applied once per cast — caller clears the flag.
+  const pauseMult = context.pauseDoubled ? 2 : 1;
+  const introStat   = ((intro.stats?.[lane]   || 0) + introFn)  * pauseMult;
+  const subjectStat = ((subject.stats?.[lane] || 0) + subjectFn) * pauseMult;
+  const targetStat  = ((target.stats?.[lane]  || 0) + targetFn)  * pauseMult;
   // Modifiers may also contribute stat (e.g. "I daresay," adds +1 wit).
   let modFnTotal = 0;
   const modStat = modifiers.reduce(
     (s, m) => {
       const fn = m?.footnotes || 0;
       modFnTotal += fn;
-      return s + (m?.stats?.[lane] || 0) + fn;
+      return s + ((m?.stats?.[lane] || 0) + fn) * pauseMult;
     }, 0);
   const statTotal = introStat + subjectStat + targetStat + modStat;
-  const totalFootnotes = introFn + subjectFn + targetFn + modFnTotal;
+  const totalFootnotes = (introFn + subjectFn + targetFn + modFnTotal) * pauseMult;
 
   const tierMult = TIER_MULTIPLIER[tier] || 1.0;
   let damage = (eff.base + statTotal * eff.multiplier) * tierMult;
@@ -379,6 +386,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     insultBonus: insultBonusDmg, // v2.42: how much damage came from INSULT VULNERABILITY pierce
     insultMatches, // v2.42: raw match count (uncapped) — for telemetry diagnostics
     insultMatchedTags, // v2.42: matched tag list — for tooltip display
+    pauseDoubled: !!context.pauseDoubled, // v2.48: AWKWARD PAUSE — was this cast doubled?
     sideEffects: {
       drawCount,
       stripBlock,

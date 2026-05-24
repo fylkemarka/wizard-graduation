@@ -3299,6 +3299,20 @@ export default function App() {
   // bonus damage from the +50%, incomingPenalty = total +2 chunks taken.
   const [drunkenTelemetry, setDrunkenTelemetry] = useState({ installs: 0, castBonus: 0, incomingPenalty: 0 });
 
+  // v2.48: AWKWARD PAUSE — jnsq tray-hold mechanic. Two flags:
+  //   - pauseHeld: set on play (this turn). At end-of-turn it graduates to
+  //     pauseHeldActive (the doubling-pending bank) and itself clears.
+  //   - pauseHeldActive: doubles every staged-card stat contribution on the
+  //     NEXT cast. Cleared when the cast fires (single-use). If no cast
+  //     fires, the flag stays armed and the doubling persists into the turn
+  //     after (multi-turn buildup if the player is patient).
+  // Telemetry: pauses = skill plays; doubledCasts = casts that benefited;
+  // doubledExtraDamage = total damage delta (post-double minus would-have-
+  // been-single, computed at cast time).
+  const [pauseHeld, setPauseHeld] = useState(false);
+  const [pauseHeldActive, setPauseHeldActive] = useState(false);
+  const [awkwardPauseTelemetry, setAwkwardPauseTelemetry] = useState({ pauses: 0, doubledCasts: 0, doubledExtraDamage: 0 });
+
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
   // (see advanceTutorialStep). `tutorialActive` short-circuits onEnemyDefeated
@@ -4276,6 +4290,10 @@ export default function App() {
     // v2.46: jnsq WON'T SHUT UP — commitment flag clears per combat. Per-
     // turn clear lives in endTurn (with the damage/dodge accounting).
     setWontShutUpArmed(false);
+    // v2.48: jnsq AWKWARD PAUSE — both pause flags clear per combat. The
+    // mechanic is intra-combat only; a doubled cast doesn't carry forward.
+    setPauseHeld(false);
+    setPauseHeldActive(false);
     // v2.40: wit PATIENCE — install flag + stacks reset per combat.
     setPatienceInstalled(false);
     setPatienceStacks(0);
@@ -4863,9 +4881,31 @@ export default function App() {
       // read the enemy's list of vulnerable tags. Default to [] if the enemy
       // has none — rider just won't fire.
       insultVulnerabilities: enemy?.insultVulnerabilities || [],
+      // v2.48: AWKWARD PAUSE — if pauseHeldActive is armed (player held +
+      // queued the doubling last turn), every staged-card stat contribution
+      // doubles for THIS cast. Flag is cleared post-cast (single-use).
+      pauseDoubled: pauseHeldActive,
     };
     const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
+    // v2.48: AWKWARD PAUSE — compute the doubling delta for telemetry by
+    // re-running the formula WITHOUT the doubling. Only when actually paused.
+    let pauseDelta = 0;
+    if (pauseHeldActive) {
+      const singleResult = computeSpellDamage(intro, subject, target, modifiers, { ...ctx, pauseDoubled: false });
+      pauseDelta = Math.max(0, rawDamage - singleResult.damage);
+      pushLog(`🤫 AWKWARD PAUSE → staged stats doubled (+${pauseDelta} dmg over single).`);
+      setAwkwardPauseTelemetry(t => ({
+        doubledCasts: t.doubledCasts + 1,
+        doubledExtraDamage: t.doubledExtraDamage + pauseDelta,
+        pauses: t.pauses,
+      }));
+      logEvent('jnsq.awkwardPause.cast', {
+        bonusDamage: pauseDelta,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+      setPauseHeldActive(false);
+    }
     // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
     if (loudBonus > 0) {
       pushLog(`📢 SAID IT LOUDER ×${loudCount} → +${loudBonus} dmg`);
@@ -5835,6 +5875,21 @@ export default function App() {
         return h.filter((_, i) => i !== idx);
       });
     }
+    // v2.48: AWKWARD PAUSE — jnsq "...go on, I'm listening." skill. Arms
+    // pauseHeld for the rest of THIS turn. At endTurn the flag graduates to
+    // pauseHeldActive (the doubling bank for NEXT turn's cast). The tray
+    // already persists by default (v2.1 persistent-tray rule), so this
+    // mechanic is purely about the doubling — the "skip a turn" cost is
+    // implicit (player can't cast usefully on the pause-played turn unless
+    // they had already staged + had energy for both, which is rare).
+    if (fx.awkwardPause) {
+      setPauseHeld(true);
+      setAwkwardPauseTelemetry(t => ({ ...t, pauses: t.pauses + 1 }));
+      logBits.push(`🤫 paused — next cast doubles`);
+      logEvent('jnsq.awkwardPause.play', {
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
     // v2.44: TANGENT — "That reminds me," jnsq skill. (1) Discard 1 random
     // from draw pile. (2) Find all jnsq-lane cards in discard. (3) Pick
     // one at random and fire it: word → stage (replacing if filled,
@@ -6202,6 +6257,18 @@ export default function App() {
         pushLog(`🏚 Backed into a corner: -${dmg} HP (didn't close the deal).`);
       }
       setCornerTokens(0);
+    }
+    // v2.48: AWKWARD PAUSE — at end of turn, graduate pauseHeld (this turn's
+    // skill-armed flag) into pauseHeldActive (the doubling bank for NEXT
+    // turn's cast). The tray already persists (v2.1), so the doubling is
+    // the only side-effect. If pauseHeldActive was ALREADY true coming
+    // into this endTurn (player held + didn't cast), it stays true — the
+    // bank carries forward into the turn after, mirroring the "multi-turn
+    // buildup if patient" spec.
+    if (pauseHeld) {
+      setPauseHeld(false);
+      setPauseHeldActive(true);
+      pushLog(`🤫 The silence stretches. Next cast: ×2 staged stats.`);
     }
     // v2.46: WON'T SHUT UP — if still armed at end of turn, the player
     // didn't follow through. Eat 3 unblocked HP. Telemetry: damage++.
@@ -7203,6 +7270,8 @@ export default function App() {
       openingExtended={openingExtended}
       patienceInstalled={patienceInstalled}
       patienceStacks={patienceStacks}
+      pauseHeld={pauseHeld}
+      pauseHeldActive={pauseHeldActive}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -7993,7 +8062,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        holdOnArmed = false, holdOnValue = 0,
                        pendingMissteps = [],
                        combatTurn = 1, openingExtended = false,
-                       patienceInstalled = false, patienceStacks = 0 }) {
+                       patienceInstalled = false, patienceStacks = 0,
+                       pauseHeld = false, pauseHeldActive = false }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -8151,7 +8221,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
         lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
-        combatTurn={combatTurn} openingExtended={openingExtended} />
+        combatTurn={combatTurn} openingExtended={openingExtended}
+        pauseHeldActive={pauseHeldActive} />
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
@@ -8222,6 +8293,19 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged this turn. A target with "Said It Louder" gets +${loudCount * 3} flat dmg on cast. Resets each turn.`}>
               <div className="text-xs uppercase text-ember-300">Loud</div>
               <div className="text-2xl font-mono text-ember-300">📢 {loudCount}</div>
+            </div>
+          )}
+          {/* v2.48: jnsq AWKWARD PAUSE pip. pauseHeld = armed this turn
+              (graduates at end of turn). pauseHeldActive = doubling banked
+              for THIS turn's cast. Both render the same 🤫 badge with
+              different tooltips so the player can read where the pause is
+              in its lifecycle. Cleared the moment a cast fires. */}
+          {(pauseHeld || pauseHeldActive) && (
+            <div title={pauseHeldActive
+              ? `Awkward Pause — next cast doubles every staged card's jnsq stat contribution. Single-use; cast now to spend.`
+              : `Paused — at end of turn the doubling banks. Hold the silence.`}>
+              <div className="text-xs uppercase text-amber-300">{pauseHeldActive ? 'Pause: ×2' : 'Paused'}</div>
+              <div className="text-2xl font-mono text-amber-200">🤫</div>
             </div>
           )}
           {/* v2.46: jnsq WON'T SHUT UP pip. Armed when a target with
@@ -8654,7 +8738,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
                        lastRoll = null, combatRolls = [], loudCount = 0,
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
-                       combatTurn = 1, openingExtended = false }) {
+                       combatTurn = 1, openingExtended = false,
+                       pauseHeldActive = false }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -8670,7 +8755,7 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
   let predicted = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended, insultVulnerabilities: enemy?.insultVulnerabilities || [] });
+    const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
     predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: openingBonus || 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
   }
   // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
