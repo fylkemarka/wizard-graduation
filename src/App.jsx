@@ -9153,7 +9153,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           {equipment.length > 0 && (
             <div className="text-xs flex gap-2 flex-wrap ml-2">
               {equipment.map(eq => (
-                <span key={eq.id} className="text-gold-300" title={eq.desc}>⚜ {eq.name}</span>
+                <span key={eq.id} className="text-gold-300 cursor-help"
+                  title={`${eq.name}\n\n${eq.desc || ''}${equipmentEffectSummary(eq) ? '\n\nEffects:\n' + equipmentEffectSummary(eq) : ''}`}>⚜ {eq.name}</span>
               ))}
             </div>
           )}
@@ -10337,6 +10338,11 @@ function CraftingResult({ quality, material, result, onConfirm }) {
         <div className="text-xs uppercase tracking-widest text-parchment-300 mb-2">{isCard ? 'New card in your deck' : 'New equipment installed'}</div>
         <div className="font-display text-2xl text-gold-300">{item.name}</div>
         <div className="text-sm text-parchment-200 mt-2">{item.desc}</div>
+        {/* v2.80: equipment install breakdown — mirror the spell-tray math
+            pattern. Each bonus and material-derived effect surfaces as its
+            own hoverable chip so the player sees exactly what the install
+            grants, not just the prose desc. */}
+        {!isCard && <EquipmentEffectBreakdown equipment={item} />}
         {item.flavor && <div className="text-sm font-quill italic text-parchment-400 mt-2 pt-2 border-t border-ink-500">"{item.flavor}"</div>}
         {isCard && item.effect?.resonatesWith?.length > 0 && (
           <div className="text-sm text-iris-300 italic mt-2">
@@ -10346,6 +10352,87 @@ function CraftingResult({ quality, material, result, onConfirm }) {
       </div>
       <button onClick={onConfirm} className="btn btn-gold text-lg px-8 py-3">Take it and move on</button>
     </>
+  );
+}
+
+// v2.80: equipment effect chips. Mirrors the v2.79 spell-tray math
+// pattern — every bonus key gets its own hoverable chip with an
+// explanation. Used on the CraftingResult screen AND the act-cleared
+// summary. New keys must be added here to be visible to players.
+function equipmentEffectSummary(equipment) {
+  // String variant for use inside <span title=...> tooltips on the
+  // equipment chips. Plain-text lines, one bullet per effect.
+  const bonus = equipment?.bonus || {};
+  const effect = equipment?.effect || {};
+  const lines = [];
+  if (bonus.maxHp)                 lines.push(`• +${bonus.maxHp} max HP (permanent)`);
+  if (bonus.startBlock)            lines.push(`• +${bonus.startBlock} Block at the start of every combat`);
+  if (bonus.healOnCombatStart)     lines.push(`• +${bonus.healOnCombatStart} HP at the start of every combat`);
+  if (bonus.extraStartHand)        lines.push(`• +${bonus.extraStartHand} cards drawn on turn 1`);
+  if (bonus.energyOnCombatStart)   lines.push(`• +${bonus.energyOnCombatStart} Energy on turn 1`);
+  if (bonus.permanentEnergyBonus)  lines.push(`• +${bonus.permanentEnergyBonus} Energy every turn (permanent)`);
+  if (bonus.damageReduction)       lines.push(`• −${bonus.damageReduction} dmg per incoming hit (capped at 2 across equipment)`);
+  if (bonus.startCombatVulnerable) lines.push(`• Enemy starts +${bonus.startCombatVulnerable * 25}% incoming damage`);
+  if (bonus.startCombatWeak)       lines.push(`• Enemy starts -${bonus.startCombatWeak * 25}% attack damage`);
+  if (bonus.strikeBonus)           lines.push(`• +${bonus.strikeBonus} dmg to any Effect card named "Strike"`);
+  if (effect.startOfTurnBlock)     lines.push(`• +${effect.startOfTurnBlock} Block at the start of every turn`);
+  if (effect.firstHitReduction)    lines.push(`• −${effect.firstHitReduction} damage on the FIRST enemy hit each combat`);
+  if (effect.combatEndHeal)        lines.push(`• +${effect.combatEndHeal} HP at the end of every combat`);
+  if (effect.startCombatPoise)     lines.push(`• +${effect.startCombatPoise} Poise at the start of every combat`);
+  if (effect.startCombatVulnerable) lines.push(`• Enemy starts +${effect.startCombatVulnerable * 25}% incoming damage`);
+  if (effect.startCombatWeak)      lines.push(`• Enemy starts -${effect.startCombatWeak * 25}% attack damage`);
+  if (effect.onCombatStart) {
+    const oc = effect.onCombatStart;
+    if (oc.block)  lines.push(`• +${oc.block} Block at the start of every combat`);
+    if (oc.draw)   lines.push(`• +${oc.draw} cards drawn on turn 1`);
+    if (oc.energy) lines.push(`• +${oc.energy} Energy on turn 1`);
+    if (oc.hp)     lines.push(`• +${oc.hp} HP at the start of every combat`);
+  }
+  return lines.join('\n');
+}
+
+function EquipmentEffectBreakdown({ equipment }) {
+  const bonus = equipment?.bonus || {};
+  const effect = equipment?.effect || {};
+  const chips = [];
+  // ---- bonus.* (standard install keys) ----
+  if (bonus.maxHp)                 chips.push({ icon: '❤',  label: `+${bonus.maxHp} max HP`,                       title: `Permanent: your maximum HP is raised by ${bonus.maxHp}.` });
+  if (bonus.startBlock)            chips.push({ icon: '🛡',  label: `+${bonus.startBlock} Block at combat start`,   title: `Every combat begins with ${bonus.startBlock} Block already up.` });
+  if (bonus.healOnCombatStart)     chips.push({ icon: '💚',  label: `+${bonus.healOnCombatStart} HP at combat start`, title: `Heal ${bonus.healOnCombatStart} HP at the start of every combat.` });
+  if (bonus.extraStartHand)        chips.push({ icon: '🃏',  label: `+${bonus.extraStartHand} draw on turn 1`,       title: `Draw ${bonus.extraStartHand} extra card on the first turn of every combat.` });
+  if (bonus.energyOnCombatStart)   chips.push({ icon: '⚡',  label: `+${bonus.energyOnCombatStart} Energy on turn 1`, title: `Gain ${bonus.energyOnCombatStart} extra Energy on turn 1 of each combat (one-shot).` });
+  if (bonus.permanentEnergyBonus)  chips.push({ icon: '⚡',  label: `+${bonus.permanentEnergyBonus} Energy every turn`, title: `Permanent: your Energy refills to +${bonus.permanentEnergyBonus} above baseline every turn.` });
+  if (bonus.damageReduction)       chips.push({ icon: '🛡✦', label: `−${bonus.damageReduction} damage per hit`,       title: `Every incoming damage instance is reduced by ${bonus.damageReduction} (min 1 dmg taken). Capped at 2 total across equipment.` });
+  if (bonus.startCombatVulnerable) chips.push({ icon: '🩸',  label: `+${bonus.startCombatVulnerable} Vuln to enemy at start`, title: `Enemy starts every combat at +${bonus.startCombatVulnerable * 25}% incoming damage (Vulnerable).` });
+  if (bonus.startCombatWeak)       chips.push({ icon: '⛧',  label: `+${bonus.startCombatWeak} Weak to enemy at start`, title: `Enemy attacks deal -${bonus.startCombatWeak * 25}% damage at the start of every combat.` });
+  if (bonus.strikeBonus)           chips.push({ icon: '⚔',  label: `+${bonus.strikeBonus} dmg to Strike casts`,       title: `Any Effect card named "Strike" gets +${bonus.strikeBonus} base damage on cast.` });
+  // ---- effect.* (material-derived hooks read by the combat loop) ----
+  if (effect.startOfTurnBlock)     chips.push({ icon: '🛡',  label: `+${effect.startOfTurnBlock} Block every turn`,   title: `At the start of every turn, gain ${effect.startOfTurnBlock} Block.` });
+  if (effect.firstHitReduction)    chips.push({ icon: '🪨',  label: `−${effect.firstHitReduction} damage on first hit per combat`, title: `The very first enemy hit each combat is reduced by ${effect.firstHitReduction}.` });
+  if (effect.combatEndHeal)        chips.push({ icon: '💚',  label: `+${effect.combatEndHeal} HP at combat end`,      title: `Heal ${effect.combatEndHeal} HP at the end of every combat (win or lose).` });
+  if (effect.startCombatPoise)     chips.push({ icon: '🪞',  label: `+${effect.startCombatPoise} Poise at combat start`, title: `Every combat begins with ${effect.startCombatPoise} Poise (absorbs composure damage).` });
+  if (effect.startCombatVulnerable) chips.push({ icon: '🩸',  label: `+${effect.startCombatVulnerable} Vuln to enemy at start`, title: `Enemy starts every combat at +${effect.startCombatVulnerable * 25}% incoming damage.` });
+  if (effect.startCombatWeak)      chips.push({ icon: '⛧',  label: `+${effect.startCombatWeak} Weak to enemy at start`, title: `Enemy attacks deal -${effect.startCombatWeak * 25}% damage at the start of every combat.` });
+  if (effect.onCombatStart) {
+    const oc = effect.onCombatStart;
+    if (oc.block)  chips.push({ icon: '🛡', label: `+${oc.block} Block at combat start`,  title: `Every combat begins with ${oc.block} Block.` });
+    if (oc.draw)   chips.push({ icon: '🃏', label: `+${oc.draw} draw at combat start`,    title: `Draw ${oc.draw} extra cards on the first turn of every combat.` });
+    if (oc.energy) chips.push({ icon: '⚡', label: `+${oc.energy} Energy at combat start`, title: `Gain ${oc.energy} extra Energy on turn 1 (one-shot).` });
+    if (oc.hp)     chips.push({ icon: '💚', label: `+${oc.hp} HP at combat start`,         title: `Heal ${oc.hp} HP at the start of every combat.` });
+  }
+  if (chips.length === 0) return null;
+  return (
+    <div className="mt-3 pt-2 border-t border-ink-500">
+      <div className="text-[10px] uppercase tracking-widest text-iris-300 font-bold mb-1.5">Effects</div>
+      <div className="flex flex-wrap gap-1.5">
+        {chips.map((c, i) => (
+          <span key={i} title={c.title}
+            className="text-[11px] font-mono px-2 py-1 rounded bg-iris-800/50 border border-iris-600 text-parchment-100 cursor-help">
+            {c.icon} {c.label}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
