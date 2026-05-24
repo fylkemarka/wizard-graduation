@@ -7560,108 +7560,170 @@ function TutorialCompleteScreen({ onStart, onMenu }) {
 
 // ---- CHARACTER SELECT ----
 
-// v2.19: per-character tutorial content. Each lane gets a modal that
-// teaches its signature mechanic — annotation/all-in/dice — with
-// concrete example beats. Surfaced under the character cards on the
-// selection screen so a new player can read before committing.
+// v2.54: per-character tutorial content rewritten for the
+// conv-mechanics arc (v2.24-v2.53). Each lane teaches its NEW
+// signature mechanics — Rage / Long Thread / Tangent — plus the
+// 6-8 supporting primitives that landed across the 30 cycles.
+// Surfaced under the character cards on the selection screen.
 const WIZARD_TUTORIALS = {
   wit: {
     color: 'iris',
-    icon: '📝',
+    icon: '🧵',
     title: 'The Wit Playstyle',
-    subtitle: 'Read the room. Read it aloud.',
-    overview: 'Wit wins by sticking persistent annotations on the enemy and letting them tick across multiple turns. Slow burn, big payoff. You are an unkindly correct librarian.',
+    subtitle: 'Build the thread. Defend the thread with itself.',
+    overview: 'Wit wins by NOT taking unblocked hits. Every clean turn fattens the Long Thread, and every wit Effect card scales off it. You footnote your favorite phrases until they\'re crushing, you interrupt the fight to protect the argument you\'re still building, and you finish with a single in-summary capstone that quotes everything you\'ve already said. You are an unkindly correct librarian who refuses to be interrupted.',
     sections: [
       {
-        heading: '📝 ANNOTATION (the signature)',
-        body: 'Play an Annotation card to attach a persistent debuff to the enemy. ONE slot at a time — playing a new one replaces the old. Each annotation runs for 3 turns by default. The slot is visible as a dashed iris box under the enemy intent.',
+        heading: '🧵 LONG THREAD (the signature)',
+        body: 'A persistent meter, top-right of the combat HUD. Tick +1 at end of every turn where you cast a wit Effect AND took zero unblocked damage. Take ANY unblocked hit and it resets to zero. Wit Effect cards then read "+N per Long Thread" — at 3+ Thread your big casts are huge. The whole lane is about defending this number with your life.',
         examples: [
-          { name: 'Footnote on its credibility', text: '-2 to every incoming enemy attack' },
-          { name: 'Marginalia on its posture', text: 'Each card you draw deals 1 comp damage to the enemy' },
-          { name: 'Subtext, in italics', text: 'Your spells deal +4 bonus damage' },
-          { name: 'Asterisked with concern', text: 'Whenever enemy attacks, they take 3 comp damage (reactive)' },
+          { name: 'as I was saying,', text: 'Cheap intro. Adds +1 wit per Long Thread to this cast.' },
+          { name: 'is, perhaps, the natural conclusion.', text: 'Mid-tier target. Final damage scales with current Thread.' },
         ],
       },
       {
-        heading: '💥 BURST: Cash It In',
-        body: 'The target card "is finally answered, in full." requires an annotation attached. On cast, it EXILES the annotation and deals +5 damage per remaining turn. A 3-turn annotation cashes for +15 burst on top of the spell base. Long-duration annotations like Asterisked-with-concern (4 turns) can deliver +20.',
+        heading: '📌 FOOTNOTE — pin a phrase',
+        body: 'A Skill card. Pick any Word in your hand or discard and stamp a permanent +1 wit footnote on it for the rest of combat. Stacks — the same phrase can be footnoted three or four times until it\'s a sledgehammer. Choose the word you plan to keep re-saying.',
+        examples: [
+          { name: 'As Hewn-Greaves notes in his footnotes,', text: 'The Footnote skill. Pick the word, mark it forever.' },
+          { name: 'On reflection,', text: 'Self-footnotes itself — a phrase that gets sharper every reread.' },
+        ],
       },
       {
-        heading: '✨ AUTO-CITATION',
-        body: 'Every wit cast leaves a stub annotation (Cited in passing) if no annotation is attached — 1 composure damage per turn for 2 turns. Even casual wit casts leave a sting. Manual annotations OVERWRITE the stub, so you can plant a real annotation any turn you have one.',
+        heading: '🗣 "ACTUALLY—" and HOLD ON —',
+        body: 'Two conversational moves. Actually— re-fires your last cast at +50% scaling, but stacks an "arguing back" debuff that adds damage to enemy attacks until your turn ends. Hold On — plays REACTIVELY during the enemy intent reveal and reduces the incoming hit by your Long Thread. The Thread that\'s about to be broken protects itself.',
+        examples: [
+          { name: 'Actually—', text: 'Re-fire last cast +50%. Enemies hit harder this turn. Worth it on a kill.' },
+          { name: 'Hold on, hold on —', text: 'Reactive interrupt. Negates X damage where X = your Long Thread.' },
+        ],
+      },
+      {
+        heading: '⏳ PATIENCE and OPENING STATEMENT',
+        body: 'Two tempo tools. Patience (Power) banks every skip-cast turn into a stack; your next cast pays out per-stack. Opening Statement gives you turn-1 scaling on the first wit Effect you cast — and "to revisit my opening point," brings the bonus back later in combat. Wit rewards CHOOSING when to speak, not speaking constantly.',
+      },
+      {
+        heading: '⚠ SAYING SOMETHING WRONG',
+        body: 'High-scaling wit Effects queue a "Misstep" token that auto-plays from your hand 2 turns later — 3 damage to you, exhausts. Pay 1 energy on it the turn it lands to scrub it. The big cast is real damage NOW; the cost lands when you\'ve hopefully won.',
+      },
+      {
+        heading: '🏛 CAPSTONE — "in summary,"',
+        body: 'The synergy target "is, in summary, the inescapable conclusion." reads the WHOLE turn back: Long Thread scaling + opening-statement bonus + a delayed Misstep on the back end. Three of the lane\'s mechanics converge in one line. Build the engine, then say it.',
       },
       {
         heading: 'Your job, in one line',
-        body: 'Plant an annotation early. Cast spells under it. When the boss is close to dropping or you have a fat 4-turn annotation, fire the BURST.',
+        body: 'Block everything. Stack the Thread. Footnote your best Word. When the Thread is fat and you have an opening callback ready, fire the in-summary capstone and accept the Misstep.',
       },
     ],
   },
   chutzpah: {
     color: 'ember',
-    icon: '💢',
+    icon: '🔥',
     title: 'The Chutzpah Playstyle',
-    subtitle: 'Commit. Loudly.',
-    overview: 'Chutzpah wins by trading HP for damage on the casts that matter. Big numbers, real stakes. You are Walter Sobchak at a meeting that has gone on too long.',
+    subtitle: 'Tunnel-vision the kill. Eat the rest later.',
+    overview: 'Chutzpah wins by going RAGE-mode and dumping doubled damage into one enemy before consequences land. You stack a meter by playing chutzpah words, you eat HP-bills if you fail to close, and you have a capstone that does it all at once. You are Walter Sobchak at a meeting that has gone on too long.',
     sections: [
       {
-        heading: '💢 ALL IN (the signature)',
-        body: 'After staging a full spell (intro + subject + target), an ALL IN? row appears next to CAST. Spend 0–N HP to add bonus damage to that single cast. Bonus = HP staked × 1.0 (default). The max stake is floor(HP/4) — the stake alone can\'t kill you, but enemy attacks afterward might.',
+        heading: '🔥 TUNNEL VISION → RAGE (the signature)',
+        body: 'Every chutzpah Word you play adds +1 to the Tunnel Vision meter. At 5+ at the start of your turn you enter RAGE — all chutzpah damage +50%, but you CAN\'T play Skill cards (no Block, no Heal) and you can\'t see next-turn intent. Ride the rage and one-shot the enemy, or break it by playing a non-chutzpah turn before the threshold.',
         examples: [
-          { name: 'No Half Measures (intro)', text: 'Stake gives +1.25 dmg per HP instead of +1' },
-          { name: '"or nothing, frankly." (target)', text: 'Stake gives +1.5 dmg per HP — common, easy pickup' },
-          { name: '"and I mean it." (target)', text: 'Refunds half the staked HP if the cast lands' },
-          { name: '"and I am not even half kidding." (modifier)', text: 'Doubles the stake bonus on this cast' },
+          { name: 'Foaming at the mouth,', text: 'Chutzpah 3 intro — fills the meter fast.' },
+          { name: 'Bare knuckles.', text: 'Pure chutzpah skill — fills the meter and gives you a turn of pressure.' },
         ],
       },
       {
-        heading: '☠ Gated payoff',
-        body: '"is a big mistake. Huge." (rare target) requires 8+ HP staked. Base 18 + Chutzpah comp + 8 stake bonus = ~30 damage in a single cast. Pull this when you can afford to commit hard.',
+        heading: '🩸 DOUBLING DOWN — corner tokens',
+        body: 'Some chutzpah Effects carry a `doubleDown` rider. Each one adds a "Backed Into A Corner" token. If the enemy is still alive at end of turn, every token bills you 2 HP. Tokens clear either way. The math is: only commit if you\'re sure of the kill.',
+        examples: [
+          { name: '"and that\'s the LAST word on it."', text: 'doubleDown target. Big damage, but a corner token if you whiff.' },
+          { name: 'or we\'ll see who blinks first.', text: 'doubleDown — the kill-or-bleed contract.' },
+        ],
       },
       {
-        heading: '🛡 Risk management',
-        body: 'Your starter has Defend (5 Block) and Compose Yourself (5 Poise) — both lane-agnostic. Stake on KILLING blows. Don\'t stake on every cast — the wasted HP adds up.',
+        heading: '💨 STORM OUT — commit-and-flee',
+        body: 'A one-shot Effect that costs ALL your remaining energy and ends the turn immediately. Massive damage. Hides next-turn enemy intent (you\'re not looking). The whole turn is committed to one swing. Bring it out when the math says one big number ends the combat.',
+        examples: [
+          { name: 'is officially my last problem.', text: 'The Storm Out target. All-energy spend, no block phase, blind next turn.' },
+        ],
+      },
+      {
+        heading: '👊 HIT ME AGAIN (Power)',
+        body: 'A reactive Power. While installed, every enemy attack that lands on you (blocked or not) adds +1 self-damage to their NEXT swing. You don\'t dodge — you BILL them. Stacks over the combat. Pairs beautifully with low-block chutzpah turns: take the hit, charge them for it.',
+      },
+      {
+        heading: '📣 SAYING IT LOUDER & SMELL WEAKNESS',
+        body: 'Two scaling levers. "I SAID." targets pay +damage per `demanding`-tag Word played this turn — Saying-It-Louder stacks repetition into damage. Smell-Weakness Effects add a predator rider when the enemy is already Vulnerable/Weak — the lane finishes wounded prey faster.',
+        examples: [
+          { name: 'I SAID.', text: 'Scales with the count of demanding Words you stacked this turn.' },
+          { name: 'comes apart in your hands.', text: 'Predator target — extra damage vs Vulnerable enemies.' },
+        ],
+      },
+      {
+        heading: '💥 CAPSTONE — "AND I\'M NOT DONE."',
+        body: 'The synergy target combines all three signature levers in one cast: doubleDown corner token, loud-scaling per demanding-tag, AND predator bonus vs weakened enemies. Pair with "I\'ve barely warmed up," for the modifier chain. This is the lane\'s nuke — and the bill if you miss.',
       },
       {
         heading: 'Your job, in one line',
-        body: 'Build the tray, calculate the kill, stake the gap. If you can\'t close, save the HP for the next turn.',
+        body: 'Stack chutzpah words to 5 Tunnel Vision, RAGE the next turn, and dump everything you have into one corner-token cast. If you don\'t kill, you bleed. That\'s the point.',
       },
     ],
   },
   jnsq: {
     color: 'moss',
-    icon: '🎲',
+    icon: '🌀',
     title: 'The Jnsq Playstyle',
-    subtitle: 'The kitchen is rotating. Roll with it.',
-    overview: 'Jnsq wins by leaning into chaos. The dice are slightly in your favor; outcomes get weird; you draw extra cards. You are Kramer entering every room sideways.',
+    subtitle: 'Commit to the detour. The detour pays.',
+    overview: 'Jnsq wins by leaning into chaos with AGENCY: you decide WHEN to spin, the universe decides what spills out. You stack jnsq cards in your discard so Tangent can fish from a richer pool. You install Drunken Confidence to scale everything +50% at the cost of taking +2 from every hit. You apologize when you over-commit and restart clean. You are Kramer entering every room sideways with a half-finished thought.',
     sections: [
       {
-        heading: '🎲 CHAOS DICE (the signature)',
-        body: 'After staging a full spell, toggle 🎲 ROLL? next to CAST. On cast, a 1d6 result modifies the spell per a fixed outcome table:',
+        heading: '🌀 TANGENT (the signature)',
+        body: 'A Skill card. On play: discard a random card from your draw pile, then fire a random Jnsq card from your DISCARD pile this turn — costs 0 energy, resolves normally. AGENCY is the trick: you choose WHEN to take the detour, but not what surfaces. Stack jnsq into discard before you fire it.',
         examples: [
-          { name: '1 — BACKFIRE', text: '0.5× damage, -3 HP (the bit didn\'t land)' },
-          { name: '2 — SPILLED IT', text: '1.0× damage, discard 1 random hand card' },
-          { name: '3 — HALF-BAKED', text: '0.75× damage, +1 Energy (the universe gives change)' },
-          { name: '4 — STICKS', text: '1.0× damage, draw 1' },
-          { name: '5 — SINGS', text: '1.25× damage, draw 1' },
-          { name: '6 — COSMIC', text: '1.75× damage, draw 2, +25% potency next cast' },
+          { name: 'That reminds me,', text: 'The Tangent skill. Discard one, fire one jnsq from discard.' },
+          { name: 'speaking of which,', text: 'Modifier — the same detour, mid-spell.' },
         ],
       },
       {
-        heading: '📈 The math',
-        body: 'Average outcome is ~+4% damage on top of the spell, plus ~+0.5 cards drawn per cast. Rolling is statistically good over time — even with the 1-in-6 backfire. The chaos cards mitigate the downside.',
+        heading: '🙇 THE APOLOGY — reset valve',
+        body: 'When you\'ve over-committed and the tray is going sideways, an Apology clears it: discard the spell tray, heal 4 HP, apply +1 Vulnerable to the enemy. The trade is offense-for-survival, plus a debuff for the enemy. Use it when the spell would fizzle anyway.',
         examples: [
-          { name: '"I have a feeling about this —" (intro)', text: 'Rerolls 1s and 2s once' },
-          { name: '"with loaded dice," (modifier, cost 0)', text: '+1 to the roll, caps at 6' },
-          { name: '"and the universe rolls a die," (modifier)', text: 'Forces a roll on this cast — no opt-in needed' },
+          { name: "I shouldn't have said that — have you eaten?", text: 'The Apology skill — clear, heal, vuln.' },
+          { name: 'sorry, restarting,', text: 'Cheaper apology intro — opens a clean tray.' },
         ],
       },
       {
-        heading: '🌟 Gated payoff',
-        body: '"is the cosmic recoil." (rare target) requires you to have rolled a 6 earlier in this combat. When it fires, base 22 + Jnsq comp. The reward for chasing the chaos all the way home.',
+        heading: '🗨 WON\'T SHUT UP — commitment chain',
+        body: 'Powerful jnsq Effects carry `mustPlayAnotherJnsq`. Cast one, and if you don\'t follow up with a SECOND jnsq this turn, you eat 3 damage at end of turn. The card is great, but only if your deck can chain. Build the jnsq pool before you cast.',
+        examples: [
+          { name: 'the soup, you see, was never the point.', text: 'Big payload. Commit-or-bleed clause attached.' },
+        ],
+      },
+      {
+        heading: '🥃 DRUNKEN CONFIDENCE (Power)',
+        body: 'A Power that scales ALL your Effect cards +50%, at the cost of +2 incoming damage from every enemy attack. Discardable for free if it stops being worth it. Turn-by-turn judgment: when the enemy isn\'t hitting hard, the +50% is free money.',
+      },
+      {
+        heading: '⏸ AWKWARD PAUSE & BABBLING',
+        body: 'Two tempo levers borrowed from the gambler\'s mindset. Awkward Pause skips a casting turn — but the spell tray persists into next turn at DOUBLED stat values. Babbling (Power) gives you a 60% chance of a SECOND cast each turn. Both reward jnsq-heavy decks that don\'t mind variance.',
+        examples: [
+          { name: '"...go on, I\'m listening."', text: 'Awkward Pause skill — hold the tray, double next turn.' },
+          { name: '"Wait — and another thing,"', text: 'Babbling power — installs the 60%-chance second cast.' },
+        ],
+      },
+      {
+        heading: '🌫 DRUNKEN STAGGER — chaotic defense',
+        body: 'A Skill that grants a one-turn 50% miss chance on enemy attacks. Your defense is "the enemy whiffed." Pairs perfectly with Drunken Confidence — the +2 damage tax matters less when half the hits don\'t land.',
+        examples: [
+          { name: 'sorry, I lost my balance for a second,', text: 'Drunken Stagger — coin-flip incoming attacks this turn.' },
+          { name: 'in the dimmest possible terms,', text: 'Modifier — works under the stagger to keep the cast affordable.' },
+        ],
+      },
+      {
+        heading: '🌌 CAPSTONE — "the universe went sideways."',
+        body: 'The synergy target "and then the entire universe — and I mean THIS universe — went sideways." combines tangent-on-cast, per-tag jnsq bonus, AND the must-play-another-jnsq clause. Three mechanics, one line. Pair with "oh — actually, three things, sorry," for the extra chain piece.',
       },
       {
         heading: 'Your job, in one line',
-        body: 'Roll often. Embrace bad outcomes (they\'re survivable). Build toward a 6, then cash in with Cosmic Recoil.',
+        body: 'Stuff jnsq into discard. Install Drunken Confidence. Fire Tangents when the discard is fat. Apologize when the tray spirals. End on the universe-sideways capstone with a follow-up ready.',
       },
     ],
   },
