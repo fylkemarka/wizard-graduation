@@ -59,3 +59,21 @@ By rarity: common 7 · uncommon 4 · rare 1. Humans pick rares when available bu
 - Multi-lane decks: this player committed fully to wit. Are cross-lane offers ever taken?
 
 Next telemetry capture should be longer (single full run) to get stable per-act/per-tier breakdowns.
+
+## Observations — 2026-05-24T15:00 (snapshot 2)
+
+Single act-2 combat (Glow-Mite Swarm) on the wit wizard. 44 events, 22 card plays, 4 casts, won at HP 67/70 + composure 35/30.
+
+**New signals:**
+- **4 casts in a single normal-enemy combat** (vs the 2.47 avg from snapshot 1). The earlier mean was probably pulled down by harder fights / elites / boss attrition; a clean normal-enemy combat lets the wit player cast 3-4 times. The sim's `skipChipCast` heuristic may now be slightly over-aggressive — humans cast more freely against easy targets.
+- **Starter-card repeat pattern**: 4 casts used the same wit Frankly + your-conclusion / your-reasoning + what-i-expected formula. The player did NOT branch into picked-up cards (no rewards taken — first reward was skipped). Reward pool isn't pulling them off the starter formula in early combats.
+- **Wit vs resistant lane**: Glow-Mite has `wit: 0.7` (resistant). Player still won comfortably. Wit-on-resistant-enemy is viable through volume, not penetration.
+- **Reward skip event recorded** — first time a `pick.skip` event has shown up. Track skip rate vs pick rate in future data to gauge reward-pool desirability.
+
+**Updated AI implications:**
+- The `skipChipCast` threshold (25% pool damage) may need a softer gate for early-combat turns. Humans cast freely against easy targets when they have a full tray and full energy — the skip is for tight defensive turns, not blanket caution.
+- Sim AI should be more willing to repeat the same successful spell chain rather than always seeking variety. Real players settle into a formula.
+
+**Open follow-ups:**
+- Reward skip vs pick ratio across full runs — what's the threshold where players say "nothing better than what I have"?
+- Does v2.68 act-scaled weights change Act 2 pick rate?
