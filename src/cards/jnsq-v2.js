@@ -404,6 +404,26 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
+// v2.47: DRUNKEN CONFIDENCE — damage-trade Power + companion removal Skill.
+// Install pays for itself when you're casting big and eating chip; turns sour
+// when the enemy starts swinging hard. Discardable for free via the matching
+// Skill ("sober second thought,") for explicit removal. The whole point is
+// turn-by-turn judgment about whether the +50% is still worth the +2 chunks.
+const DRUNKEN_CONFIDENCE_CARDS = [
+  { id: 'jv2-p-hold-my-drink', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
+    name: '"Hold my drink,"', phrase: '"Hold my drink,"',
+    tags: ['chaotic', 'absurd'],
+    installPower: { id: 'drunken-confidence' },
+    desc: 'Power. While installed: all your Effect/Spell casts deal +50% damage AND you take +2 damage from every enemy attack (raw, before block).',
+    flavor: 'No one is, technically, holding the drink. The drink is in your hand. This is the trick.' },
+  { id: 'jv2-k-sober-second-thought', slot: null, tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
+    name: '"sober second thought,"', phrase: '"sober second thought,"',
+    tags: ['hedge', 'absurd'],
+    effects: { uninstallPower: 'drunken-confidence' },
+    desc: 'Discard the "Hold my drink," power from the field. No effect if not installed.',
+    flavor: 'A thought that, on review, does not at all resemble the first.' },
+];
+
 // v2.46: WON'T SHUT UP — commitment chain. Uncommon jnsq Effect (target).
 // Powerful base+multiplier, BUT arms `wontShutUpArmed` on cast. If the player
 // doesn't play another jnsq-lane card before end of turn, eat 3 unblocked HP.
@@ -462,7 +482,9 @@ const TANGENT_CARDS = [
     flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS];
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS];
 export const JNSQ_V2_BY_SLOT = {
   intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
+  power: [DRUNKEN_CONFIDENCE_CARDS[0]],
+  skill: [DRUNKEN_CONFIDENCE_CARDS[1]],
 };

@@ -3289,6 +3289,16 @@ export default function App() {
   const [wontShutUpArmed, setWontShutUpArmed] = useState(false);
   const [wontShutUpTelemetry, setWontShutUpTelemetry] = useState({ armed: 0, damage: 0, dodges: 0 });
 
+  // v2.47: DRUNKEN CONFIDENCE — jnsq damage-trade Power. While installed:
+  // every player Effect/Spell cast scales +50%, AND every enemy attack adds
+  // +2 raw damage BEFORE block absorption (so block can still soak some of
+  // the chunk). Removed explicitly via the "sober second thought," skill
+  // (uninstallPower side effect). Installed state lives on the `powers`
+  // array — checked via powers.some(p => p.installPower?.id === 'drunken-
+  // confidence'). Telemetry: installs = power plays, castBonus = total
+  // bonus damage from the +50%, incomingPenalty = total +2 chunks taken.
+  const [drunkenTelemetry, setDrunkenTelemetry] = useState({ installs: 0, castBonus: 0, incomingPenalty: 0 });
+
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
   // (see advanceTutorialStep). `tutorialActive` short-circuits onEnemyDefeated
@@ -4456,6 +4466,13 @@ export default function App() {
       if (card.installPower?.id === 'patience' || card.id === 'wv2-p-patience') {
         setPatienceInstalled(true);
       }
+      // v2.47: DRUNKEN CONFIDENCE — telemetry-only install count. The read
+      // path is `powers.some(p => p.installPower?.id === 'drunken-confidence')`
+      // wherever the +50% cast bonus / +2 incoming penalty applies.
+      if (card.installPower?.id === 'drunken-confidence' || card.id === 'jv2-p-hold-my-drink') {
+        setDrunkenTelemetry(t => ({ ...t, installs: t.installs + 1 }));
+        logEvent('jnsq.drunken.install', { enemyId: enemy?.id, enemyTier: enemy?.tier });
+      }
       pushLog(`📿 ${card.name} — power active.`);
       return;
     }
@@ -4949,6 +4966,24 @@ export default function App() {
     if (dmgType === 'physical') dmg = Math.round(dmg * physMult);
     else                        dmg = Math.round(dmg * enemyMult);
     dmg = Math.round(dmg * playerDmgMult);
+    // v2.47: DRUNKEN CONFIDENCE — +50% damage on every Effect/Spell cast
+    // while the power is installed. Applied AFTER playerDmgMult so it
+    // composes naturally with Vulnerable / Weak / annotation potency.
+    // Reads the powers array directly (no fast-flag — install/uninstall
+    // happen often enough that the per-cast walk is fine).
+    const drunkenInstalled = powers.some(p => p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink');
+    if (drunkenInstalled) {
+      const preDrunk = dmg;
+      dmg = Math.round(dmg * 1.5);
+      const bonus = dmg - preDrunk;
+      if (bonus > 0) {
+        setDrunkenTelemetry(t => ({ ...t, castBonus: t.castBonus + bonus }));
+        pushLog(`🍺 DRUNKEN CONFIDENCE → +${bonus} dmg (×1.5)`);
+        logEvent('jnsq.drunken.castBonus', {
+          bonusDamage: bonus, enemyId: enemy?.id, enemyTier: enemy?.tier,
+        });
+      }
+    }
     // v2.12: chaos dice damage multiplier. Stronger if "is going to go
     // interesting." target is staged (1.5× the roll's effect — so a 1.5
     // becomes 1.75, a 2.0 becomes 2.5, etc.).
@@ -5571,6 +5606,31 @@ export default function App() {
     if (fx.absorbNextDebuff) {
       setNotListeningCharges(c => c + fx.absorbNextDebuff);
       logBits.push(`🙉 +${fx.absorbNextDebuff} Sorry — what?`);
+    }
+    // v2.47: DRUNKEN CONFIDENCE removal — uninstallPower: <id>. Walks the
+    // powers array, removes the first match. No-op if nothing's installed.
+    // Currently used only by the "sober second thought," skill, but the
+    // dispatcher is id-driven so any future opt-out skill can reuse it.
+    if (fx.uninstallPower) {
+      const targetId = fx.uninstallPower;
+      let removed = null;
+      setPowers(ps => {
+        const idx = ps.findIndex(p => p.installPower?.id === targetId || p.id === targetId);
+        if (idx < 0) return ps;
+        removed = ps[idx];
+        const next = ps.slice();
+        next.splice(idx, 1);
+        return next;
+      });
+      // Defer the log to the next tick — setPowers is async so the
+      // closure-captured `removed` lands after the state update commits.
+      setTimeout(() => {
+        if (removed) {
+          pushLog(`🍺 ${removed.name} dispelled.`);
+          logEvent('jnsq.drunken.uninstall', { enemyId: enemy?.id, enemyTier: enemy?.tier });
+        }
+      }, 0);
+      logBits.push(`🍺 power dispelled`);
     }
     // v2.35: FOOTNOTE skill — arm the picker. Hand AND discard cards (intros,
     // subjects, modifiers) become clickable until the player picks one or
@@ -6494,6 +6554,17 @@ export default function App() {
       // wit-defender's existing answer), but AFTER the enemyDmgMult roll so
       // the +1 is a clean flat bump, not multiplied by Vuln.
       if (arguingBackThisTurn > 0) raw += arguingBackThisTurn;
+      // v2.47: DRUNKEN CONFIDENCE — while installed, every enemy attack
+      // adds +2 raw damage BEFORE block routing. Block can still soak the
+      // chunk; the +2 is partial-through-block by design (Stoneward-style
+      // total bypass would be too punishing). Per-swing-loop check would
+      // be more accurate for attack-multi, but the spec calls for a flat
+      // pre-routing add — so we lift `raw` once and let the loop ride.
+      const drunkenIncomingActive = powers.some(p => p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink');
+      if (drunkenIncomingActive && raw > 0) {
+        raw += 2;
+        setDrunkenTelemetry(t => ({ ...t, incomingPenalty: t.incomingPenalty + 2 }));
+      }
       // v2.10: annotation reduces incoming attack BEFORE shield routing.
       const annAtkRed = annoFx('enemyAtkReduction');
       if (annAtkRed > 0) raw = Math.max(0, raw - annAtkRed);
@@ -8305,9 +8376,12 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           {powers.map((p, i) => {
             const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
             const isPatience = p.installPower?.id === 'patience' || p.id === 'wv2-p-patience';
+            const isDrunken  = p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink';
             return (
               <span key={p.uid || i}
-                title={`${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
+                title={isDrunken
+                  ? 'Drunken Confidence — all your spell casts deal +50% damage, BUT every enemy attack adds +2 raw damage before block. Play "sober second thought," to remove.'
+                  : `${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
                 className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
                 {p.name}
                 {isHitMeAgain && (
@@ -8318,6 +8392,11 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 {isPatience && (
                   <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
                     🌿{patienceStacks}
+                  </span>
+                )}
+                {isDrunken && (
+                  <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
+                    🍺×1.5 / +2
                   </span>
                 )}
               </span>

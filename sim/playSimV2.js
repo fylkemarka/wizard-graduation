@@ -510,6 +510,10 @@ function runCombat(state, enemyId, telemetry) {
   // patienceInstalled / patienceStacks state pair.
   state.patienceInstalled = false;
   state.patienceStacks = 0;
+  // v2.47: DRUNKEN CONFIDENCE — jnsq damage-trade power. While installed,
+  // +50% scaling on every cast AND +2 raw damage on every enemy attack.
+  // Per-combat reset; explicit removal via "sober second thought," skill.
+  state.drunkenInstalled = false;
   // v2.33: Stubborn Block REMOVED — no install flag.
   // v2.33: NOT LISTENING refactored to a one-shot SKILL — no install flag.
   // notListeningCharges tracks pending absorbs (set by playing the
@@ -710,6 +714,48 @@ function runCombat(state, enemyId, telemetry) {
           state.discard.push(c);
           state.hand.splice(i, 1);
           break;
+        }
+      }
+    }
+
+    // v2.47: DRUNKEN CONFIDENCE install pass — jnsq lane only. While in
+    // hand AND no drunken-confidence power already installed, install when
+    // spare energy is available. Heuristic: the +50% cast bonus pays for the
+    // +2 incoming chunk over the long arc, so the AI installs eagerly. Cost 1.
+    if (state.lane === 'jnsq' && !state.drunkenInstalled) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if ((c.id === 'jv2-p-hold-my-drink' || c.installPower?.id === 'drunken-confidence')
+            && (c.cost || 0) <= state.energy && state.energy >= 2) {
+          state.energy -= c.cost || 0;
+          state.drunkenInstalled = true;
+          telemetry.drunkenInstalls = (telemetry.drunkenInstalls || 0) + 1;
+          state.discard.push(c);
+          state.hand.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // v2.47: SOBER SECOND THOUGHT skill — jnsq lane only. Cost 0. Played
+    // when the +2 incoming is actively threatening to KO us — guarded by
+    // HP <= 20% of max. At that pool depth the +50% cast bonus isn't
+    // worth eating another +2 chunk. Idempotent: if no drunken power is
+    // installed, the skill no-ops (still discarded — keeps the simulation
+    // simple). The AI only plays it when it would actually do work.
+    if (state.lane === 'jnsq' && state.drunkenInstalled) {
+      const hpFrac = state.maxHp > 0 ? state.hp / state.maxHp : 1;
+      if (hpFrac <= 0.20) {
+        for (let i = 0; i < state.hand.length; i++) {
+          const c = state.hand[i];
+          if (c.id === 'jv2-k-sober-second-thought' && (c.cost || 0) <= state.energy) {
+            state.energy -= c.cost || 0;
+            state.drunkenInstalled = false;
+            telemetry.drunkenUninstalls = (telemetry.drunkenUninstalls || 0) + 1;
+            state.discard.push(c);
+            state.hand.splice(i, 1);
+            break;
+          }
         }
       }
     }
@@ -1330,6 +1376,14 @@ function runCombat(state, enemyId, telemetry) {
         ? (enemy.effectiveness?.physical ?? 1.0)
         : (enemy.effectiveness?.[stat] ?? 1.0);
       dmg = Math.round(dmg * mult * state.playerDmgMult);
+      // v2.47: DRUNKEN CONFIDENCE — +50% on every Effect/Spell cast while
+      // installed. Applied AFTER playerDmgMult so it composes with Vuln/Weak.
+      if (state.drunkenInstalled) {
+        const preDrunk = dmg;
+        dmg = Math.round(dmg * 1.5);
+        telemetry.drunkenCastBonus = (telemetry.drunkenCastBonus || 0) + (dmg - preDrunk);
+        telemetry.drunkenCasts = (telemetry.drunkenCasts || 0) + 1;
+      }
       // v2.12: chaos dice damage multiplier.
       if (chaosOutcome) {
         const scale = tray.target.effect?.rollDamageScale || 1.0;
@@ -1828,6 +1882,13 @@ function runCombat(state, enemyId, telemetry) {
       const bonus = state.arguingBackThisTurn;
       incoming += bonus;
       telemetry.arguingBackEnemyBonus = (telemetry.arguingBackEnemyBonus || 0) + bonus;
+    }
+    // v2.47: DRUNKEN CONFIDENCE — +2 raw damage on every enemy attack
+    // while installed. Applied BEFORE block routing so block can still
+    // soak some of the chunk (partial-through-block, not bypass).
+    if (state.drunkenInstalled && incoming > 0) {
+      incoming += 2;
+      telemetry.drunkenIncomingPenalty = (telemetry.drunkenIncomingPenalty || 0) + 2;
     }
     // v2.10: annotation enemyAtkReduction.
     if (enemy.annotation?.effect?.enemyAtkReduction) {
@@ -2406,6 +2467,39 @@ function awardReward(state) {
       }
     }
   }
+  // v2.47: "sober second thought," skill bias — jnsq lane only. Gated on
+  // OWNING the "Hold my drink," power so we don't draft the removal without
+  // anything to remove. ~30% when the gate passes — the skill is the only
+  // explicit off-switch for the +2 incoming penalty, so the deck wants it
+  // available the moment the trade turns sour. Cap at one copy.
+  if (state.lane === 'jnsq') {
+    const ownsHoldMyDrink = allCards.some(c => c.id === 'jv2-p-hold-my-drink');
+    const ownsSober = allCards.some(c => c.id === 'jv2-k-sober-second-thought');
+    if (ownsHoldMyDrink && !ownsSober) {
+      const sk = pool.find(c => c.id === 'jv2-k-sober-second-thought');
+      if (sk && rnd() < 0.30) {
+        state.discard.push({ ...sk, uid: uid() });
+        state.rewardsTaken.push(sk.id);
+        return;
+      }
+    }
+  }
+  // v2.47: "Hold my drink," power bias — jnsq lane only. Uncommon Power.
+  // The generic power bias (~15%) at top of awardReward fires only when
+  // the player owns ZERO power cards; for jnsq we also want a targeted
+  // ~12% bias so the drunken power lands reliably in jnsq runs even when
+  // (rarely) another power has already been drafted. Cap at one copy.
+  if (state.lane === 'jnsq') {
+    const ownsHoldMyDrink = allCards.some(c => c.id === 'jv2-p-hold-my-drink');
+    if (!ownsHoldMyDrink) {
+      const pk = pool.find(c => c.id === 'jv2-p-hold-my-drink');
+      if (pk && rnd() < 0.12) {
+        state.discard.push({ ...pk, uid: uid() });
+        state.rewardsTaken.push(pk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -2586,6 +2680,16 @@ function simRun(forcedLane = null) {
     wontShutUpArmed: 0,
     wontShutUpDamage: 0,
     wontShutUpDodges: 0,
+    // v2.47: DRUNKEN CONFIDENCE telemetry. installs = power plays (jnsq);
+    // uninstalls = "sober second thought," removals; castBonus = total
+    // bonus damage from the +50% on casts; incomingPenalty = total +2
+    // chunks added to enemy attacks (pre-block); drunkenCasts = casts
+    // that received the +50%.
+    drunkenInstalls: 0,
+    drunkenUninstalls: 0,
+    drunkenCasts: 0,
+    drunkenCastBonus: 0,
+    drunkenIncomingPenalty: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -2818,6 +2922,17 @@ function aggregate(results) {
     wontShutUpDamage: results.reduce((s, r) => s + (r.wontShutUpDamage || 0), 0),
     wontShutUpDodges: results.reduce((s, r) => s + (r.wontShutUpDodges || 0), 0),
     wontShutUpRuns: results.filter(r => (r.wontShutUpArmed || 0) > 0).length,
+    // v2.47: DRUNKEN CONFIDENCE aggregate. installs = per-combat power
+    // plays; uninstalls = "sober second thought," removals; castBonus =
+    // total bonus damage delivered by the +50% on casts; incomingPenalty
+    // = total raw +2 damage added to enemy attacks (pre-block); runs =
+    // runs with at least one install.
+    drunkenInstalls: results.reduce((s, r) => s + (r.drunkenInstalls || 0), 0),
+    drunkenUninstalls: results.reduce((s, r) => s + (r.drunkenUninstalls || 0), 0),
+    drunkenCasts: results.reduce((s, r) => s + (r.drunkenCasts || 0), 0),
+    drunkenCastBonus: results.reduce((s, r) => s + (r.drunkenCastBonus || 0), 0),
+    drunkenIncomingPenalty: results.reduce((s, r) => s + (r.drunkenIncomingPenalty || 0), 0),
+    drunkenRuns: results.filter(r => (r.drunkenInstalls || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -2977,6 +3092,14 @@ function buildReport(agg) {
   lines.push(`- Dodges (kept going — follow-up jnsq played): ${agg.wontShutUpDodges} (${agg.wontShutUpArmed > 0 ? pct(agg.wontShutUpDodges / agg.wontShutUpArmed) : '0%'})`);
   lines.push(`- Damage fires (-3 HP each): ${agg.wontShutUpDamage} (${agg.wontShutUpArmed > 0 ? pct(agg.wontShutUpDamage / agg.wontShutUpArmed) : '0%'})`);
   lines.push(`- Total HP lost to commitment: ${agg.wontShutUpDamage * 3}`);
+  lines.push('');
+  lines.push(`## Jnsq DRUNKEN CONFIDENCE (v2.47)`);
+  lines.push(`- Installs (per-combat): ${agg.drunkenInstalls} (runs: ${agg.drunkenRuns} / ${agg.N}, ${pct(agg.drunkenRuns / agg.N)})`);
+  lines.push(`- Uninstalls (sober second thought): ${agg.drunkenUninstalls}`);
+  lines.push(`- Casts that received the +50%: ${agg.drunkenCasts}`);
+  lines.push(`- Total bonus damage from +50% on casts: ${agg.drunkenCastBonus}`);
+  lines.push(`- Total +2 incoming penalty taken: ${agg.drunkenIncomingPenalty}`);
+  lines.push(`- Net trade: ${agg.drunkenCastBonus - agg.drunkenIncomingPenalty} (positive = paying off)`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
