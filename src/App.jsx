@@ -7719,7 +7719,7 @@ const WIZARD_TUTORIALS = {
     sections: [
       {
         heading: '🧵 LONG THREAD (the signature)',
-        body: 'A persistent meter, top-right of the combat HUD. Tick +1 at end of every turn where you cast a wit Effect AND took zero unblocked damage. Take ANY unblocked hit and it resets to zero. Wit Effect cards then read "+N per Long Thread" — at 3+ Thread your big casts are huge. The whole lane is about defending this number with your life.',
+        body: 'A persistent meter shown as 🧵 in your stat block (below the hand). Tick +1 at end of every turn where you cast a wit Effect AND took zero unblocked damage. Take ANY unblocked hit and it resets to zero. Wit Effect cards then read "+N per Long Thread" — at 3+ Thread your big casts are huge. The whole lane is about defending this number with your life.',
         examples: [
           { name: 'as I was saying,', text: 'Cheap intro. Adds +1 wit per Long Thread to this cast.' },
           { name: 'is, perhaps, the natural conclusion.', text: 'Mid-tier target. Final damage scales with current Thread.' },
