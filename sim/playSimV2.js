@@ -560,10 +560,11 @@ function runCombat(state, enemyId, telemetry) {
 
     // v2.38: SAYING SOMETHING WRONG — Misstep token discard pass. Pay 1
     // Energy each to harmlessly discard tokens that landed in hand last
-    // turn. AI logic: ALWAYS discard if HP would not survive the auto-play
-    // self-damage (existential — eating 3 HP at <=3 HP is fatal); discard
-    // when boss/elite + HP fraction low (preserves attrition runway);
-    // otherwise let it auto-play (the 1 Energy was worth more this turn).
+    // turn. AI logic (v2.43 loosened to bring telemetry off-floor):
+    //   - Existential: hp <= selfDamage → must discard (would KO).
+    //   - Low HP: hpFrac <= 0.50 (any enemy) → discard. The 3 HP hurts
+    //     at half-pool; the 1 energy is cheap insurance.
+    //   - Otherwise: eat it. The +1 cast we save matters more than the 3 HP.
     // Decides BEFORE the rest of turn planning so the energy decision is
     // visible to the staging/casting loops below.
     {
@@ -573,20 +574,14 @@ function runCombat(state, enemyId, telemetry) {
       }
       if (tokIdxs.length > 0) {
         const hpFrac = state.hp / state.maxHp;
-        const tougher = (enemy.tier === 'boss' || enemy.tier === 'elite');
-        // Discard policy: per-token decision (energy permitting).
-        // - Existential: hp <= selfDamage → must discard (would KO).
-        // - Low HP on boss/elite: hpFrac < 0.35 → discard.
-        // - Otherwise: eat it. The +1 cast we save matters more than the 3 HP.
-        // Iterate descending to keep indices stable as we splice.
         for (let k = tokIdxs.length - 1; k >= 0; k--) {
           const idx = tokIdxs[k];
           const tok = state.hand[idx];
           if (!tok) continue;
           const sd = tok.selfDamage || 3;
           const existential = state.hp <= sd;
-          const lowHpTough = tougher && hpFrac < 0.35;
-          const wantsDiscard = existential || lowHpTough;
+          const lowHp = hpFrac <= 0.85; // v2.43: scrub liberally — 3HP adds up
+          const wantsDiscard = existential || lowHp;
           if (wantsDiscard && (tok.cost || 1) <= state.energy) {
             state.energy -= tok.cost || 1;
             state.exiled.push(tok);
@@ -834,6 +829,61 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.43: LONG THREAD preservation — wit-lane skip-cast heuristic.
+    // When LT is already meaningful (>= 2), Patience or a threadScaling
+    // target is on deck, AND this turn's cast would be a CHIP (predicted
+    // damage < 30% of remaining composure, won't kill), it's better to
+    // skip the cast this turn — defend, let LT carry forward, and cash in
+    // a bigger cast later. Greedy AI currently casts every turn → LT
+    // never grows past ~1. This heuristic gates the TARGET staging only;
+    // intro/subject still stage (their applyStageEffects fire for free
+    // defense/draw) and persist into next turn for a stacked cast.
+    let skipCastForThread = false;
+    if (state.lane === 'wit' && (state.longThread || 0) >= 2 && castsThisTurn < 1) {
+      const hasThreadTarget = state.hand.some(
+        c => c.slot === 'target' && c.lane === 'wit' && (c.effect?.threadScaling || 0) > 0);
+      const patienceReady = !!state.patienceInstalled;
+      if (hasThreadTarget || patienceReady) {
+        // Predict best-case chip damage from any castable target with
+        // a stubbed intro+subject pair (use the in-hand best of each).
+        const introCard = state.hand.find(c => c.slot === 'intro' && c.lane === 'wit')
+          || state.hand.find(c => c.slot === 'intro');
+        const subjectCard = state.hand.find(c => c.slot === 'subject' && c.lane === 'wit')
+          || state.hand.find(c => c.slot === 'subject');
+        const targetCard = state.hand.find(
+          c => c.slot === 'target' && c.lane === 'wit' && (c.cost || 0) <= state.energy);
+        if (introCard && subjectCard && targetCard) {
+          const preCtx = {
+            discardSize: state.discard.length,
+            deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+            missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+            stakeAmount: 0,
+            loudCount: state.loudCount || 0,
+            playerDmgMult: state.playerDmgMult || 1.0,
+            enemyDmgMult: state.enemyDmgMult || 1.0,
+            longThread: state.longThread || 0,
+            combatTurn: state._combatTurn || 1,
+            openingExtended: !!state.openingExtended,
+            insultVulnerabilities: enemy?.insultVulnerabilities || [],
+          };
+          const preview = computeSpellDamage(introCard, subjectCard, targetCard, [], preCtx);
+          const dmgType = targetCard.effect?.damageType || 'composure';
+          const eff = enemy.effectiveness || {};
+          const enemyMult = (dmgType === 'physical')
+            ? (eff.physical ?? 1.0)
+            : (eff[targetCard.effect?.scaleBy || targetCard.lane || 'wit'] ?? 1.0);
+          const predicted = preview.damage * enemyMult * (state.playerDmgMult || 1);
+          const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
+          const wouldKill = predicted >= remaining;
+          const isChip = predicted < remaining * 0.30;
+          if (isChip && !wouldKill) {
+            skipCastForThread = true;
+            telemetry.threadPreservationSkips = (telemetry.threadPreservationSkips || 0) + 1;
+          }
+        }
+      }
+    }
+
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
     let passCount = 0;
@@ -965,11 +1015,13 @@ function runCombat(state, enemyId, telemetry) {
           continue;
         }
       }
-      if (!tray.target) {
+      if (!tray.target && !skipCastForThread) {
         // v2.24: prefer Bare Knuckles (requiresRage) when RAGE is active.
         // Otherwise block it from staging entirely (mirrors App.jsx gate).
         // v2.25: also gates doubleDown targets — only pick if the cast
         // would kill (tray + enemy passed for damage prediction).
+        // v2.43: skipCastForThread suppresses target staging to PRESERVE
+        // Long Thread for a stacked cast next turn (see pre-loop block).
         const idx = pickBestForSlotRageAware(state, 'target', state.energy, state.rageActive, tray, enemy);
         if (idx >= 0) {
           tray.target = state.hand[idx];
@@ -1409,13 +1461,13 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // v2.37: HOLD ON — wit's reactive interrupt skill. AI plays it before
-    // the enemy attack lands when:
-    //   - lane is wit
-    //   - the skill is in hand AND affordable
-    //   - longThread >= 1 (any LT translates to real prevention; the cost is
-    //     just 1 energy)
-    //   - the upcoming swing would punch through block (atk > block+poise+2)
-    //   - not already armed (don't waste a second cast — flag doesn't stack)
+    // the enemy attack lands. v2.43 widened gates aggressively:
+    //   - LT >= 2 AND enemy has any attack: play preventively to PRESERVE
+    //     the thread (an unblocked hit resets LT to 0; a 2+ thread is too
+    //     valuable to risk for 1 energy)
+    //   - LT >= 1 AND unblockedExpected >= 2: play when the interrupt
+    //     would meaningfully reduce damage
+    //   - LT >= 1 AND tougher AND unblockedExpected >= 4: elite/boss case
     // The greedy AI is unsophisticated: it can't see Weak/Vuln-modified
     // values precisely (those drift back during enemy turn), so we use
     // enemy.atk as a reasonable proxy.
@@ -1426,14 +1478,11 @@ function runCombat(state, enemyId, telemetry) {
         const lt = state.longThread || 0;
         const expectedSwing = enemy.atk;
         const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
-        // Play when LT≥2 (any swing benefits), OR LT≥1 on boss/elite when the
-        // hit punches through block. Don't play at LT=0 — no prevention to be
-        // had (the spec lets the flag still consume on 0, but greedy AI should
-        // never voluntarily burn 1 energy for 0 prevention).
         const tougher = (enemy.tier === 'boss' || enemy.tier === 'elite');
         const worthPlaying = (
-          (lt >= 2 && unblockedExpected >= 4) ||
-          (lt >= 1 && tougher && unblockedExpected >= 6)
+          (lt >= 2 && expectedSwing > 0) ||
+          (lt >= 1 && unblockedExpected >= 2) ||
+          (lt >= 1 && tougher && unblockedExpected >= 4)
         ) && (c.cost || 0) <= state.energy;
         if (worthPlaying) {
           state.energy -= c.cost || 0;
@@ -1617,6 +1666,36 @@ function runCombat(state, enemyId, telemetry) {
     if (state.hp <= 0 || state.composure <= 0) {
       flushThreadPeak();
       return { outcome: 'lost', turns, killedBy: enemy.id, telemetry };
+    }
+
+    // v2.43: SAYING SOMETHING WRONG — end-of-turn scrub pass. By turn
+    // end the AI has spent its planned energy on staging/defense; if a
+    // Misstep is still in hand AND we have spare energy AND HP is at
+    // <= 30% of max (the 3-HP auto-play would actually hurt), spend the
+    // 1 Energy to discard it. The turn-start pass (above) handles the
+    // existential case; this scrub catches the "I had a leftover Energy
+    // and was actually low HP" case the original logic missed.
+    {
+      const tokIdxs = [];
+      for (let i = 0; i < state.hand.length; i++) {
+        if (state.hand[i]?.id === 'wv2-tok-misstep') tokIdxs.push(i);
+      }
+      if (tokIdxs.length > 0 && state.energy >= 1) {
+        const hpFrac = state.maxHp > 0 ? (state.hp / state.maxHp) : 1;
+        if (hpFrac <= 0.50) {
+          for (let k = tokIdxs.length - 1; k >= 0; k--) {
+            const idx = tokIdxs[k];
+            const tok = state.hand[idx];
+            if (!tok) continue;
+            const cost = tok.cost || 1;
+            if (cost > state.energy) break;
+            state.energy -= cost;
+            state.exiled.push(tok);
+            state.hand.splice(idx, 1);
+            telemetry.missTepDiscards = (telemetry.missTepDiscards || 0) + 1;
+          }
+        }
+      }
     }
 
     // v2.38: SAYING SOMETHING WRONG — auto-play any Misstep tokens still in
@@ -2086,6 +2165,8 @@ function simRun(forcedLane = null) {
     longThreadPeakSum: 0, combatsWithThread: 0, longThreadBreaks: 0,
     threadScalingTriggers: 0, threadScalingBonusTotal: 0,
     naturalConclusionCasts: 0,
+    // v2.43: thread-preservation skip-cast counter.
+    threadPreservationSkips: 0,
     // v2.35: FOOTNOTE telemetry. footnotesApplied = number of times the
     // Hewn-Greaves footnote skill resolved (incremented in the sim AI's
     // play branch). footnoteCastsWithBonus = casts where the +footnote
@@ -2298,6 +2379,8 @@ function aggregate(results) {
     threadScalingBonusTotal: results.reduce((s, r) => s + (r.threadScalingBonusTotal || 0), 0),
     naturalConclusionCasts: results.reduce((s, r) => s + (r.naturalConclusionCasts || 0), 0),
     threadRuns: results.filter(r => (r.combatsWithThread || 0) > 0).length,
+    // v2.43: thread-preservation skip-cast metric.
+    threadPreservationSkips: results.reduce((s, r) => s + (r.threadPreservationSkips || 0), 0),
     // v2.35: FOOTNOTE metrics.
     footnotesApplied: results.reduce((s, r) => s + (r.footnotesApplied || 0), 0),
     footnoteCastsWithBonus: results.reduce((s, r) => s + (r.footnoteCastsWithBonus || 0), 0),
@@ -2440,6 +2523,7 @@ function buildReport(agg) {
   lines.push(`- Thread-scaling rider triggers: ${agg.threadScalingTriggers}`);
   lines.push(`- Total bonus damage from thread scaling: ${agg.threadScalingBonusTotal}`);
   lines.push(`- "natural conclusion." target casts: ${agg.naturalConclusionCasts}`);
+  lines.push(`- v2.43 thread-preservation skip-casts: ${agg.threadPreservationSkips || 0}`);
   lines.push('');
   lines.push(`## Wit FOOTNOTE (v2.35)`);
   lines.push(`- Footnotes applied: ${agg.footnotesApplied} (runs: ${agg.footnoteRuns} / ${agg.N}, ${pct(agg.footnoteRuns / agg.N)})`);
