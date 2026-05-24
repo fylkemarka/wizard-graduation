@@ -9215,6 +9215,22 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
     for (const t of c.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1;
   }
 
+  // v2.79: per-card stat contribution. The lane the target uses for
+  // its scaleBy drives which stat the words contribute. For each staged
+  // card show its `+N` stat in the lane plus, for targets, the base
+  // damage. Helps the player see WHAT each card is adding to the cast.
+  const castLane = target?.effect?.scaleBy || target?.lane || intro?.lane || 'wit';
+  const cardContribution = (card, slotName) => {
+    if (!card) return null;
+    const laneStat = card.stats?.[castLane] || 0;
+    const isTarget = slotName === 'target';
+    const base = isTarget ? (card.effect?.base || 0) : 0;
+    const mult = isTarget ? (card.effect?.multiplier || 1) : 0;
+    // Footnote rider on word slots — adds to effective lane stat.
+    const footnote = card.footnotes || 0;
+    return { laneStat, base, mult, footnote };
+  };
+
   const slotPill = (card, slotName, color) => {
     if (!card) {
       return (
@@ -9223,6 +9239,7 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
         </div>
       );
     }
+    const contrib = cardContribution(card, slotName);
     return (
       <motion.button key={card.uid}
         layout
@@ -9234,9 +9251,55 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
         className={`px-3 py-2 rounded ${color.filled} text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px]`}>
         <span className="font-mono text-[10px] opacity-70">{slotName}</span>
         <span className="font-bold text-center">{card.phrase || card.name}</span>
+        {contrib && (
+          <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-ink-900/40 text-parchment-200"
+            title={slotName === 'target'
+              ? `Target contributes: ${contrib.base} base + (×${contrib.mult} on the stat sum).`
+              : `Word contributes: +${contrib.laneStat + contrib.footnote} ${castLane} to the spell's stat sum${contrib.footnote > 0 ? ` (includes +${contrib.footnote} footnote)` : ''}.`}>
+            {slotName === 'target'
+              ? `${contrib.base} + ${castLane.slice(0, 4)}×${contrib.mult}`
+              : `+${contrib.laneStat + contrib.footnote} ${castLane.slice(0, 4)}${contrib.footnote > 0 ? '*' : ''}`}
+          </span>
+        )}
       </motion.button>
     );
   };
+
+  // v2.79: math breakdown — the step-by-step calculation that the
+  // player can read alongside the predicted number. Surfaces tag-
+  // resonance (perLaneTag), tier multiplier, enemy effectiveness, and
+  // player potency contributions so the player sees WHERE the damage
+  // comes from. Only computed when the spell is ready (full tray).
+  let mathBreakdown = null;
+  if (ready && predicted) {
+    const introStat = (intro.stats?.[castLane] || 0) + (intro.footnotes || 0);
+    const subjStat  = (subject.stats?.[castLane] || 0) + (subject.footnotes || 0);
+    const tgtStat   = (target.stats?.[castLane] || 0);
+    const modStat   = modifiers.reduce((s, m) => s + ((m?.stats?.[castLane] || 0) + (m?.footnotes || 0)), 0);
+    const statTotal = introStat + subjStat + tgtStat + modStat;
+    const baseDmg   = target.effect?.base || 0;
+    const mult      = target.effect?.multiplier || 1;
+    const preTier   = baseDmg + statTotal * mult;
+    const preEnemy  = preTier * tierMult;
+    const dmgType   = target.effect?.damageType || 'composure';
+    const enemyEff  = enemy?.effectiveness
+      ? (dmgType === 'physical' ? (enemy.effectiveness.physical ?? 1) : (enemy.effectiveness[castLane] ?? 1))
+      : 1;
+    // perLaneTag bonus from the target rider
+    const perTag = target.effect?.perLaneTag;
+    let tagBonus = 0;
+    if (perTag) {
+      const allTags = [intro, subject, target, ...modifiers]
+        .flatMap(c => c?.tags || []);
+      const matches = allTags.filter(t => perTag.tags.includes(t)).length;
+      tagBonus = matches * perTag.bonus;
+    }
+    mathBreakdown = {
+      statTotal, baseDmg, mult, preTier, tierMult, preEnemy,
+      enemyEff, playerMult: playerDmgMult, tagBonus,
+      castLane, dmgType,
+    };
+  }
 
   return (
     <div className={`parchment-card p-3 border-l-4 ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}>
@@ -9288,7 +9351,7 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
             <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
             <div className="text-2xl font-bold font-mono text-iris-200"
                  title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
-              {predicted.damage} <span className="text-sm text-parchment-300">comp</span>
+              {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
               {predicted.stakeBonus > 0 && (
                 <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
               )}
@@ -9303,6 +9366,70 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
                 </span>
               )}
             </div>
+          </div>
+        )}
+        {/* v2.79: math breakdown — full-width row INSIDE the same flex
+            container (basis-full forces a new line). Surfaces every step
+            of the damage formula so the player can SEE where the number
+            comes from. Tag resonance, predator, opening, insult, stake
+            bonuses get explicit callouts. */}
+        {mathBreakdown && (
+          <div className="basis-full mt-2 pt-2 border-t border-ink-500 text-[11px] font-mono text-parchment-300 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-iris-300 font-bold text-[10px] uppercase tracking-widest mr-1">Math:</span>
+            <span>{mathBreakdown.baseDmg}</span>
+            <span className="text-parchment-500">+</span>
+            <span title={`Sum of ${mathBreakdown.castLane} stats across all staged cards × the target's multiplier.`}>
+              {mathBreakdown.statTotal}×{mathBreakdown.mult}={mathBreakdown.statTotal * mathBreakdown.mult}
+            </span>
+            {tierMult !== 1 && (<>
+              <span className="text-parchment-500">×</span>
+              <span title={`Tier ${tier} multiplier — earned by tag-cohesive intro/subject/target.`}>
+                {tierMult.toFixed(1)}{tier === 3 ? ' (T3)' : tier === 2 ? ' (T2)' : ''}
+              </span>
+            </>)}
+            {mathBreakdown.enemyEff !== 1 && (<>
+              <span className="text-parchment-500">×</span>
+              <span className={mathBreakdown.enemyEff > 1 ? 'text-moss-300' : 'text-ember-300'}
+                title={`Enemy is ${mathBreakdown.enemyEff > 1 ? 'susceptible' : 'resistant'} to ${mathBreakdown.castLane} (×${mathBreakdown.enemyEff}).`}>
+                {mathBreakdown.enemyEff}× eff
+              </span>
+            </>)}
+            {mathBreakdown.playerMult !== 1 && (<>
+              <span className="text-parchment-500">×</span>
+              <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300' : 'text-ember-300'}
+                title={`Your spell potency — adjusted by Amplify, Vulnerable on enemy, Weak on player, etc.`}>
+                {mathBreakdown.playerMult.toFixed(2)}× pot
+              </span>
+            </>)}
+            {mathBreakdown.tagBonus > 0 && (<>
+              <span className="text-parchment-500">+</span>
+              <span className="text-iris-300 font-bold"
+                title={`Tag-resonance bonus from the target's perLaneTag rider — +N damage per matching tag in your staged cards.`}>
+                ✦{mathBreakdown.tagBonus}
+              </span>
+            </>)}
+            {predicted.loudBonus > 0 && (<>
+              <span className="text-parchment-500">+</span>
+              <span className="text-ember-300" title="Saying-it-Louder — +3 dmg per demanding-tagged chutzpah word staged.">📢+{predicted.loudBonus}</span>
+            </>)}
+            {predicted.openingBonus > 0 && (<>
+              <span className="text-parchment-500">+</span>
+              <span className="text-iris-300" title="Opening Statement — turn-1 (or revisit-extended) bonus.">🎩+{predicted.openingBonus}</span>
+            </>)}
+            {predicted.predatorBonus > 0 && (<>
+              <span className="text-parchment-500">+</span>
+              <span className="text-ember-300" title="Predator rider — enemy is debuffed.">🩸+{predicted.predatorBonus}</span>
+            </>)}
+            {predicted.insultBonus > 0 && (<>
+              <span className="text-parchment-500">+</span>
+              <span className="text-iris-300" title={`Insult-hit — staged-tag overlap with enemy's insultVulnerabilities.`}>🎯+{predicted.insultBonus}</span>
+            </>)}
+            {predicted.stakeBonus > 0 && (<>
+              <span className="text-parchment-500">+</span>
+              <span className="text-ember-300" title="ALL IN — staked HP buys damage.">🩸+{predicted.stakeBonus}</span>
+            </>)}
+            <span className="text-parchment-500">=</span>
+            <span className="font-bold text-iris-200 text-sm">{predicted.damage}</span>
           </div>
         )}
         {/* v2.11: ALL IN — chutzpah-only HP-wager row. */}
