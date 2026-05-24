@@ -324,12 +324,28 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       // chunk of the enemy's remaining bar.
       if (predicted < remaining * 0.6) continue;
     }
+    // v2.46: WON'T SHUT UP gate — only stage the soup target if the hand
+    // contains another jnsq-lane card (excluding this one) that the player
+    // could play AFTER cast to clear the commitment flag. Cost-affordable
+    // after the target's own stage cost is paid. If no follow-up exists,
+    // skip — the cast would land but the -3 HP end-of-turn bill comes due.
+    const mustFollowUp = !!c.effect?.mustPlayAnotherJnsq;
+    if (mustFollowUp) {
+      const energyAfterStage = energyLeft - (c.cost || 0);
+      const hasFollowUp = state.hand.some((other, j) =>
+        j !== i
+        && other.lane === 'jnsq'
+        && (other.cost || 0) <= energyAfterStage
+      );
+      if (!hasFollowUp) continue;
+    }
     const tier = c.tier || 1;
     const stat = c.stats?.[c.lane] || 0;
     let score = tier * 10 + stat;
     if (needsRage && rageActive) score += 30; // strongly prefer Bare Knuckles in RAGE
     if (doubleDown) score += 15; // prefer doubleDown when it WILL kill (gate already passed)
     if (stormOut) score += 20;   // prefer stormOut when the finisher conditions matched
+    if (mustFollowUp) score += 5; // mild preference when the gate passed — stays competitive with rare targets, doesn't dominate
     // v2.34: wit LONG THREAD bias — when wit-committed AND we hold a
     // threadScaling target AND the meter is already ≥ 1, prefer it. The
     // bonus damage from threadScaling is `N × longThread` flat. Even at
@@ -525,6 +541,11 @@ function runCombat(state, enemyId, telemetry) {
   // combat gets the openingBonus even when combatTurn > 1. Consumed on
   // any wit-lane target cast. Reset per combat.
   state.openingExtended = false;
+  // v2.46: WON'T SHUT UP — commitment-chain flag. Armed when the soup
+  // target resolves a cast; cleared by any subsequent jnsq play or by
+  // end-of-turn billing (-3 HP). Per-combat reset; per-turn clear lives
+  // in the end-of-turn billing block.
+  state.wontShutUpArmed = false;
   // v2.44: TANGENT — counters live on `telemetry` directly (cross-combat).
   // Incremented in the tangent skill-play pass below + resolveTangentSim.
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
@@ -1439,6 +1460,15 @@ function runCombat(state, enemyId, telemetry) {
         state.stormOutJustFired = true;
       }
 
+      // v2.46: WON'T SHUT UP — arm the commitment flag if the resolved
+      // target carries `mustPlayAnotherJnsq`. Cleared by any subsequent
+      // jnsq-lane play this turn (see the post-cast follow-up pass below);
+      // unpaid bills hit at end of turn for 3 HP.
+      if (tray.target?.effect?.mustPlayAnotherJnsq) {
+        state.wontShutUpArmed = true;
+        telemetry.wontShutUpArmed = (telemetry.wontShutUpArmed || 0) + 1;
+      }
+
       // Discharge cards: intro/subject/modifiers → discard; target exiles
       // on tier-3-required failure (or v2.24 rage-missing), else discard.
       state.discard.push(tray.intro, tray.subject, ...tray.modifiers);
@@ -1629,6 +1659,58 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.46: WON'T SHUT UP follow-up pass. If the cast just armed the
+    // commitment flag, find ANY affordable jnsq-lane card in hand and play
+    // it to clear the flag. Preference order: cheapest skill (apology /
+    // tangent / etc — pure tempo) → cheapest word (stages into empty tray
+    // toward a possible next-turn cast) → modifier (fizzles into empty
+    // tray since cast already fired, but still discharges via stage path).
+    // Each clear is a "dodge"; if no card fits, the end-of-turn bill (-3 HP)
+    // catches it. The pre-cast AI gate (pickBestForSlotRageAware) ensures a
+    // follow-up was reserved, so dodges should outnumber damages.
+    if (state.lane === 'jnsq' && state.wontShutUpArmed) {
+      const followUpIdxs = [];
+      for (let i = 0; i < state.hand.length; i++) {
+        const fc = state.hand[i];
+        if (fc.lane !== 'jnsq') continue;
+        if ((fc.cost || 0) > state.energy) continue;
+        followUpIdxs.push({ i, cost: fc.cost || 0, slot: fc.slot, type: fc.type });
+      }
+      if (followUpIdxs.length > 0) {
+        // Sort by cost asc, then prefer skill > word > modifier > target
+        // (we want a clean dodge — skills resolve cleanest after cast).
+        const slotPriority = { skill: 0, intro: 1, subject: 1, modifier: 2, target: 3 };
+        followUpIdxs.sort((a, b) =>
+          a.cost - b.cost
+          || (slotPriority[a.type === 'skill' ? 'skill' : a.slot] ?? 9)
+             - (slotPriority[b.type === 'skill' ? 'skill' : b.slot] ?? 9)
+        );
+        const pick = followUpIdxs[0];
+        const fc = state.hand[pick.i];
+        state.energy -= fc.cost || 0;
+        state.hand.splice(pick.i, 1);
+        // Route by shape — simplest path: stage if word, discard if skill,
+        // discard if modifier-into-empty-tray (no slot to fill post-cast),
+        // discard if target-into-empty-tray (no intro/subject staged).
+        if (fc.slot === 'intro' || fc.slot === 'subject') {
+          if (tray[fc.slot]) state.hand.push(tray[fc.slot]); // refund displaced
+          tray[fc.slot] = fc;
+        } else if (fc.slot === 'modifier') {
+          if (tray.modifiers.length >= 2) {
+            state.hand.push(tray.modifiers[0]);
+            tray.modifiers = [...tray.modifiers.slice(1), fc];
+          } else {
+            tray.modifiers.push(fc);
+          }
+        } else {
+          // Skill, target-into-empty, or anything else — straight to discard.
+          state.discard.push(fc);
+        }
+        state.wontShutUpArmed = false;
+        telemetry.wontShutUpDodges = (telemetry.wontShutUpDodges || 0) + 1;
+      }
+    }
+
     // v2.37: HOLD ON — wit's reactive interrupt skill. AI plays it before
     // the enemy attack lands. v2.43 widened gates aggressively:
     //   - LT >= 2 AND enemy has any attack: play preventively to PRESERVE
@@ -1699,6 +1781,19 @@ function runCombat(state, enemyId, telemetry) {
       if (state.hp <= 0) {
         flushThreadPeak();
         return { outcome: 'lost', turns, killedBy: 'cornerTokens', telemetry };
+      }
+    }
+    // v2.46: WON'T SHUT UP billing. Still armed at end of turn → eat 3
+    // unblocked HP. The follow-up pass above will have cleared the flag
+    // if a jnsq card was available. Fires BEFORE the enemy turn for the
+    // same reason as corner-tokens (stacking risk is intended).
+    if (state.wontShutUpArmed) {
+      state.hp = Math.max(0, state.hp - 3);
+      telemetry.wontShutUpDamage = (telemetry.wontShutUpDamage || 0) + 1;
+      state.wontShutUpArmed = false;
+      if (state.hp <= 0) {
+        flushThreadPeak();
+        return { outcome: 'lost', turns, killedBy: 'wontShutUp', telemetry };
       }
     }
 
@@ -2292,6 +2387,25 @@ function awardReward(state) {
       }
     }
   }
+  // v2.46: "the soup, you see, was never the point." target bias — jnsq
+  // lane only. Uncommon Effect target with commitment chain. ~20% bias;
+  // cap at one (a second copy can't usefully co-exist with the first —
+  // both armings in the same turn double the bill but only one follow-up
+  // can be played per cast cap). Gated on owning enough jnsq cards for
+  // the follow-up to consistently land (≥6 total jnsq cards in deck —
+  // the 5 starter staples plus at least one acquired reward).
+  if (state.lane === 'jnsq') {
+    const ownsSoup = allCards.some(c => c.id === 'jv2-t-soup-was-never-the-point');
+    if (!ownsSoup) {
+      const jnsqCount = allCards.filter(c => c.lane === 'jnsq').length;
+      const sk = pool.find(c => c.id === 'jv2-t-soup-was-never-the-point');
+      if (sk && jnsqCount >= 6 && rnd() < 0.10) {
+        state.discard.push({ ...sk, uid: uid() });
+        state.rewardsTaken.push(sk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -2464,6 +2578,14 @@ function simRun(forcedLane = null) {
     apologyCasts: 0,
     apologyHpHealed: 0,
     apologyTrayDiscarded: 0,
+    // v2.46: WON'T SHUT UP telemetry — commitment-chain mechanic. armed =
+    // total times rider fired; damage = times the 3 HP landed (player
+    // failed to follow through); dodges = times a follow-up jnsq card
+    // played and cleared the flag. Dodges + damage should equal armed
+    // (modulo combats that end mid-armed, which clear without counting).
+    wontShutUpArmed: 0,
+    wontShutUpDamage: 0,
+    wontShutUpDodges: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -2689,6 +2811,13 @@ function aggregate(results) {
     apologyHpHealed: results.reduce((s, r) => s + (r.apologyHpHealed || 0), 0),
     apologyTrayDiscarded: results.reduce((s, r) => s + (r.apologyTrayDiscarded || 0), 0),
     apologyRuns: results.filter(r => (r.apologyCasts || 0) > 0).length,
+    // v2.46: WON'T SHUT UP aggregate. armed/damage/dodges summed; runs =
+    // runs that armed at least once. The dodges/armed ratio is the AI's
+    // follow-through rate; damages/armed is the punishment rate.
+    wontShutUpArmed: results.reduce((s, r) => s + (r.wontShutUpArmed || 0), 0),
+    wontShutUpDamage: results.reduce((s, r) => s + (r.wontShutUpDamage || 0), 0),
+    wontShutUpDodges: results.reduce((s, r) => s + (r.wontShutUpDodges || 0), 0),
+    wontShutUpRuns: results.filter(r => (r.wontShutUpArmed || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -2842,6 +2971,12 @@ function buildReport(agg) {
   lines.push(`- Total HP healed: ${agg.apologyHpHealed}`);
   lines.push(`- Total tray cards discarded by reset: ${agg.apologyTrayDiscarded}`);
   lines.push(`- Avg tray cards / cast: ${agg.apologyCasts > 0 ? (agg.apologyTrayDiscarded / agg.apologyCasts).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Jnsq WON'T SHUT UP (v2.46)`);
+  lines.push(`- Rider armed (soup target cast): ${agg.wontShutUpArmed} (runs: ${agg.wontShutUpRuns} / ${agg.N}, ${pct(agg.wontShutUpRuns / agg.N)})`);
+  lines.push(`- Dodges (kept going — follow-up jnsq played): ${agg.wontShutUpDodges} (${agg.wontShutUpArmed > 0 ? pct(agg.wontShutUpDodges / agg.wontShutUpArmed) : '0%'})`);
+  lines.push(`- Damage fires (-3 HP each): ${agg.wontShutUpDamage} (${agg.wontShutUpArmed > 0 ? pct(agg.wontShutUpDamage / agg.wontShutUpArmed) : '0%'})`);
+  lines.push(`- Total HP lost to commitment: ${agg.wontShutUpDamage * 3}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

@@ -3280,6 +3280,14 @@ export default function App() {
   // from the heal rider; trayDiscarded = cards moved tray → discard by the
   // reset (intro+subject+target+modifiers, summed across plays).
   const [apologyTelemetry, setApologyTelemetry] = useState({ casts: 0, hpHealed: 0, trayDiscarded: 0 });
+  // v2.46: WON'T SHUT UP — commitment-chain flag. Armed when a target with
+  // `mustPlayAnotherJnsq` resolves a cast. Cleared when ANY jnsq-lane card
+  // is played AFTER the rider fired (the "kept going" path), OR at end of
+  // turn (with a 3 HP penalty if still armed — the "stopped abruptly" path).
+  // Telemetry: armed = total times rider fired; damage = times the 3 HP
+  // landed; dodges = times the player kept going and dodged the penalty.
+  const [wontShutUpArmed, setWontShutUpArmed] = useState(false);
+  const [wontShutUpTelemetry, setWontShutUpTelemetry] = useState({ armed: 0, damage: 0, dodges: 0 });
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -4255,6 +4263,9 @@ export default function App() {
     // v2.27: chutzpah Hit Me Again — power install + charges reset.
     setHitMeAgainInstalled(false);
     setHitMeAgainCharges(0);
+    // v2.46: jnsq WON'T SHUT UP — commitment flag clears per combat. Per-
+    // turn clear lives in endTurn (with the damage/dodge accounting).
+    setWontShutUpArmed(false);
     // v2.40: wit PATIENCE — install flag + stacks reset per combat.
     setPatienceInstalled(false);
     setPatienceStacks(0);
@@ -4412,6 +4423,20 @@ export default function App() {
     const cost = effectiveCardCost(card);
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
     setEnergy(e => e - cost);
+    // v2.46: WON'T SHUT UP — clear the commitment flag when ANY jnsq-lane
+    // card is played AFTER the rider armed. The arming itself happens in
+    // castV2SentenceSpell (the soup target's cast), which fires AFTER the
+    // playCard splice that staged the target — so the soup card's own play
+    // can't clear the flag (armed is still false at that moment). Any
+    // subsequent jnsq play (word, modifier, skill) counts as "kept going".
+    if (wontShutUpArmed && card.lane === 'jnsq') {
+      setWontShutUpArmed(false);
+      setWontShutUpTelemetry(t => ({ ...t, dodges: t.dodges + 1 }));
+      pushLog(`🗣 ...kept going.`);
+      logEvent('jnsq.wontShutUp.dodge', {
+        cardId: card.id, enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
     if (card.id === 'c-amplify') setAmplifyPlaysThisCombat(n => n + 1);
     logEvent(TE.CARD_PLAY, { cardId: card.id, cardName: card.name, type: card.type, cost, energyBefore: energy, handSize: hand.length, enemyId: enemy?.id });
     const logBits = [card.name];
@@ -5145,6 +5170,20 @@ export default function App() {
       // re-fire on the SAME turn matches what the original cast saw.
       playerDmgMult,
     });
+
+    // v2.46: WON'T SHUT UP — arm the commitment flag if the cast's target
+    // carries `mustPlayAnotherJnsq`. The flag stays armed until the player
+    // plays ANY jnsq-lane card this turn (cleared in playCard), OR end of
+    // turn (3 HP penalty in endTurn). Armed on every successful resolve,
+    // including RAGE-missing casts and tier-3 fails — the words were said.
+    if (target.effect?.mustPlayAnotherJnsq) {
+      setWontShutUpArmed(true);
+      setWontShutUpTelemetry(t => ({ ...t, armed: t.armed + 1 }));
+      pushLog(`🗣 Going on...`);
+      logEvent('jnsq.wontShutUp.armed', {
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
 
     // Discharge cards. Intro / subject / modifiers → discard. Target →
     // exile if requiresTier3 failed AND exhaustOnFail is set; else discard.
@@ -6103,6 +6142,18 @@ export default function App() {
         pushLog(`🏚 Backed into a corner: -${dmg} HP (didn't close the deal).`);
       }
       setCornerTokens(0);
+    }
+    // v2.46: WON'T SHUT UP — if still armed at end of turn, the player
+    // didn't follow through. Eat 3 unblocked HP. Telemetry: damage++.
+    // Clear flag either way (the contract is per-turn).
+    if (wontShutUpArmed) {
+      setHp(h => Math.max(0, h - 3));
+      setWontShutUpTelemetry(t => ({ ...t, damage: t.damage + 1 }));
+      pushLog(`🗣 Stopped abruptly. -3 HP.`);
+      logEvent('jnsq.wontShutUp.damage', {
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+      setWontShutUpArmed(false);
     }
 
     // v2.38: SAYING SOMETHING WRONG — auto-play any Misstep tokens still in
@@ -8100,6 +8151,16 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             <div title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged this turn. A target with "Said It Louder" gets +${loudCount * 3} flat dmg on cast. Resets each turn.`}>
               <div className="text-xs uppercase text-ember-300">Loud</div>
               <div className="text-2xl font-mono text-ember-300">📢 {loudCount}</div>
+            </div>
+          )}
+          {/* v2.46: jnsq WON'T SHUT UP pip. Armed when a target with
+              `mustPlayAnotherJnsq` resolves a cast. Player must play another
+              jnsq-lane card this turn or eat 3 unblocked HP at end of turn.
+              Cleared by any jnsq play after the rider fires. */}
+          {wontShutUpArmed && (
+            <div title={`Won't Shut Up — you committed mid-statement. Play any jnsq card before end of turn or take 3 HP.`}>
+              <div className="text-xs uppercase text-amber-300">Going on</div>
+              <div className="text-2xl font-mono text-amber-200">🗣 !</div>
             </div>
           )}
           {/* v2.34: wit LONG THREAD pip. Ticks +1 every turn the player

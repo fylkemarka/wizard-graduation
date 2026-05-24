@@ -3,32 +3,32 @@
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **0 wins / 100** = **0.0%**
-- Losses by acts-cleared: 0=54 · 1=45 · 2=1 · 3=0
+- **1 wins / 100** = **1.0%**
+- Losses by acts-cleared: 0=53 · 1=42 · 2=4 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
 - **chutzpah**: 0 runs · 0 wins (0.0%)
-- **jnsq**: 100 runs · 0 wins (0.0%)
+- **jnsq**: 100 runs · 1 wins (1.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-owl**: 10 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 16 runs · 0 wins (0.0%)
-- **fam-raven**: 12 runs · 0 wins (0.0%)
-- **fam-rabbit**: 11 runs · 0 wins (0.0%)
-- **fam-beetle**: 6 runs · 0 wins (0.0%)
-- **fam-cat**: 3 runs · 0 wins (0.0%)
-- **fam-snake**: 10 runs · 0 wins (0.0%)
-- **fam-crow**: 10 runs · 0 wins (0.0%)
-- **fam-mouse**: 10 runs · 0 wins (0.0%)
-- **fam-toad**: 12 runs · 0 wins (0.0%)
+- **fam-rabbit**: 11 runs · 1 wins (9.1%)
+- **fam-hedgehog**: 9 runs · 0 wins (0.0%)
+- **fam-toad**: 14 runs · 0 wins (0.0%)
+- **fam-cat**: 8 runs · 0 wins (0.0%)
+- **fam-mouse**: 11 runs · 0 wins (0.0%)
+- **fam-snake**: 12 runs · 0 wins (0.0%)
+- **fam-crow**: 7 runs · 0 wins (0.0%)
+- **fam-owl**: 7 runs · 0 wins (0.0%)
+- **fam-raven**: 6 runs · 0 wins (0.0%)
+- **fam-beetle**: 15 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 1921
-- Tier 1 (COHERENT): 1791 (93.2%)
-- Tier 2 (RESONANT): 128 (6.7%)
-- Tier 3 (DEVASTATING): 2 (0.1%)
-- Holds (turn ended without cast — tray persists): 979 (33.8%)
+- Total casts: 1979
+- Tier 1 (COHERENT): 1862 (94.1%)
+- Tier 2 (RESONANT): 112 (5.7%)
+- Tier 3 (DEVASTATING): 5 (0.3%)
+- Holds (turn ended without cast — tray persists): 1034 (34.3%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -70,7 +70,7 @@ N = **100** runs simulated with a greedy v2 AI.
 
 ## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
 - Skill casts: 0 (runs: 0 / 100, 0.0%)
-- Total debuff absorbs: 11
+- Total debuff absorbs: 21
 - Avg absorbs per skill cast: 0.00
 
 ## Wit LONG THREAD (v2.34)
@@ -135,33 +135,40 @@ N = **100** runs simulated with a greedy v2 AI.
 - Avg bonus per cast: 0.00
 
 ## Jnsq TANGENT (v2.44)
-- "That reminds me," skill plays: 10 (runs: 10 / 100, 10.0%)
-- Detours that cast a target: 1
+- "That reminds me," skill plays: 13 (runs: 12 / 100, 12.0%)
+- Detours that cast a target: 3
 - Detours that staged a word/modifier: 6
 - Detours that fizzled (target hit incomplete tray): 0
-- Outcome ratio: cast / staged / fizzle: 1 / 6 / 0
+- Outcome ratio: cast / staged / fizzle: 3 / 6 / 0
 
 ## Jnsq APOLOGY (v2.45)
-- "I shouldn't have said that —" plays: 25 (runs: 12 / 100, 12.0%)
-- Total HP healed: 100
-- Total tray cards discarded by reset: 15
-- Avg tray cards / cast: 0.60
+- "I shouldn't have said that —" plays: 30 (runs: 11 / 100, 11.0%)
+- Total HP healed: 120
+- Total tray cards discarded by reset: 25
+- Avg tray cards / cast: 0.83
+
+## Jnsq WON'T SHUT UP (v2.46)
+- Rider armed (soup target cast): 44 (runs: 18 / 100, 18.0%)
+- Dodges (kept going — follow-up jnsq played): 43 (97.7%)
+- Damage fires (-3 HP each): 0 (0.0%)
+- Total HP lost to commitment: 0
 
 ## Combat pacing
-- Avg turns / combat: 4.34
-- Avg damage / run: 398
-- Mean final deck size: 12.6
+- Avg turns / combat: 4.39
+- Avg damage / run: 409
+- Mean final deck size: 13.1
 
 ## Archetype of winning decks
+- low-tier: 1
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 30
-- e2-pattern-maker (The Pattern-Maker): 17
-- e3-boss-anvil (The Anvil-Forged): 13
-- e3-vein-devourer (Vein Devourer): 13
-- e2-silent-spinner (The Silent Spinner): 7
+- e2-boss-tapestry (The Tapestry Walker): 32
+- e3-vein-devourer (Vein Devourer): 19
+- e2-pattern-maker (The Pattern-Maker): 16
+- e3-boss-anvil (The Anvil-Forged): 8
 - e3-quartz-sentinel (Quartz Sentinel): 7
-- e3-geode-crab (Geode Crab): 6
+- e3-geode-crab (Geode Crab): 4
 - e3-crystal-beetle (Crystal Beetle): 4
-- e3-glow-mite (Glow-Mite Swarm): 2
-- e1-boss-thornlord (The Thornlord): 1
+- e1-boss-thornlord (The Thornlord): 4
+- e2-silent-spinner (The Silent Spinner): 3
+- e2-hollow-weaver (Hollow Weaver): 2

@@ -404,6 +404,21 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
+// v2.46: WON'T SHUT UP — commitment chain. Uncommon jnsq Effect (target).
+// Powerful base+multiplier, BUT arms `wontShutUpArmed` on cast. If the player
+// doesn't play another jnsq-lane card before end of turn, eat 3 unblocked HP.
+// Strategic identity: the card is great, but only if you have the deck depth
+// to actually keep going. Forces a "do I have a follow-up?" judgment call
+// the moment you stage it — the textbook "the statement, once made, cannot
+// be left mid-sentence" jnsq move.
+const WONT_SHUT_UP_CARDS = [
+  { id: 'jv2-t-soup-was-never-the-point', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'the soup, you see, was never the point.', tags: ['absurd', 'chaotic', 'mystical'],
+    effect: { scaleBy: 'jnsq', base: 11, multiplier: 4, damageType: 'composure', mustPlayAnotherJnsq: true },
+    desc: 'Cast: 11 + Jnsq comp ×4. After cast: you MUST play another jnsq card this turn or take 3 HP at end of turn.',
+    flavor: 'A statement that, if interrupted now, will haunt the room for hours.' },
+];
+
 // v2.45: APOLOGY — the jnsq "I shouldn't have said that. Have you eaten?"
 // reset-and-heal move. Discards the entire tray (no refund), heals 4 HP,
 // applies +1 Vulnerable to the enemy. Strategic value: cancel an over-
@@ -447,7 +462,7 @@ const TANGENT_CARDS = [
     flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS];
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
+  intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
 };
