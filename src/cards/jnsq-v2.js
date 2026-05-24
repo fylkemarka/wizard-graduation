@@ -404,6 +404,27 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
+// v2.45: APOLOGY — the jnsq "I shouldn't have said that. Have you eaten?"
+// reset-and-heal move. Discards the entire tray (no refund), heals 4 HP,
+// applies +1 Vulnerable to the enemy. Strategic value: cancel an over-
+// committed setup, buy a heal turn, prime the enemy for the NEXT spell.
+// The "sorry-restarting," intro is a thematic pair — eats one upcoming
+// enemy debuff while you're in the middle of recomposing yourself.
+const APOLOGY_CARDS = [
+  { id: 'jv2-k-shouldnt-said-have-you-eaten', slot: null, tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: "I shouldn't have said that — have you eaten?", phrase: "I shouldn't have said that — have you eaten?",
+    tags: ['chaotic', 'absurd'],
+    effects: { apologize: true, hp: 4, vulnerable: 1 },
+    desc: 'Discard your spell tray (no refund). Heal 4 HP. Apply +1 Vulnerable to enemy.',
+    flavor: 'Apology, in jnsq, being a verb with reset properties.' },
+  { id: 'jv2-i-oh-wait-no-sorry', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'oh — wait — no, sorry,', tags: ['chaotic', 'mystical'],
+    stats: { jnsq: 2 },
+    effects: { ignoreNextDebuff: 1 },
+    desc: 'Stages as intro. Absorbs the next enemy debuff (Weak or Vulnerable).',
+    flavor: 'Sorry, restarting.' },
+];
+
 // v2.44: TANGENT — the jnsq "I started saying one thing and ended up saying
 // another" move. AGENCY: the player decides WHEN to take the detour; CHAOS:
 // what surfaces from the discard pile is unknown. Stacking jnsq cards into
@@ -426,7 +447,7 @@ const TANGENT_CARDS = [
     flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS];
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
+  intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
 };

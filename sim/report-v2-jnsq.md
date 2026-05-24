@@ -4,7 +4,7 @@ N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **0 wins / 100** = **0.0%**
-- Losses by acts-cleared: 0=59 · 1=39 · 2=2 · 3=0
+- Losses by acts-cleared: 0=54 · 1=45 · 2=1 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
@@ -12,23 +12,23 @@ N = **100** runs simulated with a greedy v2 AI.
 - **jnsq**: 100 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-rabbit**: 8 runs · 0 wins (0.0%)
-- **fam-crow**: 18 runs · 0 wins (0.0%)
-- **fam-owl**: 9 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 8 runs · 0 wins (0.0%)
-- **fam-beetle**: 16 runs · 0 wins (0.0%)
-- **fam-toad**: 6 runs · 0 wins (0.0%)
-- **fam-raven**: 9 runs · 0 wins (0.0%)
-- **fam-mouse**: 8 runs · 0 wins (0.0%)
+- **fam-owl**: 10 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 16 runs · 0 wins (0.0%)
+- **fam-raven**: 12 runs · 0 wins (0.0%)
+- **fam-rabbit**: 11 runs · 0 wins (0.0%)
+- **fam-beetle**: 6 runs · 0 wins (0.0%)
+- **fam-cat**: 3 runs · 0 wins (0.0%)
 - **fam-snake**: 10 runs · 0 wins (0.0%)
-- **fam-cat**: 8 runs · 0 wins (0.0%)
+- **fam-crow**: 10 runs · 0 wins (0.0%)
+- **fam-mouse**: 10 runs · 0 wins (0.0%)
+- **fam-toad**: 12 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 1950
-- Tier 1 (COHERENT): 1765 (90.5%)
-- Tier 2 (RESONANT): 179 (9.2%)
-- Tier 3 (DEVASTATING): 6 (0.3%)
-- Holds (turn ended without cast — tray persists): 933 (32.4%)
+- Total casts: 1921
+- Tier 1 (COHERENT): 1791 (93.2%)
+- Tier 2 (RESONANT): 128 (6.7%)
+- Tier 3 (DEVASTATING): 2 (0.1%)
+- Holds (turn ended without cast — tray persists): 979 (33.8%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -70,7 +70,7 @@ N = **100** runs simulated with a greedy v2 AI.
 
 ## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
 - Skill casts: 0 (runs: 0 / 100, 0.0%)
-- Total debuff absorbs: 0
+- Total debuff absorbs: 11
 - Avg absorbs per skill cast: 0.00
 
 ## Wit LONG THREAD (v2.34)
@@ -135,29 +135,33 @@ N = **100** runs simulated with a greedy v2 AI.
 - Avg bonus per cast: 0.00
 
 ## Jnsq TANGENT (v2.44)
-- "That reminds me," skill plays: 13 (runs: 11 / 100, 11.0%)
-- Detours that cast a target: 2
-- Detours that staged a word/modifier: 10
+- "That reminds me," skill plays: 10 (runs: 10 / 100, 10.0%)
+- Detours that cast a target: 1
+- Detours that staged a word/modifier: 6
 - Detours that fizzled (target hit incomplete tray): 0
-- Outcome ratio: cast / staged / fizzle: 2 / 10 / 0
+- Outcome ratio: cast / staged / fizzle: 1 / 6 / 0
+
+## Jnsq APOLOGY (v2.45)
+- "I shouldn't have said that —" plays: 25 (runs: 12 / 100, 12.0%)
+- Total HP healed: 100
+- Total tray cards discarded by reset: 15
+- Avg tray cards / cast: 0.60
 
 ## Combat pacing
-- Avg turns / combat: 4.41
+- Avg turns / combat: 4.34
 - Avg damage / run: 398
 - Mean final deck size: 12.6
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 34
+- e2-boss-tapestry (The Tapestry Walker): 30
 - e2-pattern-maker (The Pattern-Maker): 17
-- e3-boss-anvil (The Anvil-Forged): 16
-- e3-vein-devourer (Vein Devourer): 10
-- e3-quartz-sentinel (Quartz Sentinel): 9
-- e2-silent-spinner (The Silent Spinner): 5
-- e3-geode-crab (Geode Crab): 2
-- e2-loom-familiar (Loom Familiar): 2
-- e1-boss-thornlord (The Thornlord): 2
-- e3-glow-mite (Glow-Mite Swarm): 1
-- e3-crystal-beetle (Crystal Beetle): 1
-- e2-hollow-weaver (Hollow Weaver): 1
+- e3-boss-anvil (The Anvil-Forged): 13
+- e3-vein-devourer (Vein Devourer): 13
+- e2-silent-spinner (The Silent Spinner): 7
+- e3-quartz-sentinel (Quartz Sentinel): 7
+- e3-geode-crab (Geode Crab): 6
+- e3-crystal-beetle (Crystal Beetle): 4
+- e3-glow-mite (Glow-Mite Swarm): 2
+- e1-boss-thornlord (The Thornlord): 1

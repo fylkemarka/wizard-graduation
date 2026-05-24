@@ -3276,6 +3276,10 @@ export default function App() {
   // discard), fizzles (target hit empty tray). Per-run counters; reported
   // via logEvent so the sim mirror keeps parity.
   const [tangentTelemetry, setTangentTelemetry] = useState({ fires: 0, targetsCast: 0, wordsStaged: 0, fizzles: 0 });
+  // v2.45: APOLOGY telemetry. casts = skill plays; hpHealed = total HP gained
+  // from the heal rider; trayDiscarded = cards moved tray → discard by the
+  // reset (intro+subject+target+modifiers, summed across plays).
+  const [apologyTelemetry, setApologyTelemetry] = useState({ casts: 0, hpHealed: 0, trayDiscarded: 0 });
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -5686,6 +5690,37 @@ export default function App() {
     if (fx.enemyVulnerable) {
       adjustPlayerDmg(+0.25 * fx.enemyVulnerable);
       logBits.push(`💫 +${25*fx.enemyVulnerable}% potency`);
+    }
+    // v2.45: APOLOGY — discard the entire spell tray (intro/subject/target/
+    // modifiers all go to discard, no energy refund). The hp+4 and
+    // vulnerable+1 keys ride alongside and are handled by the existing
+    // branches above. Read current `tray` state directly (closure) to avoid
+    // nesting setState inside another updater — [[feedback_react_pure_updaters]].
+    if (fx.apologize) {
+      const moved = [];
+      if (tray.intro) moved.push(tray.intro);
+      if (tray.subject) moved.push(tray.subject);
+      if (tray.target) moved.push(tray.target);
+      if (tray.modifiers && tray.modifiers.length) moved.push(...tray.modifiers);
+      if (moved.length > 0) {
+        setDiscard(d => [...d, ...moved]);
+        logBits.push(`🙇 cleared ${moved.length} from tray`);
+      } else {
+        logBits.push(`🙇 cleared the tray`);
+      }
+      setTray(p => initialV2Tray({ effectFiredThisTurn: p.effectFiredThisTurn }));
+      setApologyTelemetry(t => ({
+        casts: t.casts + 1,
+        hpHealed: t.hpHealed + (fx.hp || 0),
+        trayDiscarded: t.trayDiscarded + moved.length,
+      }));
+    }
+    // v2.45: IGNORE NEXT DEBUFF — alias onto the existing notListeningCharges
+    // plumbing (the wit "Sorry — what?" absorb-token system). Each charge
+    // intercepts the next enemy Weak/Vulnerable application this combat.
+    if (fx.ignoreNextDebuff) {
+      setNotListeningCharges(c => c + fx.ignoreNextDebuff);
+      logBits.push(`🙉 +${fx.ignoreNextDebuff} sorry — restarting`);
     }
     // v2.44: SPEAKING OF WHICH — staging deepens the Tangent pool by
     // dumping one random hand card into the discard. Skipped if the hand

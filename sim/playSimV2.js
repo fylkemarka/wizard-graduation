@@ -951,6 +951,55 @@ function runCombat(state, enemyId, telemetry) {
       state.discard.push(fired);
     };
 
+    // v2.45: APOLOGY skill play pass — jnsq lane. "I shouldn't have said that
+    // — have you eaten?" Cost 1 skill. Effects: tray-clear (no refund),
+    // hp +4, enemy vulnerable +1. AI heuristics:
+    //   (a) HP <= 60% of max → the heal is meaningful, OR
+    //   (b) tray has intro+subject+target staged AND the predicted spell
+    //       damage is < 30% of remaining enemy composure (chip cast — the
+    //       reset+heal+vuln is more valuable than a fizzle of a swing).
+    // Don't play if HP is full AND tray is empty (zero-value).
+    if (state.lane === 'jnsq') {
+      const apologyIdx = state.hand.findIndex(c => c.id === 'jv2-k-shouldnt-said-have-you-eaten');
+      if (apologyIdx >= 0) {
+        const c = state.hand[apologyIdx];
+        if ((c.cost || 0) <= state.energy) {
+          const hpPct = state.hp / Math.max(1, state.maxHp);
+          const trayFilled = !!(tray.intro && tray.subject && tray.target);
+          let chipCast = false;
+          if (trayFilled) {
+            const preCtx = { lane: state.lane, tier3MinTier: 3, longThread: state.longThread || 0, openingExtended: state.openingExtended };
+            const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
+            const eff_mult = enemy?.effectiveness?.[state.lane] ?? 1.0;
+            const projected = Math.round((preview.damage || 0) * eff_mult * (state.playerDmgMult || 1));
+            const remainingComp = Math.max(1, enemy.composure || 30);
+            if (projected < 0.30 * remainingComp) chipCast = true;
+          }
+          const shouldApologize = (hpPct <= 0.60) || chipCast;
+          if (shouldApologize) {
+            state.energy -= c.cost || 0;
+            state.hand.splice(apologyIdx, 1);
+            state.discard.push(c);
+            // Tray clear — push all filled slots to discard.
+            const moved = [];
+            if (tray.intro) moved.push(tray.intro);
+            if (tray.subject) moved.push(tray.subject);
+            if (tray.target) moved.push(tray.target);
+            if (tray.modifiers && tray.modifiers.length) moved.push(...tray.modifiers);
+            for (const m of moved) state.discard.push(m);
+            tray = { intro: null, subject: null, target: null, modifiers: [] };
+            // Heal.
+            state.hp = Math.min(state.maxHp, state.hp + 4);
+            // Enemy vulnerable +1 (player damage potency up).
+            state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25);
+            telemetry.apologyCasts = (telemetry.apologyCasts || 0) + 1;
+            telemetry.apologyHpHealed = (telemetry.apologyHpHealed || 0) + 4;
+            telemetry.apologyTrayDiscarded = (telemetry.apologyTrayDiscarded || 0) + moved.length;
+          }
+        }
+      }
+    }
+
     // v2.44: TANGENT skill play pass — jnsq lane only. Conditions:
     //   - in hand AND affordable
     //   - discard pile has ≥3 jnsq cards (richer pool → better outcome)
@@ -1092,6 +1141,11 @@ function runCombat(state, enemyId, telemetry) {
           const lost = state.hand[idx];
           state.hand.splice(idx, 1);
           state.discard.push(lost);
+        }
+        // v2.45: oh — wait — no, sorry, intro — staging arms one absorb of
+        // the next enemy debuff. Aliases onto notListeningCharges.
+        if (fx.ignoreNextDebuff) {
+          state.notListeningCharges = (state.notListeningCharges || 0) + fx.ignoreNextDebuff;
         }
       };
       // v2.24: bumps the chutzpah RAGE meter when a chutzpah-lane card
@@ -2210,6 +2264,34 @@ function awardReward(state) {
       }
     }
   }
+  // v2.45: APOLOGY skill bias — jnsq lane only. Reset-and-heal common skill.
+  // ~22% bias, cap at one copy (the apology is once-per-tray-state useful;
+  // a second in hand can't trigger before the first resolves the tray).
+  if (state.lane === 'jnsq') {
+    const ownsApology = allCards.some(c => c.id === 'jv2-k-shouldnt-said-have-you-eaten');
+    if (!ownsApology) {
+      const ak = pool.find(c => c.id === 'jv2-k-shouldnt-said-have-you-eaten');
+      if (ak && rnd() < 0.22) {
+        state.discard.push({ ...ak, uid: uid() });
+        state.rewardsTaken.push(ak.id);
+        return;
+      }
+    }
+  }
+  // v2.45: "oh — wait — no, sorry," intro bias — jnsq lane only. Common
+  // intro with ignoreNextDebuff rider. ~18% bias, ungated (it stands on its
+  // own as a debuff absorber even without the Apology skill). Cap at one.
+  if (state.lane === 'jnsq') {
+    const ownsSorryIntro = allCards.some(c => c.id === 'jv2-i-oh-wait-no-sorry');
+    if (!ownsSorryIntro) {
+      const sk = pool.find(c => c.id === 'jv2-i-oh-wait-no-sorry');
+      if (sk && rnd() < 0.18) {
+        state.discard.push({ ...sk, uid: uid() });
+        state.rewardsTaken.push(sk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -2378,6 +2460,10 @@ function simRun(forcedLane = null) {
     tangentTargetsCast: 0,
     tangentWordsStaged: 0,
     tangentFizzles: 0,
+    // v2.45: APOLOGY telemetry — reset-and-heal jnsq skill.
+    apologyCasts: 0,
+    apologyHpHealed: 0,
+    apologyTrayDiscarded: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -2598,6 +2684,11 @@ function aggregate(results) {
     tangentWordsStaged: results.reduce((s, r) => s + (r.tangentWordsStaged || 0), 0),
     tangentFizzles: results.reduce((s, r) => s + (r.tangentFizzles || 0), 0),
     tangentRuns: results.filter(r => (r.tangentFires || 0) > 0).length,
+    // v2.45: APOLOGY aggregate.
+    apologyCasts: results.reduce((s, r) => s + (r.apologyCasts || 0), 0),
+    apologyHpHealed: results.reduce((s, r) => s + (r.apologyHpHealed || 0), 0),
+    apologyTrayDiscarded: results.reduce((s, r) => s + (r.apologyTrayDiscarded || 0), 0),
+    apologyRuns: results.filter(r => (r.apologyCasts || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -2745,6 +2836,12 @@ function buildReport(agg) {
   lines.push(`- Detours that staged a word/modifier: ${agg.tangentWordsStaged}`);
   lines.push(`- Detours that fizzled (target hit incomplete tray): ${agg.tangentFizzles}`);
   lines.push(`- Outcome ratio: cast / staged / fizzle: ${agg.tangentTargetsCast} / ${agg.tangentWordsStaged} / ${agg.tangentFizzles}`);
+  lines.push('');
+  lines.push(`## Jnsq APOLOGY (v2.45)`);
+  lines.push(`- "I shouldn't have said that —" plays: ${agg.apologyCasts} (runs: ${agg.apologyRuns} / ${agg.N}, ${pct(agg.apologyRuns / agg.N)})`);
+  lines.push(`- Total HP healed: ${agg.apologyHpHealed}`);
+  lines.push(`- Total tray cards discarded by reset: ${agg.apologyTrayDiscarded}`);
+  lines.push(`- Avg tray cards / cast: ${agg.apologyCasts > 0 ? (agg.apologyTrayDiscarded / agg.apologyCasts).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
