@@ -8851,7 +8851,10 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                     <div className="text-xs text-ember-700 font-bold italic">Requires Tier 3 (else half damage)</div>
                   )}
                   {card.effect.perLaneTag && (
-                    <div className="text-xs text-iris-700 font-bold italic">+{card.effect.perLaneTag.bonus}/match: {card.effect.perLaneTag.tags.join(', ')}</div>
+                    <div className="text-sm font-bold text-iris-700 uppercase tracking-wide"
+                      title={`Tag-resonance bonus: this cast deals +${card.effect.perLaneTag.bonus} damage for each staged card whose tags include ${card.effect.perLaneTag.tags.join(' or ')}. Stack tagged words for big payoffs.`}>
+                      ✦ +{card.effect.perLaneTag.bonus} per {card.effect.perLaneTag.tags.join(' / ')} tag
+                    </div>
                   )}
                 </>
               )}
