@@ -596,13 +596,36 @@ const V251_SYNERGY_CAPSTONE_CARDS = [
     flavor: "The three things, by the time they're enumerated, will be approximately five." },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS, ...V250_CONTENT_CARDS, ...V251_SYNERGY_CAPSTONE_CARDS];
+// v2.52: DRUNKEN STAGGER — jnsq's chaotic defense. The "I have no idea what's
+// happening" mechanic. Uncommon Skill, cost 1, arms `staggerActive` for the
+// current turn. While active, every enemy attack swing has a 50% chance to
+// fully miss (rolled per swing for attack-multi; full-incoming for sim's
+// composite-swing model). Flag clears at start of next player turn — strictly
+// defensive for the held window. Pairs with the cost-0 "in the dimmest
+// possible terms," modifier (free 2-HP heal) for the chaos-defense theme:
+// stagger + heal stretches survival on the held turn.
+const DRUNKEN_STAGGER_CARDS = [
+  { id: 'jv2-k-sorry-lost-balance', slot: null, tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
+    name: 'sorry, I lost my balance for a second,', phrase: 'sorry, I lost my balance for a second,',
+    tags: ['chaotic', 'absurd'],
+    effects: { staggerOn: true },
+    desc: 'Skill. This turn: every enemy attack swing has a 50% chance to fully miss.',
+    flavor: 'Balance, in jnsq, being a state one passes through occasionally.' },
+  { id: 'jv2-m-dimmest-possible-terms', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
+    modifierKind: 'pre', phrase: 'in the dimmest possible terms,', tags: ['hedge', 'absurd'],
+    stats: { jnsq: 1 },
+    effects: { hp: 2 },
+    desc: 'Stages as a modifier. Heal 2 HP on play.',
+    flavor: 'Dimness being, here, a defensive posture.' },
+];
+
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS, ...V250_CONTENT_CARDS, ...V251_SYNERGY_CAPSTONE_CARDS, ...DRUNKEN_STAGGER_CARDS];
 export const JNSQ_V2_BY_SLOT = {
   intro: [...INTROS, APOLOGY_CARDS[1], V250_CONTENT_CARDS[0], V251_SYNERGY_CAPSTONE_CARDS[1]],
   subject: [...SUBJECTS, V250_CONTENT_CARDS[1]],
   target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS, V250_CONTENT_CARDS[2], V251_SYNERGY_CAPSTONE_CARDS[0]],
-  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1], BABBLING_CARDS[1]],
+  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1], BABBLING_CARDS[1], DRUNKEN_STAGGER_CARDS[1]],
   gesture: GESTURES,
   power: [DRUNKEN_CONFIDENCE_CARDS[0], BABBLING_CARDS[0]],
-  skill: [DRUNKEN_CONFIDENCE_CARDS[1], AWKWARD_PAUSE_CARDS[0]],
+  skill: [DRUNKEN_CONFIDENCE_CARDS[1], AWKWARD_PAUSE_CARDS[0], DRUNKEN_STAGGER_CARDS[0]],
 };

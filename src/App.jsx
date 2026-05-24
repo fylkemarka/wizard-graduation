@@ -3334,6 +3334,17 @@ export default function App() {
     casts: 0, totalDamage: 0, tangentOnCastFires: 0,
   });
 
+  // v2.52: DRUNKEN STAGGER — jnsq's chaotic defense. `staggerActive` is set by
+  // the "sorry, I lost my balance for a second," skill and persists until the
+  // start of the next player turn (cleared at the very end of endTurn, AFTER
+  // applyEnemyIntent has had its chance to roll dodges). Per-swing 50% roll
+  // happens inside applyEnemyIntent's attack/attack-multi branch. Telemetry:
+  // plays = skill plays, missesAvoided = swings that fully missed thanks to
+  // stagger, damageAvoided = total raw damage prevented (post-multipliers,
+  // pre-block — the swing simply zeroes out).
+  const [staggerActive, setStaggerActive] = useState(false);
+  const [staggerTelemetry, setStaggerTelemetry] = useState({ plays: 0, missesAvoided: 0, damageAvoided: 0 });
+
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
   // (see advanceTutorialStep). `tutorialActive` short-circuits onEnemyDefeated
@@ -4315,6 +4326,9 @@ export default function App() {
     // mechanic is intra-combat only; a doubled cast doesn't carry forward.
     setPauseHeld(false);
     setPauseHeldActive(false);
+    // v2.52: jnsq DRUNKEN STAGGER — defensive flag clears per combat. The
+    // dodge window is intra-turn / intra-combat only.
+    setStaggerActive(false);
     // v2.40: wit PATIENCE — install flag + stacks reset per combat.
     setPatienceInstalled(false);
     setPatienceStacks(0);
@@ -5976,6 +5990,20 @@ export default function App() {
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
+    // v2.52: DRUNKEN STAGGER — jnsq "sorry, I lost my balance for a second,"
+    // skill. Arms staggerActive for the rest of THIS turn (until endTurn
+    // clears it AFTER the enemy intent has had its chance to roll). While
+    // armed, every enemy attack swing in applyEnemyIntent rolls 50/50 to
+    // fully miss. Tracked via setStaggerTelemetry — plays here, hits/damage
+    // in the enemy-intent branch.
+    if (fx.staggerOn) {
+      setStaggerActive(true);
+      setStaggerTelemetry(t => ({ ...t, plays: t.plays + 1 }));
+      pushLog(`🌀 Staggered — they might miss.`);
+      logEvent('jnsq.stagger.play', {
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
     // v2.44: TANGENT — "That reminds me," jnsq skill. (1) Discard 1 random
     // from draw pile. (2) Find all jnsq-lane cards in discard. (3) Pick
     // one at random and fire it: word → stage (replacing if filled,
@@ -6500,6 +6528,14 @@ export default function App() {
     setArguingBackThisTurn(0);
     setLastCastSnapshot(null);
 
+    // v2.52: DRUNKEN STAGGER — clear the dodge window AFTER the enemy intent
+    // resolved. The skill arms staggerActive on play turn N; the enemy intent
+    // at endTurn N rolls dodges; the flag clears here so player turn N+1
+    // starts fresh (no carry-over). Defensive only — strictly one-turn window.
+    if (staggerActive) {
+      setStaggerActive(false);
+    }
+
     // v2.37: HOLD ON — auto-clear if unused. The flag is meant to interrupt
     // the NEXT enemy attack, not linger as a delayed counter. If applyEnemyIntent
     // already consumed it, holdOnArmed is already false — this is a no-op.
@@ -6792,6 +6828,26 @@ export default function App() {
         // attack-multi. swings 1..N use the unreduced `raw`.
         let remaining = (i === 0 && holdOnFirstSwingRaw != null) ? holdOnFirstSwingRaw : raw;
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
+        // v2.52: DRUNKEN STAGGER — per-swing 50% dodge. Rolled BEFORE the
+        // shield-routing block so a missed swing zeroes out completely (no
+        // block consumed, no recoil arm, no LongThread reset). attack-multi
+        // rolls per swing — partial dodges feel chaotic, which is the point.
+        if (staggerActive && remaining > 0 && Math.random() < 0.5) {
+          const avoided = remaining;
+          remaining = 0;
+          setStaggerTelemetry(t => ({
+            ...t,
+            missesAvoided: t.missesAvoided + 1,
+            damageAvoided: t.damageAvoided + avoided,
+          }));
+          pushLog(`🌀 Missed! Drunken stagger.`);
+          logEvent('jnsq.stagger.dodge', {
+            damageAvoided: avoided, swingIndex: i,
+            enemyId: enemy?.id, enemyTier: enemy?.tier,
+          });
+          // Skip to next swing — no block consumption, no landed flag.
+          continue;
+        }
         let landed = false;
         if (targetsComposure) {
           if (wPoise > 0) {
@@ -8540,7 +8596,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
       {/* Active Powers row — visible while at least one power is on the
           field OR a pending "Sorry — what?" absorb is armed. Hover shows
           the trigger + flavor. */}
-      {(powers.length > 0 || notListeningCharges > 0) && (
+      {(powers.length > 0 || notListeningCharges > 0 || staggerActive) && (
         <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
           <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
           {powers.map((p, i) => {
@@ -8587,6 +8643,15 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
               Sorry — what?
               <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
                 🙉{notListeningCharges}
+              </span>
+            </span>
+          )}
+          {staggerActive && (
+            <span title="Drunken Stagger — this turn, every enemy attack swing has a 50% chance to fully miss."
+              className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
+              Drunken Stagger
+              <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
+                🌀 50% miss
               </span>
             </span>
           )}

@@ -581,6 +581,10 @@ function runCombat(state, enemyId, telemetry) {
   // buildup). Both reset per combat.
   state.pauseHeld = false;
   state.pauseHeldActive = false;
+  // v2.52: DRUNKEN STAGGER — jnsq defensive flag. Armed by the "sorry, I lost
+  // my balance for a second," skill; cleared at end of turn AFTER the enemy
+  // attack roll-block has had its chance to roll. One-turn defensive window.
+  state.staggerActive = false;
   // v2.44: TANGENT — counters live on `telemetry` directly (cross-combat).
   // Incremented in the tangent skill-play pass below + resolveTangentSim.
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
@@ -1406,6 +1410,34 @@ function runCombat(state, enemyId, telemetry) {
             state.discard.push(c);
             state.pauseHeld = true;
             telemetry.awkwardPauses = (telemetry.awkwardPauses || 0) + 1;
+          }
+        }
+      }
+    }
+
+    // v2.52: DRUNKEN STAGGER skill play pass — jnsq lane only. Fires AFTER
+    // staging so the tray is known. Conditions:
+    //   - in hand AND affordable (cost 1)
+    //   - NOT already staggerActive (no double-arming)
+    //   - expected swing is meaningful: >= 5 unblocked OR raw atk >= 12
+    //     (the spec line for chip-vs-burst — don't waste on trivial damage)
+    // Heuristic: spec says "play when next enemy intent is attack/multi and
+    // value is meaningful." Sim doesn't expose intent kind (composite swing
+    // model), so we proxy with the unblocked-incoming projection.
+    if (state.lane === 'jnsq' && !state.staggerActive) {
+      const stagIdx = state.hand.findIndex(c => c.id === 'jv2-k-sorry-lost-balance');
+      if (stagIdx >= 0) {
+        const c = state.hand[stagIdx];
+        if ((c.cost || 0) <= state.energy) {
+          const expectedSwing = enemy.atk;
+          const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+          const isMeaningful = unblockedExpected >= 5 || expectedSwing >= 12;
+          if (isMeaningful) {
+            state.energy -= c.cost || 0;
+            state.hand.splice(stagIdx, 1);
+            state.discard.push(c);
+            state.staggerActive = true;
+            telemetry.staggerPlays = (telemetry.staggerPlays || 0) + 1;
           }
         }
       }
@@ -2244,6 +2276,19 @@ function runCombat(state, enemyId, telemetry) {
       state.holdOnArmed = false;
       state.holdOnValue = 0;
     }
+    // v2.52: DRUNKEN STAGGER — 50% dodge roll. Sim models the enemy turn as a
+    // single composite swing, so we roll ONCE per turn (the App rolls per
+    // swing on attack-multi — that nuance is collapsed here). Conservative
+    // vs the App; a real attack-multi enemy averages partial dodges (~50%
+    // of swings missed), which over multiple hits = same expected damage
+    // avoided as a 1-roll model.
+    if (state.staggerActive && incoming > 0) {
+      if (rnd() < 0.5) {
+        telemetry.staggerMissesAvoided = (telemetry.staggerMissesAvoided || 0) + 1;
+        telemetry.staggerDamageAvoided = (telemetry.staggerDamageAvoided || 0) + incoming;
+        incoming = 0;
+      }
+    }
     // v2.9: Beetle's first-hit absorb consumes once per combat.
     if (state.beetleAbsorb > 0 && incoming > 0) {
       const absorbed = Math.min(state.beetleAbsorb, incoming);
@@ -2390,6 +2435,12 @@ function runCombat(state, enemyId, telemetry) {
     if (state.pauseHeld) {
       state.pauseHeld = false;
       state.pauseHeldActive = true;
+    }
+    // v2.52: DRUNKEN STAGGER — clear the dodge window AFTER the enemy turn
+    // resolved. One-turn defensive only. The flag was set this turn by the
+    // skill play; this clear sets the next player turn back to "no dodge".
+    if (state.staggerActive) {
+      state.staggerActive = false;
     }
     // End-of-turn cleanup
     state.discard.push(...state.hand);
@@ -2845,6 +2896,23 @@ function awardReward(state) {
       }
     }
   }
+  // v2.52: "sorry, I lost my balance for a second," skill bias — jnsq lane
+  // only. Uncommon cost-1 Skill (50% per-swing dodge for the turn). ~25%
+  // bias, cap at TWO copies (defensive skills are cycle-relevant — the
+  // player wants one in rotation every few turns against attack-multi
+  // enemies). Compared to go-on (single copy, tray-hold), stagger is a
+  // repeat-use defensive button.
+  if (state.lane === 'jnsq') {
+    const staggerCount = allCards.filter(c => c.id === 'jv2-k-sorry-lost-balance').length;
+    if (staggerCount < 2) {
+      const sk = pool.find(c => c.id === 'jv2-k-sorry-lost-balance');
+      if (sk && rnd() < 0.25) {
+        state.discard.push({ ...sk, uid: uid() });
+        state.rewardsTaken.push(sk.id);
+        return;
+      }
+    }
+  }
   // v2.47: "Hold my drink," power bias — jnsq lane only. Uncommon Power.
   // The generic power bias (~15%) at top of awardReward fires only when
   // the player owns ZERO power cards; for jnsq we also want a targeted
@@ -3124,6 +3192,12 @@ function simRun(forcedLane = null) {
     universeSidewaysCasts: 0,
     universeSidewaysTotalDamage: 0,
     tangentOnCastFires: 0,
+    // v2.52: DRUNKEN STAGGER telemetry. plays = skill plays; missesAvoided =
+    // composite swings that fully missed thanks to stagger; damageAvoided =
+    // total raw incoming damage zeroed out (post-multipliers, pre-block).
+    staggerPlays: 0,
+    staggerMissesAvoided: 0,
+    staggerDamageAvoided: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -3390,6 +3464,13 @@ function aggregate(results) {
     universeSidewaysTotalDamage: results.reduce((s, r) => s + (r.universeSidewaysTotalDamage || 0), 0),
     universeSidewaysRuns: results.filter(r => (r.universeSidewaysCasts || 0) > 0).length,
     tangentOnCastFires: results.reduce((s, r) => s + (r.tangentOnCastFires || 0), 0),
+    // v2.52: DRUNKEN STAGGER aggregate. plays = skill fires per-run summed;
+    // missesAvoided = swings the stagger dodge zeroed out; damageAvoided =
+    // total raw incoming damage prevented. runs = runs with ≥1 play.
+    staggerPlays: results.reduce((s, r) => s + (r.staggerPlays || 0), 0),
+    staggerMissesAvoided: results.reduce((s, r) => s + (r.staggerMissesAvoided || 0), 0),
+    staggerDamageAvoided: results.reduce((s, r) => s + (r.staggerDamageAvoided || 0), 0),
+    staggerRuns: results.filter(r => (r.staggerPlays || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -3581,6 +3662,13 @@ function buildReport(agg) {
   lines.push(`- Total capstone damage: ${agg.universeSidewaysTotalDamage}`);
   lines.push(`- Avg damage / capstone cast: ${agg.universeSidewaysCasts > 0 ? (agg.universeSidewaysTotalDamage / agg.universeSidewaysCasts).toFixed(2) : '0.00'}`);
   lines.push(`- Tangent-on-cast fires: ${agg.tangentOnCastFires}`);
+  lines.push('');
+  lines.push(`## Jnsq DRUNKEN STAGGER (v2.52)`);
+  lines.push(`- "sorry, I lost my balance" plays: ${agg.staggerPlays} (runs: ${agg.staggerRuns} / ${agg.N}, ${pct(agg.staggerRuns / agg.N)})`);
+  lines.push(`- Swings missed (50% dodge fired): ${agg.staggerMissesAvoided}`);
+  lines.push(`- Total damage avoided: ${agg.staggerDamageAvoided}`);
+  lines.push(`- Avg damage avoided / play: ${agg.staggerPlays > 0 ? (agg.staggerDamageAvoided / agg.staggerPlays).toFixed(1) : '0.0'}`);
+  lines.push(`- Dodge rate (misses / plays): ${agg.staggerPlays > 0 ? pct(agg.staggerMissesAvoided / agg.staggerPlays) : '0%'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
