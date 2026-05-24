@@ -416,6 +416,12 @@ function pickBestModifier(state, energyLeft, tier, bossFight, loudTargetStaged =
     if (loudTargetStaged && c.lane === 'chutzpah' && (c.tags || []).includes('demanding')) {
       score += 5;
     }
+    // v2.44: speaking-of-which has no damage value of its own; its job is
+    // to deepen the Tangent discard pool. Bump it just enough to be picked
+    // when nothing meatier is on offer (cost 0, side payload is the value).
+    if (c.id === 'jv2-m-speaking-of-which') {
+      score += 2;
+    }
     score -= (c.cost || 0); // prefer cheap mods
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
@@ -519,6 +525,8 @@ function runCombat(state, enemyId, telemetry) {
   // combat gets the openingBonus even when combatTurn > 1. Consumed on
   // any wit-lane target cast. Reset per combat.
   state.openingExtended = false;
+  // v2.44: TANGENT — counters live on `telemetry` directly (cross-combat).
+  // Incremented in the tangent skill-play pass below + resolveTangentSim.
   // v2.32: enemy debuff sampler — per-turn random check that mirrors the
   // App's intent pool (real enemies in App.jsx fire Weak/Vuln intents AND
   // riders on attacks). Sim composite-atk model doesn't carry per-enemy
@@ -884,6 +892,105 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
+    // v2.44: TANGENT resolver — fires a random jnsq card from discard.
+    // Mirrors resolveTangentCard in App.jsx. Words/modifiers stage (with
+    // refund-on-replace); targets cast if tray complete, else fizzle.
+    // The cast path defers to the main cast block by injecting the target
+    // into `tray` and flagging `forceCastFromTangent` so the cast logic
+    // runs even if the AI wouldn't have otherwise picked this turn.
+    let forceCastFromTangent = false;
+    const resolveTangentSim = (fired) => {
+      if (!fired) return;
+      if (fired.slot === 'intro' || fired.slot === 'subject') {
+        if (tray[fired.slot]) {
+          // Refund displaced word to hand for free.
+          state.hand.push(tray[fired.slot]);
+        }
+        tray[fired.slot] = fired;
+        // Apply stage side effects for free (read by `applyStageEffects`
+        // closure defined below — but the simpler/cheaper path is to apply
+        // them directly here using the same shape).
+        const fx = fired.effects || {};
+        if (fx.block)      state.block += fx.block;
+        if (fx.poise)      state.poise += fx.poise;
+        if (fx.draw)       drawCards(state, fx.draw);
+        if (fx.weak)       state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * fx.weak);
+        if (fx.vulnerable) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fx.vulnerable);
+        if (fx.hp)         state.hp = Math.min(state.maxHp, state.hp + fx.hp);
+        telemetry.tangentWordsStaged = (telemetry.tangentWordsStaged || 0) + 1;
+        return;
+      }
+      if (fired.slot === 'modifier') {
+        if (tray.modifiers.length >= 2) {
+          // Replace oldest; refund to hand for free.
+          state.hand.push(tray.modifiers[0]);
+          tray.modifiers = [...tray.modifiers.slice(1), fired];
+        } else {
+          tray.modifiers.push(fired);
+        }
+        telemetry.tangentWordsStaged = (telemetry.tangentWordsStaged || 0) + 1;
+        return;
+      }
+      if (fired.slot === 'target' || fired.type === 'effect') {
+        if (!tray.intro || !tray.subject) {
+          // Fizzle — target falls back to discard (not exiled).
+          state.discard.push(fired);
+          telemetry.tangentFizzles = (telemetry.tangentFizzles || 0) + 1;
+          return;
+        }
+        if (tray.target) {
+          // Refund existing target to hand for free.
+          state.hand.push(tray.target);
+        }
+        tray.target = fired;
+        forceCastFromTangent = true;
+        telemetry.tangentTargetsCast = (telemetry.tangentTargetsCast || 0) + 1;
+        return;
+      }
+      // Unknown shape — slip back to discard.
+      state.discard.push(fired);
+    };
+
+    // v2.44: TANGENT skill play pass — jnsq lane only. Conditions:
+    //   - in hand AND affordable
+    //   - discard pile has ≥3 jnsq cards (richer pool → better outcome)
+    //   - tray.intro AND tray.subject already filled (so a fired target can
+    //     actually cast — otherwise we'd waste the skill on a stage that
+    //     overlaps what the AI will do this turn anyway)
+    // Heuristic conservative: if all conditions met, play it. The skill is
+    // chaos-flavored — we don't try to predict outcomes, just open the door.
+    if (state.lane === 'jnsq') {
+      const tangentIdx = state.hand.findIndex(c => c.id === 'jv2-k-that-reminds-me');
+      if (tangentIdx >= 0) {
+        const c = state.hand[tangentIdx];
+        const jnsqInDiscard = state.discard.filter(d => d.lane === 'jnsq').length;
+        const traySetup = !!(tray.intro && tray.subject);
+        if ((c.cost || 0) <= state.energy && jnsqInDiscard >= 3 && traySetup) {
+          state.energy -= c.cost || 0;
+          state.hand.splice(tangentIdx, 1);
+          state.discard.push(c);
+          telemetry.tangentFires = (telemetry.tangentFires || 0) + 1;
+          // Step 1: discard random from draw.
+          if (state.deck.length > 0) {
+            const ridx = Math.floor(rnd() * state.deck.length);
+            const lost = state.deck[ridx];
+            state.deck.splice(ridx, 1);
+            state.discard.push(lost);
+          }
+          // Step 2 + 3: pull random jnsq from discard and resolve.
+          const jnsqIdxs = state.discard
+            .map((d, i) => (d.lane === 'jnsq' ? i : -1))
+            .filter(i => i >= 0);
+          if (jnsqIdxs.length > 0) {
+            const pick = jnsqIdxs[Math.floor(rnd() * jnsqIdxs.length)];
+            const fired = state.discard[pick];
+            state.discard.splice(pick, 1);
+            resolveTangentSim(fired);
+          }
+        }
+      }
+    }
+
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
     let passCount = 0;
@@ -977,6 +1084,14 @@ function runCombat(state, enemyId, telemetry) {
         }
         if (fx.removeVulnerable && (state.enemyDmgMult || 1) > 1.0) {
           state.enemyDmgMult = Math.max(1.0, (state.enemyDmgMult || 1) - 0.25 * fx.removeVulnerable);
+        }
+        // v2.44: SPEAKING OF WHICH — staging discards an extra random hand card
+        // to deepen the Tangent pool. No-op if hand is empty.
+        if (fx.discardOnPlay && state.hand.length > 0) {
+          const idx = Math.floor(rnd() * state.hand.length);
+          const lost = state.hand[idx];
+          state.hand.splice(idx, 1);
+          state.discard.push(lost);
         }
       };
       // v2.24: bumps the chutzpah RAGE meter when a chutzpah-lane card
@@ -2065,6 +2180,36 @@ function awardReward(state) {
       }
     }
   }
+  // v2.44: TANGENT skill bias — jnsq lane only. Common skill that depends on
+  // a deep jnsq discard pile to fire well. ~22% bias, cap at one copy — the
+  // skill is once-per-turn-useful and a second copy in hand stacks nothing.
+  if (state.lane === 'jnsq') {
+    const ownsTangent = allCards.some(c => c.id === 'jv2-k-that-reminds-me');
+    if (!ownsTangent) {
+      const tk = pool.find(c => c.id === 'jv2-k-that-reminds-me');
+      if (tk && rnd() < 0.22) {
+        state.discard.push({ ...tk, uid: uid() });
+        state.rewardsTaken.push(tk.id);
+        return;
+      }
+    }
+  }
+  // v2.44: "speaking of which," modifier bias — jnsq lane only. Common
+  // modifier that discards an extra hand card on stage, deepening the
+  // Tangent pool. ~20% bias gated by Tangent ownership so we don't draft
+  // the support without the payoff. Cap at one copy.
+  if (state.lane === 'jnsq') {
+    const ownsTangent = allCards.some(c => c.id === 'jv2-k-that-reminds-me');
+    const ownsSpeakingOfWhich = allCards.some(c => c.id === 'jv2-m-speaking-of-which');
+    if (ownsTangent && !ownsSpeakingOfWhich) {
+      const sk = pool.find(c => c.id === 'jv2-m-speaking-of-which');
+      if (sk && rnd() < 0.20) {
+        state.discard.push({ ...sk, uid: uid() });
+        state.rewardsTaken.push(sk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -2225,6 +2370,14 @@ function simRun(forcedLane = null) {
     insultMatchesTotal: 0,
     insultDamageTotal: 0,
     insultCasts: 0,
+    // v2.44: TANGENT telemetry — jnsq detour mechanic. fires = skill plays;
+    // targetsCast = fired card was a target AND tray was complete;
+    // wordsStaged = fired card was intro/subject/modifier; fizzles = fired
+    // target landed against an incomplete tray.
+    tangentFires: 0,
+    tangentTargetsCast: 0,
+    tangentWordsStaged: 0,
+    tangentFizzles: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -2436,6 +2589,15 @@ function aggregate(results) {
     insultDamageTotal: results.reduce((s, r) => s + (r.insultDamageTotal || 0), 0),
     insultCasts: results.reduce((s, r) => s + (r.insultCasts || 0), 0),
     insultRuns: results.filter(r => (r.insultCasts || 0) > 0).length,
+    // v2.44: TANGENT aggregate. fires = total skill plays; targetsCast =
+    // detours that resolved as casts; wordsStaged = detours that staged into
+    // tray slots; fizzles = detour targets that missed an empty tray; runs =
+    // runs with at least one fire.
+    tangentFires: results.reduce((s, r) => s + (r.tangentFires || 0), 0),
+    tangentTargetsCast: results.reduce((s, r) => s + (r.tangentTargetsCast || 0), 0),
+    tangentWordsStaged: results.reduce((s, r) => s + (r.tangentWordsStaged || 0), 0),
+    tangentFizzles: results.reduce((s, r) => s + (r.tangentFizzles || 0), 0),
+    tangentRuns: results.filter(r => (r.tangentFires || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -2576,6 +2738,13 @@ function buildReport(agg) {
   lines.push(`- Total matched tags (capped 3/cast): ${agg.insultMatchesTotal}`);
   lines.push(`- Total bonus damage: ${agg.insultDamageTotal}`);
   lines.push(`- Avg bonus per cast: ${agg.insultCasts > 0 ? (agg.insultDamageTotal / agg.insultCasts).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Jnsq TANGENT (v2.44)`);
+  lines.push(`- "That reminds me," skill plays: ${agg.tangentFires} (runs: ${agg.tangentRuns} / ${agg.N}, ${pct(agg.tangentRuns / agg.N)})`);
+  lines.push(`- Detours that cast a target: ${agg.tangentTargetsCast}`);
+  lines.push(`- Detours that staged a word/modifier: ${agg.tangentWordsStaged}`);
+  lines.push(`- Detours that fizzled (target hit incomplete tray): ${agg.tangentFizzles}`);
+  lines.push(`- Outcome ratio: cast / staged / fizzle: ${agg.tangentTargetsCast} / ${agg.tangentWordsStaged} / ${agg.tangentFizzles}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

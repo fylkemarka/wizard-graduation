@@ -404,7 +404,29 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS];
+// v2.44: TANGENT — the jnsq "I started saying one thing and ended up saying
+// another" move. AGENCY: the player decides WHEN to take the detour; CHAOS:
+// what surfaces from the discard pile is unknown. Stacking jnsq cards into
+// discard before Tangent makes the outcome richer (more candidates to fire).
+const TANGENT_CARDS = [
+  { id: 'jv2-k-that-reminds-me', slot: null, tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'That reminds me,', phrase: 'That reminds me,',
+    tags: ['absurd', 'chaotic'],
+    effects: { tangentFire: true },
+    desc: 'Discard 1 random from draw pile. Fire a random jnsq card from your discard this turn.',
+    flavor: 'Reminded by something that, in retrospect, was not very similar at all.' },
+  // Supporting modifier — staging discards an extra hand card to deepen the
+  // Tangent pool. Cost 0 + stats: jnsq 1 so it pulls weight as a normal stage.
+  { id: 'jv2-m-speaking-of-which', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
+    modifierKind: 'pre', phrase: 'speaking of which,', tags: ['chaotic', 'mystical'],
+    stats: { jnsq: 1 },
+    modifierEffect: { addsTag: 'chaotic' },
+    effects: { discardOnPlay: true },
+    desc: 'Stages as a modifier; also discards 1 random card from hand to deepen the Tangent pool.',
+    flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
+];
+
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26], gesture: GESTURES,
+  intro: INTROS, subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
 };

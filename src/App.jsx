@@ -3271,6 +3271,11 @@ export default function App() {
   // The on-cast Block rider from the old Power is GONE.
   const [notListeningCharges, setNotListeningCharges] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
+  // v2.44: TANGENT telemetry — counts fires (skill plays), targetsCast
+  // (tray was complete + fired), wordsStaged (intro/subject/modifier from
+  // discard), fizzles (target hit empty tray). Per-run counters; reported
+  // via logEvent so the sim mirror keeps parity.
+  const [tangentTelemetry, setTangentTelemetry] = useState({ fires: 0, targetsCast: 0, wordsStaged: 0, fizzles: 0 });
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -5682,6 +5687,132 @@ export default function App() {
       adjustPlayerDmg(+0.25 * fx.enemyVulnerable);
       logBits.push(`💫 +${25*fx.enemyVulnerable}% potency`);
     }
+    // v2.44: SPEAKING OF WHICH — staging deepens the Tangent pool by
+    // dumping one random hand card into the discard. Skipped if the hand
+    // has 0 other cards. Read from `hand` (state); the card being staged
+    // is already removed by the playCard splice above.
+    if (fx.discardOnPlay) {
+      setHand(h => {
+        if (h.length === 0) return h;
+        const idx = Math.floor(Math.random() * h.length);
+        const lost = h[idx];
+        setDiscard(d => [...d, lost]);
+        logBits.push(`🌀 discarded ${lost.name || lost.phrase || 'a card'}`);
+        return h.filter((_, i) => i !== idx);
+      });
+    }
+    // v2.44: TANGENT — "That reminds me," jnsq skill. (1) Discard 1 random
+    // from draw pile. (2) Find all jnsq-lane cards in discard. (3) Pick
+    // one at random and fire it: word → stage (replacing if filled,
+    // refunded to hand for free); target → cast immediately if tray
+    // intro+subject filled, else fizzle. The fired card is removed from
+    // discard for free (no cost paid; no entry to hand).
+    if (fx.tangentFire) {
+      setTangentTelemetry(t => ({ ...t, fires: t.fires + 1 }));
+      // Step 1: random discard from draw pile.
+      setDeck(d => {
+        if (d.length === 0) return d;
+        const idx = Math.floor(Math.random() * d.length);
+        const lost = d[idx];
+        setDiscard(dd => [...dd, lost]);
+        logBits.push(`📤 lost ${lost.name || lost.phrase || 'a card'} from draw`);
+        return d.filter((_, i) => i !== idx);
+      });
+      // Step 2 + 3: pull a jnsq card from discard and resolve it. Defer to
+      // setDiscard's callback form so we read the post-step-1 discard.
+      setDiscard(discardPile => {
+        const jnsqIdxs = discardPile
+          .map((c, i) => (c.lane === 'jnsq' ? i : -1))
+          .filter(i => i >= 0);
+        if (jnsqIdxs.length === 0) {
+          pushLog(`🌀 That reminds me... no, nothing.`);
+          return discardPile;
+        }
+        const pick = jnsqIdxs[Math.floor(Math.random() * jnsqIdxs.length)];
+        const fired = discardPile[pick];
+        const newDiscard = discardPile.filter((_, i) => i !== pick);
+        pushLog(`🌀 Tangent: ${fired.phrase || fired.name}`);
+        // Defer the side-effect application via setTimeout so it runs
+        // OUTSIDE this setState updater ([[feedback_react_pure_updaters]]).
+        setTimeout(() => resolveTangentCard(fired), 0);
+        return newDiscard;
+      });
+    }
+  }
+
+  // v2.44: TANGENT resolver — runs the fired card's effect outside of any
+  // setState updater. Words stage into their slot (replacing if filled, with
+  // the displaced card refunded to hand for free). Modifiers stage (up to 2).
+  // Targets cast immediately if intro+subject filled; otherwise log fizzle.
+  // No energy cost, no hand entry, no staging-discard cleanup (the source
+  // card was already lifted out of discard before this fires).
+  function resolveTangentCard(fired) {
+    if (!fired) return;
+    if (fired.slot === 'intro' || fired.slot === 'subject') {
+      setTray(p => {
+        const prev = p[fired.slot];
+        if (prev) {
+          setHand(h => [...h, prev]);
+          pushLog(`↩ Tangent replaced ${fired.slot} ${prev.name || prev.phrase}.`);
+        }
+        return syncTrayLegacy({ ...p, [fired.slot]: fired });
+      });
+      // Stage-side effects fire for free (block, draw, vulnerable, etc.).
+      const sideBits = [];
+      applySideEffects(fired.effects || {}, sideBits);
+      if (sideBits.length) pushLog(`🌀 ${sideBits.join(' · ')}`);
+      setTangentTelemetry(t => ({ ...t, wordsStaged: t.wordsStaged + 1 }));
+      return;
+    }
+    if (fired.slot === 'modifier') {
+      setTray(p => {
+        const mods = p.modifiers || [];
+        if (mods.length >= 2) {
+          // Replace the oldest modifier; refund to hand for free.
+          const displaced = mods[0];
+          setHand(h => [...h, displaced]);
+          pushLog(`↩ Tangent replaced modifier ${displaced.name || displaced.phrase}.`);
+          return syncTrayLegacy({ ...p, modifiers: [...mods.slice(1), fired] });
+        }
+        return syncTrayLegacy({ ...p, modifiers: [...mods, fired] });
+      });
+      const sideBits = [];
+      applySideEffects(fired.effects || {}, sideBits);
+      if (sideBits.length) pushLog(`🌀 ${sideBits.join(' · ')}`);
+      setTangentTelemetry(t => ({ ...t, wordsStaged: t.wordsStaged + 1 }));
+      return;
+    }
+    if (fired.slot === 'target' || fired.type === 'effect') {
+      // Need intro + subject filled to cast. Read latest tray via setTray
+      // callback form. If incomplete, fizzle — the target slides into the
+      // discard pile (not exiled — Tangent is chaos, not punishment).
+      setTray(p => {
+        if (!p.intro || !p.subject) {
+          pushLog(`🌀 That reminds me... [fizzled — no setup].`);
+          setDiscard(d => [...d, fired]);
+          setTangentTelemetry(t => ({ ...t, fizzles: t.fizzles + 1 }));
+          return p;
+        }
+        // Replace any existing target; refund to hand for free.
+        if (p.target) {
+          setHand(h => [...h, p.target]);
+          pushLog(`↩ Tangent replaced target ${p.target.name || p.target.phrase}.`);
+        }
+        const next = syncTrayLegacy({ ...p, target: fired });
+        // Defer the actual cast — staging is now complete; the cast needs
+        // to read the new tray. setTimeout pushes it after this updater.
+        setTimeout(() => {
+          castStagedSpell();
+          setTangentTelemetry(t => ({ ...t, targetsCast: t.targetsCast + 1 }));
+        }, 0);
+        return next;
+      });
+      return;
+    }
+    // Gesture / skill / power / annotation — uncommon for jnsq pools, but
+    // gracefully drop them back to discard so they're not lost.
+    setDiscard(d => [...d, fired]);
+    pushLog(`🌀 Tangent: ${fired.name || fired.phrase} — slipped past the table.`);
   }
 
   // Resolve a `chance: { prob, success, failure }` block — used by Jnsq
