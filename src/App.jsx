@@ -9671,11 +9671,23 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
     if (phase !== 'tracing') return; // must hit "Ready" first to start the timer
     const p = svgPointFrom(e);
     if (!p) return;
-    const start = pathSamples[0];
-    const startDist = Math.sqrt((p.x - start.x) ** 2 + (p.y - start.y) ** 2);
-    if (startDist > 60) return; // must start near the line's left endpoint
-    stateRef.current.tracing = true;
-    stateRef.current.cursor = p;
+    const s = stateRef.current;
+    // First press: must start near the green START dot.
+    // Resume after pause (progress > 0): allow starting anywhere along the
+    // traced portion so the player doesn't have to re-trace from scratch.
+    if (s.progressIdx === 0) {
+      const start = pathSamples[0];
+      const startDist = Math.sqrt((p.x - start.x) ** 2 + (p.y - start.y) ** 2);
+      if (startDist > 60) return;
+    } else {
+      // Resuming — must press near the current progress frontier (within
+      // 60px of the last traced sample) so the trace continues forward.
+      const head = pathSamples[s.progressIdx];
+      const headDist = Math.sqrt((p.x - head.x) ** 2 + (p.y - head.y) ** 2);
+      if (headDist > 60) return;
+    }
+    s.tracing = true;
+    s.cursor = p;
     setTracing(true);
     setCursor(p);
   }
@@ -9699,16 +9711,18 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
 
   // v2.20: if the player clicked the START dot and lifted without
   // dragging (or dragged a tiny amount), DON'T auto-finalize. Reset the
-  // attempt so they can try again. The old behavior fired off a 'rough'
-  // grade and bounced the player back to the map within 600ms, which
-  // from the player's perspective looked like the minigame crashed.
-  // Threshold: at least 10% of path traced OR an explicit Finish click.
-  function finish(opts = {}) {
+  // attempt so they can try again.
+  // v2.58: separate "pause tracing" (released pointer mid-drag) from
+  // "finalize" (commit to a grade). Pointer-up only PAUSES — the player
+  // explicitly clicks "Finish the cut" to lock in their grade. This lets
+  // them resume tracing if they missed a section. Auto-finalize is gone;
+  // mid-drag release no longer eats the run.
+  function pauseTrace() {
     const s = stateRef.current;
-    if (!s.tracing && !opts.fromButton) return;
+    if (!s.tracing) return;
     const completion = s.progressIdx / (pathSamples.length - 1);
     // Mis-click guard: < 10% completion = treat as no attempt, reset.
-    if (completion < 0.10 && !opts.fromButton) {
+    if (completion < 0.10) {
       s.tracing = false;
       s.progressIdx = 0;
       s.totalError = 0;
@@ -9719,11 +9733,18 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
       setProgress(0);
       return;
     }
+    // Pause — keep the progress so the player can either resume by
+    // pressing-and-holding from the green dot OR click "Finish the cut".
+    s.tracing = false;
+    setTracing(false);
+  }
+
+  function finish() {
+    const s = stateRef.current;
+    const completion = s.progressIdx / (pathSamples.length - 1);
     s.tracing = false;
     setTracing(false);
     const elapsed = (Date.now() - s.startTime) / 1000;
-    // v2.5: time-based grade. Must complete ≥70% of the path to qualify
-    // above Rough — pure speed without coverage doesn't count.
     let grade;
     if (completion < 0.7) {
       grade = 'rough';
@@ -9736,16 +9757,25 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
     }
     setPhase('done');
     setElapsedTime(elapsed);
-    // Tiny delay so the last cursor frame paints before the screen jumps.
     setTimeout(() => onComplete(grade), 600);
   }
 
-  function onPointerUp() { finish(); }
-  function onPointerLeave() { if (stateRef.current.tracing) finish(); }
+  function onPointerUp() { pauseTrace(); }
+  function onPointerLeave() { if (stateRef.current.tracing) pauseTrace(); }
 
   const pathD = (() => {
     const [first, ...rest] = controlPoints;
     return `M ${first.x} ${first.y} ` + rest.map(p => `L ${p.x} ${p.y}`).join(' ');
+  })();
+
+  // v2.58: traced-portion overlay. Built from pathSamples up to
+  // progressIdx so the line visibly "lights up" as the player drags
+  // through. Recomputed every render — cheap, samples are ~400 points.
+  const tracedD = (() => {
+    const upTo = stateRef.current.progressIdx || Math.round(progress * (pathSamples.length - 1));
+    if (upTo <= 0) return '';
+    const head = pathSamples.slice(0, upTo + 1);
+    return `M ${head[0].x} ${head[0].y} ` + head.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ');
   })();
 
   const proximityColor = errorBucket === 'master' ? '#7a9b3a'
@@ -9757,9 +9787,9 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
       <h2 className="font-display text-2xl text-moss-300">🛠 {eventTitle}</h2>
       <p className="text-sm text-parchment-300 italic max-w-xl text-center">{choiceLabel}</p>
       <p className="text-xs text-parchment-400 max-w-xl text-center">
-        Click READY, then immediately press and hold from the green START dot and drag to the red END dot.
-        Speed grading: <b className="text-moss-300">&lt; 5s = Master</b> · <b className="text-gold-300">&lt; 7.5s = Fine</b> · slower = Rough.
-        Must trace ≥ 70% of the line.
+        Click READY, then press and hold from the green START dot and drag to the red END dot.
+        Release to pause; press again at the frontier of your traced line to resume.
+        Click <b>Finish the cut</b> when done. Speed grading: <b className="text-moss-300">&lt; 5s = Master</b> · <b className="text-gold-300">&lt; 7.5s = Fine</b> · slower = Rough. Must trace ≥ 70% of the line.
       </p>
       {/* Timer + Ready button. */}
       <div className="flex items-center gap-4">
@@ -9787,6 +9817,13 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
           <path d={pathD} fill="none" stroke="#6b563a" strokeWidth={36} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />
           {/* The actual carve line — dotted, the target. */}
           <path d={pathD} fill="none" stroke="#dbb45f" strokeWidth={3} strokeDasharray="6 5" strokeLinecap="round" strokeLinejoin="round" />
+          {/* v2.58: traced overlay — bright solid line over the dotted
+              target, drawn up to the player's furthest progress. Gives
+              clear feedback that the cut is registering. */}
+          {tracedD && (
+            <path d={tracedD} fill="none" stroke="#dbb45f" strokeWidth={6} strokeLinecap="round" strokeLinejoin="round"
+                  style={{ filter: 'drop-shadow(0 0 4px #f4d77a)' }} />
+          )}
           {/* Start marker */}
           <circle cx={pathSamples[0].x} cy={pathSamples[0].y} r={10} fill="#5d7e3f" stroke="#dbb45f" strokeWidth={2} />
           <text x={pathSamples[0].x} y={pathSamples[0].y + 28} fontSize={11} fill="#dbb45f" textAnchor="middle">START</text>
@@ -9799,14 +9836,20 @@ function TraceWhittlingMinigame({ eventTitle, choiceLabel, onComplete }) {
           )}
         </svg>
       </div>
-      <div className="flex gap-4 items-center">
+      <div className="flex gap-4 items-center flex-wrap justify-center">
         <div className="text-xs text-parchment-300">Progress: <span className="font-mono text-gold-300">{Math.round(progress * 100)}%</span></div>
         <div className="text-xs text-parchment-300">Cut quality: <span className="font-mono" style={{ color: proximityColor }}>{errorBucket.toUpperCase()}</span></div>
-        {!tracing && progress === 0 && (
-          <div className="text-xs text-parchment-400 italic">Click the green dot to start.</div>
+        {phase === 'tracing' && !tracing && progress === 0 && (
+          <div className="text-xs text-parchment-400 italic">Press and hold from the green dot.</div>
         )}
-        {!tracing && progress > 0 && (
-          <button className="btn btn-iris text-sm" onClick={() => finish({ fromButton: true })}>Finish the cut</button>
+        {phase === 'tracing' && tracing && (
+          <div className="text-xs text-parchment-400 italic">Tracing… release to pause.</div>
+        )}
+        {phase === 'tracing' && !tracing && progress > 0 && (
+          <>
+            <div className="text-xs text-parchment-400 italic">Paused — resume from the green dot or finish.</div>
+            <button className="btn btn-iris text-sm" onClick={() => finish()}>Finish the cut</button>
+          </>
         )}
       </div>
     </div>
