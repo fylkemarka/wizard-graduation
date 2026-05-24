@@ -355,6 +355,17 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
     if (doubleDown) score += 15; // prefer doubleDown when it WILL kill (gate already passed)
     if (stormOut) score += 20;   // prefer stormOut when the finisher conditions matched
     if (mustFollowUp) score += 5; // mild preference when the gate passed — stays competitive with rare targets, doesn't dominate
+    // v2.78: "favorite target" bias (HUMAN_PLAY_PROFILE snapshot 3).
+    // Real players who pick up a non-starter target use it for ~50% of
+    // their casts. The sim AI was equally weighting all available
+    // targets, which made starter targets compete with picked rewards
+    // unfairly. If the card is non-starter (rarity >= uncommon OR not
+    // in the build-time starter set), bump its score so it's preferred
+    // over starter-tier basics + commons. Magnitude tuned to lift
+    // uncommon scoring above a baseline common by ~6 points.
+    if (slot === 'target' && (c.rarity === 'uncommon' || c.rarity === 'rare')) {
+      score += 6;
+    }
     // v2.53: tier-3 boss/elite finisher bias. Lane rares (tier-3 targets) are
     // explicitly designed as finishers but the AI's baseline score (tier*10 +
     // stat = ~33) often loses to a tier-2 baseline with a strong rider

@@ -77,3 +77,42 @@ Single act-2 combat (Glow-Mite Swarm) on the wit wizard. 44 events, 22 card play
 **Open follow-ups:**
 - Reward skip vs pick ratio across full runs — what's the threshold where players say "nothing better than what I have"?
 - Does v2.68 act-scaled weights change Act 2 pick rate?
+
+## Observations — 2026-05-24T18:10 (snapshot 3, wit run through act 1 elite)
+
+Single substantial wit-scholar run. 189 events, 4 combats (incl. 1 tutorial + 3 real), 115 card plays, 23 casts, 2 picks (both uncommon — no skips). Won the elite at HP 17/70.
+
+**Cast cadence — clarified:**
+- 23 casts / 32 turn-ends = **0.72 casts/turn** (~28% skip-cast rate)
+- Per-combat raw 5.75 was misleading; per-turn is the stable signal
+- The sim's v2.67 chip-cast skip at 25% pool threshold should hit ~25% skip rate — closer aligned than the previous "always cast" baseline
+
+**Long Thread engagement (real):**
+- 2 wit.thread events fired: LT=2 (+6 dmg) on normal, LT=5 (+15 dmg) on elite
+- Player DEFENDED the thread through an entire act-1 elite fight, hitting LT=5
+- Sim's current chipCastSkips firing ~140/100 wit runs — but threadPreservationSkips still at 0 because the thread can't grow without a target. Worth a follow-up cycle.
+
+**Pick favoritism:**
+- 10 of 23 casts (44%) used a single picked-up reward target: `wv2-t-not-survive-scrutiny`
+- Player picked it once, then committed it to ~half their casts
+- 17 unique intro+subject+target combos across 23 casts — varied WORDS, committed TARGETS
+- Sim AI should mirror: once a strong target is drafted, prefer it heavily over starter targets (~50% favoritism in the picked target)
+
+**Turn-end refinements:**
+| Metric | Snapshot 1 | Snapshot 2 | Snapshot 3 |
+|---|---|---|---|
+| Mean energy left | 0.72 | n/a | 0.47 |
+| Mean tray staged | 1.02 | 1.02 | 0.97 |
+| Mean HP | 58.77 | 70 | 47.88 |
+| Mean composure | 22.80 | 35 | 20.78 |
+
+The "1 staged at turn-end" pattern is now triple-confirmed across three snapshots.
+
+**Reward pick signal:**
+- 2 picks both UNCOMMON — no commons, no skips this session
+- Lined up with v2.68 act-scaled weights deploy: Act 1 normal-combat offers had uncommons available, player took them
+- Sample size still tiny (12 picks total across all snapshots) — track over more sessions
+
+**Updated AI implications:**
+- Implement a "favorite target" memory: once the deck contains a non-starter target with mechanics, the AI should prefer it ~50% of cast picks (was: equal weight)
+- Skill plays: f-bristle (familiar active) 10× in this snapshot — same heavy use as snapshot 1. Defensive skills (c-defend, c-compose) still played every other turn.
