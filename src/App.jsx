@@ -7835,15 +7835,11 @@ function CharacterSelectScreen({ characters, onSelect }) {
           return (
             <div key={c.id}
               className="flex flex-col gap-3 p-6 bg-ink-700 border-2 border-ink-500 rounded-lg shadow-lg">
-              <div className="text-xs uppercase tracking-widest text-gold-500">{c.lane}</div>
+              <div className="text-xs uppercase tracking-widest text-gold-500">{c.lane === 'jnsq' ? 'Je Ne Sais Quoi' : c.lane}</div>
               <h3 className="font-display text-3xl text-gold-300">{c.name}</h3>
               <div className="text-sm italic text-parchment-200">{c.title}</div>
               <p className="font-quill text-parchment-100 leading-relaxed text-sm">{c.desc}</p>
-              <div className="mt-auto pt-3 border-t border-ink-500">
-                <div className="text-xs text-stone-400 mb-1">Voice</div>
-                <div className="text-sm text-parchment-200">{c.voice}</div>
-              </div>
-              <div className="flex flex-wrap gap-1 mt-1">
+              <div className="flex flex-wrap gap-1 mt-auto pt-3 border-t border-ink-500">
                 {c.tagPalette.map(t => (
                   <span key={t} className="text-[10px] uppercase tracking-wide bg-ink-600 text-parchment-300 px-2 py-0.5 rounded">{t}</span>
                 ))}
