@@ -2720,16 +2720,29 @@ function salvageMaterial(slot) {
 // these, the 25/25/15/10 (intro/subject/target/modifier) lane pools
 // over-deliver intros/subjects exactly when the player needs targets.
 const REWARD_SLOT_WEIGHTS = { target: 35, intro: 25, subject: 25, modifier: 15 };
-// v2.60: a reward-pool card is "interesting" only if it brings a mechanic
-// — a target's effect, a side-effect block, a non-word card type, or a
-// scaling stat (3+). Vanilla 2-stat words (basic stat-pumps) never appear
-// as rewards — per playtest feedback, offering generic +2 wit intros is
-// like STS offering generic Strike. Targets/skills/powers/annotations
-// always qualify since they drive mechanics directly.
+// v2.60 / v2.64: a reward-pool card is "interesting" only if it brings a
+// real mechanic. Targets/skills/powers/annotations/gestures qualify
+// directly. WORD-slot cards (intro / subject) qualify only if they are
+// UNCOMMON+ rarity OR have a high scaling stat (3+). Common intros and
+// subjects — even with a `{ draw: 1 }` or `{ weak: 1 }` rider — read as
+// "same generic stat-pump as the starter" per playtest, so they're
+// filtered out regardless of trivial side-effects. Modifiers can be
+// common (they carry distinct modifierEffect math). Same for targets.
 function isInterestingReward(card) {
   if (card.effect) return true;
-  if (card.effects && Object.keys(card.effects).length > 0) return true;
   if (card.type === 'power' || card.type === 'annotation' || card.type === 'skill' || card.type === 'gesture') return true;
+  // Word slots get a tighter test — rarity and/or scaling.
+  if (card.slot === 'intro' || card.slot === 'subject') {
+    if (card.rarity === 'uncommon' || card.rarity === 'rare') return true;
+    if (card.stats) {
+      const maxStat = Math.max(0, ...Object.values(card.stats));
+      if (maxStat >= 3) return true;
+    }
+    return false;
+  }
+  // Modifiers and anything else with an effects block keep the
+  // permissive rule (they're not starter-shaped).
+  if (card.effects && Object.keys(card.effects).length > 0) return true;
   if (card.stats) {
     const maxStat = Math.max(0, ...Object.values(card.stats));
     if (maxStat >= 3) return true;
