@@ -2720,6 +2720,23 @@ function salvageMaterial(slot) {
 // these, the 25/25/15/10 (intro/subject/target/modifier) lane pools
 // over-deliver intros/subjects exactly when the player needs targets.
 const REWARD_SLOT_WEIGHTS = { target: 35, intro: 25, subject: 25, modifier: 15 };
+// v2.60: a reward-pool card is "interesting" only if it brings a mechanic
+// — a target's effect, a side-effect block, a non-word card type, or a
+// scaling stat (3+). Vanilla 2-stat words (basic stat-pumps) never appear
+// as rewards — per playtest feedback, offering generic +2 wit intros is
+// like STS offering generic Strike. Targets/skills/powers/annotations
+// always qualify since they drive mechanics directly.
+function isInterestingReward(card) {
+  if (card.effect) return true;
+  if (card.effects && Object.keys(card.effects).length > 0) return true;
+  if (card.type === 'power' || card.type === 'annotation' || card.type === 'skill' || card.type === 'gesture') return true;
+  if (card.stats) {
+    const maxStat = Math.max(0, ...Object.values(card.stats));
+    if (maxStat >= 3) return true;
+  }
+  return false;
+}
+
 function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = [], lane = null) {
   // Lane filter: when set, only cards matching that lane OR lane-agnostic
   // utility cards (skill/power without a `lane` field) qualify.
@@ -2728,7 +2745,7 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
     if (!c.lane) return true;
     return c.lane === lane;
   };
-  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c));
+  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c));
   if (pool.length === 0) return null;
   // Weight by rarity AND slot together.
   const weightOf = (c) => (rarityWeights[c.rarity] || 0) * (REWARD_SLOT_WEIGHTS[c.slot] || 10);
@@ -3931,7 +3948,12 @@ export default function App() {
       });
     }
     const grantCardOf = (rarity) => {
-      const c = pickCardByRarity({ [rarity]: 1 });
+      // v2.60: event grants respect lane AND exclude starter-deck cards
+      // (same as combat rewards). isInterestingReward applies inside
+      // pickCardByRarity — no vanilla stat-pumps.
+      const lane = selectedCharacter?.lane || null;
+      const starterIds = lane ? buildStarterDeckForLane(lane) : [];
+      const c = pickCardByRarity({ [rarity]: 1 }, starterIds, lane);
       if (c) {
         setDeck(d => [...d, { ...c, uid: uid() }]);
         logBits.push(`+ ${c.name}`);
@@ -7075,8 +7097,12 @@ export default function App() {
       ? { common: 2, uncommon: 3, rare: 1 }
       : { common: 4, uncommon: 1 };
     const choices = [];
-    const used = [];
     const lane = selectedCharacter?.lane || null;
+    // v2.60: rewards never offer cards that are already in the starting
+    // deck — every reward should bring a new mechanic, not a vanilla
+    // duplicate of what you opened with.
+    const starterIds = lane ? buildStarterDeckForLane(lane) : [];
+    const used = [...starterIds];
     while (choices.length < 3) {
       const pick = pickCardByRarity(weights, used, lane);
       if (!pick) break;
