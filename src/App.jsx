@@ -7529,7 +7529,6 @@ function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave }) {
           <button onClick={onContinue} className="btn btn-iris text-lg px-8 py-3 animate-pulse">Continue Saved Run</button>
         )}
         <button onClick={onStart}    className="btn btn-gold text-lg px-8 py-3">{onContinue ? 'Begin a New Path (discards save)' : 'Begin the Path'}</button>
-        <button onClick={onTutorial} className="btn btn-ink  text-sm px-6 py-2">First time? Practice with the Bursar →</button>
         {onDiscardSave && (
           <button onClick={onDiscardSave} className="text-xs text-parchment-500 italic hover:text-ember-300 mt-2">Discard saved run</button>
         )}
