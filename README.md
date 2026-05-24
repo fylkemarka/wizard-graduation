@@ -1,8 +1,8 @@
-# Wizard Graduation
+# Witch Mountain Bridge
 
 Single-player STS-inspired roguelike deckbuilder. Apprentice wizard sets out
-from the school to gather their staff, robes, gem, and ring(s) — each won
-from its own escalating trial path.
+from the school to gather their robes, ring, and staff — each won from its
+own escalating trial path. (Formerly: Wizard Graduation.)
 
 Pivoted from the multi-player co-op prototype Arcane Workshop after a long
 playtest arc; see [CLAUDE.md](./CLAUDE.md) for the full design context.

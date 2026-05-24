@@ -1,4 +1,9 @@
-# Wizard Graduation — Design Context
+# Witch Mountain Bridge — Design Context
+
+> Formerly **Wizard Graduation**. The folder path, GitHub repo, and Vercel
+> subdomain still use the old slug for historical continuity; the game's
+> display name is now Witch Mountain Bridge everywhere user-facing.
+
 
 Single-player STS-inspired roguelike deckbuilder, pivoted from the multi-player
 co-op prototype **Arcane Workshop** (`~/Projects/arcane-workshop/`). Alan is

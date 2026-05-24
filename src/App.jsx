@@ -1,4 +1,4 @@
-// Wizard Graduation — STS-inspired single-player roguelike deckbuilder.
+// Witch Mountain Bridge — STS-inspired single-player roguelike deckbuilder.
 //
 // MVP5: Verbal combat. Cards are word-fragments and effect-seals; you
 // build up a spell by playing words that contribute stat points across
@@ -7435,7 +7435,7 @@ export default function App() {
 function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
-      <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Wizard Graduation</h1>
+      <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Witch Mountain Bridge</h1>
       <p className="font-quill text-parchment-200 italic max-w-xl text-center">
         The school has taught you what it can. To graduate, you must walk the
         Path of Mastery — gather your staff, robes, gem, and ring, each from

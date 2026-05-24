@@ -1,4 +1,4 @@
-// Wizard Graduation — browser telemetry + error capture.
+// Witch Mountain Bridge — browser telemetry + error capture.
 //
 // What this does:
 //   1. Captures uncaught JS errors + unhandled promise rejections.

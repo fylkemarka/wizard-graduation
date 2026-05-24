@@ -1,4 +1,4 @@
-// Wizard Graduation — v2 sentence-engine sim.
+// Witch Mountain Bridge — v2 sentence-engine sim.
 //
 // Greedy AI: each turn, drain hand → fill intro / subject / target /
 // modifier slots → cast when all three primary slots are filled. Uses the
@@ -3529,7 +3529,7 @@ function aggregate(results) {
 
 function buildReport(agg) {
   const lines = [];
-  lines.push(`# Wizard Graduation v2 — Playtest Report`);
+  lines.push(`# Witch Mountain Bridge v2 — Playtest Report`);
   lines.push('');
   lines.push(`N = **${agg.N}** runs simulated with a greedy v2 AI.`);
   lines.push('');

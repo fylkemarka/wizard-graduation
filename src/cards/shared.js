@@ -1,4 +1,4 @@
-// Wizard Graduation — Sentence Engine v2: shared schema + tier math.
+// Witch Mountain Bridge — Sentence Engine v2: shared schema + tier math.
 //
 // All v2 cards (wit / chutzpah / jnsq) share this schema. The lane-specific
 // data files (wit-v2.js, chutzpah-v2.js, jnsq-v2.js) only differ in the
