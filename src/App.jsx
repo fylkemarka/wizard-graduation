@@ -7136,9 +7136,23 @@ export default function App() {
         pushLog(`📿 Elite spoils: ${r.name}.`);
       }
     }
-    const weights = enemy.tier === 'elite'
-      ? { common: 2, uncommon: 3, rare: 1 }
-      : { common: 4, uncommon: 1 };
+    // v2.68: act-scaled rarity weights. Per playtest: Act 2 rewards
+    // felt all-common. STS-style scaling — later acts shift toward
+    // uncommons + rares. Act 1 = early commons dominate; Act 2 = mix
+    // tilted to uncommons; Act 3 (final) = uncommons + rares.
+    const actIdx = currentActIdx || 0;
+    let weights;
+    if (enemy.tier === 'elite') {
+      // Elites always shift up: Act 1 = uncommon-favored, Act 2+ = rare-favored.
+      weights = actIdx === 0
+        ? { common: 1, uncommon: 4, rare: 1 }
+        : { common: 1, uncommon: 3, rare: 2 };
+    } else {
+      // Normal enemies: scale with act.
+      weights = actIdx === 0 ? { common: 4, uncommon: 1 }
+              : actIdx === 1 ? { common: 2, uncommon: 3, rare: 1 }
+              :                { common: 1, uncommon: 4, rare: 2 };
+    }
     const choices = [];
     const lane = selectedCharacter?.lane || null;
     // v2.60: rewards never offer cards that are already in the starting
