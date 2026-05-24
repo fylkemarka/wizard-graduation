@@ -7414,6 +7414,10 @@ export default function App() {
       patienceStacks={patienceStacks}
       pauseHeld={pauseHeld}
       pauseHeldActive={pauseHeldActive}
+      wontShutUpArmed={wontShutUpArmed}
+      staggerActive={staggerActive}
+      notListeningCharges={notListeningCharges}
+      hitMeAgainCharges={hitMeAgainCharges}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -8267,7 +8271,9 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        pendingMissteps = [],
                        combatTurn = 1, openingExtended = false,
                        patienceInstalled = false, patienceStacks = 0,
-                       pauseHeld = false, pauseHeldActive = false }) {
+                       pauseHeld = false, pauseHeldActive = false,
+                       wontShutUpArmed = false, staggerActive = false,
+                       notListeningCharges = 0, hitMeAgainCharges = 0 }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
