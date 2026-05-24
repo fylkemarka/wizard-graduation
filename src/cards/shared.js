@@ -307,6 +307,33 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     }
   }
 
+  // v2.42: wit INSULT VULNERABILITIES — targets with `pierceVulnerableInsult: N`
+  // gain N flat damage per staged-card tag that matches an entry in the enemy's
+  // `insultVulnerabilities` array. Each tag occurrence counts as one match
+  // (multi-tag subjects stack matches); capped at 3 matches per cast so a
+  // jacuzzi of `dismissive` tags can't snowball. Caller passes
+  // context.insultVulnerabilities (defaults to []).
+  let insultBonusDmg = 0;
+  let insultMatches = 0;
+  const insultMatchedTags = [];
+  if (eff.pierceVulnerableInsult > 0) {
+    const vulns = context.insultVulnerabilities || [];
+    if (vulns.length > 0) {
+      const allTags = trayTags(intro, subject, target, modifiers);
+      for (const t of allTags) {
+        if (vulns.includes(t)) {
+          insultMatches++;
+          insultMatchedTags.push(t);
+        }
+      }
+      const cappedMatches = Math.min(insultMatches, 3);
+      if (cappedMatches > 0) {
+        insultBonusDmg = cappedMatches * eff.pierceVulnerableInsult;
+        damage += insultBonusDmg;
+      }
+    }
+  }
+
   // v2.11: chutzpah ALL IN — per-cast HP wager. context.stakeAmount is
   // the staked HP. Per-card stakeMultiplier picks the MAX value (so a
   // staged Double-or-Nothing target overrides the default 1.5×). If any
@@ -349,6 +376,9 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     threadBonus, // v2.34: how much damage came from the LONG THREAD scaling
     footnoteBonus, // v2.35: how much damage came from FOOTNOTE stat-riders
     openingBonus: openingBonusDmg, // v2.39: how much damage came from OPENING STATEMENT
+    insultBonus: insultBonusDmg, // v2.42: how much damage came from INSULT VULNERABILITY pierce
+    insultMatches, // v2.42: raw match count (uncapped) — for telemetry diagnostics
+    insultMatchedTags, // v2.42: matched tag list — for tooltip display
     sideEffects: {
       drawCount,
       stripBlock,

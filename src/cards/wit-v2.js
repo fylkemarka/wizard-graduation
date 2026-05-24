@@ -528,6 +528,35 @@ const SYNERGY_CAPSTONE_CARDS = [
 const SYNERGY_CAPSTONE_TARGETS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'target');
 const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'modifier');
 
+// v2.42: INSULT VULNERABILITIES — every enemy carries an `insultVulnerabilities`
+// tag list (e.g. ['dismissive', 'petty', 'sarcastic']) that, until now, no card
+// mechanic read. This cycle wires it: pierceVulnerableInsult: N targets gain
+// N flat damage per staged-card tag that matches the enemy's list (cap 3
+// matches). The pair below provides both the target rider AND a triple-tagged
+// subject that's likely to hit multiple insult-vuln tags on common enemies.
+// Read the enemy → choose which insults land. Wit's signature move.
+const INSULT_VULN_CARDS = [
+  // Subject — three tags chosen to overlap with common insultVulnerability
+  // entries: 'petty' (Tapestry Walker, Thornlord), 'dismissive' (nearly every
+  // insultable enemy), 'observational' (a wit-cluster tag that's NOT in the
+  // current vuln pools, included for general utility on non-insult casts).
+  { id: 'wv2-s-manner-of-speaking', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your manner of speaking,', tags: ['petty', 'dismissive', 'observational'], stats: { wit: 2 },
+    flavor: 'A subject one returns to with the certainty of an honest critic.' },
+  // Target — pierceVulnerableInsult: 4. With the manner-of-speaking subject
+  // staged on a vulnerable target (dismissive+petty in the list), the cast
+  // adds +8 dmg (2 matches × 4). A third match (modifier tagged matching)
+  // caps the bonus at +12.
+  { id: 'wv2-t-cannot-bear', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'that being, of course, the very thing you cannot bear to hear.', tags: ['rhetorical', 'continuing', 'elaborate'],
+    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure', pierceVulnerableInsult: 4 },
+    desc: 'Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy\'s insult vulnerabilities (max 3 matches).',
+    flavor: 'A flaw named is a flaw amplified.' },
+];
+
+const INSULT_VULN_TARGETS = INSULT_VULN_CARDS.filter(c => c.slot === 'target');
+const INSULT_VULN_SUBJECTS = INSULT_VULN_CARDS.filter(c => c.slot === 'subject');
+
 // v2.40: PATIENCE — wit's skip-cast-and-defend power. While installed, every
 // end-of-turn where the player did NOT cast a spell increments a
 // patienceStacks counter. The next cast adds patienceStacks × 2 flat damage
@@ -619,11 +648,11 @@ const ANNOTATIONS = [
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
-  subject: SUBJECTS,
-  target: [...TARGETS, ...UNIQUE_TARGETS, ...SYNERGY_CAPSTONE_TARGETS],
+  subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS],
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...SYNERGY_CAPSTONE_TARGETS, ...INSULT_VULN_TARGETS],
   gesture: GESTURES,
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   annotation: ANNOTATIONS,

@@ -22,31 +22,36 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/ca
 // v2 sim to measure combat outcomes.
 // =============================================================================
 
+// v2.42: each enemy carries `insultVulnerabilities` — the tag list that
+// pierceVulnerableInsult targets cross-reference for bonus damage. Most
+// enemies have 2-3 tags; a few (mindless / boss-of-vanity) deviate. Sim
+// mirrors App.jsx tagging where it overlaps; non-overlapping enemies get
+// thematic defaults (Pratchett-bureaucratic / vain / pedantic etc.).
 const ENEMIES = [
   // Act 1 — Thread Path (the countryside)
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 44, hp: 999, tier: 'normal', atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 38, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 } },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 46, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 72, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 85, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 } },
-  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 } },
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 44, hp: 999, tier: 'normal', atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
+  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 38, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 }, insultVulnerabilities: ['observational', 'ironic'] },
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 46, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty'] },
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
+  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 72, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['petty', 'observational'] },
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 85, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 }, insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'] },
+  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'observational'] },
   // Act 2 — Forge Path (the mines and caves)
-  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 34, hp: 16,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 48, hp: 26, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 } },
+  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 34, hp: 16,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['petty'] },
+  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty', 'absurd'] },
+  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 48, hp: 26, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['academic', 'petty'] },
   // Act 3 — Staff Path (the deep forest, final act)
-  { id: 'e1-acolyte',       act: 3, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 } },
-  { id: 'e1-imp',           act: 3, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 } },
-  { id: 'e1-shrine-rat',    act: 3, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 } },
-  { id: 'e1-tutor',         act: 3, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 } },
-  { id: 'e1-thicket',       act: 3, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 } },
-  { id: 'e1-boss-thornlord',act: 3, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 } },
-  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 } },
+  { id: 'e1-acolyte',       act: 3, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
+  { id: 'e1-imp',           act: 3, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'sarcastic'] },
+  { id: 'e1-shrine-rat',    act: 3, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 }, insultVulnerabilities: [] },
+  { id: 'e1-tutor',         act: 3, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 }, insultVulnerabilities: ['absurd', 'ironic'] },
+  { id: 'e1-thicket',       act: 3, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e1-boss-thornlord',act: 3, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'] },
+  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['academic', 'observational'] },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
@@ -154,7 +159,7 @@ function drawCards(state, n) {
 
 // Greedy AI pick: from a slot pool in hand, prefer the highest-tier card
 // the player can afford this turn. Returns hand index or -1.
-function pickBestForSlot(state, slot, energyLeft) {
+function pickBestForSlot(state, slot, energyLeft, enemy = null) {
   let bestIdx = -1, bestTier = -1, bestStat = -1;
   // v2.29: detect if a loudScaling target ("I SAID.") is in hand. If so,
   // bias toward chutzpah cards carrying the 'demanding' tag in same-tier
@@ -169,6 +174,17 @@ function pickBestForSlot(state, slot, energyLeft) {
   // or effects.weak also qualify.
   const hasPredatorTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier')
     && state.hand.some(c => c.lane === 'chutzpah' && (c.effect?.predator || 0) > 0);
+  // v2.42: detect if a pierceVulnerableInsult wit target is in hand AND the
+  // current enemy has a non-empty insultVulnerabilities list. If so, bias
+  // toward cards whose tags overlap with the vulns list — each matched tag
+  // adds (pierce × tag) flat damage to the eventual cast (capped at 3
+  // matches). The strongest signal is multi-tag subjects ("your manner of
+  // speaking," = +3 potential matches in one card).
+  const enemyVulns = enemy?.insultVulnerabilities || [];
+  const pierceTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier') && enemyVulns.length > 0
+    ? state.hand.find(c => c.lane === 'wit' && (c.effect?.pierceVulnerableInsult || 0) > 0)
+    : null;
+  const pierceVal = pierceTarget?.effect?.pierceVulnerableInsult || 0;
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
     if (c.slot !== slot) continue;
@@ -198,6 +214,18 @@ function pickBestForSlot(state, slot, energyLeft) {
     if (hasPredatorTarget && c.lane === 'chutzpah'
         && (c.effects?.vulnerable || c.effects?.weak)) {
       effectiveStat = effectiveStat + 5;
+    }
+    // v2.42: when a pierce target is in hand AND the enemy has vulns, bias
+    // toward cards whose tags overlap with the vulns list. Each matched tag
+    // is worth ≈ pierceVal flat dmg on the eventual cast — we add half that
+    // per match to the effectiveStat (so 4-pierce + 2 matches = +4 stat
+    // bias). Cap stat contribution to keep this from blowing past tier
+    // preference; the multi-tag subject still naturally edges its tier.
+    if (pierceTarget && enemyVulns.length > 0) {
+      const matched = (c.tags || []).filter(t => enemyVulns.includes(t)).length;
+      if (matched > 0) {
+        effectiveStat = effectiveStat + Math.min(matched * Math.ceil(pierceVal / 2), 6);
+      }
     }
     if (tier * 10 + effectiveStat > bestTier * 10 + bestStat) {
       bestIdx = i; bestTier = tier; bestStat = effectiveStat;
@@ -238,6 +266,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         longThread: state.longThread || 0, // v2.34
         combatTurn: state._combatTurn || 1, // v2.39
         openingExtended: !!state.openingExtended, // v2.39
+        insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
       };
       // Reuse the shared formula via computeSpellDamage if intro+subject
       // are staged. Off-stage we can't compute reliably; default-pass
@@ -279,6 +308,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         longThread: state.longThread || 0, // v2.34
         combatTurn: state._combatTurn || 1, // v2.39
         openingExtended: !!state.openingExtended, // v2.39
+        insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
       };
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
       const dmgType = c.effect?.damageType || 'composure';
@@ -321,6 +351,32 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       const extended = !!state.openingExtended;
       if (firstTurn || extended) {
         score += Math.max(15, Math.min(25, (c.effect.openingBonus || 0) * 3));
+      }
+    }
+    // v2.42: pierceVulnerableInsult bias. If enemy has insultVulnerabilities
+    // AND any staged or in-hand WIT word/modifier has a tag overlap, prefer
+    // the pierce target. Bias is proportional to the potential bonus: count
+    // tag matches across (intro + subject + every in-hand word/mod), cap at
+    // 3, multiply by pierce value. A baseline pierce target with 2 matched
+    // tags ≈ 2 × 4 = +8 dmg expected, so +14 score gets it over a tier-2
+    // baseline (=23). On a no-vuln enemy this branch is a no-op.
+    if (c.effect?.pierceVulnerableInsult > 0 && state.lane === 'wit') {
+      const vulns = enemy?.insultVulnerabilities || [];
+      if (vulns.length > 0) {
+        const staged = [tray?.intro, tray?.subject].filter(Boolean);
+        const bench = state.hand.filter(h => h !== c && (h.slot === 'intro' || h.slot === 'subject' || h.slot === 'modifier'));
+        let potential = 0;
+        for (const card of staged) potential += (card.tags || []).filter(t => vulns.includes(t)).length;
+        // bench tag-matches — count one match per card (best-case).
+        for (const card of bench) {
+          const m = (card.tags || []).filter(t => vulns.includes(t)).length;
+          if (m > 0) potential += Math.min(m, 3);
+        }
+        // Cap potential at 3 since the rider caps at 3 matches.
+        const capped = Math.min(potential, 3);
+        if (capped > 0) {
+          score += Math.min(20, capped * (c.effect.pierceVulnerableInsult || 0));
+        }
       }
     }
     // v2.41: SYNERGY CAPSTONE — "is, in summary, the inescapable conclusion."
@@ -886,7 +942,7 @@ function runCombat(state, enemyId, telemetry) {
         }
       };
       if (!tray.intro) {
-        const idx = pickBestForSlot(state, 'intro', state.energy);
+        const idx = pickBestForSlot(state, 'intro', state.energy, enemy);
         if (idx >= 0) {
           tray.intro = state.hand[idx];
           state.energy -= tray.intro.cost || 0;
@@ -898,7 +954,7 @@ function runCombat(state, enemyId, telemetry) {
         }
       }
       if (!tray.subject) {
-        const idx = pickBestForSlot(state, 'subject', state.energy);
+        const idx = pickBestForSlot(state, 'subject', state.energy, enemy);
         if (idx >= 0) {
           tray.subject = state.hand[idx];
           state.energy -= tray.subject.cost || 0;
@@ -968,6 +1024,7 @@ function runCombat(state, enemyId, telemetry) {
           longThread: state.longThread || 0, // v2.34
           combatTurn: state._combatTurn || 1, // v2.39
           openingExtended: !!state.openingExtended, // v2.39
+          insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const preMult = (tray.target.effect?.damageType === 'physical')
@@ -1020,6 +1077,7 @@ function runCombat(state, enemyId, telemetry) {
         longThread: state.longThread || 0, // v2.34
         combatTurn: state._combatTurn || 1, // v2.39
         openingExtended: !!state.openingExtended, // v2.39
+        insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
@@ -1228,6 +1286,13 @@ function runCombat(state, enemyId, telemetry) {
       if ((result.footnoteBonus || 0) > 0) {
         telemetry.footnoteCastsWithBonus = (telemetry.footnoteCastsWithBonus || 0) + 1;
         telemetry.footnoteBonusDamage = (telemetry.footnoteBonusDamage || 0) + result.footnoteBonus;
+      }
+      // v2.42: INSULT VULNERABILITIES — count casts where the pierce rider
+      // fired and aggregate match-count + bonus damage for the report.
+      if ((result.insultBonus || 0) > 0) {
+        telemetry.insultCasts = (telemetry.insultCasts || 0) + 1;
+        telemetry.insultMatchesTotal = (telemetry.insultMatchesTotal || 0) + Math.min(result.insultMatches || 0, 3);
+        telemetry.insultDamageTotal = (telemetry.insultDamageTotal || 0) + result.insultBonus;
       }
       // v2.31: SYNERGY CAPSTONE — count "AND I'M NOT DONE." casts and the
       // total damage they dealt. The card's three riders (doubleDown,
@@ -1890,6 +1955,37 @@ function awardReward(state) {
       }
     }
   }
+  // v2.42: INSULT VULNERABILITIES bias — wit lane only. Uncommon target +
+  // uncommon multi-tag subject. ~22% bias on the target (it's the rider
+  // ceiling) + ~25% on the subject (it pairs with both the target AND any
+  // future pierce cards). Cap each at one copy — the rider caps at 3
+  // matches, so two pierce targets is redundant; two manner-of-speaking
+  // subjects is also fine for tray cycling but not necessary for sim
+  // measurement. The subject bias is gated by "has any insult-vuln target"
+  // to avoid pulling a payoff subject without a payoff card.
+  if (state.lane === 'wit') {
+    const ownsPierceTarget = allCards.some(c => c.id === 'wv2-t-cannot-bear');
+    if (!ownsPierceTarget) {
+      const pt = pool.find(c => c.id === 'wv2-t-cannot-bear');
+      if (pt && rnd() < 0.22) {
+        state.discard.push({ ...pt, uid: uid() });
+        state.rewardsTaken.push(pt.id);
+        return;
+      }
+    }
+  }
+  if (state.lane === 'wit') {
+    const ownsMannerSubject = allCards.some(c => c.id === 'wv2-s-manner-of-speaking');
+    const ownsPierceTarget = allCards.some(c => c.id === 'wv2-t-cannot-bear');
+    if (!ownsMannerSubject && ownsPierceTarget) {
+      const ms = pool.find(c => c.id === 'wv2-s-manner-of-speaking');
+      if (ms && rnd() < 0.30) {
+        state.discard.push({ ...ms, uid: uid() });
+        state.rewardsTaken.push(ms.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -2041,6 +2137,13 @@ function simRun(forcedLane = null) {
     patienceDamageBonus: 0,
     patienceCasts: 0,
     patienceSkillPlays: 0,
+    // v2.42: INSULT VULNERABILITIES telemetry. insultMatchesTotal = sum of
+    // CAPPED match counts (caps at 3/cast) across all casts where the rider
+    // ran; insultDamageTotal = total flat bonus damage from the rider;
+    // insultCasts = number of resolved casts where the bonus actually fired.
+    insultMatchesTotal: 0,
+    insultDamageTotal: 0,
+    insultCasts: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -2242,6 +2345,14 @@ function aggregate(results) {
     patienceDamageBonus: results.reduce((s, r) => s + (r.patienceDamageBonus || 0), 0),
     patienceCasts: results.reduce((s, r) => s + (r.patienceCasts || 0), 0),
     patienceSkillPlays: results.reduce((s, r) => s + (r.patienceSkillPlays || 0), 0),
+    // v2.42: INSULT VULNERABILITIES aggregate. insultMatchesTotal = sum of
+    // CAPPED matches across casts; insultDamageTotal = total flat damage;
+    // insultCasts = number of casts that fired the rider;
+    // insultRuns = runs that hit at least one rider trigger.
+    insultMatchesTotal: results.reduce((s, r) => s + (r.insultMatchesTotal || 0), 0),
+    insultDamageTotal: results.reduce((s, r) => s + (r.insultDamageTotal || 0), 0),
+    insultCasts: results.reduce((s, r) => s + (r.insultCasts || 0), 0),
+    insultRuns: results.filter(r => (r.insultCasts || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -2375,6 +2486,12 @@ function buildReport(agg) {
   lines.push(`- "in summary," casts: ${agg.inSummaryCasts} (runs: ${agg.inSummaryRuns} / ${agg.N}, ${pct(agg.inSummaryRuns / agg.N)})`);
   lines.push(`- Total capstone damage: ${agg.inSummaryTotalDamage}`);
   lines.push(`- Avg damage per cast: ${agg.inSummaryCasts > 0 ? (agg.inSummaryTotalDamage / agg.inSummaryCasts).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Wit INSULT VULNERABILITIES (v2.42)`);
+  lines.push(`- Casts that hit the rider: ${agg.insultCasts} (runs: ${agg.insultRuns} / ${agg.N}, ${pct(agg.insultRuns / agg.N)})`);
+  lines.push(`- Total matched tags (capped 3/cast): ${agg.insultMatchesTotal}`);
+  lines.push(`- Total bonus damage: ${agg.insultDamageTotal}`);
+  lines.push(`- Avg bonus per cast: ${agg.insultCasts > 0 ? (agg.insultDamageTotal / agg.insultCasts).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

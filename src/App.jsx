@@ -4808,8 +4808,12 @@ export default function App() {
       // (firstTurn = 1) AND openingExtended (the "to revisit my opening point,"
       // skill bridges a later turn back into the opening).
       combatTurn, openingExtended,
+      // v2.42: wit INSULT VULNERABILITIES — pierceVulnerableInsult targets
+      // read the enemy's list of vulnerable tags. Default to [] if the enemy
+      // has none — rider just won't fire.
+      insultVulnerabilities: enemy?.insultVulnerabilities || [],
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, openingBonus } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
     if (loudBonus > 0) {
@@ -4855,6 +4859,19 @@ export default function App() {
       logEvent('wit.opening', {
         bonusDamage: openingBonus,
         combatTurn, viaExtended,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    }
+    // v2.42: INSULT VULNERABILITIES — surface tag-match bonus when it fired.
+    // matchedTags surfaces WHICH tags landed so the player can read the
+    // enemy correctly next time.
+    if ((insultBonus || 0) > 0) {
+      const tagList = (insultMatchedTags || []).slice(0, 3).join(', ');
+      pushLog(`🎯 INSULT HIT (${tagList}) → +${insultBonus} dmg`);
+      logEvent('wit.insult', {
+        bonusDamage: insultBonus,
+        matchCount: insultMatches,
+        matchedTags: insultMatchedTags,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
@@ -8347,8 +8364,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
   let predicted = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended });
-    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: openingBonus || 0 };
+    const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended, insultVulnerabilities: enemy?.insultVulnerabilities || [] });
+    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: openingBonus || 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
   }
   // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
   // /3 → /4 (keeps "I bleed for damage" without uncapped spirals).
@@ -8450,6 +8467,13 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
               )}
               {predicted.predatorBonus > 0 && (
                 <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
+              )}
+              {/* v2.42: insult-hit chip — tag overlap with enemy.insultVulnerabilities */}
+              {predicted.insultBonus > 0 && (
+                <span className="text-xs text-iris-300 ml-1"
+                  title={`Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} (${Math.min(predicted.insultMatches || 0, 3)} match${(predicted.insultMatches || 0) === 1 ? '' : 'es'} × pierce).`}>
+                  🎯+{predicted.insultBonus}
+                </span>
               )}
             </div>
           </div>
