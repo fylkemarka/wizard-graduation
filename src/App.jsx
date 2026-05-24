@@ -407,7 +407,13 @@ const FAMILIARS = [
   },
 ];
 const FAMILIARS_BY_ID = Object.fromEntries(FAMILIARS.map(f => [f.id, f]));
-const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
+// v2.72: CARDS_BY_ID must include the v2 lane pools so forcedHand /
+// forcedDeck lookups (used by the practice tutorial) resolve wv2-/cv2-/jv2-
+// IDs. Previously only the shared CARDS table was indexed — the tutorial
+// hand silently became a list of undefined objects.
+const CARDS_BY_ID = Object.fromEntries(
+  [...CARDS, ...ALL_V2_CARDS].map(c => [c.id, c])
+);
 
 // v2.38: MISSTEP TOKEN — the delayed-consequence card delivered to hand
 // 2 turns after casting "Saying Something Wrong." Not in the draft pool;
