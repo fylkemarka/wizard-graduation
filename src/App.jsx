@@ -2803,10 +2803,30 @@ function generateActMap(rows, width) {
       // Pre-boss row is ALL rest — every path lands at an inn before the
       // boss so the player gets one HP/Composure top-off no matter how
       // they routed through the act.
-      const t = r === preBossRow      ? 'rest'
-              : c === materialCol     ? 'material'
-              : c === skillCol        ? 'skill'
-              :                         pickNodeType(r, rows);
+      let t = r === preBossRow      ? 'rest'
+            : c === materialCol     ? 'material'
+            : c === skillCol        ? 'skill'
+            :                         pickNodeType(r, rows);
+      // v2.62: no rest within 2 rows of another rest along likely paths.
+      // Map edges link each node to its column-nearest neighbor in the
+      // previous row, so check R-1 and R-2 for a nearby rest. Also block
+      // rest within 2 rows BEFORE the pre-boss row (which is all-rest by
+      // design), so the inn-before-boss isn't preceded by another inn.
+      if (t === 'rest' && r !== preBossRow) {
+        const isCloseRest = (prevRow) => {
+          if (prevRow < 0) return false;
+          for (const n of nodes) {
+            if (n.row !== prevRow) continue;
+            if (n.type !== 'rest') continue;
+            if (Math.abs(n.col - c) <= 1) return true;
+          }
+          return false;
+        };
+        if (isCloseRest(r - 1) || isCloseRest(r - 2)) t = 'combat';
+        // Pre-boss row will be all-rest, so the two rows before it must not
+        // also be rest.
+        if (r === preBossRow - 1 || r === preBossRow - 2) t = 'combat';
+      }
       nodes.push({ id: `n-${r}-${c}`, row: r, col: c,
         type: t,
         x: spacedX(c, w, width), y: rowY(r, rows) });
@@ -8467,219 +8487,6 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
         combatTurn={combatTurn} openingExtended={openingExtended}
         pauseHeldActive={pauseHeldActive} enemy={enemy} />
-      <div key={`player-hud-${playerHitFlash || 0}`}
-           className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
-        <div className="flex gap-4 items-center flex-wrap">
-          <div title="HP — your physical health. Drops to 0 and you fail. Heals through rest stops + inter-act recovery.">
-            <div className="text-xs uppercase text-parchment-300">HP <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-moss-300">{hp} <span className="text-sm text-parchment-300">/ {maxHp}</span></div>
-          </div>
-          <div title="Composure — your nerve / verbal HP. Some enemies (🎭 attacks) target this instead of HP. Drop to 0 and you fail by losing your nerve, even at full HP.">
-            <div className="text-xs uppercase text-parchment-300">Composure <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
-          </div>
-          <div title="Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn.">
-            <div className="text-xs uppercase text-parchment-300">Block <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
-          </div>
-          <div title="Poise — absorbs incoming COMPOSURE damage (🎭 mental attacks). Separate from Block. Resets to 0 at the start of your next turn.">
-            <div className="text-xs uppercase text-parchment-300">Poise <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-moss-300">🪞 {poise}</div>
-          </div>
-          {(() => {
-            const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
-                          + (familiar?.bonus?.damageReduction || 0);
-            const def = Math.min(2, rawDef);
-            return rawDef > 0 ? (
-              <div>
-                <div className="text-xs uppercase text-parchment-300">Defense</div>
-                <div className="text-2xl font-mono text-moss-200"
-                  title={`Defense reduces every incoming hit by ${def} (min 1 damage taken). Capped at 2 — additional equipment Defense provides no further benefit.`}>
-                  🛡✦ {def}{rawDef > def ? <span className="text-xs text-parchment-400 align-top">/{rawDef}</span> : null}
-                </div>
-              </div>
-            ) : null;
-          })()}
-          <div title="Energy — spent to play cards. Refills to the cap every turn. Some equipment / rings add to the cap.">
-            <div className="text-xs uppercase text-parchment-300">Energy <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
-          </div>
-          {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
-              meter has anything in it OR rage is active. Color: ember (chutzpah
-              palette). */}
-          {(isChutzpah || tunnelVision > 0 || rageActive) && (
-            <div title={`Tunnel Vision — chutzpah rage meter. At 5+ entering a turn, you enter RAGE: +50% potency for that turn, then the meter resets.`}>
-              <div className="text-xs uppercase text-ember-300">Tunnel</div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-mono text-ember-300">🔥 {tunnelVision}</span>
-                {rageActive && (
-                  <span className="px-2 py-1 rounded text-xs font-bold bg-ember-700 text-parchment-50 border border-ember-500"
-                        title="RAGE — chutzpah unleashed (+50% damage this turn). Resets at end of turn.">
-                    RAGE
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-          {/* v2.25: chutzpah DOUBLING DOWN pip. Each token bills 2 unblocked
-              HP at end of turn IF the enemy is still alive. Resets every turn.
-              Shown only when non-zero. */}
-          {cornerTokens > 0 && (
-            <div title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: if enemy isn't dead, you take ${cornerTokens * 2} unblocked HP. Resets each turn.`}>
-              <div className="text-xs uppercase text-ember-300">Corner</div>
-              <div className="text-2xl font-mono text-ember-300">🏚 {cornerTokens}</div>
-            </div>
-          )}
-          {/* v2.29: chutzpah SAYING IT LOUDER pip. Each demanding-tagged
-              chutzpah word card staged this turn adds +1; a target with
-              loudScaling reads it for +3 dmg/loud. Resets each turn. */}
-          {loudCount > 0 && (
-            <div title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged this turn. A target with "Said It Louder" gets +${loudCount * 3} flat dmg on cast. Resets each turn.`}>
-              <div className="text-xs uppercase text-ember-300">Loud</div>
-              <div className="text-2xl font-mono text-ember-300">📢 {loudCount}</div>
-            </div>
-          )}
-          {/* v2.48: jnsq AWKWARD PAUSE pip. pauseHeld = armed this turn
-              (graduates at end of turn). pauseHeldActive = doubling banked
-              for THIS turn's cast. Both render the same 🤫 badge with
-              different tooltips so the player can read where the pause is
-              in its lifecycle. Cleared the moment a cast fires. */}
-          {(pauseHeld || pauseHeldActive) && (
-            <div title={pauseHeldActive
-              ? `Awkward Pause — next cast doubles every staged card's jnsq stat contribution. Single-use; cast now to spend.`
-              : `Paused — at end of turn the doubling banks. Hold the silence.`}>
-              <div className="text-xs uppercase text-amber-300">{pauseHeldActive ? 'Pause: ×2' : 'Paused'}</div>
-              <div className="text-2xl font-mono text-amber-200">🤫</div>
-            </div>
-          )}
-          {/* v2.46: jnsq WON'T SHUT UP pip. Armed when a target with
-              `mustPlayAnotherJnsq` resolves a cast. Player must play another
-              jnsq-lane card this turn or eat 3 unblocked HP at end of turn.
-              Cleared by any jnsq play after the rider fires. */}
-          {wontShutUpArmed && (
-            <div title={`Won't Shut Up — you committed mid-statement. Play any jnsq card before end of turn or take 3 HP.`}>
-              <div className="text-xs uppercase text-amber-300">Going on</div>
-              <div className="text-2xl font-mono text-amber-200">🗣 !</div>
-            </div>
-          )}
-          {/* v2.34: wit LONG THREAD pip. Ticks +1 every turn the player
-              casts a wit Effect AND takes zero unblocked HP damage. Resets
-              to 0 when an unblocked hit lands. Wit targets with
-              threadScaling read this for +N × LT flat dmg. Color: iris
-              (wit palette). Shown whenever wit-committed OR meter > 0. */}
-          {(isWit || longThread > 0) && (
-            <div title={`Long Thread — wit's consecutive-turn scaling. Ticks +1 at end of turn IF you cast a wit Effect AND took no unblocked HP damage. Take an unblocked hit, lose the thread. Wit threadScaling targets get +N × Long Thread on cast.`}>
-              <div className="text-xs uppercase text-iris-300">Thread</div>
-              <div className="text-2xl font-mono text-iris-200">🧵 {longThread}</div>
-            </div>
-          )}
-          {/* v2.39: OPENING STATEMENT — show "OPENING" pip while combat is
-              on turn 1, or "REVISIT" pip while the to-revisit-my-opening-
-              point bridge is armed. The pip tells the wit player whether
-              their openingBonus cards are currently active. */}
-          {isWit && (combatTurn === 1 || openingExtended) && (
-            <div title={openingExtended
-              ? `Opening extended — your next wit Effect cast still benefits from openingBonus damage, even though it's now turn ${combatTurn}.`
-              : `Turn 1 — wit Effect cards with openingBonus deal their bonus damage. Cast now or hold "to revisit my opening point," to keep the bonus alive into a later turn.`}>
-              <div className="text-xs uppercase text-iris-300">{openingExtended ? 'Revisit' : 'Opening'}</div>
-              <div className="text-2xl font-mono text-iris-200">🎩{openingExtended ? '↩' : ''}</div>
-            </div>
-          )}
-          {/* v2.40: PATIENCE pip. Shows the current banked stacks while
-              the power is installed. Each stack = +2 flat damage on the
-              next cast. Clears when the cast lands. */}
-          {patienceInstalled && (
-            <div title={`Patience — banked stacks. Each end-of-turn where you DID NOT cast adds +1 to the bank. The next cast adds Patience × 2 flat damage and clears the bank.`}>
-              <div className="text-xs uppercase text-iris-300">Patience</div>
-              <div className="text-2xl font-mono text-iris-200">🌿 {patienceStacks}</div>
-            </div>
-          )}
-          {/* v2.37: HOLD ON armed indicator. Shows the snapshotted reduction
-              that the next enemy swing will eat. Persists across turns
-              until consumed (or auto-cleared at start of next turn — but
-              endTurn fires the clear AFTER the enemy intent, so the
-              indicator only disappears once the swing happened). */}
-          {holdOnArmed && (
-            <div title={`Hold On — armed. The next enemy swing's damage is reduced by ${holdOnValue} (snapshotted from your Long Thread at play time). Clears when the next attack resolves OR at the start of your next turn.`}>
-              <div className="text-xs uppercase text-iris-300">Hold</div>
-              <div className="text-2xl font-mono text-iris-200">🛑 −{holdOnValue}</div>
-            </div>
-          )}
-          {/* v2.38: SAYING SOMETHING WRONG pip. Shows pending Misstep tokens
-              counting down (the off-stage clock) AND the count of Misstep
-              tokens currently in hand (the actual decision). Together: how
-              many shoes are about to drop, and how many are already on the
-              floor. Iris palette since this is a wit mechanic. */}
-          {(pendingMissteps.length > 0 || (hand || []).some(c => c?.id === 'wv2-tok-misstep')) && (() => {
-            const inHand = (hand || []).filter(c => c?.id === 'wv2-tok-misstep').length;
-            const pendingTxt = pendingMissteps.length > 0
-              ? pendingMissteps.map(p => `T-${p.turnsRemaining}`).join(' · ')
-              : '—';
-            return (
-              <div title={`Missteps in flight. ${inHand > 0 ? `${inHand} in hand: discard for 1 Energy, or end-of-turn = -3 HP each. ` : ''}Pending: ${pendingTxt}.`}>
-                <div className="text-xs uppercase text-iris-300">Misstep</div>
-                <div className="text-2xl font-mono text-iris-200">
-                  📜 {inHand > 0 ? <span className="text-ember-300">{inHand}!</span> : pendingMissteps.length}
-                </div>
-              </div>
-            );
-          })()}
-          <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
-            <div className="text-xs uppercase text-parchment-300">Deck</div>
-            <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
-          </div>
-          {/* PLAYER STATUS — Weak / Vulnerable / Strengthened / etc. Only
-              shows pills for active (non-1.0) modifiers. Same numbers as
-              the enemy-side display, but labeled from the player's POV so
-              "what am I afflicted with" is unambiguous. */}
-          {(playerDmgMult !== 1.0 || enemyDmgMult !== 1.0) && (
-            <div className="flex flex-col gap-1">
-              <div className="text-xs uppercase text-parchment-300">Status</div>
-              <div className="flex gap-1 flex-wrap">
-                {playerDmgMult < 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
-                        title={`Weak — your spell potency is at ×${playerDmgMult.toFixed(2)} (${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    ⛧ Weak ×{playerDmgMult.toFixed(2)}
-                  </span>
-                )}
-                {playerDmgMult > 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
-                        title={`Strengthened — your spell potency is at ×${playerDmgMult.toFixed(2)} (+${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    💫 Strong ×{playerDmgMult.toFixed(2)}
-                  </span>
-                )}
-                {enemyDmgMult > 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
-                        title={`Vulnerable — incoming damage is at ×${enemyDmgMult.toFixed(2)} (+${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    🩸 Vuln ×{enemyDmgMult.toFixed(2)}
-                  </span>
-                )}
-                {enemyDmgMult < 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
-                        title={`Sapped — enemy attack damage is at ×${enemyDmgMult.toFixed(2)} (${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    🛡 Sapped ×{enemyDmgMult.toFixed(2)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-          {familiar && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-sm"
-                  title={familiar.desc}>
-              <span className="text-lg leading-none">{familiar.emoji}</span>
-              <span className="text-gold-300">{familiarName || familiar.species}</span>
-            </span>
-          )}
-          {equipment.length > 0 && (
-            <div className="text-xs flex gap-2 flex-wrap ml-2">
-              {equipment.map(eq => (
-                <span key={eq.id} className="text-gold-300" title={eq.desc}>⚜ {eq.name}</span>
-              ))}
-            </div>
-          )}
-        </div>
-        <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
-      </div>
 
       {/* Relic chip row — persistent across the run, shown all combats. */}
       {relics.length > 0 && (
@@ -8986,6 +8793,221 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
           )}
         </div>
       )}
+
+      {/* v2.62: player stat block moved below the hand cards (was above) so the hand sits higher on screen and the stat block anchors the bottom. */}
+      <div key={`player-hud-${playerHitFlash || 0}`}
+           className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
+        <div className="flex gap-4 items-center flex-wrap">
+          <div title="HP — your physical health. Drops to 0 and you fail. Heals through rest stops + inter-act recovery.">
+            <div className="text-xs uppercase text-parchment-300">HP <span className="text-parchment-500">ⓘ</span></div>
+            <div className="text-2xl font-mono text-moss-300">{hp} <span className="text-sm text-parchment-300">/ {maxHp}</span></div>
+          </div>
+          <div title="Composure — your nerve / verbal HP. Some enemies (🎭 attacks) target this instead of HP. Drop to 0 and you fail by losing your nerve, even at full HP.">
+            <div className="text-xs uppercase text-parchment-300">Composure <span className="text-parchment-500">ⓘ</span></div>
+            <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
+          </div>
+          <div title="Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn.">
+            <div className="text-xs uppercase text-parchment-300">Block <span className="text-parchment-500">ⓘ</span></div>
+            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
+          </div>
+          <div title="Poise — absorbs incoming COMPOSURE damage (🎭 mental attacks). Separate from Block. Resets to 0 at the start of your next turn.">
+            <div className="text-xs uppercase text-parchment-300">Poise <span className="text-parchment-500">ⓘ</span></div>
+            <div className="text-2xl font-mono text-moss-300">🪞 {poise}</div>
+          </div>
+          {(() => {
+            const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
+                          + (familiar?.bonus?.damageReduction || 0);
+            const def = Math.min(2, rawDef);
+            return rawDef > 0 ? (
+              <div>
+                <div className="text-xs uppercase text-parchment-300">Defense</div>
+                <div className="text-2xl font-mono text-moss-200"
+                  title={`Defense reduces every incoming hit by ${def} (min 1 damage taken). Capped at 2 — additional equipment Defense provides no further benefit.`}>
+                  🛡✦ {def}{rawDef > def ? <span className="text-xs text-parchment-400 align-top">/{rawDef}</span> : null}
+                </div>
+              </div>
+            ) : null;
+          })()}
+          <div title="Energy — spent to play cards. Refills to the cap every turn. Some equipment / rings add to the cap.">
+            <div className="text-xs uppercase text-parchment-300">Energy <span className="text-parchment-500">ⓘ</span></div>
+            <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
+          </div>
+          {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
+              meter has anything in it OR rage is active. Color: ember (chutzpah
+              palette). */}
+          {(isChutzpah || tunnelVision > 0 || rageActive) && (
+            <div title={`Tunnel Vision — chutzpah rage meter. At 5+ entering a turn, you enter RAGE: +50% potency for that turn, then the meter resets.`}>
+              <div className="text-xs uppercase text-ember-300">Tunnel</div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-mono text-ember-300">🔥 {tunnelVision}</span>
+                {rageActive && (
+                  <span className="px-2 py-1 rounded text-xs font-bold bg-ember-700 text-parchment-50 border border-ember-500"
+                        title="RAGE — chutzpah unleashed (+50% damage this turn). Resets at end of turn.">
+                    RAGE
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          {/* v2.25: chutzpah DOUBLING DOWN pip. Each token bills 2 unblocked
+              HP at end of turn IF the enemy is still alive. Resets every turn.
+              Shown only when non-zero. */}
+          {cornerTokens > 0 && (
+            <div title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: if enemy isn't dead, you take ${cornerTokens * 2} unblocked HP. Resets each turn.`}>
+              <div className="text-xs uppercase text-ember-300">Corner</div>
+              <div className="text-2xl font-mono text-ember-300">🏚 {cornerTokens}</div>
+            </div>
+          )}
+          {/* v2.29: chutzpah SAYING IT LOUDER pip. Each demanding-tagged
+              chutzpah word card staged this turn adds +1; a target with
+              loudScaling reads it for +3 dmg/loud. Resets each turn. */}
+          {loudCount > 0 && (
+            <div title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged this turn. A target with "Said It Louder" gets +${loudCount * 3} flat dmg on cast. Resets each turn.`}>
+              <div className="text-xs uppercase text-ember-300">Loud</div>
+              <div className="text-2xl font-mono text-ember-300">📢 {loudCount}</div>
+            </div>
+          )}
+          {/* v2.48: jnsq AWKWARD PAUSE pip. pauseHeld = armed this turn
+              (graduates at end of turn). pauseHeldActive = doubling banked
+              for THIS turn's cast. Both render the same 🤫 badge with
+              different tooltips so the player can read where the pause is
+              in its lifecycle. Cleared the moment a cast fires. */}
+          {(pauseHeld || pauseHeldActive) && (
+            <div title={pauseHeldActive
+              ? `Awkward Pause — next cast doubles every staged card's jnsq stat contribution. Single-use; cast now to spend.`
+              : `Paused — at end of turn the doubling banks. Hold the silence.`}>
+              <div className="text-xs uppercase text-amber-300">{pauseHeldActive ? 'Pause: ×2' : 'Paused'}</div>
+              <div className="text-2xl font-mono text-amber-200">🤫</div>
+            </div>
+          )}
+          {/* v2.46: jnsq WON'T SHUT UP pip. Armed when a target with
+              `mustPlayAnotherJnsq` resolves a cast. Player must play another
+              jnsq-lane card this turn or eat 3 unblocked HP at end of turn.
+              Cleared by any jnsq play after the rider fires. */}
+          {wontShutUpArmed && (
+            <div title={`Won't Shut Up — you committed mid-statement. Play any jnsq card before end of turn or take 3 HP.`}>
+              <div className="text-xs uppercase text-amber-300">Going on</div>
+              <div className="text-2xl font-mono text-amber-200">🗣 !</div>
+            </div>
+          )}
+          {/* v2.34: wit LONG THREAD pip. Ticks +1 every turn the player
+              casts a wit Effect AND takes zero unblocked HP damage. Resets
+              to 0 when an unblocked hit lands. Wit targets with
+              threadScaling read this for +N × LT flat dmg. Color: iris
+              (wit palette). Shown whenever wit-committed OR meter > 0. */}
+          {(isWit || longThread > 0) && (
+            <div title={`Long Thread — wit's consecutive-turn scaling. Ticks +1 at end of turn IF you cast a wit Effect AND took no unblocked HP damage. Take an unblocked hit, lose the thread. Wit threadScaling targets get +N × Long Thread on cast.`}>
+              <div className="text-xs uppercase text-iris-300">Thread</div>
+              <div className="text-2xl font-mono text-iris-200">🧵 {longThread}</div>
+            </div>
+          )}
+          {/* v2.39: OPENING STATEMENT — show "OPENING" pip while combat is
+              on turn 1, or "REVISIT" pip while the to-revisit-my-opening-
+              point bridge is armed. The pip tells the wit player whether
+              their openingBonus cards are currently active. */}
+          {isWit && (combatTurn === 1 || openingExtended) && (
+            <div title={openingExtended
+              ? `Opening extended — your next wit Effect cast still benefits from openingBonus damage, even though it's now turn ${combatTurn}.`
+              : `Turn 1 — wit Effect cards with openingBonus deal their bonus damage. Cast now or hold "to revisit my opening point," to keep the bonus alive into a later turn.`}>
+              <div className="text-xs uppercase text-iris-300">{openingExtended ? 'Revisit' : 'Opening'}</div>
+              <div className="text-2xl font-mono text-iris-200">🎩{openingExtended ? '↩' : ''}</div>
+            </div>
+          )}
+          {/* v2.40: PATIENCE pip. Shows the current banked stacks while
+              the power is installed. Each stack = +2 flat damage on the
+              next cast. Clears when the cast lands. */}
+          {patienceInstalled && (
+            <div title={`Patience — banked stacks. Each end-of-turn where you DID NOT cast adds +1 to the bank. The next cast adds Patience × 2 flat damage and clears the bank.`}>
+              <div className="text-xs uppercase text-iris-300">Patience</div>
+              <div className="text-2xl font-mono text-iris-200">🌿 {patienceStacks}</div>
+            </div>
+          )}
+          {/* v2.37: HOLD ON armed indicator. Shows the snapshotted reduction
+              that the next enemy swing will eat. Persists across turns
+              until consumed (or auto-cleared at start of next turn — but
+              endTurn fires the clear AFTER the enemy intent, so the
+              indicator only disappears once the swing happened). */}
+          {holdOnArmed && (
+            <div title={`Hold On — armed. The next enemy swing's damage is reduced by ${holdOnValue} (snapshotted from your Long Thread at play time). Clears when the next attack resolves OR at the start of your next turn.`}>
+              <div className="text-xs uppercase text-iris-300">Hold</div>
+              <div className="text-2xl font-mono text-iris-200">🛑 −{holdOnValue}</div>
+            </div>
+          )}
+          {/* v2.38: SAYING SOMETHING WRONG pip. Shows pending Misstep tokens
+              counting down (the off-stage clock) AND the count of Misstep
+              tokens currently in hand (the actual decision). Together: how
+              many shoes are about to drop, and how many are already on the
+              floor. Iris palette since this is a wit mechanic. */}
+          {(pendingMissteps.length > 0 || (hand || []).some(c => c?.id === 'wv2-tok-misstep')) && (() => {
+            const inHand = (hand || []).filter(c => c?.id === 'wv2-tok-misstep').length;
+            const pendingTxt = pendingMissteps.length > 0
+              ? pendingMissteps.map(p => `T-${p.turnsRemaining}`).join(' · ')
+              : '—';
+            return (
+              <div title={`Missteps in flight. ${inHand > 0 ? `${inHand} in hand: discard for 1 Energy, or end-of-turn = -3 HP each. ` : ''}Pending: ${pendingTxt}.`}>
+                <div className="text-xs uppercase text-iris-300">Misstep</div>
+                <div className="text-2xl font-mono text-iris-200">
+                  📜 {inHand > 0 ? <span className="text-ember-300">{inHand}!</span> : pendingMissteps.length}
+                </div>
+              </div>
+            );
+          })()}
+          <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
+            <div className="text-xs uppercase text-parchment-300">Deck</div>
+            <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
+          </div>
+          {/* PLAYER STATUS — Weak / Vulnerable / Strengthened / etc. Only
+              shows pills for active (non-1.0) modifiers. Same numbers as
+              the enemy-side display, but labeled from the player's POV so
+              "what am I afflicted with" is unambiguous. */}
+          {(playerDmgMult !== 1.0 || enemyDmgMult !== 1.0) && (
+            <div className="flex flex-col gap-1">
+              <div className="text-xs uppercase text-parchment-300">Status</div>
+              <div className="flex gap-1 flex-wrap">
+                {playerDmgMult < 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
+                        title={`Weak — your spell potency is at ×${playerDmgMult.toFixed(2)} (${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    ⛧ Weak ×{playerDmgMult.toFixed(2)}
+                  </span>
+                )}
+                {playerDmgMult > 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
+                        title={`Strengthened — your spell potency is at ×${playerDmgMult.toFixed(2)} (+${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    💫 Strong ×{playerDmgMult.toFixed(2)}
+                  </span>
+                )}
+                {enemyDmgMult > 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
+                        title={`Vulnerable — incoming damage is at ×${enemyDmgMult.toFixed(2)} (+${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    🩸 Vuln ×{enemyDmgMult.toFixed(2)}
+                  </span>
+                )}
+                {enemyDmgMult < 1.0 && (
+                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
+                        title={`Sapped — enemy attack damage is at ×${enemyDmgMult.toFixed(2)} (${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
+                    🛡 Sapped ×{enemyDmgMult.toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          {familiar && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-sm"
+                  title={familiar.desc}>
+              <span className="text-lg leading-none">{familiar.emoji}</span>
+              <span className="text-gold-300">{familiarName || familiar.species}</span>
+            </span>
+          )}
+          {equipment.length > 0 && (
+            <div className="text-xs flex gap-2 flex-wrap ml-2">
+              {equipment.map(eq => (
+                <span key={eq.id} className="text-gold-300" title={eq.desc}>⚜ {eq.name}</span>
+              ))}
+            </div>
+          )}
+        </div>
+        <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
+      </div>
 
       <div className="parchment-card p-3 max-h-40 overflow-y-auto text-sm font-quill text-parchment-200 space-y-0.5">
         {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}

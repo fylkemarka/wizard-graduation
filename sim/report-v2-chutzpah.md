@@ -1,10 +1,10 @@
-# Wizard Graduation v2 — Playtest Report
+# Witch Mountain Bridge v2 — Playtest Report
 
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **1 wins / 100** = **1.0%**
-- Losses by acts-cleared: 0=22 · 1=55 · 2=22 · 3=0
+- Losses by acts-cleared: 0=14 · 1=65 · 2=20 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
@@ -12,66 +12,66 @@ N = **100** runs simulated with a greedy v2 AI.
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-hedgehog**: 12 runs · 1 wins (8.3%)
-- **fam-crow**: 6 runs · 0 wins (0.0%)
-- **fam-owl**: 10 runs · 0 wins (0.0%)
-- **fam-cat**: 12 runs · 0 wins (0.0%)
-- **fam-raven**: 9 runs · 0 wins (0.0%)
-- **fam-snake**: 7 runs · 0 wins (0.0%)
+- **fam-rabbit**: 14 runs · 1 wins (7.1%)
+- **fam-beetle**: 9 runs · 0 wins (0.0%)
+- **fam-crow**: 19 runs · 0 wins (0.0%)
 - **fam-mouse**: 10 runs · 0 wins (0.0%)
-- **fam-toad**: 13 runs · 0 wins (0.0%)
-- **fam-rabbit**: 14 runs · 0 wins (0.0%)
-- **fam-beetle**: 7 runs · 0 wins (0.0%)
+- **fam-owl**: 4 runs · 0 wins (0.0%)
+- **fam-toad**: 12 runs · 0 wins (0.0%)
+- **fam-cat**: 8 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 7 runs · 0 wins (0.0%)
+- **fam-raven**: 12 runs · 0 wins (0.0%)
+- **fam-snake**: 5 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 2165
-- Tier 1 (COHERENT): 1876 (86.7%)
-- Tier 2 (RESONANT): 275 (12.7%)
-- Tier 3 (DEVASTATING): 14 (0.6%)
-- Holds (turn ended without cast — tray persists): 1363 (38.6%)
+- Total casts: 2178
+- Tier 1 (COHERENT): 1918 (88.1%)
+- Tier 2 (RESONANT): 255 (11.7%)
+- Tier 3 (DEVASTATING): 5 (0.2%)
+- Holds (turn ended without cast — tray persists): 1412 (39.3%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
-- Total RAGE triggers: 568
+- Total RAGE triggers: 594
 - Runs with at least one RAGE turn: 100 / 100 (100.0%)
-- Bare Knuckles casts: 2 (misfires: 1)
+- Bare Knuckles casts: 9 (misfires: 1)
 
 ## Chutzpah DOUBLING DOWN (v2.25)
-- Total double-down casts: 19
-- Runs with at least one double-down cast: 6 / 100 (6.0%)
-- Corner-token bills (enemy survived → -HP): 1
-- HP lost to corner-tokens: 2
+- Total double-down casts: 24
+- Runs with at least one double-down cast: 9 / 100 (9.0%)
+- Corner-token bills (enemy survived → -HP): 5
+- HP lost to corner-tokens: 10
 - Runs KO'd by corner-tokens: 0
 
 ## Chutzpah STORMING OUT (v2.26)
-- Storm Out casts: 2 (avg energy spent: 2.00)
-- Runs with at least one Storm Out: 2 / 100 (2.0%)
+- Storm Out casts: 1 (avg energy spent: 2.00)
+- Runs with at least one Storm Out: 1 / 100 (1.0%)
 
 ## Chutzpah HIT ME AGAIN (v2.27)
-- Hit Me Again installs: 292 (runs: 59 / 100, 59.0%)
-- Total recoil damage to enemies: 1117
-- Enemies killed by their own recoil: 19
+- Hit Me Again installs: 269 (runs: 59 / 100, 59.0%)
+- Total recoil damage to enemies: 1030
+- Enemies killed by their own recoil: 12
 - Avg recoil per install: 3.8
 
 ## Chutzpah SAYING IT LOUDER (v2.29)
-- "I SAID." casts: 48 (runs: 14 / 100, 14.0%)
+- "I SAID." casts: 57 (runs: 15 / 100, 15.0%)
 - Avg loudCount per cast: 0.65
-- Avg bonus damage per cast: 1.94
-- Total bonus damage from louder: 93
+- Avg bonus damage per cast: 1.95
+- Total bonus damage from louder: 111
 
 ## Chutzpah SMELL WEAKNESS (v2.30)
-- Predator triggers (cast hit while enemy debuffed): 15 (runs: 8 / 100, 8.0%)
-- Total bonus damage from predator: 80
-- Avg bonus per trigger: 5.33
+- Predator triggers (cast hit while enemy debuffed): 37 (runs: 11 / 100, 11.0%)
+- Total bonus damage from predator: 214
+- Avg bonus per trigger: 5.78
 
 ## Chutzpah SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)
-- Capstone casts: 7 (runs: 2 / 100, 2.0%)
-- Total capstone damage: 285
-- Avg damage per capstone cast: 40.71
+- Capstone casts: 7 (runs: 3 / 100, 3.0%)
+- Total capstone damage: 284
+- Avg damage per capstone cast: 40.57
 
 ## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
-- Skill casts: 136 (runs: 46 / 100, 46.0%)
-- Total debuff absorbs: 41
-- Avg absorbs per skill cast: 0.30
+- Skill casts: 155 (runs: 48 / 100, 48.0%)
+- Total debuff absorbs: 38
+- Avg absorbs per skill cast: 0.25
 
 ## Wit LONG THREAD (v2.34)
 - Combats reaching LT ≥ 1: 0 (runs: 0 / 100, 0.0%)
@@ -193,21 +193,20 @@ N = **100** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 3.79
-- Avg damage / run: 535
-- Mean final deck size: 16.3
+- Avg turns / combat: 3.80
+- Avg damage / run: 527
+- Mean final deck size: 16.2
 
 ## Archetype of winning decks
 - low-tier: 1
 
 ## Top killer enemies
-- e3-boss-anvil (The Anvil-Forged): 26
-- e2-boss-tapestry (The Tapestry Walker): 20
-- e1-boss-thornlord (The Thornlord): 20
-- e3-crystal-beetle (Crystal Beetle): 14
-- e3-quartz-sentinel (Quartz Sentinel): 7
-- e3-vein-devourer (Vein Devourer): 4
-- e3-glow-mite (Glow-Mite Swarm): 3
-- e1-thicket (Living Thicket): 2
-- e2-pattern-maker (The Pattern-Maker): 2
-- e3-geode-crab (Geode Crab): 1
+- e3-boss-anvil (The Anvil-Forged): 24
+- e2-boss-tapestry (The Tapestry Walker): 14
+- e3-vein-devourer (Vein Devourer): 12
+- e1-boss-thornlord (The Thornlord): 12
+- e3-crystal-beetle (Crystal Beetle): 12
+- e3-quartz-sentinel (Quartz Sentinel): 11
+- e1-thicket (Living Thicket): 7
+- e3-glow-mite (Glow-Mite Swarm): 6
+- e1-shrine-rat (Shrine Rat Pack): 1
