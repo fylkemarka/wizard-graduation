@@ -3402,6 +3402,9 @@ export default function App() {
   // and applyDamageToPlayer's KO path so the player can learn safely.
   const [tutorialActive, setTutorialActive] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+  // v2.71: which lane the player is practicing — drives lane-specific
+  // step content in TutorialOverlay (signature mechanic explainer).
+  const [tutorialLane, setTutorialLane] = useState('wit');
 
   // Reward / event / rest state
   const [rewardChoices, setRewardChoices] = useState([]);
@@ -3578,7 +3581,28 @@ export default function App() {
     setStage('menu');
   }
 
-  function startTutorial() {
+  // v2.71: per-wizard practice match. Tutorial is now lane-aware —
+  // forced hand pulls 2 intros + 1 subject + 1 target + Defend from
+  // the player's chosen lane so the practice combat actually teaches
+  // THEIR lane's spell shape. Called from the character-select "Practice
+  // match" button with the selected character's lane.
+  const TUTORIAL_HANDS = {
+    wit: {
+      hand: ['wv2-i-frankly', 'wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-shows', 'c-defend'],
+      deck: ['wv2-i-honestly', 'wv2-s-this-argument', 'wv2-t-what-i-expected', 'c-compose'],
+    },
+    chutzpah: {
+      hand: ['cv2-i-look', 'cv2-i-listen-pal', 'cv2-s-this-nonsense', 'cv2-t-stops-now', 'c-defend'],
+      deck: ['cv2-i-hey-now', 'cv2-s-your-attitude', 'cv2-t-is-over', 'c-compose'],
+    },
+    jnsq: {
+      hand: ['jv2-i-speaking-of', 'jv2-i-astrally', 'jv2-s-your-aura', 'jv2-t-wrong-color', 'c-defend'],
+      deck: ['jv2-i-on-a-tuesday', 'jv2-s-the-moon', 'jv2-t-owes-nothing', 'c-compose'],
+    },
+  };
+  function startTutorial(lane = 'wit') {
+    const setup = TUTORIAL_HANDS[lane] || TUTORIAL_HANDS.wit;
+    setSelectedCharacter(CHARACTERS.find(c => c.lane === lane) || null);
     setMaxHp(STARTING_MAX_HP);
     setHp(STARTING_MAX_HP);
     setComposureMax(STARTING_MAX_COMPOSURE);
@@ -3612,11 +3636,9 @@ export default function App() {
     setCurrentNodeId(null);
     setTutorialActive(true);
     setTutorialStep(0);
-    pushLog('🎓 Tutorial: a verbal sparring match with the Bursar.');
-    // Forced opening hand — guarantees a teachable turn 1.
-    const forcedHand = ['w-respect', 'e-persuade', 'c-defend', 'w-frankly', 'e-spark'];
-    const forcedDeck = ['w-erm', 'e-bluster', 'e-bewilder', 'c-defend'];
-    enterFight('tutorial-bursar', { forcedHand, forcedDeck });
+    setTutorialLane(lane);
+    pushLog(`🎓 Practice match — ${lane} wizard vs the Bursar.`);
+    enterFight('tutorial-bursar', { forcedHand: setup.hand, forcedDeck: setup.deck });
   }
 
   // Advance the tutorial step IF the current step is waiting on a
@@ -3630,7 +3652,10 @@ export default function App() {
   function exitTutorial() {
     setTutorialActive(false);
     setTutorialStep(0);
-    setStage('menu');
+    setSelectedCharacter(null);
+    // v2.71: return to character-select (was menu). After practice match
+    // the player needs to actually pick a wizard for the real run.
+    setStage('character-select');
   }
 
   // ---------- RUN LIFECYCLE ----------
@@ -7353,7 +7378,7 @@ export default function App() {
   // Card-grant modal sits on top of whatever stage triggered it — render
   // the modal as an overlay below.
 
-  if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} />;
+  if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} onPractice={startTutorial} />;
   if (stage === 'supply-shop')   return <SupplyShopScreen offers={supplyOffers} onPick={pickSupplyOffer} character={selectedCharacter} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
   if (stage === 'familiar-name') return <FamiliarNameScreen familiar={familiar} onConfirm={confirmFamiliarName} />;
@@ -7505,6 +7530,7 @@ export default function App() {
     />
     {tutorialActive && <TutorialOverlay
       step={tutorialStep}
+      lane={tutorialLane}
       onAdvance={() => setTutorialStep(s => s + 1)}
       onExit={exitTutorial}
     />}
@@ -7542,13 +7568,34 @@ function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave }) {
 // through the verbal combat system. Step-gated content; step 1 and 2 wait
 // on a specific player action (advanced by advanceTutorialStep); other
 // steps advance via the Continue button.
-function TutorialOverlay({ step, onAdvance, onExit }) {
+function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
+  // Lane-flavored examples — same step structure, different signature
+  // mechanic explainer at step 4.
+  const laneName = lane === 'wit' ? 'Wit'
+                 : lane === 'chutzpah' ? 'Chutzpah'
+                 :                       'Je Ne Sais Quoi';
+  const laneStat = lane === 'wit' ? '✨' : lane === 'chutzpah' ? '💪' : '🌀';
+  // Lane-specific signature-mechanic explainer for step 4.
+  const signatureBody = lane === 'wit' ? (<>
+        <p><b>🧵 Long Thread</b> — your signature meter. Every turn you cast a wit Effect AND take no unblocked damage, your thread grows. Cards like <i>"is, perhaps, the natural conclusion."</i> deal <b>+N × thread</b> bonus damage. Defend like your life depends on the build.</p>
+        <p className="mt-2">Other wit-only tools you'll see: <b>📖 Footnote</b> (attach +1 wit to a phrase permanently), <b>🛑 Hold On —</b> (interrupt an enemy attack), <b>🎩 Opening Statement</b> (turn-1 burst damage). Build patiently, finish big.</p>
+      </>)
+    : lane === 'chutzpah' ? (<>
+        <p><b>🔥 Tunnel Vision</b> — your signature meter. Each chutzpah card played adds +1 to the meter. At <b>5+</b>, you enter <b>RAGE</b> next turn: all chutzpah damage +50%. Ride it for the burst, but you can't play Skills during RAGE.</p>
+        <p className="mt-2">Other chutzpah-only tools: <b>🏚 Doubling Down</b> (corner tokens — bill you if the enemy survives), <b>📢 Saying it Louder</b> (demanding words stack damage), <b>⚡ Hit Me Again</b> (Power — enemy attacks bill the enemy back).</p>
+      </>)
+    : (<>
+        <p><b>🌀 Tangent</b> — your signature trick. Skill cards like <i>"That reminds me,"</i> discard a random card from your draw pile and fire a random jnsq from your discard pile. Stack jnsq cards into discard so the chaos pool is rich.</p>
+        <p className="mt-2">Other jnsq-only tools: <b>🤫 Awkward Pause</b> (hold the tray, double next cast), <b>🍺 Drunken Confidence</b> (Power — +50% damage but +2 incoming), <b>🗯 Babbling</b> (Power — cast twice per turn), <b>🌀 Stagger</b> (50% enemy miss chance).</p>
+      </>);
+
   const STEPS = [
     {
-      title: 'Welcome.',
+      title: `Welcome — ${laneName} practice match.`,
       body: (<>
-        <p>The Bursar has offered to spar with you. <i>Verbally</i>, of course — wizards prefer it that way. (He hasn't actually agreed to your terms, but he is here, which counts.)</p>
-        <p className="mt-2">Three things you'll need to know: <b>Words build spells</b>. <b>Effects cast them</b>. <b>Skills</b> (like Defend) do their thing immediately.</p>
+        <p>The Bursar has offered to spar with you. <i>Verbally</i>, of course — wizards prefer it that way. He's pulling his punches; you can't actually lose this match.</p>
+        <p className="mt-2">Three things you'll need to know: <b>Words build spells</b>. <b>Effects (targets) cast them</b>. <b>Skills</b> (like Defend) do their thing immediately.</p>
+        <p className="mt-2">Watch the <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), <b>Poise</b> (🪞), and <b>Energy</b> (⚡) at the bottom of the screen. Energy refills every turn — spend it on cards.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -7556,40 +7603,46 @@ function TutorialOverlay({ step, onAdvance, onExit }) {
     {
       title: 'Step 1 — Play a Word card.',
       body: (<>
-        <p>Look at your hand. The iris-bordered cards (like <b>"With all due respect,"</b>) are <b>Word cards</b>. They don't do anything to the enemy on their own — they add stat points to your <b>Spell Tray</b> (the panel right under the Bursar).</p>
-        <p className="mt-2">Play a Word card. Any will do. Watch the Tray fill up.</p>
+        <p>Look at your hand. <b>Word cards</b> have slot labels like INTRO, SUBJECT, or MODIFIER (top-left). They don't damage the enemy alone — they add stat points to your <b>Spell Tray</b> above the hand.</p>
+        <p className="mt-2">Play a Word card. Any will do. Watch the Tray fill up with the phrase.</p>
       </>),
       cta: '(play any Word card)',
       waitsForAction: true,
     },
     {
-      title: 'Step 2 — Stage an Effect card and CAST.',
+      title: 'Step 2 — Stage a Target and CAST.',
       body: (<>
-        <p>Excellent. Your tray now has a stat point. Words on their own do nothing — they're potential energy.</p>
-        <p className="mt-2">The ember-bordered cards are <b>Effect cards</b>. Click one — it goes to the tray as the <i>sealer</i>. The tray will show a <b>Predicted damage</b> number, then click the big <b>✨ CAST</b> button to actually fire the spell. (You can stage more words first if you want a bigger spell. You can also click a staged card to take it back.)</p>
+        <p>Excellent. Your tray now has a {laneStat} {laneName} stat point.</p>
+        <p className="mt-2"><b>Target cards</b> (slot label: TARGET) seal the spell. Click one — it goes to the tray. The tray shows a <b>Predicted damage</b> number. Click the big <b>✨ CAST</b> button to fire.</p>
+        <p className="mt-2">A complete spell needs <b>intro + subject + target</b>. You can stage up to 2 modifiers for extra effects. Click a staged card to take it back.</p>
       </>),
-      cta: '(stage an Effect, then click CAST)',
+      cta: '(stage a Target, then click CAST)',
       waitsForAction: true,
     },
     {
-      title: 'Step 3 — Resistances, themes, and fizzling.',
+      title: 'Step 3 — Resistances, defense, and fizzling.',
       body: (<>
         <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar). Drain it to 0 and he concedes.</p>
-        <p className="mt-2"><b>Effectiveness badges</b> (next to his Intent) — <b>Chutz / Wit / Jnsq / Phys</b>. Each shows how he reacts: <b>×1</b> baseline · <span className="text-moss-300">×1.5–2 susceptible</span> · <span className="text-ember-300">×0.5 resistant</span> · <span className="text-parchment-400">×0 immune</span>. The Bursar is fair on everything; other enemies aren't.</p>
-        <p className="mt-2"><b>Themes ✦</b> — every Word card carries 1–2 themes (like <i>formal</i>, <i>academic</i>, <i>booming</i>). When you cast an Effect that <i>resonates</i> with themes in your tray, you get <b>flat bonus damage per match</b>. Look at any card — themes are listed under the stats with a ✦. The Spell Tray shows themes accumulating as you build.</p>
-        <p className="mt-2">Last lesson: if you play Word cards but never play an Effect, the spell <b>fizzles</b> at end of turn. The Wit you built up vanishes. Don't let it happen.</p>
+        <p className="mt-2"><b>Effectiveness badges</b> next to the Intent show how the enemy reacts to each stat: <b>×1</b> baseline · <span className="text-moss-300">×1.5–2 susceptible</span> · <span className="text-ember-300">×0.5 resistant</span> · <span className="text-parchment-400">×0 immune</span>. Pick a wizard whose lane the enemy fears.</p>
+        <p className="mt-2"><b>Defend</b> grants Block (🛡) — absorbs physical damage. <b>Compose Yourself</b> grants Poise (🪞) — absorbs composure damage. Block and Poise reset at start of YOUR next turn — spend them this turn or lose them.</p>
+        <p className="mt-2">If you stage words but never play a Target, the spell <b>fizzles</b> at end of turn. The stat points vanish. Don't let that happen.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
     },
     {
-      title: 'Step 4 — Physical, Block, and the rest.',
+      title: `Step 4 — ${laneName}'s signature mechanic.`,
+      body: signatureBody,
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 5 — Finish the match.',
       body: (<>
-        <p>A handful of enemies (Constructs, Crabs, Beetles) are <i>completely</i> verbal-immune. For them you'll want a <b>physical Effect</b> like <b>Spark</b> — it hits their HP instead of Composure, and scales the same way.</p>
-        <p className="mt-2"><b>Defend</b> still works the same as ever: gain Block, which absorbs incoming damage. Block resets to 0 at end of turn — spend it.</p>
-        <p className="mt-2">That's the whole system. Finish the Bursar at your leisure. (You can't lose this match — he's pulling his punches.)</p>
+        <p>You've got the basics. Finish the Bursar at your leisure. Cards drift back into your deck via the discard pile; when your draw pile empties, the discard reshuffles in.</p>
+        <p className="mt-2">After this match, you'll be returned to the wizard select. Choose a wizard for real and walk the path.</p>
       </>),
-      cta: 'Got it — let me finish',
+      cta: 'Got it — finish him',
       waitsForAction: false,
     },
   ];
@@ -7815,7 +7868,7 @@ const WIZARD_TUTORIALS = {
   },
 };
 
-function CharacterSelectScreen({ characters, onSelect }) {
+function CharacterSelectScreen({ characters, onSelect, onPractice }) {
   const [tutorialLane, setTutorialLane] = useState(null);
   return (
     <div className="min-h-screen flex flex-col items-center p-6 gap-6 max-w-6xl mx-auto">
@@ -7844,16 +7897,23 @@ function CharacterSelectScreen({ characters, onSelect }) {
                   <span key={t} className="text-[10px] uppercase tracking-wide bg-ink-600 text-parchment-300 px-2 py-0.5 rounded">{t}</span>
                 ))}
               </div>
-              <div className="flex gap-2 mt-3">
+              <div className="flex gap-2 mt-3 flex-wrap">
                 <button onClick={() => onSelect(c.id)}
                   className="flex-1 btn btn-gold text-sm py-2">
                   Choose
                 </button>
+                {onPractice && (
+                  <button onClick={() => onPractice(c.lane)}
+                    className={`text-sm py-2 px-3 border-2 rounded ${tutBtnClass}`}
+                    title={`Run a practice match as the ${c.lane} wizard — teaches the symbols, spell-tray, and lane signature.`}>
+                    ⚔ Practice
+                  </button>
+                )}
                 {tut && (
                   <button onClick={() => setTutorialLane(c.lane)}
-                    className={`text-sm py-2 px-3 border-2 rounded ${tutBtnClass}`}
-                    title={`Learn the ${c.lane} playstyle.`}>
-                    📖 How to play
+                    className={`text-xs py-2 px-2 border-2 rounded ${tutBtnClass}`}
+                    title={`Read a summary of the ${c.lane} playstyle.`}>
+                    📖 Read
                   </button>
                 )}
               </div>
