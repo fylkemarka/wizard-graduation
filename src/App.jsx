@@ -6531,6 +6531,22 @@ export default function App() {
     // across multiple turns, casting partial spells for tempo or holding
     // for a higher-tier cast next turn.
     // (Tray clears only when a cast fires or combat ends.)
+    //
+    // v2.82: PRE-STAGING COST. The carry-over wasn't free anymore — if you
+    // didn't cast this turn AND any cards remain staged in the tray, each
+    // one costs 1 composure. You're focusing on what you'll say next,
+    // which means you're not paying as much attention to the enemy now.
+    // Applies whether the player skipped on purpose (Awkward Pause) or
+    // just didn't complete the spell. Doesn't apply if you cast — the
+    // tray empties on cast, so there's nothing to carry.
+    if (castsThisTurn === 0) {
+      const staged = (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0);
+      if (staged > 0) {
+        const cost = staged;
+        setComposure(c => Math.max(0, c - cost));
+        pushLog(`🧠 Pre-staging: -${cost} composure (focused on next turn, not on them).`);
+      }
+    }
 
     // 1. End-of-turn power triggers.
     const killedByPowers = applyEndOfTurnPowerTriggers();
@@ -9540,6 +9556,47 @@ function RewardScreen({ choices, onPick }) {
                     ({Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')})
                   </span>
                 )}
+                {card.effect.perLaneTag && (
+                  <div className="text-[11px] text-iris-700 font-bold uppercase mt-0.5">
+                    ✦ +{card.effect.perLaneTag.bonus} per {card.effect.perLaneTag.tags.join(' / ')} tag
+                  </div>
+                )}
+              </div>
+            )}
+            {/* v2.82: gesture rendering — was invisible on the reward screen,
+                so "Pontificate at length" looked blank. Mirrors the hand's
+                gesture summary. */}
+            {card.slot === 'gesture' && card.gestureEffect && (() => {
+              const ge = card.gestureEffect;
+              const laneLabel = (card.lane || 'wit').toUpperCase();
+              const dmgType = ge.damageType === 'physical' ? 'phys' : 'comp';
+              return (
+                <div className="text-sm font-mono text-ink-700 leading-tight">
+                  <div className="font-bold">
+                    {ge.icon || '✊'} {ge.damage} {dmgType}
+                    {ge.trayMultiplier ? ` + ${laneLabel}×${ge.trayMultiplier}` : ''}
+                  </div>
+                  {ge.rider && Object.keys(ge.rider).length > 0 && (
+                    <div className="text-xs text-ember-700 font-bold uppercase">
+                      {Object.entries(ge.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')}
+                    </div>
+                  )}
+                  {ge.stripEnemyBlock ? <div className="text-xs text-iris-700">🛇 strip {ge.stripEnemyBlock} block</div> : null}
+                  {ge.draw ? <div className="text-xs text-moss-700">📥 draw {ge.draw}</div> : null}
+                  <div className="text-[10px] italic text-ink-500">
+                    {ge.exhaust === false ? 'Reusable · bypasses spell tray' : 'Exhausts · bypasses spell tray'}
+                  </div>
+                </div>
+              );
+            })()}
+            {/* v2.82: annotation rendering — same gap, annotations were blank
+                on the reward screen except for duration/desc. */}
+            {card.slot === 'annotation' && card.annotationEffect && (
+              <div className="text-sm font-mono text-ink-700 leading-tight">
+                <div className="font-bold">📝 {card.duration || 3} turns</div>
+                <div className="text-xs">
+                  {Object.entries(card.annotationEffect).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                </div>
               </div>
             )}
             {card.tags && card.tags.length > 0 && (
