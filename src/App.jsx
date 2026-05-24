@@ -6443,7 +6443,16 @@ export default function App() {
   //      hand-set ended up reading undefined, blanking the screen.
   function endTurn() {
     if (stage !== 'combat') return;
-    logEvent(TE.TURN_END, { enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length, trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0) });
+    logEvent(TE.TURN_END, {
+      enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length,
+      trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0),
+      // v2.84: surface multiplier state so vulnerability/sap stories can
+      // be diagnosed from telemetry. playerDmgMult > 1 = enemy Vulnerable
+      // to our spells; enemyDmgMult > 1 = we're Vulnerable to their
+      // attacks. Same fields for the post-drift snapshot.
+      playerDmgMult: Number(playerDmgMult?.toFixed?.(2) ?? 1),
+      enemyDmgMult:  Number(enemyDmgMult?.toFixed?.(2) ?? 1),
+    });
 
     // v2.24: RAGE turn ending — reset meter + undo the +0.5 potency bump.
     // We check this BEFORE the multiplier-drift block so the restore-to-1
