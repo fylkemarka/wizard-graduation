@@ -4756,7 +4756,7 @@ export default function App() {
       else                        applyDamageToEnemyComposure(dmg);
       // Apply riders (weak/vulnerable on the enemy).
       if (ge.rider?.weak)       { adjustEnemyDmg(-0.25 * ge.rider.weak);  pushLog(`💢 enemy −${25*ge.rider.weak}% atk`); }
-      if (ge.rider?.vulnerable) { adjustPlayerDmg(+0.25 * ge.rider.vulnerable); pushLog(`💫 +${25*ge.rider.vulnerable}% potency`); }
+      if (ge.rider?.vulnerable) { adjustPlayerDmg(+0.25 * ge.rider.vulnerable); pushLog(`🩸 enemy Vulnerable +${ge.rider.vulnerable} (your spells +${25*ge.rider.vulnerable}%)`); }
       if (ge.rider?.block)      { setBlock(b => b + ge.rider.block); pushLog(`🛡 +${ge.rider.block}`); }
       if (ge.draw) drawCards(ge.draw);
       if (ge.stripEnemyBlock)   { setEnemyBlock(b => Math.max(0, b - ge.stripEnemyBlock)); pushLog(`🛇 Stripped ${ge.stripEnemyBlock} enemy block.`); }
@@ -5801,7 +5801,7 @@ export default function App() {
     }
     if (fx.vulnerable) {
       adjustPlayerDmg(+0.25 * fx.vulnerable);
-      logBits.push(`💫 +${25*fx.vulnerable}% potency`);
+      logBits.push(`🩸 enemy Vulnerable +${fx.vulnerable} (your spells +${25*fx.vulnerable}%)`);
     }
     // Direct multiplier ops (Sap / Amplify / Dispel and any new modifier card).
     if (fx.enemyDmgMod) {
@@ -8584,28 +8584,38 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         {(playerDmgMult !== 1.0 || enemyDmgMult !== 1.0) && (
           <div className="mt-2 p-2 rounded bg-ink-700/60 border border-ink-500 flex gap-3 flex-wrap items-center">
             <span className="text-[10px] uppercase tracking-widest text-parchment-300">In effect</span>
+            {/* v2.83: label disambiguation. Same word ("Vulnerable") was
+                used for both player-side and enemy-side states, which was
+                confusing. Now each badge spells out WHO the effect is on
+                and WHAT changed. Color = good-for-player (iris) vs
+                bad-for-player (ember).
+                  playerDmgMult > 1 → enemy is taking more from us (good)
+                  playerDmgMult < 1 → our spells weak (bad)
+                  enemyDmgMult > 1 → we're vulnerable to their attacks (bad)
+                  enemyDmgMult < 1 → enemy attacks sapped (good)
+            */}
             {playerDmgMult > 1.0 && (
               <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400"
-                title={`Your spells deal ×${playerDmgMult.toFixed(2)} damage. Drifts toward 1.00 by 0.10/turn. From Amplify, Vulnerable on enemy, etc.`}>
-                💫 Spell potency +{Math.round((playerDmgMult - 1) * 100)}%
+                title={`Enemy is taking ×${playerDmgMult.toFixed(2)} damage from your spells. From Amplify on you, Vulnerable rider on enemy, predator hits, etc. Drifts toward 1.00 by 0.10/turn.`}>
+                🩸 Enemy Vulnerable +{Math.round((playerDmgMult - 1) * 100)}%
               </span>
             )}
             {playerDmgMult < 1.0 && (
               <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500"
-                title={`Weak — your spells deal ×${playerDmgMult.toFixed(2)} damage. Drifts toward 1.00 by 0.10/turn.`}>
-                ⛧ Weak {Math.round((playerDmgMult - 1) * 100)}%
+                title={`Your spells deal ×${playerDmgMult.toFixed(2)} damage. Weak applied to you by enemy. Drifts toward 1.00 by 0.10/turn.`}>
+                ⛧ Your spells {Math.round((playerDmgMult - 1) * 100)}% (Weak on you)
               </span>
             )}
             {enemyDmgMult > 1.0 && (
               <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500"
-                title={`Vulnerable — incoming damage ×${enemyDmgMult.toFixed(2)}. Drifts toward 1.00 by 0.10/turn.`}>
-                🩸 Vulnerable +{Math.round((enemyDmgMult - 1) * 100)}%
+                title={`You're vulnerable — enemy attacks hit you for ×${enemyDmgMult.toFixed(2)}. Applied by enemy intent. Drifts toward 1.00 by 0.10/turn.`}>
+                🩸 You're Vulnerable +{Math.round((enemyDmgMult - 1) * 100)}% (incoming)
               </span>
             )}
             {enemyDmgMult < 1.0 && (
               <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400"
-                title={`Sap — enemy attack damage ×${enemyDmgMult.toFixed(2)}. Drifts toward 1.00 by 0.10/turn. From Sap, Weak applied to enemy, etc.`}>
-                🛡 Enemy atk {Math.round((enemyDmgMult - 1) * 100)}%
+                title={`Enemy attacks deal ×${enemyDmgMult.toFixed(2)} damage. From Sap card, Weak rider on enemy, etc. Drifts toward 1.00 by 0.10/turn.`}>
+                ⛧ Enemy Weak {Math.round((enemyDmgMult - 1) * 100)}% (their attacks)
               </span>
             )}
           </div>
