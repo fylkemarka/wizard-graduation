@@ -1007,7 +1007,61 @@ function runCombat(state, enemyId, telemetry) {
     // never grows past ~1. This heuristic gates the TARGET staging only;
     // intro/subject still stage (their applyStageEffects fire for free
     // defense/draw) and persist into next turn for a stacked cast.
+    // v2.67: HUMAN_PLAY_PROFILE — skip-cast generalized across all lanes.
+    // Real-play telemetry shows 2.47 casts/combat (humans skip-cast on
+    // chip turns). Wit-only logic below stays — wit has special
+    // long-thread/patience reasons to skip. The general gate ("don't
+    // cast for trivial damage") applies to all lanes when predicted
+    // damage is sub-chip and the player isn't pressured. See
+    // sim/HUMAN_PLAY_PROFILE.md.
     let skipCastForThread = false;
+    let skipChipCast = false;
+    if (castsThisTurn < 1) {
+      // Predict the best-case cast THIS turn from available cards.
+      const introCard = state.hand.find(c => c.slot === 'intro' && c.lane === state.lane)
+        || state.hand.find(c => c.slot === 'intro');
+      const subjectCard = state.hand.find(c => c.slot === 'subject' && c.lane === state.lane)
+        || state.hand.find(c => c.slot === 'subject');
+      const targetCard = state.hand.find(
+        c => c.slot === 'target' && c.lane === state.lane && (c.cost || 0) <= state.energy);
+      if (introCard && subjectCard && targetCard) {
+        const preCtx = {
+          discardSize: state.discard.length,
+          deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+          missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+          stakeAmount: 0,
+          loudCount: state.loudCount || 0,
+          playerDmgMult: state.playerDmgMult || 1.0,
+          enemyDmgMult: state.enemyDmgMult || 1.0,
+          longThread: state.longThread || 0,
+          combatTurn: state._combatTurn || 1,
+          openingExtended: !!state.openingExtended,
+          insultVulnerabilities: enemy?.insultVulnerabilities || [],
+        };
+        const preview = computeSpellDamage(introCard, subjectCard, targetCard, [], preCtx);
+        const dmgType = targetCard.effect?.damageType || 'composure';
+        const eff = enemy.effectiveness || {};
+        const enemyMult = (dmgType === 'physical')
+          ? (eff.physical ?? 1.0)
+          : (eff[targetCard.effect?.scaleBy || targetCard.lane || state.lane] ?? 1.0);
+        const predicted = preview.damage * enemyMult * (state.playerDmgMult || 1);
+        const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
+        const wouldKill = predicted >= remaining;
+        // Chip threshold: < 25% of remaining pool AND player safe.
+        // "Safe" = HP > 40% AND won't be killed by the next enemy swing.
+        const isChip = predicted < remaining * 0.25;
+        const hpRatio = state.maxHp > 0 ? state.hp / state.maxHp : 1;
+        const expectedSwing = enemy.atk;
+        const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+        const wouldSurvive = state.hp - unblockedExpected > 5;
+        // Don't skip on the LAST act's boss (commit to the kill).
+        const isFinalActBoss = enemy.tier === 'boss' && (state.actIdx || 0) >= 2;
+        if (isChip && !wouldKill && hpRatio > 0.4 && wouldSurvive && !isFinalActBoss) {
+          skipChipCast = true;
+          telemetry.chipCastSkips = (telemetry.chipCastSkips || 0) + 1;
+        }
+      }
+    }
     if (state.lane === 'wit' && (state.longThread || 0) >= 2 && castsThisTurn < 1) {
       const hasThreadTarget = state.hand.some(
         c => c.slot === 'target' && c.lane === 'wit' && (c.effect?.threadScaling || 0) > 0);
@@ -1345,7 +1399,7 @@ function runCombat(state, enemyId, telemetry) {
           continue;
         }
       }
-      if (!tray.target && !skipCastForThread) {
+      if (!tray.target && !skipCastForThread && !skipChipCast) {
         // v2.24: prefer Bare Knuckles (requiresRage) when RAGE is active.
         // Otherwise block it from staging entirely (mirrors App.jsx gate).
         // v2.25: also gates doubleDown targets — only pick if the cast
@@ -3125,6 +3179,9 @@ function simRun(forcedLane = null) {
     naturalConclusionCasts: 0,
     // v2.43: thread-preservation skip-cast counter.
     threadPreservationSkips: 0,
+    // v2.67: general chip-cast skip counter (HUMAN_PLAY_PROFILE — humans
+    // skip-cast on chip turns; sim AI now mirrors at ~25% damage threshold).
+    chipCastSkips: 0,
     // v2.35: FOOTNOTE telemetry. footnotesApplied = number of times the
     // Hewn-Greaves footnote skill resolved (incremented in the sim AI's
     // play branch). footnoteCastsWithBonus = casts where the +footnote
@@ -3403,6 +3460,8 @@ function aggregate(results) {
     threadRuns: results.filter(r => (r.combatsWithThread || 0) > 0).length,
     // v2.43: thread-preservation skip-cast metric.
     threadPreservationSkips: results.reduce((s, r) => s + (r.threadPreservationSkips || 0), 0),
+    // v2.67: general chip-cast skip metric.
+    chipCastSkips: results.reduce((s, r) => s + (r.chipCastSkips || 0), 0),
     // v2.35: FOOTNOTE metrics.
     footnotesApplied: results.reduce((s, r) => s + (r.footnotesApplied || 0), 0),
     footnoteCastsWithBonus: results.reduce((s, r) => s + (r.footnoteCastsWithBonus || 0), 0),
@@ -3608,6 +3667,7 @@ function buildReport(agg) {
   lines.push(`- Total bonus damage from thread scaling: ${agg.threadScalingBonusTotal}`);
   lines.push(`- "natural conclusion." target casts: ${agg.naturalConclusionCasts}`);
   lines.push(`- v2.43 thread-preservation skip-casts: ${agg.threadPreservationSkips || 0}`);
+  lines.push(`- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): ${agg.chipCastSkips || 0}`);
   lines.push('');
   lines.push(`## Wit FOOTNOTE (v2.35)`);
   lines.push(`- Footnotes applied: ${agg.footnotesApplied} (runs: ${agg.footnoteRuns} / ${agg.N}, ${pct(agg.footnoteRuns / agg.N)})`);
