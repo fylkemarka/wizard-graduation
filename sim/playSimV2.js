@@ -1469,6 +1469,7 @@ function runCombat(state, enemyId, telemetry) {
         openingExtended: !!state.openingExtended, // v2.39
         insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
         pauseDoubled: !!state.pauseHeldActive, // v2.48
+        isSecondCast, // v2.50: doubleOnSecondCast rider reads this flag
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
@@ -1555,6 +1556,16 @@ function runCombat(state, enemyId, telemetry) {
         dmg = Math.round(dmg * 0.6);
         telemetry.babblingSecondCasts = (telemetry.babblingSecondCasts || 0) + 1;
         telemetry.babblingSecondCastDamage = (telemetry.babblingSecondCastDamage || 0) + dmg;
+        // v2.50: getting-away-from-me — count the cast AND the doubled fire.
+        if (tray.target?.id === 'jv2-t-getting-away-from-me') {
+          telemetry.gettingAwayCasts = (telemetry.gettingAwayCasts || 0) + 1;
+          if (tray.target.effect?.doubleOnSecondCast) {
+            telemetry.gettingAwayDoubled = (telemetry.gettingAwayDoubled || 0) + 1;
+          }
+        }
+      } else if (tray.target?.id === 'jv2-t-getting-away-from-me') {
+        // v2.50: cast as 1st cast — no double, but still track the cast count.
+        telemetry.gettingAwayCasts = (telemetry.gettingAwayCasts || 0) + 1;
       }
       // Strip enemy block from modifier
       if (result.sideEffects.stripBlock) {
@@ -1797,15 +1808,40 @@ function runCombat(state, enemyId, telemetry) {
           // Pick cheapest target (no fancy heuristic — the 0.6× scalar
           // already gates the gambit; AI shouldn't burn high-cost targets
           // on 2nd casts where they only deliver 60% value).
+          // v2.50: PREFER the rare "getting away from me" target as cast #2
+          // when its mustPlayAnotherJnsq follow-up gate can be satisfied — i.e.
+          // there's another jnsq-lane card in the hand (excluding the intro,
+          // subject, and the target itself) that the player could legally
+          // play to clear the wont-shut-up flag. Doubling on cast #2 net 1.2×
+          // a first-cast baseline — meaningfully ahead of a baseline target
+          // taking the 0.6× scalar uncompensated.
           let tgtIdx = -1;
           let tgtCost = Infinity;
+          let gettingAwayIdx = -1;
           for (let i = 0; i < state.hand.length; i++) {
             if (i === introIdx || i === subjIdx) continue;
             const c = state.hand[i];
-            if (c.slot === 'target' && c.lane === 'jnsq' && (c.cost || 0) <= tgtEnergy && (c.cost || 0) < tgtCost) {
+            if (c.slot !== 'target' || c.lane !== 'jnsq') continue;
+            if ((c.cost || 0) > tgtEnergy) continue;
+            if (c.id === 'jv2-t-getting-away-from-me') {
+              // Gate: hand must contain a follow-up jnsq card (not intro/subj
+              // /target slots already committed) so the mustPlayAnotherJnsq
+              // flag can be cleared this turn. Energy-affordable follow-up
+              // (any jnsq card with cost ≤ remaining energy AFTER target).
+              const afterTgt = tgtEnergy - (c.cost || 0);
+              const hasFollowUp = state.hand.some((other, j) =>
+                j !== introIdx && j !== subjIdx && j !== i
+                && other.lane === 'jnsq'
+                && (other.cost || 0) <= afterTgt
+              );
+              if (hasFollowUp) gettingAwayIdx = i;
+              continue; // never pick rare on the cheapest-cost branch
+            }
+            if ((c.cost || 0) < tgtCost) {
               tgtIdx = i; tgtCost = c.cost || 0;
             }
           }
+          if (gettingAwayIdx >= 0) tgtIdx = gettingAwayIdx;
           if (tgtIdx >= 0) {
             const target = state.hand[tgtIdx];
             // Commit: pay all three costs, place into tray, splice out of hand
@@ -1833,6 +1869,7 @@ function runCombat(state, enemyId, telemetry) {
               openingExtended: !!state.openingExtended,
               insultVulnerabilities: enemy?.insultVulnerabilities || [],
               pauseDoubled: false, // already cashed in on cast 1 if armed
+              isSecondCast: true, // v2.50: doubleOnSecondCast rider fires here
             };
             const result2 = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx2);
             let dmg2 = result2.damage;
@@ -1852,6 +1889,14 @@ function runCombat(state, enemyId, telemetry) {
             dmg2 = Math.round(dmg2 * 0.6);
             telemetry.babblingSecondCasts = (telemetry.babblingSecondCasts || 0) + 1;
             telemetry.babblingSecondCastDamage = (telemetry.babblingSecondCastDamage || 0) + dmg2;
+            // v2.50: getting-away-from-me — restage path always fires this as
+            // the 2nd cast, so when the rare lands here it's always doubled.
+            if (tray.target?.id === 'jv2-t-getting-away-from-me') {
+              telemetry.gettingAwayCasts = (telemetry.gettingAwayCasts || 0) + 1;
+              if (tray.target.effect?.doubleOnSecondCast) {
+                telemetry.gettingAwayDoubled = (telemetry.gettingAwayDoubled || 0) + 1;
+              }
+            }
             // Apply through enemy block.
             if (result2.sideEffects.stripBlock) {
               enemy.block = Math.max(0, enemy.block - result2.sideEffects.stripBlock);
@@ -2755,6 +2800,27 @@ function awardReward(state) {
       }
     }
   }
+  // v2.50: GETTING-AWAY-FROM-ME rare target bias — jnsq lane only. The card
+  // is a high-base rare with mustPlayAnotherJnsq + doubleOnSecondCast. Without
+  // Babbling installed, it's a respectable T3 finisher with a follow-up
+  // commitment. WITH Babbling, cast as #2 it's the highest-EV target in the
+  // lane (net 1.2× a baseline first cast, since 2× × 0.6 > 1.0×). Bias up
+  // when the player has already drafted Babbling so the pairing reliably
+  // shows up in jnsq runs. Cap at one copy (mustPlayAnotherJnsq makes more
+  // than one redundant in a single combat — only one fires per follow-up).
+  if (state.lane === 'jnsq') {
+    const ownsGettingAway = allCards.some(c => c.id === 'jv2-t-getting-away-from-me');
+    if (!ownsGettingAway) {
+      const ownsBabbling = allCards.some(c => c.id === 'jv2-p-wait-and-another-thing' || c.installPower?.id === 'babbling');
+      const rate = ownsBabbling ? 0.30 : 0.10;
+      const gk = pool.find(c => c.id === 'jv2-t-getting-away-from-me');
+      if (gk && rnd() < rate) {
+        state.discard.push({ ...gk, uid: uid() });
+        state.rewardsTaken.push(gk.id);
+        return;
+      }
+    }
+  }
   const commons = pool.filter(c => c.rarity === 'common');
   const uncommons = pool.filter(c => c.rarity === 'uncommon');
   const rares = pool.filter(c => c.rarity === 'rare');
@@ -2960,6 +3026,11 @@ function simRun(forcedLane = null) {
     babblingInstalls: 0,
     babblingSecondCasts: 0,
     babblingSecondCastDamage: 0,
+    // v2.50: gettingAwayCasts = total casts of the rare "getting away from me"
+    // target (any cast slot); gettingAwayDoubled = subset that fired with
+    // doubleOnSecondCast active (cast as the 2nd cast under Babbling).
+    gettingAwayCasts: 0,
+    gettingAwayDoubled: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -3217,6 +3288,10 @@ function aggregate(results) {
     babblingSecondCasts: results.reduce((s, r) => s + (r.babblingSecondCasts || 0), 0),
     babblingSecondCastDamage: results.reduce((s, r) => s + (r.babblingSecondCastDamage || 0), 0),
     babblingRuns: results.filter(r => (r.babblingInstalls || 0) > 0).length,
+    // v2.50: getting-away-from-me aggregate.
+    gettingAwayCasts: results.reduce((s, r) => s + (r.gettingAwayCasts || 0), 0),
+    gettingAwayDoubled: results.reduce((s, r) => s + (r.gettingAwayDoubled || 0), 0),
+    gettingAwayRuns: results.filter(r => (r.gettingAwayCasts || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -3398,6 +3473,10 @@ function buildReport(agg) {
   lines.push(`- Total damage delivered by 2nd casts: ${agg.babblingSecondCastDamage}`);
   lines.push(`- Avg damage / 2nd cast: ${agg.babblingSecondCasts > 0 ? (agg.babblingSecondCastDamage / agg.babblingSecondCasts).toFixed(1) : '0.0'}`);
   lines.push(`- 2nd-cast rate per install: ${agg.babblingInstalls > 0 ? (agg.babblingSecondCasts / agg.babblingInstalls).toFixed(2) : '0.00'}`);
+  lines.push('');
+  lines.push(`## Jnsq GETTING-AWAY-FROM-ME (v2.50)`);
+  lines.push(`- Rare casts: ${agg.gettingAwayCasts} (runs: ${agg.gettingAwayRuns} / ${agg.N}, ${pct(agg.gettingAwayRuns / agg.N)})`);
+  lines.push(`- Doubled fires (cast #2 under Babbling): ${agg.gettingAwayDoubled} (${agg.gettingAwayCasts > 0 ? pct(agg.gettingAwayDoubled / agg.gettingAwayCasts) : '0%'} of casts)`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);

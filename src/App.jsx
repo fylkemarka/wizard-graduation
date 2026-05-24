@@ -4883,6 +4883,12 @@ export default function App() {
       }
     }
 
+    // v2.50: BABBLING isSecondCast — computed BEFORE the ctx so the
+    // doubleOnSecondCast rider can fire inside computeSpellDamage. Mirrors the
+    // check at the damage-multiplier site below (line ~5040): castsThisTurn
+    // hasn't been incremented for THIS cast yet, so 1 means "this is the 2nd".
+    const ctxBabblingInstalled = powers.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing');
+    const ctxIsSecondCast = ctxBabblingInstalled && castsThisTurn === 1;
     const ctx = {
       discardSize: discard.length,
       deckSize: deck.length + hand.length + discard.length + exiled.length,
@@ -4905,6 +4911,8 @@ export default function App() {
       // queued the doubling last turn), every staged-card stat contribution
       // doubles for THIS cast. Flag is cleared post-cast (single-use).
       pauseDoubled: pauseHeldActive,
+      // v2.50: BABBLING 2nd-cast flag — doubleOnSecondCast targets fire here.
+      isSecondCast: ctxIsSecondCast,
     };
     const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);

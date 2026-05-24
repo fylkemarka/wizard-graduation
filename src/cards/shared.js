@@ -179,6 +179,14 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
 
   // Handle target-side tier-3 conditions.
   if (eff.tier3Double && tier === 3) damage *= 2;
+
+  // v2.50: doubleOnSecondCast — paired with Babbling (jv2-p-wait-and-another-
+  // thing). When this target fires as cast #2 of the turn (caller passes
+  // context.isSecondCast = true), damage doubles HERE — before the App/sim
+  // apply their 0.6× babbling scalar. Net vs first cast: 2 × 0.6 = 1.2×.
+  // Only the "getting away from me" rare carries this flag today; gated by
+  // `mustPlayAnotherJnsq` so the pairing requires deck commitment.
+  if (eff.doubleOnSecondCast && context.isSecondCast) damage *= 2;
   if (eff.requiresTier3 && tier < 3) {
     // Fail-condition: damage cut. (v2.4: dropped exile-on-fail — double
     // punishment turned rare-target gambles into trap cards. Half-damage

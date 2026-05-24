@@ -404,6 +404,44 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
+// v2.50: GETTING-AWAY-FROM-ME cycle. Three content-only cards designed to
+// thread the lane's six live primitives through more turns. The cards exercise
+// existing dispatch keys (discardOnPlay, hp+vulnerable, scaleBy/mustPlayAnotherJnsq)
+// PLUS one new rider — `doubleOnSecondCast` — that pairs the rare target with
+// the Babbling Power. When the target fires as cast #2 of the turn (babbling
+// installed, castsThisTurn === 1 before this cast resolves), damage doubles
+// BEFORE the existing 0.6× scalar lands. Net: 2× × 0.6 = 1.2× compared to a
+// first-cast baseline, but only when the player has committed to babbling AND
+// has a follow-up jnsq card in hand to satisfy mustPlayAnotherJnsq.
+const V250_CONTENT_CARDS = [
+  // Cost-0 common intro — feeds Tangent's discard pool via discardOnPlay,
+  // already a live dispatch. Pairs naturally with "That reminds me," skill.
+  { id: 'jv2-i-and-then-get-this', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'and then — get this —', tags: ['chaotic', 'absurd'],
+    stats: { jnsq: 2 },
+    effects: { discardOnPlay: true },
+    desc: 'Stages as intro. Discards 1 random hand card to deepen the Tangent pool.',
+    flavor: 'A bridge between two sentences that, structurally, share nothing.' },
+  // Uncommon subject — heal + apply Vulnerable. Mini-Apology stitched into a
+  // staged word. Uses existing hp + vulnerable effect handlers (no new keys).
+  { id: 'jv2-s-appropriate-apologies', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'with appropriate apologies to no one in particular,', tags: ['absurd', 'hedge'],
+    stats: { jnsq: 3 },
+    effects: { hp: 1, vulnerable: 1 },
+    desc: 'Stages as subject. Heal 1 HP and apply +1 Vulnerable to the enemy.',
+    flavor: 'No one in particular being the only audience that consistently shows up.' },
+  // Rare target — chains with Babbling. mustPlayAnotherJnsq forces a jnsq
+  // follow-up; doubleOnSecondCast doubles damage when fired as cast #2.
+  // Pre-0.6× doubling means net 1.2× a first cast — meaningful payoff for
+  // committing two cards (the rare + the follow-up) and one Power slot.
+  { id: 'jv2-t-getting-away-from-me', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is, even by my own standards, getting away from me.', tags: ['chaotic', 'absurd', 'mystical'],
+    effect: { scaleBy: 'jnsq', base: 9, multiplier: 4, damageType: 'composure',
+              mustPlayAnotherJnsq: true, doubleOnSecondCast: true },
+    desc: 'Cast: 9 + Jnsq comp ×4. Must follow with another jnsq card or take 3 HP. If cast as the 2nd cast of a Babbling turn, damage doubles BEFORE the 0.6× scalar.',
+    flavor: 'A standard you set in jnsq for the benefit of those keeping records.' },
+];
+
 // v2.49: BABBLING — jnsq's "wait, one more thing" Power. While installed:
 // you can cast a SECOND spell per turn at 60% damage. The first cast empties
 // the tray as usual, so the player has to re-stage a complete intro+subject+
@@ -523,9 +561,13 @@ const TANGENT_CARDS = [
     flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS];
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS, ...V250_CONTENT_CARDS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1], BABBLING_CARDS[1]], gesture: GESTURES,
+  intro: [...INTROS, APOLOGY_CARDS[1], V250_CONTENT_CARDS[0]],
+  subject: [...SUBJECTS, V250_CONTENT_CARDS[1]],
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS, V250_CONTENT_CARDS[2]],
+  modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1], BABBLING_CARDS[1]],
+  gesture: GESTURES,
   power: [DRUNKEN_CONFIDENCE_CARDS[0], BABBLING_CARDS[0]],
   skill: [DRUNKEN_CONFIDENCE_CARDS[1], AWKWARD_PAUSE_CARDS[0]],
 };
