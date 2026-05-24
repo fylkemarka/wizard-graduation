@@ -3648,7 +3648,15 @@ export default function App() {
     // categories so each option feels meaningfully distinct.
     const lanePool = LANE_POOL[c.lane] || [];
     // Card: a strong lane uncommon — picking it commits to lane identity.
-    const uncommons = lanePool.filter(card => card.rarity === 'uncommon');
+    // v2.61: apply isInterestingReward filter — never offer a vanilla
+    // 2-stat uncommon as the starting card. The offer should bring a
+    // real mechanic or scaling upgrade.
+    const starterIds = buildStarterDeckForLane(c.lane);
+    const uncommons = lanePool.filter(card =>
+      card.rarity === 'uncommon' &&
+      !starterIds.includes(card.id) &&
+      isInterestingReward(card)
+    );
     const cardOffer = uncommons.length > 0
       ? uncommons[Math.floor(Math.random() * uncommons.length)]
       : null;
