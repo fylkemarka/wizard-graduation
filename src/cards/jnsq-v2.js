@@ -404,6 +404,29 @@ const UNIQUE_TARGETS = [
     flavor: 'It is, simultaneously, six things. Most of which are weather.' },
 ];
 
+// v2.49: BABBLING — jnsq's "wait, one more thing" Power. While installed:
+// you can cast a SECOND spell per turn at 60% damage. The first cast empties
+// the tray as usual, so the player has to re-stage a complete intro+subject+
+// target chain for the 2nd cast. The mechanic captures jnsq's identity that
+// conversations, in this lane, refuse to conclude. Read path: powers.some(
+// p => p.installPower?.id === 'babbling'). Cap raises from 1 to 2 casts/turn
+// while installed; the 2nd cast's final damage multiplies by 0.6 post-
+// effectiveness/mults (mirrors drunken's post-mult scaling shape).
+const BABBLING_CARDS = [
+  { id: 'jv2-p-wait-and-another-thing', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
+    name: '"Wait — and another thing,"', phrase: '"Wait — and another thing,"',
+    tags: ['chaotic', 'absurd'],
+    installPower: { id: 'babbling' },
+    desc: 'Power. While installed: you can cast a SECOND spell per turn (re-stage required). The 2nd cast deals 60% damage.',
+    flavor: 'Conversation, in jnsq, being technically infinite.' },
+  { id: 'jv2-m-and-so-and-so', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
+    modifierKind: 'pre', phrase: 'and so, and so, and so,', tags: ['chaotic', 'mystical'],
+    stats: { jnsq: 1 },
+    modifierEffect: { addsTag: 'chaotic' },
+    desc: 'Stages as a modifier. Just a basic stat-pump card for filling a 2nd tray.',
+    flavor: 'A modifier that, like the speaker, refuses to conclude.' },
+];
+
 // v2.48: AWKWARD PAUSE — jnsq tray-hold mechanic (migrated from wit per
 // creator critique; gambler's instinct, not careful-arguer's). Cost-0 Skill
 // that arms `pauseHeld` for the rest of the turn. At end of turn, pauseHeld
@@ -500,9 +523,9 @@ const TANGENT_CARDS = [
     flavor: 'Speaking, in this context, having recently spoken of nothing in particular.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS];
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS];
 export const JNSQ_V2_BY_SLOT = {
-  intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1]], gesture: GESTURES,
-  power: [DRUNKEN_CONFIDENCE_CARDS[0]],
+  intro: [...INTROS, APOLOGY_CARDS[1]], subject: SUBJECTS, target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS], modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1], BABBLING_CARDS[1]], gesture: GESTURES,
+  power: [DRUNKEN_CONFIDENCE_CARDS[0], BABBLING_CARDS[0]],
   skill: [DRUNKEN_CONFIDENCE_CARDS[1], AWKWARD_PAUSE_CARDS[0]],
 };

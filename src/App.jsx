@@ -3130,7 +3130,11 @@ export default function App() {
   // tempo so elites and bosses can actually pressure across multiple
   // rounds instead of getting one-shot.
   const [castsThisTurn, setCastsThisTurn] = useState(0);
-  const MAX_CASTS_PER_TURN = 1;
+  // v2.49: BABBLING lifts the per-turn cap from 1 to 2. Derived inline so
+  // the read always reflects the current powers array.
+  const MAX_CASTS_PER_TURN_BASE = 1;
+  const MAX_CASTS_PER_TURN = MAX_CASTS_PER_TURN_BASE
+    + (powers.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing') ? 1 : 0);
   // v2.13: per-combat cast counter (resets at combat enter).
   // Used by Thesis-expanded annotation's bonusSpellDamagePerCast scaling.
   const [castsThisCombat, setCastsThisCombat] = useState(0);
@@ -3312,6 +3316,15 @@ export default function App() {
   const [pauseHeld, setPauseHeld] = useState(false);
   const [pauseHeldActive, setPauseHeldActive] = useState(false);
   const [awkwardPauseTelemetry, setAwkwardPauseTelemetry] = useState({ pauses: 0, doubledCasts: 0, doubledExtraDamage: 0 });
+
+  // v2.49: BABBLING — jnsq Power that lifts the per-turn cast cap from 1 to
+  // 2. Read path: powers.some(p => p.installPower?.id === 'babbling'). The
+  // 2nd cast empties the tray as usual, so re-staging is required. Final
+  // damage on the 2nd cast multiplies by 0.6 (applied post-effectiveness +
+  // mults — same shape as drunken's +50%). Telemetry: installs = power
+  // plays, secondCasts = casts that fired with castsThisTurn === 1, second-
+  // CastDamage = total damage delivered by those 2nd casts.
+  const [babblingTelemetry, setBabblingTelemetry] = useState({ installs: 0, secondCasts: 0, secondCastDamage: 0 });
 
   // Tutorial — when active, a scripted Bursar fight teaches the verbal
   // combat system step-by-step. Step advances on specific player actions
@@ -4491,6 +4504,13 @@ export default function App() {
         setDrunkenTelemetry(t => ({ ...t, installs: t.installs + 1 }));
         logEvent('jnsq.drunken.install', { enemyId: enemy?.id, enemyTier: enemy?.tier });
       }
+      // v2.49: BABBLING — telemetry-only install count. The cap-lift + 0.6×
+      // 2nd-cast scaling read `powers.some(p => p.installPower?.id ===
+      // 'babbling')` in castStagedSpell and in the MAX_CASTS prop derivation.
+      if (card.installPower?.id === 'babbling' || card.id === 'jv2-p-wait-and-another-thing') {
+        setBabblingTelemetry(t => ({ ...t, installs: t.installs + 1 }));
+        logEvent('jnsq.babbling.install', { enemyId: enemy?.id, enemyTier: enemy?.tier });
+      }
       pushLog(`📿 ${card.name} — power active.`);
       return;
     }
@@ -5012,6 +5032,13 @@ export default function App() {
     // Reads the powers array directly (no fast-flag — install/uninstall
     // happen often enough that the per-cast walk is fine).
     const drunkenInstalled = powers.some(p => p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink');
+    // v2.49: BABBLING — 2nd cast of the turn scales to 60% damage. Read
+    // castsThisTurn directly; at this point the setter for THIS cast has been
+    // queued but not flushed, so castsThisTurn === 1 means "this is the 2nd
+    // cast." Applied AFTER drunken's +50% so the trade-offs compose cleanly:
+    // 1.5 * 0.6 = 0.9× on a 2nd cast under both powers.
+    const babblingInstalled = powers.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing');
+    const isSecondCast = babblingInstalled && castsThisTurn === 1;
     if (drunkenInstalled) {
       const preDrunk = dmg;
       dmg = Math.round(dmg * 1.5);
@@ -5101,6 +5128,20 @@ export default function App() {
     if (sideEffects.stripBlock) {
       setEnemyBlock(b => Math.max(0, b - sideEffects.stripBlock));
       pushLog(`🛇 Stripped ${sideEffects.stripBlock} enemy block.`);
+    }
+    // v2.49: BABBLING — final 0.6× scalar on 2nd cast of the turn. Applied
+    // last so it scales the ENTIRE composed damage (drunken, chaos, patience,
+    // riders, opening, etc.). Telemetry captures the damage AFTER scaling
+    // — that's the actual delivered number, what matters for tuning.
+    if (isSecondCast) {
+      const preBabble = dmg;
+      dmg = Math.round(dmg * 0.6);
+      const delta = preBabble - dmg;
+      pushLog(`🗯 BABBLING (2nd cast) → ${dmg} dmg (×0.6, -${delta})`);
+      setBabblingTelemetry(t => ({ ...t, secondCasts: t.secondCasts + 1, secondCastDamage: t.secondCastDamage + dmg }));
+      logEvent('jnsq.babbling.secondCast', {
+        damage: dmg, reduction: delta, enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
     }
     // Apply damage.
     let after = 0;
@@ -8461,10 +8502,13 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
             const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
             const isPatience = p.installPower?.id === 'patience' || p.id === 'wv2-p-patience';
             const isDrunken  = p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink';
+            const isBabbling = p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing';
             return (
               <span key={p.uid || i}
                 title={isDrunken
                   ? 'Drunken Confidence — all your spell casts deal +50% damage, BUT every enemy attack adds +2 raw damage before block. Play "sober second thought," to remove.'
+                  : isBabbling
+                  ? 'Babbling — you can cast a SECOND spell per turn. The 2nd cast deals 60% damage. Re-stage required (the 1st cast empties the tray as usual).'
                   : `${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
                 className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
                 {p.name}
@@ -8481,6 +8525,12 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 {isDrunken && (
                   <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
                     🍺×1.5 / +2
+                  </span>
+                )}
+                {isBabbling && (
+                  <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
+                    🗯 2× / 60%
+                    {castsThisTurn === 1 && <span className="ml-1 text-[10px]">(2nd cast available)</span>}
                   </span>
                 )}
               </span>

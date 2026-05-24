@@ -514,6 +514,9 @@ function runCombat(state, enemyId, telemetry) {
   // +50% scaling on every cast AND +2 raw damage on every enemy attack.
   // Per-combat reset; explicit removal via "sober second thought," skill.
   state.drunkenInstalled = false;
+  // v2.49: BABBLING — jnsq Power that lifts the per-turn cast cap from 1
+  // to 2 (2nd cast scales 0.6×). Per-combat reset.
+  state.babblingInstalled = false;
   // v2.33: Stubborn Block REMOVED — no install flag.
   // v2.33: NOT LISTENING refactored to a one-shot SKILL — no install flag.
   // notListeningCharges tracks pending absorbs (set by playing the
@@ -738,6 +741,27 @@ function runCombat(state, enemyId, telemetry) {
           state.energy -= c.cost || 0;
           state.drunkenInstalled = true;
           telemetry.drunkenInstalls = (telemetry.drunkenInstalls || 0) + 1;
+          state.discard.push(c);
+          state.hand.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // v2.49: BABBLING install pass — jnsq lane only. When the power is in
+    // hand AND not yet installed AND spare energy is available (≥2 after the
+    // 1-cost install pays), install. Cost 1. The 2nd-cast cap is dead value
+    // until the player has the depth to actually stage twice, but a jnsq
+    // committed run usually has the deck for it — install eagerly mirrors
+    // drunken's heuristic.
+    if (state.lane === 'jnsq' && !state.babblingInstalled) {
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if ((c.id === 'jv2-p-wait-and-another-thing' || c.installPower?.id === 'babbling')
+            && (c.cost || 0) <= state.energy && state.energy >= 2) {
+          state.energy -= c.cost || 0;
+          state.babblingInstalled = true;
+          telemetry.babblingInstalls = (telemetry.babblingInstalls || 0) + 1;
           state.discard.push(c);
           state.hand.splice(i, 1);
           break;
@@ -1368,7 +1392,11 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // Cast if all three slots filled. v2.9: hard cap 1 cast per turn.
-    if (tray.intro && tray.subject && tray.target && castsThisTurn < 1) {
+    // v2.49: BABBLING lifts the cap to 2 (the 2nd cast applies a 0.6×
+    // scalar to the final damage; see the babbling block below).
+    const maxCastsThisTurn = state.babblingInstalled ? 2 : 1;
+    if (tray.intro && tray.subject && tray.target && castsThisTurn < maxCastsThisTurn) {
+      const isSecondCast = castsThisTurn === 1; // v2.49: babbling 2nd cast flag
       castsThisTurn++;
       // v2.11: chutzpah ALL IN heuristic. Stake to close the kill when
       // affordable; never stake at low HP or for overkill.
@@ -1520,6 +1548,14 @@ function runCombat(state, enemyId, telemetry) {
         state.patienceStacks = 0;
       }
 
+      // v2.49: BABBLING — 2nd cast scales final damage by 0.6×. Applied
+      // last so it composes after all bonuses (drunken, patience, riders,
+      // chaos, opening). Telemetry captures the post-scale damage value.
+      if (isSecondCast) {
+        dmg = Math.round(dmg * 0.6);
+        telemetry.babblingSecondCasts = (telemetry.babblingSecondCasts || 0) + 1;
+        telemetry.babblingSecondCastDamage = (telemetry.babblingSecondCastDamage || 0) + dmg;
+      }
       // Strip enemy block from modifier
       if (result.sideEffects.stripBlock) {
         enemy.block = Math.max(0, enemy.block - result.sideEffects.stripBlock);
@@ -1738,6 +1774,114 @@ function runCombat(state, enemyId, telemetry) {
       // No cast this turn — partial stage remains in the tray. Count it
       // as a "hold" rather than a fizzle (no card discard penalty).
       telemetry.holds++;
+    }
+
+    // v2.49: BABBLING 2nd-cast restage. If babbling is installed AND the
+    // first cast fired AND we still have energy + a remaining intro+subject
+    // +target chain in hand, run a compact staging pass and fire a 2nd cast.
+    // Cheap-and-restricted: only stages the three required slots (no
+    // modifier optimization, no defensive plays — those already fired in the
+    // first pass). The 0.6× scalar lands in the existing cast block via
+    // `isSecondCast = castsThisTurn === 1`.
+    if (state.babblingInstalled && castsThisTurn === 1 && state.energy >= 2) {
+      // Minimal stage: pick cheapest intro, subject, target that fit our
+      // remaining energy budget. Skip if we can't afford the chain.
+      const introIdx = state.hand.findIndex(c => c.slot === 'intro' && c.lane === 'jnsq' && (c.cost || 0) <= state.energy);
+      if (introIdx >= 0) {
+        const intro = state.hand[introIdx];
+        const subjEnergy = state.energy - (intro.cost || 0);
+        const subjIdx = state.hand.findIndex((c, i) => i !== introIdx && c.slot === 'subject' && c.lane === 'jnsq' && (c.cost || 0) <= subjEnergy);
+        if (subjIdx >= 0) {
+          const subject = state.hand[subjIdx];
+          const tgtEnergy = subjEnergy - (subject.cost || 0);
+          // Pick cheapest target (no fancy heuristic — the 0.6× scalar
+          // already gates the gambit; AI shouldn't burn high-cost targets
+          // on 2nd casts where they only deliver 60% value).
+          let tgtIdx = -1;
+          let tgtCost = Infinity;
+          for (let i = 0; i < state.hand.length; i++) {
+            if (i === introIdx || i === subjIdx) continue;
+            const c = state.hand[i];
+            if (c.slot === 'target' && c.lane === 'jnsq' && (c.cost || 0) <= tgtEnergy && (c.cost || 0) < tgtCost) {
+              tgtIdx = i; tgtCost = c.cost || 0;
+            }
+          }
+          if (tgtIdx >= 0) {
+            const target = state.hand[tgtIdx];
+            // Commit: pay all three costs, place into tray, splice out of hand
+            // in descending-index order so splice doesn't shift later indices.
+            const indices = [introIdx, subjIdx, tgtIdx].sort((a, b) => b - a);
+            state.energy -= (intro.cost || 0) + (subject.cost || 0) + (target.cost || 0);
+            for (const i of indices) state.hand.splice(i, 1);
+            tray = { intro, subject, target, modifiers: [] };
+            // Direct cast — reuse the same damage pipeline by setting a flag
+            // for the cast block. The simplest path is to set a re-entry
+            // marker and let a small inline cast resolve the damage. Since
+            // the cast block above is huge, we inline a compact version:
+            const isSecondCast = true;
+            castsThisTurn++;
+            const simCtx2 = {
+              discardSize: state.discard.length,
+              deckSize: state.deck.length + state.hand.length + state.discard.length + state.exiled.length,
+              missingHpFrac: state.maxHp > 0 ? (state.maxHp - state.hp) / state.maxHp : 0,
+              stakeAmount: 0,
+              loudCount: state.loudCount || 0,
+              playerDmgMult: state.playerDmgMult || 1.0,
+              enemyDmgMult: state.enemyDmgMult || 1.0,
+              longThread: state.longThread || 0,
+              combatTurn: state._combatTurn || 1,
+              openingExtended: !!state.openingExtended,
+              insultVulnerabilities: enemy?.insultVulnerabilities || [],
+              pauseDoubled: false, // already cashed in on cast 1 if armed
+            };
+            const result2 = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx2);
+            let dmg2 = result2.damage;
+            const stat2 = tray.target.effect?.scaleBy || tray.target.lane || 'jnsq';
+            const dmgType2 = tray.target.effect?.damageType || 'composure';
+            const mult2 = (dmgType2 === 'physical')
+              ? (enemy.effectiveness?.physical ?? 1.0)
+              : (enemy.effectiveness?.[stat2] ?? 1.0);
+            dmg2 = Math.round(dmg2 * mult2 * (state.playerDmgMult || 1.0));
+            if (state.drunkenInstalled) {
+              const preDrunk2 = dmg2;
+              dmg2 = Math.round(dmg2 * 1.5);
+              telemetry.drunkenCastBonus = (telemetry.drunkenCastBonus || 0) + (dmg2 - preDrunk2);
+              telemetry.drunkenCasts = (telemetry.drunkenCasts || 0) + 1;
+            }
+            // Babbling 0.6× scalar
+            dmg2 = Math.round(dmg2 * 0.6);
+            telemetry.babblingSecondCasts = (telemetry.babblingSecondCasts || 0) + 1;
+            telemetry.babblingSecondCastDamage = (telemetry.babblingSecondCastDamage || 0) + dmg2;
+            // Apply through enemy block.
+            if (result2.sideEffects.stripBlock) {
+              enemy.block = Math.max(0, enemy.block - result2.sideEffects.stripBlock);
+            }
+            let remaining2 = dmg2;
+            if (enemy.block > 0) {
+              const absorbed2 = Math.min(enemy.block, remaining2);
+              enemy.block -= absorbed2; remaining2 -= absorbed2;
+            }
+            if (dmgType2 === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - remaining2);
+            else                         enemy.currentComp = Math.max(0, enemy.currentComp - remaining2);
+            // Riders.
+            if (result2.riders.weak)       state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * result2.riders.weak);
+            if (result2.riders.vulnerable) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * result2.riders.vulnerable);
+            if (result2.riders.block)      state.block += result2.riders.block;
+            if (result2.sideEffects.drawCount) drawCards(state, result2.sideEffects.drawCount);
+            // Discharge: intro/subject/modifiers → discard; target → discard.
+            state.discard.push(tray.intro, tray.subject, ...tray.modifiers);
+            state.discard.push(tray.target);
+            // Telemetry parity with first cast.
+            telemetry.castsAttempted++;
+            telemetry.totalDamageDealt += dmg2;
+            if (result2.tier === 3) telemetry.tier3Casts++;
+            if (result2.tier === 2) telemetry.tier2Casts++;
+            if (result2.tier === 1) telemetry.tier1Casts++;
+            tray = { intro: null, subject: null, target: null, modifiers: [] };
+            cast = true;
+          }
+        }
+      }
     }
 
     // v2.36: ACTUALLY— post-cast skill pass. Wit-lane only. Plays AFTER the
@@ -2808,6 +2952,14 @@ function simRun(forcedLane = null) {
     awkwardPauses: 0,
     doubledCasts: 0,
     doubledExtraDamage: 0,
+    // v2.49: BABBLING telemetry. installs = power plays (jnsq); secondCasts
+    // = casts that fired on castsThisTurn === 1 (the cap-lifted 2nd cast);
+    // secondCastDamage = total post-scale damage delivered by those 2nd
+    // casts. Net value question: secondCastDamage worth the 1-cost install +
+    // the 0.6× scaling.
+    babblingInstalls: 0,
+    babblingSecondCasts: 0,
+    babblingSecondCastDamage: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -3060,6 +3212,11 @@ function aggregate(results) {
     doubledCasts: results.reduce((s, r) => s + (r.doubledCasts || 0), 0),
     doubledExtraDamage: results.reduce((s, r) => s + (r.doubledExtraDamage || 0), 0),
     awkwardPauseRuns: results.filter(r => (r.awkwardPauses || 0) > 0).length,
+    // v2.49: BABBLING aggregate.
+    babblingInstalls: results.reduce((s, r) => s + (r.babblingInstalls || 0), 0),
+    babblingSecondCasts: results.reduce((s, r) => s + (r.babblingSecondCasts || 0), 0),
+    babblingSecondCastDamage: results.reduce((s, r) => s + (r.babblingSecondCastDamage || 0), 0),
+    babblingRuns: results.filter(r => (r.babblingInstalls || 0) > 0).length,
     avgTurnsPerCombat: results.length ? mean(results.map(r => (r.combatTurns || 0) / Math.max(1, r.combatCount || 1))) : 0,
     avgDamageDealt: mean(results.map(r => r.totalDamageDealt || 0)),
     finalDeckSizeMean: mean(results.map(r => r.finalDeckSize || 0)),
@@ -3234,6 +3391,13 @@ function buildReport(agg) {
   lines.push(`- Total extra damage from doubling: ${agg.doubledExtraDamage}`);
   lines.push(`- Avg extra damage / doubled cast: ${agg.doubledCasts > 0 ? (agg.doubledExtraDamage / agg.doubledCasts).toFixed(1) : '0.0'}`);
   lines.push(`- Cash-in ratio (doubled casts / pauses): ${agg.awkwardPauses > 0 ? pct(agg.doubledCasts / agg.awkwardPauses) : '0%'}`);
+  lines.push('');
+  lines.push(`## Jnsq BABBLING (v2.49)`);
+  lines.push(`- Installs (per-combat): ${agg.babblingInstalls} (runs: ${agg.babblingRuns} / ${agg.N}, ${pct(agg.babblingRuns / agg.N)})`);
+  lines.push(`- 2nd casts fired: ${agg.babblingSecondCasts}`);
+  lines.push(`- Total damage delivered by 2nd casts: ${agg.babblingSecondCastDamage}`);
+  lines.push(`- Avg damage / 2nd cast: ${agg.babblingSecondCasts > 0 ? (agg.babblingSecondCastDamage / agg.babblingSecondCasts).toFixed(1) : '0.0'}`);
+  lines.push(`- 2nd-cast rate per install: ${agg.babblingInstalls > 0 ? (agg.babblingSecondCasts / agg.babblingInstalls).toFixed(2) : '0.00'}`);
   lines.push('');
   lines.push(`## Combat pacing`);
   lines.push(`- Avg turns / combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
