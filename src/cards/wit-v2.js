@@ -226,8 +226,8 @@ const TARGETS = [
   // wit-defender identity a payoff loop from the opening hand.
   { id: 'wv2-t-thats-not-it', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
     phrase: "that's not it.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure', threadScaling: 2 },
-    desc: 'Cast: 4 + Wit×3 + Long Thread × 2 composure.',
+    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure', threadScaling: 1 },
+    desc: 'Cast: 4 + Wit×3 + Long Thread × 1 composure.',
     flavor: 'Said gently. Heard sharply.' },
   // ---- Common (5) — cost 1 ----
   // v2.15: common target bases bumped +1 (sim showed +2 overshot wit
@@ -667,8 +667,8 @@ const STARTER_CARDS = [
   { id: 'wv2-k-page-mark', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'skill',
     name: 'Page-Mark', phrase: 'Page-Mark',
     tags: ['academic', 'observational'],
-    effects: { block: 3, draw: 1, exhaust: true },
-    desc: 'Gain 3 Block. Draw 1. Exhaust.',
+    effects: { block: 3, draw: 1 },
+    desc: 'Gain 3 Block. Draw 1.',
     flavor: 'A small triangle. The page knows what it is now.' },
   // Throat-Clear — small gesture, chip + draw. Bypasses tray.
   { id: 'wv2-g-throat-clear', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
