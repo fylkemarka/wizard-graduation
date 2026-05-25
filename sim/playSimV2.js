@@ -1841,12 +1841,42 @@ function runCombat(state, enemyId, telemetry) {
       // Apply stake HP cost up-front
       if (stake > 0) state.hp = Math.max(1, state.hp - stake);
       // v2.12: jnsq CHAOS DICE — roll if jnsq AND (not too low HP) OR if
-      // staged cards force it. Greedy: jnsq always rolls when affordable.
+      // staged cards force it.
+      // v3.0 jnsq tuning: dropped opt-in rate from always-when-HP≥15
+      // (~100%) to a context-aware ~70% per snapshot 5 ("Real jnsq
+      // players gamble aggressively. Sim's ~100% is too eager."). Heuristic:
+      //   - Always roll if a forceRoll modifier is staged (no choice)
+      //   - Always roll if cast wouldn't kill anyway (chip-cast: variance
+      //     is upside; backfire is acceptable cost)
+      //   - Skip roll if cast would kill clean (no need to gamble)
+      //   - At low HP (< 25%), skip roll — backfire is too dangerous
+      //   - Else 70% opt-in (matches human snapshot 5)
       let chaosRoll = null;
       let chaosOutcome = null;
       const forceRoll = (tray.modifiers || []).some(m => m?.modifierEffect?.forceRoll) ||
                         tray.target.effect?.alwaysRolls === true;
-      const willRoll = forceRoll || (state.lane === 'jnsq' && state.hp >= 15);
+      let willRoll = forceRoll;
+      if (!willRoll && state.lane === 'jnsq') {
+        // Predict pre-roll damage to decide whether to gamble.
+        const preCtx = {
+          stakeAmount: stake,
+          loudCount: state.loudCount || 0,
+          playerDmgMult: state.playerDmgMult || 1.0,
+          enemyDmgMult: state.enemyDmgMult || 1.0,
+          longThread: state.longThread || 0,
+          combatTurn: state._combatTurn || 1,
+          openingExtended: !!state.openingExtended,
+          insultVulnerabilities: enemy?.insultVulnerabilities || [],
+        };
+        const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
+        const targetDmgType = tray.target.effect?.damageType || 'composure';
+        const remaining = targetDmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
+        const wouldKill = preview.damage >= remaining;
+        const hpFrac = state.maxHp > 0 ? state.hp / state.maxHp : 1;
+        if (wouldKill) willRoll = false;            // don't gamble a kill
+        else if (hpFrac < 0.25) willRoll = false;   // too risky at low HP
+        else willRoll = rnd() < 0.70;               // 70% otherwise (human-aligned)
+      }
       // Gate by requiresPriorRoll
       const requiredRoll = tray.target.effect?.requiresPriorRoll || 0;
       if (requiredRoll > 0 && !state.combatRolls.includes(requiredRoll)) {
