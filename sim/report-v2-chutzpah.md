@@ -3,74 +3,74 @@
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **14 wins / 100** = **14.0%**
-- Losses by acts-cleared: 0=0 · 1=13 · 2=73 · 3=0
+- **15 wins / 100** = **15.0%**
+- Losses by acts-cleared: 0=0 · 1=17 · 2=68 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
-- **chutzpah**: 100 runs · 14 wins (14.0%)
+- **chutzpah**: 100 runs · 15 wins (15.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-rabbit**: 6 runs · 2 wins (33.3%)
-- **fam-beetle**: 11 runs · 3 wins (27.3%)
-- **fam-cat**: 12 runs · 3 wins (25.0%)
-- **fam-toad**: 9 runs · 2 wins (22.2%)
-- **fam-crow**: 11 runs · 2 wins (18.2%)
-- **fam-snake**: 17 runs · 2 wins (11.8%)
-- **fam-owl**: 9 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 13 runs · 0 wins (0.0%)
-- **fam-raven**: 8 runs · 0 wins (0.0%)
-- **fam-mouse**: 4 runs · 0 wins (0.0%)
+- **fam-crow**: 6 runs · 2 wins (33.3%)
+- **fam-cat**: 9 runs · 2 wins (22.2%)
+- **fam-rabbit**: 9 runs · 2 wins (22.2%)
+- **fam-beetle**: 9 runs · 2 wins (22.2%)
+- **fam-toad**: 10 runs · 2 wins (20.0%)
+- **fam-mouse**: 16 runs · 3 wins (18.8%)
+- **fam-snake**: 9 runs · 1 wins (11.1%)
+- **fam-hedgehog**: 14 runs · 1 wins (7.1%)
+- **fam-raven**: 7 runs · 0 wins (0.0%)
+- **fam-owl**: 11 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 2006
-- Tier 1 (COHERENT): 1414 (70.5%)
-- Tier 2 (RESONANT): 539 (26.9%)
-- Tier 3 (DEVASTATING): 53 (2.6%)
-- Holds (turn ended without cast — tray persists): 3155 (61.1%)
+- Total casts: 1959
+- Tier 1 (COHERENT): 1326 (67.7%)
+- Tier 2 (RESONANT): 587 (30.0%)
+- Tier 3 (DEVASTATING): 46 (2.3%)
+- Holds (turn ended without cast — tray persists): 3246 (62.4%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
-- Total RAGE triggers: 396
-- Runs with at least one RAGE turn: 100 / 100 (100.0%)
-- Bare Knuckles casts: 5 (misfires: 0)
+- Total RAGE triggers: 391
+- Runs with at least one RAGE turn: 99 / 100 (99.0%)
+- Bare Knuckles casts: 4 (misfires: 1)
 
 ## Chutzpah DOUBLING DOWN (v2.25)
-- Total double-down casts: 63
-- Runs with at least one double-down cast: 27 / 100 (27.0%)
-- Corner-token bills (enemy survived → -HP): 5
-- HP lost to corner-tokens: 10
+- Total double-down casts: 34
+- Runs with at least one double-down cast: 13 / 100 (13.0%)
+- Corner-token bills (enemy survived → -HP): 2
+- HP lost to corner-tokens: 4
 - Runs KO'd by corner-tokens: 0
 
 ## Chutzpah STORMING OUT (v2.26)
-- Storm Out casts: 7 (avg energy spent: 1.71)
-- Runs with at least one Storm Out: 5 / 100 (5.0%)
+- Storm Out casts: 3 (avg energy spent: 2.00)
+- Runs with at least one Storm Out: 3 / 100 (3.0%)
 
 ## Chutzpah HIT ME AGAIN (v2.27)
-- Hit Me Again installs: 698 (runs: 85 / 100, 85.0%)
-- Total recoil damage to enemies: 3398
-- Enemies killed by their own recoil: 51
-- Avg recoil per install: 4.9
+- Hit Me Again installs: 658 (runs: 87 / 100, 87.0%)
+- Total recoil damage to enemies: 4048
+- Enemies killed by their own recoil: 73
+- Avg recoil per install: 6.2
 
 ## Chutzpah SAYING IT LOUDER (v2.29)
-- "I SAID." casts: 63 (runs: 23 / 100, 23.0%)
-- Avg loudCount per cast: 0.30
-- Avg bonus damage per cast: 0.90
-- Total bonus damage from louder: 57
+- "I SAID." casts: 86 (runs: 25 / 100, 25.0%)
+- Avg loudCount per cast: 0.36
+- Avg bonus damage per cast: 1.08
+- Total bonus damage from louder: 93
 
 ## Chutzpah SMELL WEAKNESS (v2.30)
-- Predator triggers (cast hit while enemy debuffed): 7 (runs: 6 / 100, 6.0%)
-- Total bonus damage from predator: 32
-- Avg bonus per trigger: 4.57
+- Predator triggers (cast hit while enemy debuffed): 11 (runs: 8 / 100, 8.0%)
+- Total bonus damage from predator: 64
+- Avg bonus per trigger: 5.82
 
 ## Chutzpah SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)
-- Capstone casts: 19 (runs: 10 / 100, 10.0%)
-- Total capstone damage: 997
-- Avg damage per capstone cast: 52.47
+- Capstone casts: 13 (runs: 5 / 100, 5.0%)
+- Total capstone damage: 515
+- Avg damage per capstone cast: 39.62
 
 ## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
-- Skill casts: 329 (runs: 77 / 100, 77.0%)
-- Total debuff absorbs: 95
+- Skill casts: 383 (runs: 80 / 100, 80.0%)
+- Total debuff absorbs: 112
 - Avg absorbs per skill cast: 0.29
 
 ## Wit LONG THREAD (v2.34)
@@ -82,15 +82,15 @@ N = **100** runs simulated with a greedy v2 AI.
 - Total bonus damage from thread scaling: 0
 - "natural conclusion." target casts: 0
 - v2.43 thread-preservation skip-casts: 0
-- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 21
+- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 24
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 222 granted, 219 played
-- v2.93 Find the Seam (bypass-effectiveness) fires: 11
-- v2.93 Precedent (echo-last-damage) fires: 9
-- v2.93 Insult-to-Injury (×N mult) fires: 11
-- v2.93 Doubletake (cast resolves twice) fires: 9
-- v2.93 Skip-next-attack fires: 16
-- v2.93 Mirror Reasoning (reflect debuff) fires: 6
+- v2.92 Passing Thoughts: 221 granted, 222 played
+- v2.93 Find the Seam (bypass-effectiveness) fires: 13
+- v2.93 Precedent (echo-last-damage) fires: 8
+- v2.93 Insult-to-Injury (×N mult) fires: 13
+- v2.93 Doubletake (cast resolves twice) fires: 12
+- v2.93 Skip-next-attack fires: 9
+- v2.93 Mirror Reasoning (reflect debuff) fires: 5
 - v2.93 Bracing (draw-3-on-HP-loss) fires: 2
 
 ## Wit FOOTNOTE (v2.35)
@@ -203,19 +203,21 @@ N = **100** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 3.69
-- Avg damage / run: 516
-- Mean final deck size: 20.3
+- Avg turns / combat: 3.77
+- Avg damage / run: 498
+- Mean final deck size: 20.1
 
 ## Archetype of winning decks
-- mid-t2t3: 14
+- mid-t2t3: 10
+- honed-t3: 3
+- low-tier: 2
 
 ## Top killer enemies
-- e1-boss-thornlord (The Thornlord): 51
-- e1-thicket (Living Thicket): 16
-- e3-boss-anvil (The Anvil-Forged): 11
-- e1-shrine-rat (Shrine Rat Pack): 3
-- e1-tutor (Stern Tutor): 2
-- e3-vein-devourer (Vein Devourer): 1
-- e3-crystal-beetle (Crystal Beetle): 1
-- e1-acolyte (Lost Acolyte): 1
+- e1-boss-thornlord (The Thornlord): 52
+- e3-boss-anvil (The Anvil-Forged): 13
+- e1-thicket (Living Thicket): 11
+- e1-tutor (Stern Tutor): 3
+- e3-quartz-sentinel (Quartz Sentinel): 2
+- e3-vein-devourer (Vein Devourer): 2
+- e1-imp (Pact Imp): 1
+- e1-shrine-rat (Shrine Rat Pack): 1

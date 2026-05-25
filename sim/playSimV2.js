@@ -1347,6 +1347,19 @@ function runCombat(state, enemyId, telemetry) {
 
     // AI: try to fill intro, subject, target. Then play modifier if good.
     // Multi-pass since after staging we might still have energy/options.
+    // v3.0 cycle 5 EXPERIMENT (REVERTED): tried a two-pass planner that
+    // reserved cast-cost energy before defensive plays. Per the human-
+    // divergence agent's call ("expected to lift casts/turn from 0.38 →
+    // 0.7"). Empirically NET NEGATIVE: wit 2%→0%, chutzpah 14%→7%,
+    // jnsq 0%→4%. Lifting cast cadence at the cost of defense made the
+    // sim die to HP attrition before its spells landed. The agent's
+    // theory ("cast cadence is the limiter") was wrong for THIS sim AI
+    // — defensive plays are doing more work than cast-tempo here. Kept
+    // `budgetForOther()` as a thin wrapper that simply returns
+    // state.energy (no reservation) — keeps the call sites stable in
+    // case a future cycle wants to try a softer reservation (e.g. only
+    // partial cost, or only when HP > 60%).
+    const budgetForOther = () => state.energy;
     let passCount = 0;
     while (passCount++ < 8) {
       let progressed = false;
@@ -1378,7 +1391,8 @@ function runCombat(state, enemyId, telemetry) {
           if (c.type !== 'skill') continue;
           const fx = c.effects || {};
           if (!fx.block) continue;
-          if ((c.cost || 0) > state.energy) continue;
+          // v3.0 cycle 5: respect cast reserve (two-pass planner).
+          if ((c.cost || 0) > budgetForOther()) continue;
           // HP-trade safety: don't play if it would KO us.
           const hpCost = fx.loseHp || 0;
           if (hpCost > 0 && state.hp <= hpCost + 2) continue;
@@ -1404,7 +1418,8 @@ function runCombat(state, enemyId, telemetry) {
       for (let i = 0; i < state.hand.length; i++) {
         const c = state.hand[i];
         if (!PASSING_THOUGHT_IDS.has(c.id)) continue;
-        if ((c.cost || 0) > state.energy) continue;
+        // v3.0 cycle 5: respect cast reserve.
+        if ((c.cost || 0) > budgetForOther()) continue;
         const fx = c.effects || {};
         // Cheap context gates so the AI doesn't always burn cards:
         const hpFrac = state.hp / Math.max(1, state.maxHp);
@@ -1495,7 +1510,8 @@ function runCombat(state, enemyId, telemetry) {
           if (c.type !== 'skill') continue;
           const fx = c.effects || {};
           if (!fx.poise) continue;
-          if ((c.cost || 0) > state.energy) continue;
+          // v3.0 cycle 5: respect cast reserve.
+          if ((c.cost || 0) > budgetForOther()) continue;
           const hpCost = fx.loseHp || 0;
           if (hpCost > 0 && state.hp <= hpCost + 2) continue;
           state.energy -= c.cost || 0;
@@ -1520,7 +1536,8 @@ function runCombat(state, enemyId, telemetry) {
           const fx = c.effects || {};
           if ((fx.draw || 0) < 2) continue;
           if (fx.block || fx.poise) continue; // handled by defensive passes above
-          if ((c.cost || 0) > state.energy) continue;
+          // v3.0 cycle 5: respect cast reserve.
+          if ((c.cost || 0) > budgetForOther()) continue;
           const hpCost = fx.loseHp || 0;
           if (hpCost > 0 && state.hp <= hpCost + 4) continue;
           state.energy -= c.cost || 0;
@@ -1548,7 +1565,9 @@ function runCombat(state, enemyId, telemetry) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
           if (c.slot !== 'gesture') continue;
-          if ((c.cost || 0) > state.energy) continue;
+          // v3.0 cycle 5: gestures can't pay if a cast is reserved (unless
+          // we already determined we can't form a spell — then no reserve).
+          if ((c.cost || 0) > budgetForOther()) continue;
           const ge = c.gestureEffect || {};
           const dmg = ge.damage || 0;
           if (dmg <= 0) continue;
