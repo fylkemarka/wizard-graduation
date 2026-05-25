@@ -6818,15 +6818,20 @@ export default function App() {
     setEnemyBlock(newBlock);
     setEnemyComposure(newComposure);
     showDamageFloater(damage, 'composure');
-    // v2.97: Silk Wraith phase shift — at ≤50% comp, becomes wit-immune
+    // v2.97: Silk Wraith phase shift — at ≤50% comp, becomes wit-resistant
     // and regenerates comp each turn. Hard-coded by enemy.id for the
     // act-1 prototype; if more phase-shifters land, generalize via a
     // phaseTrigger field on the enemy template.
+    // v2.99.1 (post-playtest tuning): wit-immunity (0) → wit-resistance
+    // (0.5) and regen 3 → 1. Wit-scholar with starter deck couldn't beat
+    // the post-shift Wraith — cast damage zeroed out while it healed 3/turn.
+    // Resistance still distinguishes the mechanic for wit (slower grind)
+    // without being a hard wall.
     if (enemy?.id === 'e2-silk-wraith' && !enemy.phaseShifted
         && newComposure > 0 && newComposure <= enemy.composureMax * 0.5) {
       setEnemy(e => e ? { ...e, phaseShifted: true,
-        effectiveness: { ...e.effectiveness, wit: 0 } } : e);
-      pushLog('🕸 Silk Wraith thins — words slide off (wit-immune, regenerating).');
+        effectiveness: { ...e.effectiveness, wit: 0.5 } } : e);
+      pushLog('🕸 Silk Wraith thins — words slide through it (wit-resistant, regenerating).');
     }
     if (newComposure <= 0) setTimeout(() => onEnemyDefeated(), 200);
     return newComposure;
@@ -7312,7 +7317,9 @@ export default function App() {
     // v2.97: Silk Wraith phase-shift regen — fires at the start of every
     // enemy turn once phase-shifted. Hard-coded by id for the prototype.
     if (e.id === 'e2-silk-wraith' && e.phaseShifted) {
-      const regen = 3;
+      // v2.99.1: regen 3 → 1. The wit-resist post-shift already slows the
+      // player down; +3/turn on top made the fight a stalemate.
+      const regen = 1;
       const targetComp = Math.min(e.composureMax, enemyComposure + regen);
       const actualRegen = targetComp - enemyComposure;
       if (actualRegen > 0) {
