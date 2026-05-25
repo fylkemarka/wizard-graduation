@@ -4005,8 +4005,23 @@ export default function App() {
     const fam = FAMILIARS_BY_ID[familiarId];
     if (!fam) return;
     setFamiliar(fam);
-    // Familiar's signature card joins the deck.
-    setDeck(d => [...d, { ...fam.card, uid: uid() }]);
+    // v2.99.4: familiar cards now adapt their scaleBy to the player's
+    // lane. Beetle's Clatter (jnsq-scale) on a wit wizard used to add a
+    // card that scaled from the player's 0 jnsq stat — Alan: "one of my
+    // cards as a wit wizard was a jnsq card." Same card, same flavor,
+    // but the math respects the wizard you chose.
+    const playerLane = selectedCharacter?.lane;
+    let famCard = { ...fam.card, uid: uid() };
+    if (playerLane && famCard.effect?.scaleBy && famCard.effect.scaleBy !== playerLane) {
+      famCard = {
+        ...famCard,
+        effect: { ...famCard.effect, scaleBy: playerLane },
+        upgrade: famCard.upgrade?.effect
+          ? { ...famCard.upgrade, effect: { ...famCard.upgrade.effect, scaleBy: playerLane } }
+          : famCard.upgrade,
+      };
+    }
+    setDeck(d => [...d, famCard]);
     // Apply maxHp bonus immediately if present.
     if (fam.bonus?.maxHp) {
       setMaxHp(m => m + fam.bonus.maxHp);
@@ -7985,6 +8000,18 @@ export default function App() {
   }
 
   // ---------- RENDER ----------
+  // v2.99.4: top-level overlays (forget modal, chaos roll flash) rendered
+  // AS A SIBLING of whatever stage content is active. Previously these
+  // lived only in the combat-stage return; when an event resolver set
+  // forgetTwoPrompt + cardGrantPrompt at the same time, the card-grant
+  // screen's early-return hid the modal until the player navigated to
+  // combat — at which point the forget modal "popped over" the combat
+  // screen. Lifting the overlays out of the stage routing fixes that.
+  const appOverlays = <>
+    {forgetTwoPrompt && <ForgetTwoModal cards={forgetTwoPrompt.cards} onPick={resolveForgetTwoChoice} />}
+    {chaosRollFlash && <ChaosRollFlash flash={chaosRollFlash} onDismiss={() => setChaosRollFlash(null)} />}
+  </>;
+  const stageContent = (() => {
   if (stage === 'menu')               return <MenuScreen
     onStart={startRun} onTutorial={startTutorial}
     onContinue={hasSavedRun ? continueRun : null}
@@ -8154,22 +8181,13 @@ export default function App() {
       onAdvance={() => setTutorialStep(s => s + 1)}
       onExit={exitTutorial}
     />}
-    {/* v2.85: pick-one-of-two-to-forget modal. Fires when an event /
-        sidequest triggered loseRandomCard. Modal blocks until the
-        player picks one card to lose; the other stays in the deck. */}
-    {forgetTwoPrompt && <ForgetTwoModal
-      cards={forgetTwoPrompt.cards}
-      onPick={resolveForgetTwoChoice}
-    />}
-    {/* v2.89: chaos-roll flash. Pops a prominent overlay showing the
-        die face + outcome name + damage multiplier when the player
-        rolls during a jnsq cast. Auto-dismisses after 3.5s, or click
-        the backdrop to dismiss early. */}
-    {chaosRollFlash && <ChaosRollFlash
-      flash={chaosRollFlash}
-      onDismiss={() => setChaosRollFlash(null)}
-    />}
   </>;
+  })();
+  // v2.99.4: render the active stage content + universal overlays
+  // (forget modal, chaos flash) as siblings. The overlays will appear
+  // on top of any stage now, fixing the "forget modal pops over combat"
+  // bug when an event grants a card AND requires forgetting one.
+  return <>{stageContent}{appOverlays}</>;
 }
 
 // =============================================================================

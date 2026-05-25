@@ -878,6 +878,24 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             </div>
           </div>
         )}
+        {/* v2.99.4: CAST button moved inline with the slot row so it
+            shares horizontal space with the slots + Predicted, instead
+            of taking a full line below them. Tightens the combat
+            screen's vertical footprint considerably. */}
+        <button onClick={onCast}
+          disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked}
+          title={
+            stakeBlocked ? `Target requires ${stakeRequired}+ HP staked.` :
+            rollBlocked ? `Target requires a prior ${rollRequired} rolled this combat.` :
+            castsThisTurn >= maxCastsPerTurn ? 'Cast cap reached (defensive ceiling, shouldn\'t trigger).' :
+            'Cast the staged spell.'
+          }
+          className={`btn text-base px-6 py-2 ml-2 self-center ${
+            castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
+            ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
+          }`}>
+          ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
+        </button>
         {/* v2.79: math breakdown — full-width row INSIDE the same flex
             container (basis-full forces a new line). Surfaces every step
             of the damage formula so the player can SEE where the number
@@ -1083,20 +1101,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             )}
           </div>
         )}
-        <button onClick={onCast}
-          disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked}
-          title={
-            stakeBlocked ? `Target requires ${stakeRequired}+ HP staked.` :
-            rollBlocked ? `Target requires a prior ${rollRequired} rolled this combat.` :
-            castsThisTurn >= maxCastsPerTurn ? 'Cast cap reached (defensive ceiling, shouldn\'t trigger).' :
-            'Cast the staged spell.'
-          }
-          className={`btn text-base px-6 py-2 ml-2 ${
-            castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
-            ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
-          }`}>
-          ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
-        </button>
       </div>
     </div>
   );
