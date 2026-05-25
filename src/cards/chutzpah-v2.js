@@ -407,6 +407,15 @@ const GESTURES = [
     phrase: '(quip, with raised eyebrow,)', tags: ['dismissive', 'swaggering'],
     gestureEffect: { icon: '😏', damage: 4, damageType: 'composure', stripEnemyBlock: 6, exhaust: false },
     flavor: 'The eyebrow is the threat. The quip is the apology for the eyebrow.' },
+  // v3.0 multi-hit: HEADBUTT — chutzpah's "shake it off" gesture. Deals
+  // physical damage on play AND arms next enemy attack: each swing
+  // deals -1 dmg. 4×3 multi-attack becomes 4×2 (saves you 4 dmg vs
+  // -1 on a single 12-hit which saves 1). Strong vs multi-attackers,
+  // mediocre vs single big hits.
+  { id: 'cv2-g-headbutt', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
+    phrase: '(headbutt — no commentary)', tags: ['direct', 'threatening'],
+    gestureEffect: { icon: '🪨', damage: 4, damageType: 'physical', rider: { nextAttackSwingReduction: 1 }, exhaust: true },
+    flavor: 'A philosophical question, answered with a noun.' },
 ];
 
 // v2.6: Modifiers for the new chutzpah lane.

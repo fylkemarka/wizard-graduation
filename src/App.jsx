@@ -138,6 +138,16 @@ const CARDS = [
     upgrade: { effects: { block: 6, riposteArmed: 6, exhaust: true } },
     desc: 'Gain 4 Block. The next enemy attack ALSO deals 4 Composure damage to its source.',
     flavor: 'They will swing. You will be quoted, in their retreat.' },
+  // v3.0 multi-hit: Brace for Many — universal scaling defense. Block
+  // gain = bracePerSwing × swing-count in enemy's NEXT attack. A 4×3
+  // enemy = 8 block; a 1×12 enemy = 2 block. Lets the player read the
+  // intent and commit defensive resources proportional to the threat.
+  // Pre-computed at play time (intent doesn't change mid-turn).
+  { id: 'c-brace-for-many', name: 'Brace for Many', cost: 1, type: 'skill', rarity: 'common',
+    effects: { bracePerSwing: 2 },
+    upgrade: { effects: { bracePerSwing: 3 } },
+    desc: 'Gain 2 Block PER swing in the enemy\'s next attack (1 swing → 2 Block, 4× multi → 8 Block).',
+    flavor: 'The room, you have decided, is going to do this.' },
 
   // ---- RARE ----
   { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
@@ -3551,6 +3561,13 @@ export default function App() {
   const riposteCharge              = pendingTriggers.riposteCharge ?? 0;
   const setRiposteCharge           = makeTriggerSetter('riposteCharge', 0);
   const [hpLossThisTurn, setHpLossThisTurn] = useState(0);
+  // v3.0 multi-hit cards — Headbutt arms a per-swing reduction on the
+  // next enemy attack. One-shot; cleared after the attack resolves.
+  const [nextAttackSwingReduction, setNextAttackSwingReduction] = useState(0);
+  // v3.0 multi-hit cards — Word in Edgewise arms a draw-between-swings
+  // flag. On next attack-multi: after each swing AFTER the first, draw 1.
+  // One-shot per arm; cleared after the attack resolves.
+  const [interjectDrawNextMulti, setInterjectDrawNextMulti] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
   // v2.44: TANGENT telemetry — counts fires (skill plays), targetsCast
   // (tray was complete + fired), wordsStaged (intro/subject/modifier from
@@ -4702,6 +4719,8 @@ export default function App() {
     // were cleared by the setPendingTriggers({}) above. Only the
     // non-trigger hpLossThisTurn accumulator needs an explicit reset.
     setHpLossThisTurn(0);
+    setNextAttackSwingReduction(0);
+    setInterjectDrawNextMulti(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -5042,6 +5061,11 @@ export default function App() {
       if (ge.rider?.weak)       { adjustEnemyDmg(-0.25 * ge.rider.weak);  pushLog(`💢 enemy −${25*ge.rider.weak}% atk`); }
       if (ge.rider?.vulnerable) { adjustPlayerDmg(+0.25 * ge.rider.vulnerable); pushLog(`🩸 enemy Vulnerable +${ge.rider.vulnerable} (your spells +${25*ge.rider.vulnerable}%)`); }
       if (ge.rider?.block)      { setBlock(b => b + ge.rider.block); pushLog(`🛡 +${ge.rider.block}`); }
+      // v3.0 multi-hit: gestures can arm a per-swing reduction.
+      if (ge.rider?.nextAttackSwingReduction) {
+        setNextAttackSwingReduction(n => Math.max(n, ge.rider.nextAttackSwingReduction));
+        pushLog(`🪨 next enemy attack: −${ge.rider.nextAttackSwingReduction} per swing`);
+      }
       if (ge.draw) drawCards(ge.draw);
       if (ge.stripEnemyBlock)   { setEnemyBlock(b => Math.max(0, b - ge.stripEnemyBlock)); pushLog(`🛇 Stripped ${ge.stripEnemyBlock} enemy block.`); }
       // Exhaust by default — gestures are one-shot per acquisition.
@@ -6399,6 +6423,25 @@ export default function App() {
     // next enemy swing (damage = charge value, comp pool).
     if (fx.braceDrawNext) { setBraceArmedDraw(n => n + fx.braceDrawNext); logBits.push(`🛡✦ brace — draw ${fx.braceDrawNext} next turn if safe`); }
     if (fx.riposteArmed)  { setRiposteCharge(n => Math.max(n, fx.riposteArmed)); logBits.push(`🛡⚔ riposte armed — ${fx.riposteArmed} comp on next enemy swing`); }
+    // v3.0 multi-hit cards.
+    if (fx.bracePerSwing) {
+      // Peek enemy intent and compute block based on swing count. 4×3
+      // multi gives 4×bracePerSwing block; single 12-attack gives 1×.
+      // Pre-computed at play time; the block doesn't update if intent
+      // changes later (acceptable — player commits at play time).
+      const swings = enemyIntent?.kind === 'attack-multi' ? (enemyIntent.count || 1) : 1;
+      const blockGain = fx.bracePerSwing * swings;
+      setBlock(b => b + blockGain);
+      logBits.push(`🛡✕${swings} +${blockGain} Block (${fx.bracePerSwing}×${swings} swings)`);
+    }
+    if (fx.nextAttackSwingReduction) {
+      setNextAttackSwingReduction(n => Math.max(n, fx.nextAttackSwingReduction));
+      logBits.push(`🪨 −${fx.nextAttackSwingReduction} per swing on next enemy attack`);
+    }
+    if (fx.interjectDrawNextMulti) {
+      setInterjectDrawNextMulti(1);
+      logBits.push(`💬 next multi-attack: draw 1 between swings`);
+    }
     if (fx.blockFromComposure) {
       // D-5 (A Measured Response): block = floor(comp / 3) at cast time.
       const bonus = Math.floor(composure / 3);
@@ -7524,6 +7567,24 @@ export default function App() {
         // attack-multi. swings 1..N use the unreduced `raw`.
         let remaining = (i === 0 && holdOnFirstSwingRaw != null) ? holdOnFirstSwingRaw : raw;
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
+        // v3.0 multi-hit cards: per-swing damage reduction from
+        // Headbutt's `nextAttackSwingReduction` flag (chutzpah's
+        // "shake it off" against multi-attackers).
+        if (nextAttackSwingReduction > 0 && remaining > 0) {
+          remaining = Math.max(1, remaining - nextAttackSwingReduction);
+        }
+        // v3.0 Thorned Footnote — each enemy swing deals `damagePerEnemySwing`
+        // back to the enemy's composure. Reads from annotation effect.
+        const thornPerSwing = annoFx('damagePerEnemySwing');
+        if (thornPerSwing > 0) {
+          applyDamageToEnemyComposure(thornPerSwing);
+        }
+        // v3.0 Word in Edgewise — after each swing AFTER the first, if the
+        // flag is armed, draw 1 card. The 1st-swing skip means single-hit
+        // attacks don't trigger; multi-hit attackers feed you cards.
+        if (interjectDrawNextMulti > 0 && i > 0) {
+          drawCards(1);
+        }
         // v2.52: DRUNKEN STAGGER — per-swing 50% dodge. Rolled BEFORE the
         // shield-routing block so a missed swing zeroes out completely (no
         // block consumed, no recoil arm, no LongThread reset). attack-multi
@@ -7631,6 +7692,14 @@ export default function App() {
         applyDamageToEnemyComposure(riposteCharge);
         pushLog(`🛡⚔ Riposte: ${riposteCharge} comp dmg back to ${e.name}.`);
         setRiposteCharge(0);
+      }
+      // v3.0 multi-hit: consume Headbutt's swing-reduction flag after the attack.
+      if (nextAttackSwingReduction > 0) {
+        setNextAttackSwingReduction(0);
+      }
+      // v3.0 multi-hit: consume Word in Edgewise after the attack.
+      if (interjectDrawNextMulti > 0) {
+        setInterjectDrawNextMulti(0);
       }
       if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
