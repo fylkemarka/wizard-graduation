@@ -4055,13 +4055,14 @@ export default function App() {
       setStage('graduation');
       return;
     }
-    // Heal a fraction of max HP between acts. Composure gets the same ratio
-    // (or restored fully if the ratio rounds higher than current loss).
-    const healAmount = Math.floor(maxHp * INTER_ACT_HEAL_RATIO);
-    const compHeal   = Math.floor(composureMax * INTER_ACT_HEAL_RATIO);
-    setHp(h => clamp(h + healAmount, 0, maxHp));
-    setComposure(c => clamp(c + compHeal, 0, composureMax));
-    pushLog(`🌄 Between acts: +${healAmount} HP, +${compHeal} Composure.`);
+    // v3.0: full HP + Composure restore after a boss kill (between acts).
+    // Was a partial heal (INTER_ACT_HEAL_RATIO); felt punishing in playtest
+    // — boss fights take everything, then act 2 starts at low HP and the
+    // wit player especially never recovers. Full restore matches STS's
+    // boss → checkpoint → next-floor structure.
+    setHp(maxHp);
+    setComposure(composureMax);
+    pushLog(`🌄 Between acts: HP and Composure fully restored.`);
     setCurrentActIdx(nextIdx);
     const nextAct = ACTS[nextIdx];
     {
@@ -5804,7 +5805,16 @@ export default function App() {
     // Discharge cards. Intro / subject / modifiers → discard. Target →
     // exile if requiresTier3 failed AND exhaustOnFail is set; else discard.
     // v2.24: RAGE-required targets also exile on a rage-missing cast.
-    setDiscard(d => [...d, intro, subject, ...modifiers]);
+    // v3.0 fix: strip the per-stage footnote bump from footnoteSelfOnStage
+    // modifiers before discarding so the +1 doesn't persist across casts
+    // (Alan: "'as previously stated' is keeping its +1 between combats").
+    const cleanedModifiers = modifiers.map(m => {
+      if (m?.effects?.footnoteSelfOnStage && (m.footnotes || 0) > 0) {
+        return { ...m, footnotes: Math.max(0, (m.footnotes || 0) - 1) };
+      }
+      return m;
+    });
+    setDiscard(d => [...d, intro, subject, ...cleanedModifiers]);
     if (sideEffects.exhaustTarget || rageMissing) setExiled(ex => [...ex, target]);
     else                                          setDiscard(d => [...d, target]);
 
