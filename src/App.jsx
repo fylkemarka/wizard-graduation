@@ -70,8 +70,9 @@ const CARDS = [
   // which Block can't touch. Every starter deck gets one of these
   // alongside Defend so the player has both shields from turn 1.
   { id: 'c-compose', name: 'Compose Yourself', cost: 1, type: 'skill', rarity: 'basic',
-    effects: { poise: 5 }, upgrade: { effects: { poise: 8 } },
-    desc: 'Gain 5 Poise (vs composure attacks).' },
+    effects: { poise: 5, removeWeak: 1 }, upgrade: { effects: { poise: 8, removeWeak: 2 } },
+    desc: 'Gain 5 Poise (vs composure attacks). Remove 1 Weak from yourself.',
+    flavor: 'The first thing they took from you is the first thing you take back.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -5523,7 +5524,11 @@ export default function App() {
     // over from 0.
     let patienceBonusDealt = 0;
     if (patienceInstalled && patienceStacks > 0) {
-      patienceBonusDealt = patienceStacks * 2;
+      // v3.0 cycle 3: payout multiplier 2 → 4. Cycle 2 sim showed mean
+      // peak Patience 2.90 → 5.8 dmg per cast — flavor-text levels.
+      // Doubling the per-stack payout makes the bank feel earned: at
+      // 3 stacks now +12 dmg, at 5 stacks +20 dmg, an actual finisher.
+      patienceBonusDealt = patienceStacks * 4;
       dmg += patienceBonusDealt;
       pushLog(`🌿 Patience spent: +${patienceBonusDealt} damage.`);
       logEvent('wit.patience.spend', {

@@ -337,13 +337,15 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       // v2.33: gate loosened 1.1 → 0.8 because at 1.0 the preview excludes
       // modifiers (cast time adds them, real dmg > predicted) so all 1.0-gated
       // casts killed → 0 corner-token bills (toothless punishment side).
-      // v2.53: loosened further 0.8 → 0.65. At 0.8 the modifier guesswork
-      // still closed almost every kill in practice; bills stayed at 0.
-      // At 0.65 the AI gambles when predicted is 35% short — modifiers may
-      // close, enemy block may eat it, the bill comes due against blocker
-      // and high-defense enemies. The double-down rare's identity is the
-      // gambit, not the safe pick.
-      if (predicted < remaining * 0.65) continue;
+      // v2.53: loosened further 0.8 → 0.65.
+      // v3.0 cycle 3: on RAGE turns, drop the gate to 0.40 — RAGE itself
+      // adds +0.5× damage (so preview understates) AND RAGE is the "going
+      // in" moment of chutzpah identity. Doubling Down should fire here
+      // even when not certain to kill — that IS the commit. Pairs with
+      // creator-agent's note about the Hit Me Again / RAGE monoculture:
+      // binding doubleDown to RAGE gives chutzpah a second decision tree.
+      const dDownGate = rageActive ? 0.40 : 0.65;
+      if (predicted < remaining * dDownGate) continue;
     }
     // v2.26: STORM OUT gate — only pick when this would be the last cast
     // possible this turn (no other castable targets after this one would
@@ -2012,7 +2014,7 @@ function runCombat(state, enemyId, telemetry) {
       // v2.40: PATIENCE — if installed AND stacks > 0, add stacks × 2 flat
       // damage and clear. Mirrors App.jsx's castV2SentenceSpell hook.
       if (state.patienceInstalled && (state.patienceStacks || 0) > 0) {
-        const patBonus = state.patienceStacks * 2;
+        const patBonus = state.patienceStacks * 4; // v3.0 cycle 3: 2 → 4
         dmg += patBonus;
         telemetry.patienceDamageBonus = (telemetry.patienceDamageBonus || 0) + patBonus;
         telemetry.patienceCasts = (telemetry.patienceCasts || 0) + 1;
