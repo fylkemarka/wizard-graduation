@@ -154,3 +154,36 @@ Post-v2.68 act-scaling validated: 4 of 5 picks were uncommon, 0 commons, 0 rares
 - Is wit's defense kit too thin for the act-1 boss? Buff Compose (currently +5 Poise) or add a defensive uncommon?
 - Track loss rate at first-act boss across all 3 lanes — wit-specific or universal?
 - Pre-staging cost may have cost 5-10 composure across the boss fight. Worth measuring impact specifically — could be the right number, could be too punishing.
+
+## Observations — 2026-05-25T02:17 (snapshot 5 — FIRST JNSQ RUN)
+
+Jnsq player (The Fool) running through Act 1. 65 events, 3 combats (Bursar practice + Silk Wraith + Pattern-Maker elite, all won), 7 casts, 33 card plays, 1 reward pick, 5 dice rolls. Picked Sturdy Frame boon at the supply shop.
+
+**Roll opt-in rate: 71% (5/7 casts).** Real jnsq players gamble aggressively. The sim AI currently rolls always at HP ≥ 15 — closer to 100%. Tuning the sim down to ~70% would match better.
+
+**RNG ouch:** 5 rolls returned 3, 1, 1, 1, 1. Four BACKFIREs in a row. 1/6^4 = 0.077% per starting position, ~0.4% across 5 rolls — extreme bad luck but mathematically possible. The rollChaosDie function is correct (Math.random uniform, no negative diceShift in scope). Flagging for future watch:
+- If subsequent snapshots show similar streaks, investigate whether Math.random has a systemic bias in this app context.
+- Even if RNG is honest, the **emotional impact** of 4 BACKFIREs feels devastating. Worth considering a "no-3-backfires-in-a-row" smoother — reroll the 4th consecutive 1 automatically.
+
+**Cast cadence on normal/elite:**
+- Bursar (T1+T2): 2 casts in 2 turns = 1.0/turn (practice match, generous)
+- Silk Wraith (T1, T2, T4): 3 casts in 4 turns = 0.75/turn
+- Pattern-Maker (T1, T2+): 2+ casts in 2+ turns = ~1.0/turn
+
+Jnsq player casts MORE often than wit (snapshot 3: 0.72/turn). Probably because jnsq subjects are still cost-0 (unlike wit subjects which became cost-1 in v2.59). Worth considering whether jnsq needs the same v2.59 treatment — but the lane is already at 0% sim win rate without it, so any further nerf risks crushing it. Hold and watch.
+
+**Defense play frequency:**
+- c-defend played 3 times across the 3 combats (1/combat avg) — same as wit pattern.
+- Familiar active (f-scurry) played 2 times.
+
+**Reward pick:** 1 pick, uncommon target (`jv2-t-third-tuesday`). No skips. v2.68 act-scaling continues to push uncommons.
+
+**v2.84 telemetry validation:** all turn_end events have `pdm` and `edm` fields populated. Sample: T2 Silk Wraith had `edm=1.15` (player vulnerable — boss attack rider). Drift back to 1.05 by T3 (matches 0.10/turn). The v2.83 labels would have rendered "🩸 You're Vulnerable +15% (incoming)" / "🩸 You're Vulnerable +5% (incoming)" across those turns.
+
+**AI implications:**
+- Sim AI roll opt-in rate could drop from ~100% (HP ≥ 15) to ~70% to match human reluctance on tight HP / small-spell turns.
+- v2.89 chaos-roll flash should help this player notice future rolls — track whether next-session rolls show better-informed decision-making.
+
+**Open follow-ups:**
+- Roll streak watch — if BACKFIRE chains continue, redesign with a smoother.
+- Jnsq subject cost (currently 0) vs wit's (1): does jnsq deserve the same nerf for parity? Probably not given win rate, but track casts/turn.
