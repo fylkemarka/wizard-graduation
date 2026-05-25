@@ -896,6 +896,95 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           }`}>
           ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
         </button>
+        {/* v3.0 cycle 5: ALL IN / CHAOS DICE moved up to share the slot
+            row with CAST. They're lane-exclusive (only one shows at a
+            time) so giving them their own line was wasted vertical
+            space. The math row + enemy-state row below stay basis-full
+            (full damage chain + status chips need their own line). */}
+        {isChutzpah && (() => {
+          const stakeMultsList = [tray.intro, tray.subject, tray.target, ...tray.modifiers]
+            .map(c => c?.stakeMultiplier || c?.effect?.stakeMultiplier || 0)
+            .filter(m => m > 0);
+          const stakeMult = stakeMultsList.length > 0 ? Math.max(...stakeMultsList) : 1.5;
+          const stakeAutoDouble = tray.modifiers.some(m => m?.modifierEffect?.stakeAutoDouble);
+          const evBonus = stakeAmount > 0
+            ? Math.ceil(stakeAmount * stakeMult) * (stakeAutoDouble ? 2 : 1)
+            : 0;
+          const remainingPool = ready && enemy
+            ? (mathBreakdown?.dmgType === 'physical' ? enemy.currentHp : enemy.currentComp)
+            : 0;
+          const wouldKill = ready && predicted && remainingPool > 0
+            && predicted.damage >= remainingPool;
+          const stakeKills = ready && predicted && remainingPool > 0
+            && stakeAmount === 0
+            && (predicted.damage + Math.ceil(1 * stakeMult)) >= remainingPool;
+          return (
+            <div className={`flex items-center gap-1 ml-2 px-2 py-1 rounded border-2 ${
+              wouldKill ? 'border-moss-500 bg-moss-900 bg-opacity-30' :
+              stakeKills ? 'border-gold-500 bg-gold-900 bg-opacity-30 animate-pulse' :
+              'border-ember-500 bg-ember-900 bg-opacity-30'
+            }`}
+                 title={`Spend HP for bonus damage. ×${stakeMult.toFixed(1)} damage per HP${stakeAutoDouble ? ' (×2 from "not even half kidding")' : ''}. Capped at ¼ of current HP. ${ready ? '' : '(stage a target to see EV)'}`}>
+              <span className="text-[10px] uppercase tracking-wider text-ember-300 font-bold">🩸 ALL IN</span>
+              <button onClick={() => stakeNudge(-1)} disabled={stakeAmount <= 0}
+                className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount > 0 ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>−</button>
+              <span className={`font-mono text-sm font-bold ${stakeAmount > 0 ? 'text-ember-200' : 'text-parchment-400'} w-12 text-center`}>
+                {stakeAmount > 0 ? `-${stakeAmount} HP` : '—'}
+              </span>
+              <button onClick={() => stakeNudge(1)} disabled={stakeAmount >= stakeMax}
+                className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+</button>
+              <button onClick={() => stakeNudge(2)} disabled={stakeAmount + 3 > stakeMax}
+                className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount + 3 <= stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+3</button>
+              <button onClick={() => setStakeAmount(stakeMax)} disabled={stakeAmount === stakeMax}
+                className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>MAX</button>
+              {evBonus > 0 && (
+                <span className="ml-1 text-[11px] font-mono text-ember-200 font-bold">
+                  → <span className="text-ember-100">+{evBonus} dmg</span>
+                  <span className="text-parchment-400"> (×{stakeMult.toFixed(1)}{stakeAutoDouble ? ' · auto-2×' : ''})</span>
+                </span>
+              )}
+              {stakeKills && (
+                <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-gold-600 text-ink-900">
+                  ⚔ stake to kill
+                </span>
+              )}
+              {stakeRequired > 0 && (
+                <span className={`ml-1 text-[10px] font-bold uppercase ${stakeBlocked ? 'text-ember-300' : 'text-moss-300'}`}>
+                  req {stakeRequired}+
+                </span>
+              )}
+            </div>
+          );
+        })()}
+        {isJnsq && ready && (
+          <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded border border-moss-500 bg-moss-900 bg-opacity-30"
+               title="Roll a 1d6 on this cast. Modifies damage and adds side effects per the outcome.">
+            <button onClick={() => !forcedRoll && setRollOptIn(!rollOptIn)}
+              disabled={forcedRoll}
+              className={`px-2 h-7 rounded text-xs font-bold uppercase tracking-wide ${
+                forcedRoll || rollOptIn
+                  ? 'bg-moss-600 text-parchment-50 hover:bg-moss-500'
+                  : 'bg-ink-700 text-parchment-300 hover:bg-ink-600'
+              }`}>
+              🎲 {forcedRoll ? 'FORCED' : rollOptIn ? 'WILL ROLL' : 'ROLL?'}
+            </button>
+            {lastRoll !== null && (
+              <span className="text-xs text-moss-200 font-mono" title="Last roll this combat.">last: {lastRoll}</span>
+            )}
+            {combatRolls.length > 0 && (
+              <span className="text-[10px] text-moss-300 font-mono opacity-70"
+                    title={`Rolls this combat: ${combatRolls.join(', ')}`}>
+                [{combatRolls.slice(-4).join(' · ')}]
+              </span>
+            )}
+            {rollRequired > 0 && (
+              <span className={`ml-1 text-[10px] font-bold uppercase ${rollBlocked ? 'text-ember-300' : 'text-moss-300'}`}
+                    title={`Target requires a prior ${rollRequired} rolled this combat.`}>
+                req {rollRequired}
+              </span>
+            )}
+          </div>
+        )}
         {/* v2.79: math breakdown — full-width row INSIDE the same flex
             container (basis-full forces a new line). Surfaces every step
             of the damage formula so the player can SEE where the number
@@ -1009,98 +1098,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             </div>
           );
         })()}
-        {/* v2.11 → v2.99: ALL IN — chutzpah-only HP-wager row.
-            Always visible for chutzpah (snapshot 6: stake usage was 5%
-            because the row only appeared mid-cast — invisible to plan
-            around). Live EV preview shows the staked bonus and any
-            "kill confirms" callout. */}
-        {isChutzpah && (() => {
-          // EV: default stake mult is 1.5 (v2.99), boosted by synergy cards.
-          const stakeMultsList = [tray.intro, tray.subject, tray.target, ...tray.modifiers]
-            .map(c => c?.stakeMultiplier || c?.effect?.stakeMultiplier || 0)
-            .filter(m => m > 0);
-          const stakeMult = stakeMultsList.length > 0 ? Math.max(...stakeMultsList) : 1.5;
-          const stakeAutoDouble = tray.modifiers.some(m => m?.modifierEffect?.stakeAutoDouble);
-          const evBonus = stakeAmount > 0
-            ? Math.ceil(stakeAmount * stakeMult) * (stakeAutoDouble ? 2 : 1)
-            : 0;
-          // Kill-confirm hint — does the current cast (with stake) kill?
-          const remainingPool = ready && enemy
-            ? (mathBreakdown?.dmgType === 'physical' ? enemy.currentHp : enemy.currentComp)
-            : 0;
-          const wouldKill = ready && predicted && remainingPool > 0
-            && predicted.damage >= remainingPool;
-          const stakeKills = ready && predicted && remainingPool > 0
-            && stakeAmount === 0
-            && (predicted.damage + Math.ceil(1 * stakeMult)) >= remainingPool;
-          return (
-            <div className={`flex items-center gap-1 ml-2 px-2 py-1 rounded border-2 ${
-              wouldKill ? 'border-moss-500 bg-moss-900 bg-opacity-30' :
-              stakeKills ? 'border-gold-500 bg-gold-900 bg-opacity-30 animate-pulse' :
-              'border-ember-500 bg-ember-900 bg-opacity-30'
-            }`}
-                 title={`Spend HP for bonus damage. ×${stakeMult.toFixed(1)} damage per HP${stakeAutoDouble ? ' (×2 from "not even half kidding")' : ''}. Capped at ¼ of current HP. ${ready ? '' : '(stage a target to see EV)'}`}>
-              <span className="text-[10px] uppercase tracking-wider text-ember-300 font-bold">🩸 ALL IN</span>
-              <button onClick={() => stakeNudge(-1)} disabled={stakeAmount <= 0}
-                className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount > 0 ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>−</button>
-              <span className={`font-mono text-sm font-bold ${stakeAmount > 0 ? 'text-ember-200' : 'text-parchment-400'} w-12 text-center`}>
-                {stakeAmount > 0 ? `-${stakeAmount} HP` : '—'}
-              </span>
-              <button onClick={() => stakeNudge(1)} disabled={stakeAmount >= stakeMax}
-                className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+</button>
-              <button onClick={() => stakeNudge(2)} disabled={stakeAmount + 3 > stakeMax}
-                className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount + 3 <= stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+3</button>
-              <button onClick={() => setStakeAmount(stakeMax)} disabled={stakeAmount === stakeMax}
-                className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>MAX</button>
-              {evBonus > 0 && (
-                <span className="ml-1 text-[11px] font-mono text-ember-200 font-bold">
-                  → <span className="text-ember-100">+{evBonus} dmg</span>
-                  <span className="text-parchment-400"> (×{stakeMult.toFixed(1)}{stakeAutoDouble ? ' · auto-2×' : ''})</span>
-                </span>
-              )}
-              {stakeKills && (
-                <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-gold-600 text-ink-900">
-                  ⚔ stake to kill
-                </span>
-              )}
-              {stakeRequired > 0 && (
-                <span className={`ml-1 text-[10px] font-bold uppercase ${stakeBlocked ? 'text-ember-300' : 'text-moss-300'}`}>
-                  req {stakeRequired}+
-                </span>
-              )}
-            </div>
-          );
-        })()}
-        {/* v2.12: CHAOS DICE — jnsq-only roll toggle. */}
-        {isJnsq && ready && (
-          <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded border border-moss-500 bg-moss-900 bg-opacity-30"
-               title="Roll a 1d6 on this cast. Modifies damage and adds side effects per the outcome.">
-            <button onClick={() => !forcedRoll && setRollOptIn(!rollOptIn)}
-              disabled={forcedRoll}
-              className={`px-2 h-7 rounded text-xs font-bold uppercase tracking-wide ${
-                forcedRoll || rollOptIn
-                  ? 'bg-moss-600 text-parchment-50 hover:bg-moss-500'
-                  : 'bg-ink-700 text-parchment-300 hover:bg-ink-600'
-              }`}>
-              🎲 {forcedRoll ? 'FORCED' : rollOptIn ? 'WILL ROLL' : 'ROLL?'}
-            </button>
-            {lastRoll !== null && (
-              <span className="text-xs text-moss-200 font-mono" title="Last roll this combat.">last: {lastRoll}</span>
-            )}
-            {combatRolls.length > 0 && (
-              <span className="text-[10px] text-moss-300 font-mono opacity-70"
-                    title={`Rolls this combat: ${combatRolls.join(', ')}`}>
-                [{combatRolls.slice(-4).join(' · ')}]
-              </span>
-            )}
-            {rollRequired > 0 && (
-              <span className={`ml-1 text-[10px] font-bold uppercase ${rollBlocked ? 'text-ember-300' : 'text-moss-300'}`}
-                    title={`Target requires a prior ${rollRequired} rolled this combat.`}>
-                req {rollRequired}
-              </span>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
