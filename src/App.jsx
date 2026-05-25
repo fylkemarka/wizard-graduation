@@ -236,6 +236,103 @@ const RELICS = [
 ];
 const RELICS_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
 
+// v2.92: PASSING THOUGHTS — colorless one-shot cards (like STS colorless).
+// Lane-agnostic, exhaust on play (so once-per-combat) and return to deck at
+// combat end via the existing exile-back-to-deck flow. Acquired via the new
+// "Reflect" rest-site option (and any future grant flow). Rarity
+// 'colorless' keeps them out of normal pickCardByRarity rolls — they only
+// show up where the code explicitly draws from PASSING_THOUGHTS.
+const PASSING_THOUGHTS = [
+  // ---- DEFENSE / SUSTAIN (6) ----
+  { id: 'pt-stoicism',           name: 'A Tidy Bit of Stoicism',         cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { block: 8, exhaust: true },
+    desc: 'Gain 8 Block. Exhaust.',
+    flavor: 'Smaller than the moment requires. Right-sized for the moment after.' },
+  { id: 'pt-second-wind',        name: 'Second Wind',                    cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { hp: 6, exhaust: true },
+    desc: 'Heal 6 HP. Exhaust.',
+    flavor: 'The first wind was unaccounted for. The second arrives politely.' },
+  { id: 'pt-concerned-look',     name: 'A Concerned Look',               cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { poise: 6, exhaust: true },
+    desc: 'Gain 6 Poise. Exhaust.',
+    flavor: 'A look so concerned it absorbs the next sharp word in passing.' },
+  { id: 'pt-hardly-end',         name: 'Hardly the End of It',           cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { hp: 3, block: 3, exhaust: true },
+    desc: 'Heal 3 HP and gain 3 Block. Exhaust.',
+    flavor: 'There is, you note, more to be said. There always is.' },
+  { id: 'pt-composing-briefly',  name: 'Composing Yourself, Briefly',    cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { poise: 6, draw: 1, exhaust: true },
+    desc: 'Gain 6 Poise and draw 1. Exhaust.',
+    flavor: 'A composure assembled out of leftover parts. Functional. Mostly.' },
+  { id: 'pt-strong-tea',         name: 'A Sip of Strong Tea',            cost: 0, type: 'skill', rarity: 'colorless',
+    effects: { energy: 1, exhaust: true },
+    desc: 'Gain 1 Energy. Exhaust.',
+    flavor: 'Brewed by someone who took it personally that you were tired.' },
+
+  // ---- OFFENSE / DEBUFF (6) ----
+  { id: 'pt-counterpoint',       name: 'An Unforeseen Counterpoint',     cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { vulnerable: 1, exhaust: true },
+    desc: 'Apply 1 Vulnerable to enemy. Exhaust.',
+    flavor: 'A point so against the grain the grain remembers it.' },
+  { id: 'pt-pointed-cough',      name: 'A Pointed Cough',                cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { weak: 1, exhaust: true },
+    desc: 'Apply 1 Weak to enemy. Exhaust.',
+    flavor: 'The cough is editorial. The editorial lands.' },
+  { id: 'pt-conspicuous-pause',  name: 'A Conspicuous Pause',            cost: 2, type: 'skill', rarity: 'colorless',
+    effects: { vulnerable: 1, weak: 1, exhaust: true },
+    desc: 'Apply 1 Vulnerable AND 1 Weak. Exhaust.',
+    flavor: 'A silence with two specific subtexts. They each land.' },
+  { id: 'pt-sudden-memory',      name: 'A Sudden Memory',                cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { compDmg: 6, exhaust: true },
+    desc: 'Deal 6 Composure damage directly. Exhaust.',
+    flavor: 'Something you said in a corridor in 1894. Not relevant, frankly.' },
+  { id: 'pt-receipt',            name: 'The Receipt',                    cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { physDmg: 4, exhaust: true },
+    desc: 'Deal 4 Physical damage directly. Exhaust.',
+    flavor: 'Filed. Itemised. Now produced, with regret, from a sleeve.' },
+  { id: 'pt-pointed-comments',   name: 'Several Pointed Comments',       cost: 2, type: 'skill', rarity: 'colorless',
+    effects: { vulnerable: 2, exhaust: true },
+    desc: 'Apply 2 Vulnerable to enemy. Exhaust.',
+    flavor: 'Five, technically. Two of them written down.' },
+
+  // ---- TEMPO / DRAW (5) ----
+  { id: 'pt-what-if-however',    name: 'What If, However—',              cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { draw: 2, exhaust: true },
+    desc: 'Draw 2 cards. Exhaust.',
+    flavor: 'The dash is the discovery. The discovery is, frankly, the dash.' },
+  { id: 'pt-where-was-i',        name: 'Now Where Was I',                cost: 0, type: 'skill', rarity: 'colorless',
+    effects: { discardRandom: 1, draw: 2, exhaust: true },
+    desc: 'Discard 1 random card. Draw 2. Exhaust.',
+    flavor: 'The thread, when located, was attached to something different than you remembered.' },
+  { id: 'pt-reconsideration',    name: 'A Brief Reconsideration',        cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { returnDiscardToHand: 1, exhaust: true },
+    desc: 'Return a random card from your discard pile to your hand. Exhaust.',
+    flavor: 'On second thought — and there is, in jnsq, always a second.' },
+  { id: 'pt-removing-glasses',   name: 'Quietly Removing My Glasses',    cost: 0, type: 'skill', rarity: 'colorless',
+    effects: { draw: 1, energy: 1, exhaust: true },
+    desc: 'Draw 1 and gain 1 Energy. Exhaust.',
+    flavor: 'The look without the lenses is somehow more pointed. Hard to say why.' },
+  { id: 'pt-drawing-conclusions', name: 'Drawing Conclusions',           cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { draw: 3, exhaust: true },
+    desc: 'Draw 3 cards. Exhaust.',
+    flavor: 'Several. All of them, on review, the same conclusion.' },
+
+  // ---- UTILITY (3) ----
+  { id: 'pt-embarrassed-silence', name: 'An Embarrassed Silence',        cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { stripBlock: 6, exhaust: true },
+    desc: 'Strip 6 Block from enemy. Exhaust.',
+    flavor: 'The silence is on them. Their composure leaks out of it.' },
+  { id: 'pt-misapplied-compliment', name: 'An Old Compliment, Misapplied', cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { hp: 3, composure: 3, exhaust: true },
+    desc: 'Heal 3 HP and 3 Composure. Exhaust.',
+    flavor: 'Said to the wrong person, decades ago. They never forgot. You\'re holding it now.' },
+  { id: 'pt-decisively-inconclusive', name: 'Decisively Inconclusive',   cost: 2, type: 'skill', rarity: 'colorless',
+    effects: { discardHand: true, draw: 5, exhaust: true },
+    desc: 'Discard your hand. Draw 5 cards. Exhaust.',
+    flavor: 'The sentence ends. The next one will, you assure them, be entirely different.' },
+];
+const PASSING_THOUGHTS_BY_ID = Object.fromEntries(PASSING_THOUGHTS.map(c => [c.id, c]));
+
 // v2.8: Opening-shop boons. Player picks ONE of three (Card / Relic / Boon)
 // at game start instead of two-of-five cards. Boons are pure stat boosts;
 // the relic and card slots cover effects and deckbuilding. `apply` is a
@@ -411,8 +508,9 @@ const FAMILIARS_BY_ID = Object.fromEntries(FAMILIARS.map(f => [f.id, f]));
 // forcedDeck lookups (used by the practice tutorial) resolve wv2-/cv2-/jv2-
 // IDs. Previously only the shared CARDS table was indexed — the tutorial
 // hand silently became a list of undefined objects.
+// v2.92: also include PASSING_THOUGHTS so granted cards resolve by id.
 const CARDS_BY_ID = Object.fromEntries(
-  [...CARDS, ...ALL_V2_CARDS].map(c => [c.id, c])
+  [...CARDS, ...ALL_V2_CARDS, ...PASSING_THOUGHTS].map(c => [c.id, c])
 );
 
 // v2.38: MISSTEP TOKEN — the delayed-consequence card delivered to hand
@@ -6036,6 +6134,59 @@ export default function App() {
       setHp(h => clamp(h + fx.hp, 0, maxHp));
       logBits.push(`+${fx.hp} HP`);
     }
+    // v2.92: new fx keys for Passing Thoughts (colorless one-shot cards).
+    if (fx.composure) {
+      setComposure(c => clamp(c + fx.composure, 0, composureMax));
+      logBits.push(`+${fx.composure} Composure`);
+    }
+    if (fx.compDmg) {
+      applyDamageToEnemyComposure(fx.compDmg);
+      logBits.push(`🎭 ${fx.compDmg} comp dmg`);
+    }
+    if (fx.physDmg) {
+      applyDamageToEnemyHp(fx.physDmg);
+      logBits.push(`⚔ ${fx.physDmg} phys dmg`);
+    }
+    if (fx.stripBlock) {
+      setEnemyBlock(b => Math.max(0, b - fx.stripBlock));
+      logBits.push(`🛇 strip ${fx.stripBlock} block`);
+    }
+    if (fx.discardRandom) {
+      setHand(h => {
+        if (h.length === 0) return h;
+        const n = Math.min(fx.discardRandom, h.length);
+        const next = [...h];
+        const dropped = [];
+        for (let i = 0; i < n; i++) {
+          const idx = Math.floor(Math.random() * next.length);
+          dropped.push(next[idx]);
+          next.splice(idx, 1);
+        }
+        setDiscard(d => [...d, ...dropped]);
+        return next;
+      });
+      logBits.push(`discard ${fx.discardRandom} random`);
+    }
+    if (fx.discardHand) {
+      setHand(h => { if (h.length > 0) setDiscard(d => [...d, ...h]); return []; });
+      logBits.push(`discard hand`);
+    }
+    if (fx.returnDiscardToHand) {
+      setDiscard(d => {
+        if (d.length === 0) return d;
+        const n = Math.min(fx.returnDiscardToHand, d.length);
+        const next = [...d];
+        const picked = [];
+        for (let i = 0; i < n; i++) {
+          const idx = Math.floor(Math.random() * next.length);
+          picked.push(next[idx]);
+          next.splice(idx, 1);
+        }
+        setHand(h => [...h, ...picked]);
+        return next;
+      });
+      logBits.push(`+${fx.returnDiscardToHand} from discard`);
+    }
     // Self-damage cost on the card (Chutzpah identity — risk for damage).
     if (fx.loseHp) {
       setHp(h => clamp(h - fx.loseHp, 0, maxHp));
@@ -7434,6 +7585,18 @@ export default function App() {
       // remove it from the deck. Rest node stays selected; the picker
       // returns to map on confirm or cancel.
       setStage('forget');
+      return;
+    }
+    if (kind === 'reflect') {
+      // v2.92: grant a random Passing Thought (colorless one-shot card).
+      // Adds it to the deck; player draws it like any other card next
+      // combat. Returns to map immediately.
+      const picked = PASSING_THOUGHTS[Math.floor(Math.random() * PASSING_THOUGHTS.length)];
+      setDeck(d => [...d, { ...picked, uid: uid() }]);
+      pushLog(`💭 Reflect: a Passing Thought drifts up — ${picked.name}.`);
+      logEvent('rest.reflect', { cardId: picked.id, cardName: picked.name });
+      setRestNode(null);
+      returnToMap();
       return;
     }
   }
@@ -10711,6 +10874,7 @@ function RestScreen({ onChoose }) {
         <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — restore 30% HP and Composure</button>
         <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
         <button onClick={() => onChoose('forget')}  className="btn btn-iris">Forget a card — remove one from your deck</button>
+        <button onClick={() => onChoose('reflect')} className="btn btn-ember">Reflect — gain a random Passing Thought (one-shot)</button>
       </div>
     </div>
   );
