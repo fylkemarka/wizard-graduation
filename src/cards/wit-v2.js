@@ -652,7 +652,9 @@ const ANNOTATIONS = [
     flavor: 'The thesis grows. The thesis was already a problem before the growing.' },
 ];
 
-// v2.95: STARTER CARDS — wit-flavored defensive/cycling kit.
+// v2.95: STARTER CARDS — wit-flavored kit. One defensive skill + one
+// chip-damage gesture so wit can still pressure the enemy on turns when a
+// full spell can't form in hand.
 const STARTER_CARDS = [
   // Page-Mark — tempo defense + draw. Costs 1, exhausts (one per combat).
   { id: 'wv2-k-page-mark', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'skill',
@@ -661,13 +663,12 @@ const STARTER_CARDS = [
     effects: { block: 3, draw: 1, exhaust: true },
     desc: 'Gain 3 Block. Draw 1. Exhaust.',
     flavor: 'A small triangle. The page knows what it is now.' },
-  // Aside — free poise + draw. Same shape, composure side.
-  { id: 'wv2-k-aside', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'skill',
-    name: 'An Aside', phrase: 'An Aside',
+  // Throat-Clear — small gesture, chip + draw. Bypasses tray.
+  { id: 'wv2-g-throat-clear', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
+    name: 'Throat-Clear', phrase: '(clears throat. Audibly.)',
     tags: ['observational', 'ironic'],
-    effects: { poise: 2, draw: 1, exhaust: true },
-    desc: 'Gain 2 Poise. Draw 1. Exhaust.',
-    flavor: 'Briefly: a footnote about the room.' },
+    gestureEffect: { icon: '🗣', damage: 3, damageType: 'composure', draw: 1, exhaust: true },
+    flavor: 'A polite intervention. They will pause. They will not enjoy it.' },
 ];
 
 // =============================================================================
@@ -679,9 +680,9 @@ export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS],
   target: [...TARGETS, ...UNIQUE_TARGETS, ...SYNERGY_CAPSTONE_TARGETS, ...INSULT_VULN_TARGETS],
-  gesture: GESTURES,
+  gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   annotation: ANNOTATIONS,
-  skill: [...SKILLS, ...STARTER_CARDS],
+  skill: [...SKILLS, ...STARTER_CARDS.filter(c => c.slot === 'skill')],
   power: PATIENCE_POWER,
 };

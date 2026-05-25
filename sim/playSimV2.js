@@ -1346,21 +1346,42 @@ function runCombat(state, enemyId, telemetry) {
       //   Block / Defend → HP-pool defense. Threshold: hp < 60% AND block < expected hit.
       //   Poise / Compose → composure defense. Tighter threshold since
       //     composure pool is smaller (30 vs 70 HP).
-      const expectedHit = enemy.atk;
+      // v2.95: account for Vulnerable on player — incoming hit is amplified.
+      const incomingMult = state.enemyDmgMult || 1;
+      const expectedHit = enemy.atk * incomingMult;
       const expectedHpHit = Math.ceil(expectedHit / 2);
       const expectedCompHit = Math.ceil(expectedHit / 2);
-      // Play Defend / Mend if expected unblocked HP damage > 0.
-      if (state.block < expectedHpHit) {
+      // v2.95: if enemy attack is being skipped this turn (Talking Over Them),
+      // skip all defensive plays — they'd be wasted.
+      const incomingThisTurn = state.enemySkipNextAttack ? 0 : expectedHpHit;
+      const incomingCompThisTurn = state.enemySkipNextAttack ? 0 : expectedCompHit;
+      // Play any BLOCK-providing skill if expected unblocked HP damage > 0.
+      // v2.95: generalized from c-defend/c-mend-only → any skill with
+      // effects.block > 0 (covers Page-Mark, Square Up, c-defend, c-mend,
+      // future block skills). HP-trade skills (loseHp > 0) gated by HP > 5
+      // to avoid sim KO from a defensive play.
+      if (state.block < incomingThisTurn) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
-          if (c.type === 'skill' && (c.id === 'c-defend' || c.id === 'c-mend') && (c.cost || 0) <= state.energy) {
-            state.energy -= c.cost || 0;
-            state.block += c.effects?.block || 0;
-            state.discard.push(c);
-            state.hand.splice(i, 1);
-            progressed = true;
-            break;
-          }
+          if (c.type !== 'skill') continue;
+          const fx = c.effects || {};
+          if (!fx.block) continue;
+          if ((c.cost || 0) > state.energy) continue;
+          // HP-trade safety: don't play if it would KO us.
+          const hpCost = fx.loseHp || 0;
+          if (hpCost > 0 && state.hp <= hpCost + 2) continue;
+          // Pay cost + apply effects.
+          state.energy -= c.cost || 0;
+          state.block += fx.block || 0;
+          if (fx.poise) state.poise += fx.poise;
+          if (fx.draw) drawCards(state, fx.draw);
+          if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
+          // Exhaust on play if the card declares it.
+          if (fx.exhaust) state.exiled.push(c);
+          else            state.discard.push(c);
+          state.hand.splice(i, 1);
+          progressed = true;
+          break;
         }
       }
       // v2.92: Play any PASSING THOUGHT in hand when affordable. Lane-
@@ -1453,18 +1474,90 @@ function runCombat(state, enemyId, telemetry) {
         progressed = true;
         break;
       }
-      // Play Compose / Steady if expected unblocked composure damage > 0.
-      if (state.poise < expectedCompHit) {
+      // Play any POISE-providing skill if expected unblocked composure damage > 0.
+      // v2.95: generalized from c-compose/c-steady-only → any skill with
+      // effects.poise > 0 (covers An Aside, c-compose, c-steady).
+      if (state.poise < incomingCompThisTurn) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
-          if (c.type === 'skill' && (c.id === 'c-compose' || c.id === 'c-steady') && (c.cost || 0) <= state.energy) {
-            state.energy -= c.cost || 0;
-            state.poise += c.effects?.poise || 0;
-            state.discard.push(c);
-            state.hand.splice(i, 1);
-            progressed = true;
-            break;
-          }
+          if (c.type !== 'skill') continue;
+          const fx = c.effects || {};
+          if (!fx.poise) continue;
+          if ((c.cost || 0) > state.energy) continue;
+          const hpCost = fx.loseHp || 0;
+          if (hpCost > 0 && state.hp <= hpCost + 2) continue;
+          state.energy -= c.cost || 0;
+          state.poise += fx.poise || 0;
+          if (fx.block) state.block += fx.block;
+          if (fx.draw) drawCards(state, fx.draw);
+          if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
+          if (fx.exhaust) state.exiled.push(c);
+          else            state.discard.push(c);
+          state.hand.splice(i, 1);
+          progressed = true;
+          break;
+        }
+      }
+      // v2.95: cycle pass — play draw-2+ exhaust skills (like Rhubarb) when
+      // hand is small AND HP can absorb any loseHp cost. Drawing 2 mid-turn
+      // often unlocks a cast that wasn't reachable otherwise.
+      if (state.hand.length <= 3) {
+        for (let i = 0; i < state.hand.length; i++) {
+          const c = state.hand[i];
+          if (c.type !== 'skill') continue;
+          const fx = c.effects || {};
+          if ((fx.draw || 0) < 2) continue;
+          if (fx.block || fx.poise) continue; // handled by defensive passes above
+          if ((c.cost || 0) > state.energy) continue;
+          const hpCost = fx.loseHp || 0;
+          if (hpCost > 0 && state.hp <= hpCost + 4) continue;
+          state.energy -= c.cost || 0;
+          drawCards(state, fx.draw);
+          if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
+          if (fx.exhaust) state.exiled.push(c);
+          else            state.discard.push(c);
+          state.hand.splice(i, 1);
+          progressed = true;
+          break;
+        }
+      }
+
+      // v2.95: gesture-play pass. Gestures bypass the spell tray and fire
+      // immediately on play. Crucial when a complete spell can't form this
+      // turn (e.g. missing intro/subject/target in hand). The sim previously
+      // ignored gestures entirely; with the 1-of-each-slot starter, that
+      // costs the player 30-50% of their turns. Plays any gesture if:
+      //   - energy >= cost
+      //   - tray can't form a spell this turn (missing slot in hand)
+      //   - OR the gesture has exhaust:true AND we won't form a spell
+      const canFormSpell = tray.intro && tray.subject ||
+        (state.hand.some(c => c.slot === 'intro') && state.hand.some(c => c.slot === 'subject') && state.hand.some(c => c.slot === 'target' && (c.cost || 0) <= state.energy));
+      if (!canFormSpell || (state.energy >= 2 && enemy.currentComp <= 12)) {
+        for (let i = 0; i < state.hand.length; i++) {
+          const c = state.hand[i];
+          if (c.slot !== 'gesture') continue;
+          if ((c.cost || 0) > state.energy) continue;
+          const ge = c.gestureEffect || {};
+          const dmg = ge.damage || 0;
+          if (dmg <= 0) continue;
+          // Skip if no relevant pool to damage (physical immune w/ phys gesture).
+          const dmgType = ge.damageType || 'composure';
+          const eff = enemy.effectiveness || {};
+          const enemyMult = dmgType === 'physical' ? (eff.physical ?? 1) : (eff[state.lane] ?? 1);
+          if (enemyMult <= 0) continue;
+          const finalDmg = Math.round(dmg * enemyMult * (state.playerDmgMult || 1));
+          if (finalDmg <= 0) continue;
+          state.energy -= c.cost || 0;
+          if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - finalDmg);
+          else                        enemy.currentComp = Math.max(0, enemy.currentComp - finalDmg);
+          if (ge.stripEnemyBlock) enemy.block = Math.max(0, (enemy.block || 0) - ge.stripEnemyBlock);
+          if (ge.draw) drawCards(state, ge.draw);
+          if (ge.exhaust) state.exiled.push(c);
+          else            state.discard.push(c);
+          state.hand.splice(i, 1);
+          telemetry.gesturePlays = (telemetry.gesturePlays || 0) + 1;
+          progressed = true;
+          break;
         }
       }
 
