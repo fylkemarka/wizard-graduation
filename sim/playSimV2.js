@@ -123,6 +123,35 @@ function buildStarterDeck(lane) {
   return shuffle(cards);
 }
 
+// v2.92: PASSING THOUGHTS — minimal sim mirror of the App.jsx const.
+// Only the IDs + cost + effects + rarity fields are modeled; flavor &
+// desc aren't relevant to combat resolution. Used by the rest-equivalent
+// grant pass (~20% per non-boss combat) and the play-any-colorless skill
+// pass in runCombat.
+const PASSING_THOUGHTS_SIM = [
+  { id: 'pt-stoicism',              cost: 1, effects: { block: 8, exhaust: true } },
+  { id: 'pt-second-wind',           cost: 1, effects: { hp: 6, exhaust: true } },
+  { id: 'pt-concerned-look',        cost: 1, effects: { poise: 6, exhaust: true } },
+  { id: 'pt-hardly-end',            cost: 1, effects: { hp: 3, block: 3, exhaust: true } },
+  { id: 'pt-composing-briefly',     cost: 1, effects: { poise: 6, draw: 1, exhaust: true } },
+  { id: 'pt-strong-tea',            cost: 0, effects: { energy: 1, exhaust: true } },
+  { id: 'pt-counterpoint',          cost: 1, effects: { vulnerable: 1, exhaust: true } },
+  { id: 'pt-pointed-cough',         cost: 1, effects: { weak: 1, exhaust: true } },
+  { id: 'pt-conspicuous-pause',     cost: 2, effects: { vulnerable: 1, weak: 1, exhaust: true } },
+  { id: 'pt-sudden-memory',         cost: 1, effects: { compDmg: 6, exhaust: true } },
+  { id: 'pt-receipt',               cost: 1, effects: { physDmg: 4, exhaust: true } },
+  { id: 'pt-pointed-comments',      cost: 2, effects: { vulnerable: 2, exhaust: true } },
+  { id: 'pt-what-if-however',       cost: 1, effects: { draw: 2, exhaust: true } },
+  { id: 'pt-where-was-i',           cost: 0, effects: { discardRandom: 1, draw: 2, exhaust: true } },
+  { id: 'pt-reconsideration',       cost: 1, effects: { returnDiscardToHand: 1, exhaust: true } },
+  { id: 'pt-removing-glasses',      cost: 0, effects: { draw: 1, energy: 1, exhaust: true } },
+  { id: 'pt-drawing-conclusions',   cost: 1, effects: { draw: 3, exhaust: true } },
+  { id: 'pt-embarrassed-silence',   cost: 1, effects: { stripBlock: 6, exhaust: true } },
+  { id: 'pt-misapplied-compliment', cost: 1, effects: { hp: 3, composure: 3, exhaust: true } },
+  { id: 'pt-decisively-inconclusive', cost: 2, effects: { discardHand: true, draw: 5, exhaust: true } },
+];
+const PASSING_THOUGHT_IDS = new Set(PASSING_THOUGHTS_SIM.map(c => c.id));
+
 // v2.12: jnsq CHAOS DICE outcomes (mirror of App.jsx).
 const CHAOS_OUTCOMES = {
   1: { dmgMult: 0.5,  hpDelta: -3, draw: 0, energyNext: 0, vuln: 0, discardRandom: 0 },
@@ -1296,6 +1325,74 @@ function runCombat(state, enemyId, telemetry) {
             break;
           }
         }
+      }
+      // v2.92: Play any PASSING THOUGHT in hand when affordable. Lane-
+      // agnostic one-shots; the AI plays them eagerly since they exhaust
+      // after a single use anyway. Applies all 7 new fx keys + the
+      // existing block/poise/hp/draw/energy/vulnerable/weak/composure
+      // handlers via the inline dispatcher below.
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        if (!PASSING_THOUGHT_IDS.has(c.id)) continue;
+        if ((c.cost || 0) > state.energy) continue;
+        const fx = c.effects || {};
+        // Cheap context gates so the AI doesn't always burn cards:
+        const hpFrac = state.hp / Math.max(1, state.maxHp);
+        const compFrac = state.composure / Math.max(1, state.maxComposure);
+        // Heal cards: skip if HP > 90% (waste).
+        if ((fx.hp && !fx.block && !fx.composure) && hpFrac > 0.9) continue;
+        // Pure composure heal: skip if comp > 90%.
+        if ((fx.composure && !fx.hp) && compFrac > 0.9) continue;
+        // Block: skip if no incoming hit projected.
+        if ((fx.block && !fx.hp) && expectedHpHit === 0) continue;
+        // Poise: skip if no incoming comp hit projected.
+        if ((fx.poise && !fx.draw) && expectedCompHit === 0) continue;
+        // Draw-N: skip if hand already large (≥ 6).
+        if (fx.draw && !fx.energy && !fx.discardRandom && !fx.discardHand && state.hand.length >= 6) continue;
+        // Discard hand + draw 5: only when hand is small and we're not about to cast.
+        if (fx.discardHand && state.hand.length >= 4) continue;
+        // OK, play it.
+        state.energy -= c.cost || 0;
+        if (fx.block)               state.block += fx.block;
+        if (fx.poise)               state.poise += fx.poise;
+        if (fx.hp)                  state.hp = Math.min(state.maxHp, state.hp + fx.hp);
+        if (fx.composure)           state.composure = Math.min(state.maxComposure, state.composure + fx.composure);
+        if (fx.energy)              state.energy += fx.energy;
+        if (fx.draw)                drawCards(state, fx.draw);
+        if (fx.weak)                state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * fx.weak);
+        if (fx.vulnerable)          state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fx.vulnerable);
+        if (fx.compDmg)             enemy.currentComp = Math.max(0, enemy.currentComp - fx.compDmg);
+        if (fx.physDmg)             enemy.currentHp = Math.max(0, enemy.currentHp - fx.physDmg);
+        if (fx.stripBlock)          enemy.block = Math.max(0, (enemy.block || 0) - fx.stripBlock);
+        if (fx.discardRandom && state.hand.length > 0) {
+          const n = Math.min(fx.discardRandom, state.hand.length);
+          for (let k = 0; k < n; k++) {
+            const idx = Math.floor(rnd() * state.hand.length);
+            state.discard.push(state.hand[idx]);
+            state.hand.splice(idx, 1);
+          }
+        }
+        if (fx.discardHand && state.hand.length > 0) {
+          // Note: hand index `i` is now stale post-discard, so we exit the
+          // for loop right after this branch.
+          state.discard.push(...state.hand.filter((_, k) => k !== i));
+          // The Passing Thought itself goes to exile (exhaust), not back to discard.
+          state.hand = [];
+        }
+        if (fx.returnDiscardToHand && state.discard.length > 0) {
+          const n = Math.min(fx.returnDiscardToHand, state.discard.length);
+          for (let k = 0; k < n; k++) {
+            const idx = Math.floor(rnd() * state.discard.length);
+            state.hand.push(state.discard[idx]);
+            state.discard.splice(idx, 1);
+          }
+        }
+        // Card exhausts (Passing Thoughts all carry exhaust: true).
+        state.exiled.push(c);
+        if (!fx.discardHand) state.hand.splice(i, 1);
+        telemetry.passingThoughtPlays = (telemetry.passingThoughtPlays || 0) + 1;
+        progressed = true;
+        break;
       }
       // Play Compose / Steady if expected unblocked composure damage > 0.
       if (state.poise < expectedCompHit) {
@@ -3324,6 +3421,11 @@ function simRun(forcedLane = null) {
     staggerPlays: 0,
     staggerMissesAvoided: 0,
     staggerDamageAvoided: 0,
+    // v2.92: Passing Thoughts telemetry. grants = times a PT was added to
+    // the deck via the rest-equivalent grant pass; plays = times the AI
+    // resolved one in combat.
+    passingThoughtGrants: 0,
+    passingThoughtPlays: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -3340,6 +3442,18 @@ function simRun(forcedLane = null) {
     }
   };
 
+  // v2.92: Reflect-equivalent — between non-boss combats, 20% chance to
+  // grant a random Passing Thought to the deck. Mirrors a player picking
+  // the 'reflect' rest-site option occasionally. The real-game map
+  // distributes rest nodes more variably; 20% per slot averages out.
+  const maybeReflect = () => {
+    if (rnd() < 0.20) {
+      const pt = pickRandom(PASSING_THOUGHTS_SIM);
+      state.deck.push({ ...pt, uid: uid() });
+      tele.passingThoughtGrants++;
+    }
+  };
+
   for (const act of ACTS) {
     // 3 normals
     for (let i = 0; i < 3; i++) {
@@ -3350,6 +3464,7 @@ function simRun(forcedLane = null) {
       if (r.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
       awardReward(state);
       postCombatHeal();
+      maybeReflect();
     }
     // 1 elite
     const eliteR = runCombat(state, pickRandom(ACT_ELITES[act.id]), tele);
@@ -3358,6 +3473,7 @@ function simRun(forcedLane = null) {
     if (eliteR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
     awardReward(state);
     postCombatHeal();
+    maybeReflect();
     // Boss
     const bossR = runCombat(state, act.bossId, tele);
     tele.combatCount++; tele.combatTurns += bossR.turns;
@@ -3483,6 +3599,8 @@ function aggregate(results) {
     // v2.67: general chip-cast skip metric.
     chipCastSkips: results.reduce((s, r) => s + (r.chipCastSkips || 0), 0),
     smoothedBackfires: results.reduce((s, r) => s + (r.smoothedBackfires || 0), 0),
+    passingThoughtGrants: results.reduce((s, r) => s + (r.passingThoughtGrants || 0), 0),
+    passingThoughtPlays: results.reduce((s, r) => s + (r.passingThoughtPlays || 0), 0),
     // v2.35: FOOTNOTE metrics.
     footnotesApplied: results.reduce((s, r) => s + (r.footnotesApplied || 0), 0),
     footnoteCastsWithBonus: results.reduce((s, r) => s + (r.footnoteCastsWithBonus || 0), 0),
@@ -3690,6 +3808,7 @@ function buildReport(agg) {
   lines.push(`- v2.43 thread-preservation skip-casts: ${agg.threadPreservationSkips || 0}`);
   lines.push(`- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): ${agg.chipCastSkips || 0}`);
   lines.push(`- v2.90 backfire-smoother fires (3rd consecutive 1 → 2): ${agg.smoothedBackfires || 0}`);
+  lines.push(`- v2.92 Passing Thoughts: ${agg.passingThoughtGrants || 0} granted, ${agg.passingThoughtPlays || 0} played`);
   lines.push('');
   lines.push(`## Wit FOOTNOTE (v2.35)`);
   lines.push(`- Footnotes applied: ${agg.footnotesApplied} (runs: ${agg.footnoteRuns} / ${agg.N}, ${pct(agg.footnoteRuns / agg.N)})`);
