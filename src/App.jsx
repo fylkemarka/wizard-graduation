@@ -3915,6 +3915,92 @@ export default function App() {
   }
 
   // ---------- RUN LIFECYCLE ----------
+  // v3.1 DEV QUICK-START: presets per lane × act for fast playtest at
+  // mid/late-run states. Each act-N entry CUMULATIVE adds the listed
+  // card IDs to a freshly-built starter deck for the lane. Use Final
+  // Boss preset to drop directly at the act-3 boss room.
+  const DEV_PRESETS = {
+    wit: {
+      2: ['wv2-k-hewn-greaves-footnotes', 'wv2-i-strikes-me', 'wv2-ann-subtext-italics', 'wv2-t-shows', 'wv2-t-not-survive-scrutiny'],
+      3: ['wv2-t-natural-conclusion', 'wv2-i-i-should-think', 'wv2-ann-thorned-footnote', 'wv2-k-word-in-edgewise', 'c-mend'],
+      4: ['wv2-t-generous-error', 'wv2-t-in-summary', 'wv2-ann-thesis-expanded', 'c-bulwark', 'c-acuity'],
+    },
+    chutzpah: {
+      2: ['cv2-t-bleeds-for-it', 'cv2-i-bring-it-on', 'cv2-g-slams-table', 'cv2-p-hit-me-again', 'c-amplify'],
+      3: ['cv2-t-bare-knuckles', 'cv2-m-say-again', 'cv2-i-once', 'cv2-g-headbutt', 'c-mend'],
+      4: ['cv2-t-and-im-not-done', 'c-iron-stomach', 'c-bulwark', 'c-acuity', 'c-clarity'],
+    },
+    jnsq: {
+      2: ['jv2-t-third-tuesday', 'jv2-i-astrally', 'jv2-p-hold-my-drink', 'jv2-k-shouldnt-said-have-you-eaten', 'c-channel'],
+      3: ['jv2-p-wait-and-another-thing', 'jv2-k-that-reminds-me', 'jv2-t-getting-away-from-me', 'jv2-k-sober-second-thought', 'c-mend'],
+      4: ['jv2-t-universe-sideways', 'jv2-k-sorry-lost-balance', 'jv2-i-on-a-tuesday', 'c-bulwark', 'c-acuity'],
+    },
+  };
+
+  function startDevRun(lane, startActIdx, dropAtBoss) {
+    clearSavedRun();
+    const character = CHARACTERS.find(c => c.lane === lane);
+    if (!character) return;
+    const fam = FAMILIARS_BY_ID['fam-toad'] || FAMILIARS[0];
+    setMaxHp(STARTING_MAX_HP + (fam?.bonus?.maxHp || 0));
+    setHp(STARTING_MAX_HP + (fam?.bonus?.maxHp || 0));
+    setComposureMax(STARTING_MAX_COMPOSURE);
+    setComposure(STARTING_MAX_COMPOSURE);
+    setBlock(0);
+    setEnergy(ENERGY_PER_TURN);
+    // Build starter + cumulative presets.
+    const starter = buildStartingDeck(lane);
+    const presetIds = [];
+    for (let a = 2; a <= startActIdx + 1; a++) {
+      const ids = DEV_PRESETS[lane]?.[a] || [];
+      presetIds.push(...ids);
+    }
+    const extraCards = presetIds
+      .map(id => CARDS_BY_ID[id])
+      .filter(Boolean)
+      .map(c => ({ ...c, uid: uid() }));
+    setDeck(shuffle([...starter, ...extraCards]));
+    setHand([]);
+    setDiscard([]);
+    setExiled([]);
+    setEquipment([]);
+    setPowers([]);
+    setRelics([]);
+    setFamiliar(fam);
+    setFamiliarName(fam?.species || '');
+    setSelectedCharacter(character);
+    setEffectCount(0);
+    setTray(initialV2Tray());
+    setInventory({ staff: [], robes: [], ring: [], hat: [] });
+    setSkills({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
+    setMaterialChoices(null);
+    setActiveSkillEvent(null);
+    setClearedNodes([]);
+    setLog([`🧪 Dev start — ${character.name} at ${ACTS[startActIdx]?.name || 'Act ' + (startActIdx + 1)}.`]);
+    setCurrentActIdx(startActIdx);
+    setSupplyOffers(null);
+    const act = ACTS[startActIdx];
+    if (!act) return;
+    const m = generateActMap(act.rows, act.width);
+    const seeded = seedSidequestSpurs(m, act.id, act.rows, act.width);
+    setMap(seeded);
+    if (dropAtBoss) {
+      const bossNode = seeded.find(n => n.type === 'boss');
+      setCurrentNodeId(bossNode?.id || null);
+      // Pre-clear everything before the boss row to simulate "arrived at boss."
+      const cleared = seeded.filter(n => n.row < (bossNode?.row ?? Infinity) && n.id !== bossNode?.id).map(n => n.id);
+      setClearedNodes(cleared);
+      // Auto-enter the boss fight.
+      if (bossNode) {
+        setTimeout(() => enterFight(act.bossId), 30);
+      }
+    } else {
+      setCurrentNodeId(null);
+      setClearedNodes([]);
+      setStage('map');
+    }
+  }
+
   function startRun() {
     clearSavedRun();
     // Deck is built per-character after character-select. Initialise empty.
@@ -8144,7 +8230,11 @@ export default function App() {
   if (stage === 'menu')               return <MenuScreen
     onStart={startRun} onTutorial={startTutorial}
     onContinue={hasSavedRun ? continueRun : null}
-    onDiscardSave={hasSavedRun ? () => { clearSavedRun(); } : null} />;
+    onDiscardSave={hasSavedRun ? () => { clearSavedRun(); } : null}
+    onDevQuickStart={() => setStage('dev-quick-start')} />;
+  if (stage === 'dev-quick-start')    return <DevQuickStartScreen
+    onStart={startDevRun}
+    onBack={() => setStage('menu')} />;
   if (stage === 'tutorial-complete')  return <TutorialCompleteScreen onStart={startRun} onMenu={() => setStage('menu')} />;
   if (stage === 'defeat')             return <EndScreen win={false} onRetry={startRun} />;
   if (stage === 'graduation')         return <GraduationScreen equipment={equipment} familiar={familiar} familiarName={familiarName} onRetry={startRun} />;
@@ -8323,7 +8413,7 @@ export default function App() {
 // 4. SUB-SCREENS
 // =============================================================================
 
-function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave }) {
+function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave, onDevQuickStart }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
       <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Witch Mountain Bridge</h1>
@@ -8340,8 +8430,73 @@ function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave }) {
         {onDiscardSave && (
           <button onClick={onDiscardSave} className="text-xs text-parchment-500 italic hover:text-ember-300 mt-2">Discard saved run</button>
         )}
+        {onDevQuickStart && (
+          <button onClick={onDevQuickStart} className="text-xs text-parchment-500 italic hover:text-iris-300 mt-4 border-t border-ink-700 pt-3">🧪 Dev Quick-Start (pick lane + act)</button>
+        )}
       </div>
       <p className="text-xs text-parchment-400">MVP 5 — verbal combat: words build spells, effects cast them.</p>
+    </div>
+  );
+}
+
+function DevQuickStartScreen({ onStart, onBack }) {
+  const [lane, setLane] = useState('chutzpah');
+  const [actIdx, setActIdx] = useState(0);
+  const [dropAtBoss, setDropAtBoss] = useState(false);
+  const lanes = [
+    { id: 'wit',      name: 'Wit — The Scholar' },
+    { id: 'chutzpah', name: 'Chutzpah — The Bruiser' },
+    { id: 'jnsq',     name: 'Jnsq — The Fool' },
+  ];
+  const actLabels = ['Act 1 (start)', 'Act 2 (Thread Path)', 'Act 3 (Forge Path)', 'Final Act (Staff Path)'];
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-2xl mx-auto">
+      <h1 className="font-display text-4xl text-iris-300 tracking-widest text-center">🧪 Dev Quick-Start</h1>
+      <p className="font-quill text-parchment-300 italic text-center">
+        Jump to any act with a curated deck for that phase. Skips
+        character-select, supply-shop, and familiar-name. Familiar
+        defaults to Toad.
+      </p>
+
+      <div className="parchment-card-strong p-4 flex flex-col gap-4 w-full">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-parchment-300 mb-2">Lane</div>
+          <div className="flex flex-col gap-1.5">
+            {lanes.map(l => (
+              <button key={l.id} onClick={() => setLane(l.id)}
+                className={`btn text-left ${lane === l.id ? 'btn-iris' : 'bg-ink-700 hover:bg-ink-600 text-parchment-200'}`}>
+                {l.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs uppercase tracking-widest text-parchment-300 mb-2">Start at</div>
+          <div className="flex flex-col gap-1.5">
+            {actLabels.map((label, i) => (
+              <button key={i} onClick={() => setActIdx(i)}
+                className={`btn text-left ${actIdx === i ? 'btn-iris' : 'bg-ink-700 hover:bg-ink-600 text-parchment-200'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-parchment-200 cursor-pointer">
+          <input type="checkbox" checked={dropAtBoss} onChange={e => setDropAtBoss(e.target.checked)} className="accent-iris-500" />
+          Drop directly at the act's boss (skip map)
+        </label>
+
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => onStart(lane, actIdx, dropAtBoss)} className="btn btn-gold flex-1">
+            ▶ Start
+          </button>
+          <button onClick={onBack} className="btn bg-ink-700 hover:bg-ink-600 text-parchment-200">
+            Back
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
