@@ -3187,11 +3187,14 @@ export default function App() {
   // tempo so elites and bosses can actually pressure across multiple
   // rounds instead of getting one-shot.
   const [castsThisTurn, setCastsThisTurn] = useState(0);
-  // v2.49: BABBLING lifts the per-turn cap from 1 to 2. Derived inline so
-  // the read always reflects the current powers array.
-  const MAX_CASTS_PER_TURN_BASE = 1;
-  const MAX_CASTS_PER_TURN = MAX_CASTS_PER_TURN_BASE
-    + (powers.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing') ? 1 : 0);
+  // v2.87: per-turn cast cap REMOVED. Was hard-capped at 1 (Babbling lifted
+  // to 2) — but the user's intent for "rarely cast twice per turn" was
+  // ABOUT ENERGY BALANCE, not a structural cap. If a player has the energy
+  // to stage and cast multiple spells, they should be able to. The energy
+  // economy (post-v2.59 wit subjects costing 1, v2.65 amp nerf, etc.) IS
+  // the rate-limiter. Babbling's 0.6× 2nd-cast scalar is now vestigial
+  // (still fires if installed, but nothing else gates multi-cast).
+  const MAX_CASTS_PER_TURN = 99;
   // v2.13: per-combat cast counter (resets at combat enter).
   // Used by Thesis-expanded annotation's bonusSpellDamagePerCast scaling.
   const [castsThisCombat, setCastsThisCombat] = useState(0);
@@ -7653,7 +7656,7 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       </>)
     : (<>
         <p><b>🌀 Tangent</b> — your signature trick. Skill cards like <i>"That reminds me,"</i> discard a random card from your draw pile and fire a random jnsq from your discard pile. Stack jnsq cards into discard so the chaos pool is rich.</p>
-        <p className="mt-2">Other jnsq-only tools: <b>🤫 Awkward Pause</b> (hold the tray, double next cast), <b>🍺 Drunken Confidence</b> (Power — +50% damage but +2 incoming), <b>🗯 Babbling</b> (Power — cast twice per turn), <b>🌀 Stagger</b> (50% enemy miss chance).</p>
+        <p className="mt-2">Other jnsq-only tools: <b>🤫 Awkward Pause</b> (hold the tray, double next cast), <b>🍺 Drunken Confidence</b> (Power — +50% damage but +2 incoming), <b>🌀 Stagger</b> (50% enemy miss chance).</p>
       </>);
 
   const STEPS = [
@@ -8714,7 +8717,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                 title={isDrunken
                   ? 'Drunken Confidence — all your spell casts deal +50% damage, BUT every enemy attack adds +2 raw damage before block. Play "sober second thought," to remove.'
                   : isBabbling
-                  ? 'Babbling — you can cast a SECOND spell per turn. The 2nd cast deals 60% damage. Re-stage required (the 1st cast empties the tray as usual).'
+                  ? 'Babbling — vestigial after v2.87 removed the cast cap. Originally lifted the per-turn cap from 1 → 2 with a 0.6× scalar on the 2nd cast; that scalar still fires but the cap no longer exists, so you can cast as many times as your energy allows even without this Power.'
                   : `${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
                 className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
                 {p.name}
@@ -9566,14 +9569,14 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
           title={
             stakeBlocked ? `Target requires ${stakeRequired}+ HP staked.` :
             rollBlocked ? `Target requires a prior ${rollRequired} rolled this combat.` :
-            castsThisTurn >= maxCastsPerTurn ? 'One spell per turn. End your turn to cast again.' :
+            castsThisTurn >= maxCastsPerTurn ? 'Cast cap reached (defensive ceiling, shouldn\'t trigger).' :
             'Cast the staged spell.'
           }
           className={`btn text-base px-6 py-2 ml-2 ${
             castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
             ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
           }`}>
-          ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">({castsThisTurn}/{maxCastsPerTurn})</span>}
+          ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
         </button>
       </div>
     </div>
