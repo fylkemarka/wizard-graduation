@@ -128,24 +128,35 @@ function buildStarterDeck(lane) {
 // desc aren't relevant to combat resolution. Used by the rest-equivalent
 // grant pass (~20% per non-boss combat) and the play-any-colorless skill
 // pass in runCombat.
+// v2.93 redesign: 12 of the original 20 replaced with creative new mechanics
+// (6 defense + 6 offense). Flag-based mechanics (Talking Over Them, Bracing,
+// Settle the Score, Precedent, etc.) are partially modeled in the sim —
+// state flags get set, and the most-impactful triggers are wired (skip-attack,
+// damage-doubles, cast-mult). Some triggers (debuff reflection, hit-type
+// conversion, hp-snapshot bracing) are noted as sim-no-ops since their
+// strategic impact requires real-play decisions the greedy AI doesn't model.
 const PASSING_THOUGHTS_SIM = [
-  { id: 'pt-stoicism',              cost: 1, effects: { block: 8, exhaust: true } },
-  { id: 'pt-second-wind',           cost: 1, effects: { hp: 6, exhaust: true } },
-  { id: 'pt-concerned-look',        cost: 1, effects: { poise: 6, exhaust: true } },
-  { id: 'pt-hardly-end',            cost: 1, effects: { hp: 3, block: 3, exhaust: true } },
-  { id: 'pt-composing-briefly',     cost: 1, effects: { poise: 6, draw: 1, exhaust: true } },
-  { id: 'pt-strong-tea',            cost: 0, effects: { energy: 1, exhaust: true } },
-  { id: 'pt-counterpoint',          cost: 1, effects: { vulnerable: 1, exhaust: true } },
-  { id: 'pt-pointed-cough',         cost: 1, effects: { weak: 1, exhaust: true } },
-  { id: 'pt-conspicuous-pause',     cost: 2, effects: { vulnerable: 1, weak: 1, exhaust: true } },
-  { id: 'pt-sudden-memory',         cost: 1, effects: { compDmg: 6, exhaust: true } },
-  { id: 'pt-receipt',               cost: 1, effects: { physDmg: 4, exhaust: true } },
-  { id: 'pt-pointed-comments',      cost: 2, effects: { vulnerable: 2, exhaust: true } },
+  // ---- DEFENSE (6, v2.93 redesign) ----
+  { id: 'pt-talking-over',          cost: 1, effects: { enemySkipNextAttack: true, exhaust: true } },
+  { id: 'pt-glancing-blow',         cost: 1, effects: { swapNextHitToComp: true, exhaust: true } },
+  { id: 'pt-settle-score',          cost: 1, effects: { reflectNextHitAsComp: true, exhaust: true } },
+  { id: 'pt-bracing',               cost: 1, effects: { bracingArmed: true, exhaust: true } },
+  { id: 'pt-measured-response',     cost: 1, effects: { blockFromComposure: true, exhaust: true } },
+  { id: 'pt-speaking-experience',   cost: 0, effects: { composure: -5, block: 10, exhaust: true } },
+  // ---- OFFENSE (6, v2.93 redesign) ----
+  { id: 'pt-precedent',             cost: 1, effects: { nextCastBonusEqualsLast: true, exhaust: true } },
+  { id: 'pt-about-that-time',       cost: 1, effects: { reflectNextDebuff: 1, exhaust: true } },
+  { id: 'pt-pile-on',               cost: 1, effects: { compDmgFromEnemyMissing: 0.33, exhaust: true } },
+  { id: 'pt-find-seam',             cost: 1, effects: { nextCastBypassEff: true, exhaust: true } },
+  { id: 'pt-insult-injury',         cost: 1, effects: { nextCastDamageMult: 1.5, exhaust: true } },
+  { id: 'pt-doubletake',            cost: 2, effects: { nextCastDoubles: true, exhaust: true } },
+  // ---- TEMPO / DRAW (5, unchanged from v2.92) ----
   { id: 'pt-what-if-however',       cost: 1, effects: { draw: 2, exhaust: true } },
   { id: 'pt-where-was-i',           cost: 0, effects: { discardRandom: 1, draw: 2, exhaust: true } },
   { id: 'pt-reconsideration',       cost: 1, effects: { returnDiscardToHand: 1, exhaust: true } },
   { id: 'pt-removing-glasses',      cost: 0, effects: { draw: 1, energy: 1, exhaust: true } },
   { id: 'pt-drawing-conclusions',   cost: 1, effects: { draw: 3, exhaust: true } },
+  // ---- UTILITY (3, unchanged from v2.92) ----
   { id: 'pt-embarrassed-silence',   cost: 1, effects: { stripBlock: 6, exhaust: true } },
   { id: 'pt-misapplied-compliment', cost: 1, effects: { hp: 3, composure: 3, exhaust: true } },
   { id: 'pt-decisively-inconclusive', cost: 2, effects: { discardHand: true, draw: 5, exhaust: true } },
@@ -550,6 +561,17 @@ function runCombat(state, enemyId, telemetry) {
   state.poise = 0; // v2.9: composure-shield
   state.combatRolls = []; // v2.12: track chaos rolls this combat
   state.backfireStreak = 0; // v2.90: consecutive 1s, for the backfire smoother
+  // v2.93: Passing Thought flag resets per combat.
+  state.enemySkipNextAttack = false;
+  state.swapNextHitToComp = false;
+  state.reflectNextHitAsComp = false;
+  state.bracingArmed = false;
+  state.reflectNextDebuff = 0;
+  state.nextCastBonusEqualsLast = false;
+  state.nextCastBypassEff = false;
+  state.nextCastDamageMult = 1.0;
+  state.nextCastDoubles = false;
+  state.lastCastDamage = 0;
   // v2.24: chutzpah TUNNEL VISION + RAGE state — per combat.
   state.tunnelVision = 0;
   state.rageActive = false;
@@ -704,6 +726,11 @@ function runCombat(state, enemyId, telemetry) {
     state._combatTurn = turns;
     // v2.29: reset saying-it-louder counter at the start of every player turn.
     state.loudCount = 0;
+    // v2.93 D-6 (Bracing for Impact): snapshot HP at turn start so the
+    // end-of-turn bracing check can compare. Armed flag is set when the
+    // card is played; the check fires (and consumes the flag) once HP
+    // drops below this snapshot.
+    state.hpAtTurnStart = state.hp;
 
     // v2.38: SAYING SOMETHING WRONG — Misstep token discard pass. Pay 1
     // Energy each to harmlessly discard tokens that landed in hand last
@@ -1387,6 +1414,28 @@ function runCombat(state, enemyId, telemetry) {
             state.discard.splice(idx, 1);
           }
         }
+        // v2.93: flag-based PT mechanics. Set the state flags; the cast /
+        // attack hooks below consume them. Some are real-play-decision-
+        // dependent and behave as no-ops in sim (Glancing Blow, Bracing,
+        // Settle the Score) — noted in their handling sites.
+        if (fx.enemySkipNextAttack) state.enemySkipNextAttack = true;
+        if (fx.swapNextHitToComp)   state.swapNextHitToComp = true;
+        if (fx.reflectNextHitAsComp) state.reflectNextHitAsComp = true;
+        if (fx.bracingArmed)        state.bracingArmed = true;
+        if (fx.reflectNextDebuff)   state.reflectNextDebuff = (state.reflectNextDebuff || 0) + fx.reflectNextDebuff;
+        if (fx.nextCastBonusEqualsLast) state.nextCastBonusEqualsLast = true;
+        if (fx.nextCastBypassEff)   state.nextCastBypassEff = true;
+        if (fx.nextCastDamageMult)  state.nextCastDamageMult = fx.nextCastDamageMult;
+        if (fx.nextCastDoubles)     state.nextCastDoubles = true;
+        if (fx.blockFromComposure) {
+          const bonus = Math.floor((state.composure || 0) / 3);
+          if (bonus > 0) state.block += bonus;
+        }
+        if (fx.compDmgFromEnemyMissing) {
+          const missing = Math.max(0, (enemy.comp || 0) - enemy.currentComp);
+          const dmg = Math.floor(missing * fx.compDmgFromEnemyMissing);
+          if (dmg > 0) enemy.currentComp = Math.max(0, enemy.currentComp - dmg);
+        }
         // Card exhausts (Passing Thoughts all carry exhaust: true).
         state.exiled.push(c);
         if (!fx.discardHand) state.hand.splice(i, 1);
@@ -1748,10 +1797,29 @@ function runCombat(state, enemyId, telemetry) {
       const eff = tray.target.effect || {};
       const stat = eff.scaleBy || tray.target.lane || 'wit';
       const dmgType = eff.damageType || 'composure';
-      const mult = (dmgType === 'physical')
+      // v2.93: O-4 (Find the Seam) — ignore enemy effectiveness for one cast.
+      const baseMult = (dmgType === 'physical')
         ? (enemy.effectiveness?.physical ?? 1.0)
         : (enemy.effectiveness?.[stat] ?? 1.0);
+      const seamBypass = !!state.nextCastBypassEff;
+      if (seamBypass) {
+        state.nextCastBypassEff = false;
+        telemetry.passingThoughtSeamFires = (telemetry.passingThoughtSeamFires || 0) + 1;
+      }
+      const mult = seamBypass ? 1.0 : baseMult;
       dmg = Math.round(dmg * mult * state.playerDmgMult);
+      // v2.93: O-1 (Precedent) — add lastCastDamage as bonus.
+      if (state.nextCastBonusEqualsLast) {
+        dmg += (state.lastCastDamage || 0);
+        state.nextCastBonusEqualsLast = false;
+        telemetry.passingThoughtPrecedentFires = (telemetry.passingThoughtPrecedentFires || 0) + 1;
+      }
+      // v2.93: O-5 (Adding Insult to Injury) — next cast ×1.5.
+      if (state.nextCastDamageMult && state.nextCastDamageMult !== 1.0) {
+        dmg = Math.round(dmg * state.nextCastDamageMult);
+        state.nextCastDamageMult = 1.0;
+        telemetry.passingThoughtInsultFires = (telemetry.passingThoughtInsultFires || 0) + 1;
+      }
       // v2.47: DRUNKEN CONFIDENCE — +50% on every Effect/Spell cast while
       // installed. Applied AFTER playerDmgMult so it composes with Vuln/Weak.
       if (state.drunkenInstalled) {
@@ -1831,6 +1899,9 @@ function runCombat(state, enemyId, telemetry) {
       if (result.sideEffects.stripBlock) {
         enemy.block = Math.max(0, enemy.block - result.sideEffects.stripBlock);
       }
+      // v2.93: O-1 support — capture this cast's pre-block damage as
+      // lastCastDamage so the NEXT Precedent cast has something to mirror.
+      state.lastCastDamage = dmg;
       // Apply damage absorbed by enemy block first
       let remaining = dmg;
       if (enemy.block > 0) {
@@ -1839,6 +1910,20 @@ function runCombat(state, enemyId, telemetry) {
       }
       if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - remaining);
       else                        enemy.currentComp = Math.max(0, enemy.currentComp - remaining);
+      // v2.93: O-6 (The Doubletake) — apply the same damage a second time.
+      // Block was consumed on the first pass, so the doubled hit is mostly
+      // full damage. Flag is one-shot.
+      if (state.nextCastDoubles && dmg > 0) {
+        state.nextCastDoubles = false;
+        let r2 = dmg;
+        if (enemy.block > 0) {
+          const absorbed2 = Math.min(enemy.block, r2);
+          enemy.block -= absorbed2; r2 -= absorbed2;
+        }
+        if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - r2);
+        else                        enemy.currentComp = Math.max(0, enemy.currentComp - r2);
+        telemetry.passingThoughtDoubletakeFires = (telemetry.passingThoughtDoubletakeFires || 0) + 1;
+      }
       // v2.15: BURST exiles cashed-in annotation; wit auto-attach stub
       // for casual casts that lacked one.
       if (cashedTurns > 0) {
@@ -2462,7 +2547,17 @@ function runCombat(state, enemyId, telemetry) {
         return { outcome: 'won', turns, telemetry };
       }
     }
-    let incoming = enemy.atk;
+    // v2.93: D-1 (Talking Over Them) — colorless flag that zeroes the
+    // next enemy attack. We let the rest of the turn flow run (drift,
+    // bracing capture, etc.) with incoming=0 so the math chain stays
+    // intact.
+    let attackSkipped = false;
+    if (state.enemySkipNextAttack) {
+      state.enemySkipNextAttack = false;
+      attackSkipped = true;
+      telemetry.passingThoughtSkipsAttack = (telemetry.passingThoughtSkipsAttack || 0) + 1;
+    }
+    let incoming = attackSkipped ? 0 : enemy.atk;
     // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
     // turn adds +1 to enemy raw damage. Tracked for telemetry so the cost
     // side is visible in reports.
@@ -2540,6 +2635,16 @@ function runCombat(state, enemyId, telemetry) {
           state.notListeningCharges -= 1;
           telemetry.notListeningAbsorbs = (telemetry.notListeningAbsorbs || 0) + 1;
           return; // absorbed — no debuff applied
+        }
+        // v2.93 D-2 (Mirror Reasoning): each reflectNextDebuff charge bounces
+        // ONE debuff back as a comp ping and consumes the charge. The debuff
+        // does NOT land on the player.
+        if (state.reflectNextDebuff > 0) {
+          state.reflectNextDebuff -= 1;
+          const ping = 6;
+          enemy.currentComp = Math.max(0, enemy.currentComp - ping);
+          telemetry.passingThoughtMirrorReasoningFires = (telemetry.passingThoughtMirrorReasoningFires || 0) + 1;
+          return;
         }
         state.enemyDebuffLanded += 1;
         if (kind === 'weak') {
@@ -2660,6 +2765,16 @@ function runCombat(state, enemyId, telemetry) {
     // skill play; this clear sets the next player turn back to "no dodge".
     if (state.staggerActive) {
       state.staggerActive = false;
+    }
+    // v2.93 D-6 (Bracing for Impact): if armed and HP dropped this turn,
+    // draw 3 cards. Consume the flag either way. Pre-empty-hand cleanup
+    // so the drawn cards are available next turn via reshuffle if needed.
+    if (state.bracingArmed) {
+      state.bracingArmed = false;
+      if (state.hp < (state.hpAtTurnStart || 0)) {
+        drawCards(state, 3);
+        telemetry.passingThoughtBracingFires = (telemetry.passingThoughtBracingFires || 0) + 1;
+      }
     }
     // End-of-turn cleanup
     state.discard.push(...state.hand);
@@ -3601,6 +3716,14 @@ function aggregate(results) {
     smoothedBackfires: results.reduce((s, r) => s + (r.smoothedBackfires || 0), 0),
     passingThoughtGrants: results.reduce((s, r) => s + (r.passingThoughtGrants || 0), 0),
     passingThoughtPlays: results.reduce((s, r) => s + (r.passingThoughtPlays || 0), 0),
+    // v2.93 — per-card fire counters for the redesigned offense/defense set.
+    passingThoughtSeamFires: results.reduce((s, r) => s + (r.passingThoughtSeamFires || 0), 0),
+    passingThoughtPrecedentFires: results.reduce((s, r) => s + (r.passingThoughtPrecedentFires || 0), 0),
+    passingThoughtInsultFires: results.reduce((s, r) => s + (r.passingThoughtInsultFires || 0), 0),
+    passingThoughtDoubletakeFires: results.reduce((s, r) => s + (r.passingThoughtDoubletakeFires || 0), 0),
+    passingThoughtSkipsAttack: results.reduce((s, r) => s + (r.passingThoughtSkipsAttack || 0), 0),
+    passingThoughtMirrorReasoningFires: results.reduce((s, r) => s + (r.passingThoughtMirrorReasoningFires || 0), 0),
+    passingThoughtBracingFires: results.reduce((s, r) => s + (r.passingThoughtBracingFires || 0), 0),
     // v2.35: FOOTNOTE metrics.
     footnotesApplied: results.reduce((s, r) => s + (r.footnotesApplied || 0), 0),
     footnoteCastsWithBonus: results.reduce((s, r) => s + (r.footnoteCastsWithBonus || 0), 0),
@@ -3809,6 +3932,13 @@ function buildReport(agg) {
   lines.push(`- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): ${agg.chipCastSkips || 0}`);
   lines.push(`- v2.90 backfire-smoother fires (3rd consecutive 1 → 2): ${agg.smoothedBackfires || 0}`);
   lines.push(`- v2.92 Passing Thoughts: ${agg.passingThoughtGrants || 0} granted, ${agg.passingThoughtPlays || 0} played`);
+  lines.push(`- v2.93 Find the Seam (bypass-effectiveness) fires: ${agg.passingThoughtSeamFires || 0}`);
+  lines.push(`- v2.93 Precedent (echo-last-damage) fires: ${agg.passingThoughtPrecedentFires || 0}`);
+  lines.push(`- v2.93 Insult-to-Injury (×N mult) fires: ${agg.passingThoughtInsultFires || 0}`);
+  lines.push(`- v2.93 Doubletake (cast resolves twice) fires: ${agg.passingThoughtDoubletakeFires || 0}`);
+  lines.push(`- v2.93 Skip-next-attack fires: ${agg.passingThoughtSkipsAttack || 0}`);
+  lines.push(`- v2.93 Mirror Reasoning (reflect debuff) fires: ${agg.passingThoughtMirrorReasoningFires || 0}`);
+  lines.push(`- v2.93 Bracing (draw-3-on-HP-loss) fires: ${agg.passingThoughtBracingFires || 0}`);
   lines.push('');
   lines.push(`## Wit FOOTNOTE (v2.35)`);
   lines.push(`- Footnotes applied: ${agg.footnotesApplied} (runs: ${agg.footnoteRuns} / ${agg.N}, ${pct(agg.footnoteRuns / agg.N)})`);

@@ -243,57 +243,57 @@ const RELICS_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
 // 'colorless' keeps them out of normal pickCardByRarity rolls — they only
 // show up where the code explicitly draws from PASSING_THOUGHTS.
 const PASSING_THOUGHTS = [
-  // ---- DEFENSE / SUSTAIN (6) ----
-  { id: 'pt-stoicism',           name: 'A Tidy Bit of Stoicism',         cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { block: 8, exhaust: true },
-    desc: 'Gain 8 Block. Exhaust.',
-    flavor: 'Smaller than the moment requires. Right-sized for the moment after.' },
-  { id: 'pt-second-wind',        name: 'Second Wind',                    cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { hp: 6, exhaust: true },
-    desc: 'Heal 6 HP. Exhaust.',
-    flavor: 'The first wind was unaccounted for. The second arrives politely.' },
-  { id: 'pt-concerned-look',     name: 'A Concerned Look',               cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { poise: 6, exhaust: true },
-    desc: 'Gain 6 Poise. Exhaust.',
-    flavor: 'A look so concerned it absorbs the next sharp word in passing.' },
-  { id: 'pt-hardly-end',         name: 'Hardly the End of It',           cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { hp: 3, block: 3, exhaust: true },
-    desc: 'Heal 3 HP and gain 3 Block. Exhaust.',
-    flavor: 'There is, you note, more to be said. There always is.' },
-  { id: 'pt-composing-briefly',  name: 'Composing Yourself, Briefly',    cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { poise: 6, draw: 1, exhaust: true },
-    desc: 'Gain 6 Poise and draw 1. Exhaust.',
-    flavor: 'A composure assembled out of leftover parts. Functional. Mostly.' },
-  { id: 'pt-strong-tea',         name: 'A Sip of Strong Tea',            cost: 0, type: 'skill', rarity: 'colorless',
-    effects: { energy: 1, exhaust: true },
-    desc: 'Gain 1 Energy. Exhaust.',
-    flavor: 'Brewed by someone who took it personally that you were tired.' },
+  // ---- DEFENSE (6 — reactive flags & pool-conversions, v2.93 redesign) ----
+  { id: 'pt-talking-over',       name: 'Talking Over Them',              cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { enemySkipNextAttack: true, exhaust: true },
+    desc: 'The enemy\'s next attack deals 0 damage (you spoke through it). Exhaust.',
+    flavor: 'A volume that ascends, mid-sentence, into the next sentence. The room follows you.' },
+  { id: 'pt-glancing-blow',      name: 'A Glancing Blow',                cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { swapNextHitToComp: true, exhaust: true },
+    desc: 'The next HP damage you would take is dealt to your Composure instead. Exhaust.',
+    flavor: 'The body, briefly, was elsewhere. The nerve will remember it.' },
+  { id: 'pt-settle-score',       name: 'Settle the Score',               cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { reflectNextHitAsComp: true, exhaust: true },
+    desc: 'When the enemy next damages you, they take the same amount as Composure damage. Exhaust.',
+    flavor: 'A score, properly settled, ends with a ledger that balances loudly.' },
+  { id: 'pt-bracing',            name: 'Bracing for Impact',             cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { bracingArmed: true, exhaust: true },
+    desc: 'If you take any HP damage this turn, draw 3 cards at end of turn. Exhaust.',
+    flavor: 'The body assumes the worst. The cards, for once, follow.' },
+  { id: 'pt-measured-response',  name: 'A Measured Response',            cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { blockFromComposure: true, exhaust: true },
+    desc: 'Gain Block equal to ⅓ of your current Composure. Exhaust.',
+    flavor: 'Measured. The measurement is private. The response is not.' },
+  { id: 'pt-speaking-experience', name: 'Speaking from Experience',      cost: 0, type: 'skill', rarity: 'colorless',
+    effects: { composure: -5, block: 10, exhaust: true },
+    desc: 'Spend 5 Composure. Gain 10 Block. Exhaust.',
+    flavor: 'You were younger. You knew less. You are now suddenly older.' },
 
-  // ---- OFFENSE / DEBUFF (6) ----
-  { id: 'pt-counterpoint',       name: 'An Unforeseen Counterpoint',     cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { vulnerable: 1, exhaust: true },
-    desc: 'Apply 1 Vulnerable to enemy. Exhaust.',
-    flavor: 'A point so against the grain the grain remembers it.' },
-  { id: 'pt-pointed-cough',      name: 'A Pointed Cough',                cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { weak: 1, exhaust: true },
-    desc: 'Apply 1 Weak to enemy. Exhaust.',
-    flavor: 'The cough is editorial. The editorial lands.' },
-  { id: 'pt-conspicuous-pause',  name: 'A Conspicuous Pause',            cost: 2, type: 'skill', rarity: 'colorless',
-    effects: { vulnerable: 1, weak: 1, exhaust: true },
-    desc: 'Apply 1 Vulnerable AND 1 Weak. Exhaust.',
-    flavor: 'A silence with two specific subtexts. They each land.' },
-  { id: 'pt-sudden-memory',      name: 'A Sudden Memory',                cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { compDmg: 6, exhaust: true },
-    desc: 'Deal 6 Composure damage directly. Exhaust.',
-    flavor: 'Something you said in a corridor in 1894. Not relevant, frankly.' },
-  { id: 'pt-receipt',            name: 'The Receipt',                    cost: 1, type: 'skill', rarity: 'colorless',
-    effects: { physDmg: 4, exhaust: true },
-    desc: 'Deal 4 Physical damage directly. Exhaust.',
-    flavor: 'Filed. Itemised. Now produced, with regret, from a sleeve.' },
-  { id: 'pt-pointed-comments',   name: 'Several Pointed Comments',       cost: 2, type: 'skill', rarity: 'colorless',
-    effects: { vulnerable: 2, exhaust: true },
-    desc: 'Apply 2 Vulnerable to enemy. Exhaust.',
-    flavor: 'Five, technically. Two of them written down.' },
+  // ---- OFFENSE (6 — cast-modifier flags & state-aware damage, v2.93 redesign) ----
+  { id: 'pt-precedent',          name: 'A Precedent, Cited',             cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { nextCastBonusEqualsLast: true, exhaust: true },
+    desc: 'Your next cast deals bonus damage equal to your LAST cast\'s damage. Exhaust.',
+    flavor: 'Page 47, footnote 3. The footnote, on review, settles things.' },
+  { id: 'pt-about-that-time',    name: 'And What About THAT Time',       cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { reflectNextDebuff: 1, exhaust: true },
+    desc: 'When the enemy next applies Vuln or Weak to you, that debuff also lands on them. Exhaust.',
+    flavor: 'You did not invent the precedent. You just recall it, very loudly, at exactly the wrong moment for them.' },
+  { id: 'pt-pile-on',            name: 'The Pile-On',                    cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { compDmgFromEnemyMissing: 0.33, exhaust: true },
+    desc: 'Deal Composure damage equal to ⅓ of the enemy\'s missing Composure. Exhaust.',
+    flavor: 'The phrase "while we\'re at it" is doing meaningful work in this room.' },
+  { id: 'pt-find-seam',          name: 'Find the Seam',                  cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { nextCastBypassEff: true, exhaust: true },
+    desc: 'Your next cast ignores enemy effectiveness (treated as ×1.0 regardless). Exhaust.',
+    flavor: 'Every surface has one. The seam is where the surface, helpfully, comes apart.' },
+  { id: 'pt-insult-injury',      name: 'Adding Insult to Injury',        cost: 1, type: 'skill', rarity: 'colorless',
+    effects: { nextCastDamageMult: 1.5, exhaust: true },
+    desc: 'Your next cast deals 1.5× damage. Exhaust.',
+    flavor: 'A small unkindness, tucked into the middle. Larger than it looks.' },
+  { id: 'pt-doubletake',         name: 'The Doubletake',                 cost: 2, type: 'skill', rarity: 'colorless',
+    effects: { nextCastDoubles: true, exhaust: true },
+    desc: 'Your next cast\'s damage applies twice. Exhaust.',
+    flavor: 'The first one didn\'t land. The second one is for the first one.' },
 
   // ---- TEMPO / DRAW (5) ----
   { id: 'pt-what-if-however',    name: 'What If, However—',              cost: 1, type: 'skill', rarity: 'colorless',
@@ -3320,6 +3320,20 @@ export default function App() {
   // the smoother only kicks in at the rare emotional cliff. Resets on
   // every combat enter and on any non-1 roll.
   const [backfireStreak, setBackfireStreak] = useState(0);
+  // v2.93: Passing Thought flags. Each one corresponds to a colorless card
+  // mechanic — set by playing the card, consumed by the relevant trigger.
+  // All cleared on enterFight; flag-style ones default false / 0.
+  const [reflectNextDebuff, setReflectNextDebuff] = useState(0);   // O-2 (also Vuln/Weak applied to enemy)
+  const [nextCastBonusEqualsLast, setNextCastBonusEqualsLast] = useState(false); // O-1 (Precedent)
+  const [nextCastBypassEff, setNextCastBypassEff] = useState(false); // O-4 (Find the Seam)
+  const [nextCastDamageMult, setNextCastDamageMult] = useState(1.0); // O-5 (Adding Insult to Injury)
+  const [nextCastDoubles, setNextCastDoubles] = useState(false);     // O-6 (The Doubletake)
+  const [enemySkipNextAttack, setEnemySkipNextAttack] = useState(false); // D-1 (Talking Over Them)
+  const [swapNextHitToComp, setSwapNextHitToComp] = useState(false); // D-2 (Glancing Blow)
+  const [reflectNextHitAsComp, setReflectNextHitAsComp] = useState(false); // D-3 (Settle the Score)
+  const [bracingArmed, setBracingArmed] = useState(false);           // D-4 (Bracing for Impact)
+  const [hpAtTurnStart, setHpAtTurnStart] = useState(0);             // D-4 support — capture at turn start, compare at end
+  const [lastCastDamage, setLastCastDamage] = useState(0);           // O-1 support — captured per cast
   // v2.24: chutzpah TUNNEL VISION meter. Fills +1 per chutzpah-lane card
   // played (intro/subject/modifier/target — anywhere staging completes).
   // At >= 5 at start of your turn, you enter RAGE for that turn:
@@ -4520,6 +4534,18 @@ export default function App() {
     setLastRoll(null);
     setCombatRolls([]);
     setBackfireStreak(0);
+    // v2.93: Passing Thought flags reset per combat.
+    setReflectNextDebuff(0);
+    setNextCastBonusEqualsLast(false);
+    setNextCastBypassEff(false);
+    setNextCastDamageMult(1.0);
+    setNextCastDoubles(false);
+    setEnemySkipNextAttack(false);
+    setSwapNextHitToComp(false);
+    setReflectNextHitAsComp(false);
+    setBracingArmed(false);
+    setHpAtTurnStart(hp);
+    setLastCastDamage(0);
     // v2.24: chutzpah tunnel-vision meter and RAGE state reset per combat.
     setTunnelVision(0);
     setRageActive(false);
@@ -5415,10 +5441,35 @@ export default function App() {
       setEnemyBlock(b => Math.max(0, b - sideEffects.stripBlock));
       pushLog(`🛇 Stripped ${sideEffects.stripBlock} enemy block.`);
     }
+    // v2.93: Passing Thought cast modifiers — applied BEFORE the 2nd-cast
+    // scalar so the 0.6× compounds last. Each flag is one-shot; consumed
+    // and cleared after this cast.
+    if (nextCastBonusEqualsLast) {
+      const bonus = lastCastDamage;
+      if (bonus > 0) {
+        dmg += bonus;
+        pushLog(`✦ A Precedent, Cited: +${bonus} dmg (mirrors last cast).`);
+      }
+      setNextCastBonusEqualsLast(false);
+    }
+    if (nextCastBypassEff) {
+      // Strip the enemy-effectiveness factor that was already baked into dmg.
+      // dmg was computed using `mult` (enemy eff × playerDmgMult). Re-derive.
+      const restored = mult !== 0 ? Math.round(dmg / mult * playerDmgMult) : dmg;
+      const delta = restored - dmg;
+      if (delta !== 0) {
+        dmg = restored;
+        pushLog(`🎯 Find the Seam: ignored ×${(mult / (playerDmgMult || 1)).toFixed(2)} effectiveness (${delta > 0 ? '+' : ''}${delta} dmg).`);
+      }
+      setNextCastBypassEff(false);
+    }
+    if (nextCastDamageMult !== 1.0) {
+      const preMult = dmg;
+      dmg = Math.round(dmg * nextCastDamageMult);
+      pushLog(`✦ Adding Insult to Injury: ×${nextCastDamageMult.toFixed(2)} (+${dmg - preMult} dmg).`);
+      setNextCastDamageMult(1.0);
+    }
     // v2.91: UNIVERSAL 2nd-cast 0.6× scalar (was v2.49 Babbling-gated).
-    // Any cast after the first this turn scales to 60% damage — restores
-    // "rarely cast twice/turn" via diminishing returns instead of a hard
-    // cap. Applied LAST so it scales the entire composed damage.
     if (isSecondCast) {
       const preScale = dmg;
       dmg = Math.round(dmg * 0.6);
@@ -5430,10 +5481,22 @@ export default function App() {
         damage: dmg, reduction: delta, enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
+    // v2.93: O-1 support — capture the damage value for the NEXT Precedent
+    // cast. Also captures last cast for any future card that wants it.
+    setLastCastDamage(dmg);
     // Apply damage.
     let after = 0;
     if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
     else                        after = applyDamageToEnemyComposure(dmg);
+    // v2.93: O-6 (The Doubletake) — apply damage a second time. Same dmg
+    // value, same type, no second cast counter / scalar (it's a copy, not
+    // a re-cast). Flag is one-shot.
+    if (nextCastDoubles && dmg > 0) {
+      pushLog(`✦✦ The Doubletake: ${dmg} dmg again.`);
+      if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
+      else                        after = applyDamageToEnemyComposure(dmg);
+      setNextCastDoubles(false);
+    }
     // v2.11: stake refund (from "and I mean it." target). Half the
     // staked HP comes back when the cast lands non-zero damage.
     if (sideEffects.stakeRefundHalf && stakeAmount > 0 && dmg > 0) {
@@ -6187,6 +6250,37 @@ export default function App() {
       });
       logBits.push(`+${fx.returnDiscardToHand} from discard`);
     }
+    // v2.93: Passing Thought flag setters. Each card sets one flag that
+    // a downstream hook consumes (enemy attack / cast resolve / end of
+    // turn). The flag-vs-effect split keeps each card readable and the
+    // dispatch graph testable.
+    if (fx.enemySkipNextAttack)   { setEnemySkipNextAttack(true);     logBits.push('🤐 enemy attack will skip'); }
+    if (fx.swapNextHitToComp)     { setSwapNextHitToComp(true);       logBits.push('💢→🎭 next HP hit becomes Comp'); }
+    if (fx.reflectNextHitAsComp)  { setReflectNextHitAsComp(true);    logBits.push('🪞 next hit reflects as Comp dmg to enemy'); }
+    if (fx.bracingArmed)          { setBracingArmed(true);            logBits.push('🛡✦ bracing — draw 3 at EoT if hit'); }
+    if (fx.reflectNextDebuff)     { setReflectNextDebuff(n => n + fx.reflectNextDebuff); logBits.push('🪞 next enemy debuff reflects'); }
+    if (fx.nextCastBonusEqualsLast) { setNextCastBonusEqualsLast(true); logBits.push(`✦ next cast +${lastCastDamage} bonus dmg (from last)`); }
+    if (fx.nextCastBypassEff)     { setNextCastBypassEff(true);       logBits.push('🎯 next cast ignores effectiveness'); }
+    if (fx.nextCastDamageMult)    { setNextCastDamageMult(fx.nextCastDamageMult); logBits.push(`✦ next cast ×${fx.nextCastDamageMult}`); }
+    if (fx.nextCastDoubles)       { setNextCastDoubles(true);         logBits.push('✦✦ next cast damage applies twice'); }
+    if (fx.blockFromComposure) {
+      // D-5 (A Measured Response): block = floor(comp / 3) at cast time.
+      const bonus = Math.floor(composure / 3);
+      if (bonus > 0) {
+        setBlock(b => b + bonus);
+        logBits.push(`🛡 +${bonus} (⅓ of Composure)`);
+      }
+    }
+    if (fx.compDmgFromEnemyMissing) {
+      // O-3 (Pile-On): direct comp dmg = floor(missing / 3). Read from
+      // the enemy snapshot — `enemy` is in App scope.
+      const missing = enemy ? Math.max(0, (enemy.composureMax || 0) - (enemy.annotation ? enemyComposure : enemyComposure)) : 0;
+      const dmg = Math.floor(missing * fx.compDmgFromEnemyMissing);
+      if (dmg > 0) {
+        applyDamageToEnemyComposure(dmg);
+        logBits.push(`🎭 ${dmg} (Pile-On — ⅓ of missing)`);
+      }
+    }
     // Self-damage cost on the card (Chutzpah identity — risk for damage).
     if (fx.loseHp) {
       setHp(h => clamp(h - fx.loseHp, 0, maxHp));
@@ -6851,6 +6945,21 @@ export default function App() {
         return next;
       });
     }
+    // v2.93: D-4 (Bracing for Impact) — if armed AND HP dropped this turn,
+    // draw 3 cards. Compare current hp to the snapshot captured at turn
+    // start. Flag is one-shot; clears either way.
+    if (bracingArmed) {
+      if (hp < hpAtTurnStart) {
+        drawCards(3);
+        pushLog(`🛡✦ Bracing for Impact: drew 3 (took ${hpAtTurnStart - hp} HP).`);
+      } else {
+        pushLog(`🛡✦ Bracing for Impact: dropped, no damage taken.`);
+      }
+      setBracingArmed(false);
+    }
+    // v2.93: capture HP for the NEXT turn's bracing check. Updated AFTER
+    // bracing fires so the snapshot rolls forward cleanly.
+    setHpAtTurnStart(hp);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
 
@@ -7078,13 +7187,27 @@ export default function App() {
     let playerDied = false;
     if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+      // v2.93: D-1 (Talking Over Them) — colorless flag that zeroes the
+      // next enemy attack outright. Consumed before any other math.
+      if (enemySkipNextAttack) {
+        setEnemySkipNextAttack(false);
+        pushLog(`🤐 ${e.name}: you spoke right through it. (Talking Over Them)`);
+        return;
+      }
       // v2.9: dual-shield routing.
       //   intent.pool === 'composure' → POISE absorbs, then composure pool
       //   default                     → BLOCK absorbs, then HP pool
       // Physical and composure defenses are NOW SEPARATE. A player who's
       // only built physical block has no answer to composure threats and
       // vice versa — forces dual defense management.
-      const targetsComposure = intent.pool === 'composure';
+      let targetsComposure = intent.pool === 'composure';
+      // v2.93: D-2 (Glancing Blow) — convert HP-target hits to Composure
+      // for ONE swing. Flag is consumed when the conversion happens.
+      let glancingApplied = false;
+      if (swapNextHitToComp && !targetsComposure) {
+        targetsComposure = true;
+        glancingApplied = true;
+      }
       let raw = Math.round(intent.value * enemyDmgMult);
       // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
       // turn adds +1 to enemy raw damage value. Applied BEFORE annotation
@@ -7258,6 +7381,23 @@ export default function App() {
         applyDamageToEnemyComposure(annReactive);
         pushLog(`📝 Annotation lashes back: -${annReactive} comp.`);
       }
+      // v2.93: D-3 (Settle the Score) — reactive reflect. If the player
+      // armed it, the damage they just took comes back at the enemy as
+      // Composure damage. Sum across both pools so an attack-multi
+      // delivers the full quantity back. Consumed unconditionally.
+      if (reflectNextHitAsComp) {
+        const dealt = (hp - wHp) + (composure - wComp);
+        if (dealt > 0) {
+          applyDamageToEnemyComposure(dealt);
+          pushLog(`🪞 Settled the score: ${dealt} comp dmg back to ${e.name}.`);
+        }
+        setReflectNextHitAsComp(false);
+      }
+      // v2.93: D-2 (Glancing Blow) — consume the swap flag after one swing.
+      if (glancingApplied) {
+        setSwapNextHitToComp(false);
+        pushLog(`💢→🎭 Glancing Blow consumed.`);
+      }
       if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
@@ -7271,6 +7411,12 @@ export default function App() {
       } else {
         adjustEnemyDmg(+0.25 * intent.value);
         pushLog(`👹 ${e.name}: 💢 +${25*intent.value}% to incoming dmg.`);
+        // v2.93: O-2 (And What About THAT Time) — reflect debuff to enemy.
+        if (reflectNextDebuff > 0) {
+          adjustPlayerDmg(+0.25 * intent.value);  // enemy becomes Vulnerable to your spells
+          pushLog(`🪞 ...and what about THAT time → enemy Vulnerable +${intent.value} (your spells +${25*intent.value}%).`);
+          setReflectNextDebuff(n => Math.max(0, n - 1));
+        }
       }
     } else if (intent.kind === 'weak') {
       // Enemy applies weak to player → player spells weaker.
@@ -7281,6 +7427,12 @@ export default function App() {
       } else {
         adjustPlayerDmg(-0.25 * intent.value);
         pushLog(`👹 ${e.name}: 💢 −${25*intent.value}% to your spell potency.`);
+        // v2.93: reflect Weak as enemy Weak (their attacks weaker).
+        if (reflectNextDebuff > 0) {
+          adjustEnemyDmg(-0.25 * intent.value);
+          pushLog(`🪞 ...and what about THAT time → enemy Weak (−${25*intent.value}% atk).`);
+          setReflectNextDebuff(n => Math.max(0, n - 1));
+        }
       }
     }
     // Riders: a combo intent can attach extra side-effects that fire AFTER
