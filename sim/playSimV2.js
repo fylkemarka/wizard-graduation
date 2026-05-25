@@ -1125,16 +1125,25 @@ function runCombat(state, enemyId, telemetry) {
         const predicted = preview.damage * enemyMult * (state.playerDmgMult || 1);
         const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
         const wouldKill = predicted >= remaining;
-        // Chip threshold: < 25% of remaining pool AND player safe.
-        // "Safe" = HP > 40% AND won't be killed by the next enemy swing.
-        const isChip = predicted < remaining * 0.25;
+        // v3.0 (cycle 2): chip threshold 25% → 15% of remaining pool.
+        // Human-divergence agent found sim casts 0.33-0.42/turn vs human
+        // 0.72-1.00 — the chip-skip heuristic was firing too aggressively,
+        // sim was hoarding tray instead of pressuring enemy. Tightening
+        // the chip definition (cast more often when damage is sub-15%
+        // pool, not sub-25%) brings sim cast cadence closer to human.
+        const isChip = predicted < remaining * 0.15;
         const hpRatio = state.maxHp > 0 ? state.hp / state.maxHp : 1;
         const expectedSwing = enemy.atk;
         const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+        // v3.0: also require defense to be ACTUALLY THIN. Real humans
+        // skip-chip only when defense is tight too (per-snapshot signal);
+        // sim was skipping whenever the cast was small, regardless of
+        // whether defense was needed.
+        const defenseTight = unblockedExpected > 2;
         const wouldSurvive = state.hp - unblockedExpected > 5;
         // Don't skip on the LAST act's boss (commit to the kill).
         const isFinalActBoss = enemy.tier === 'boss' && (state.actIdx || 0) >= 2;
-        if (isChip && !wouldKill && hpRatio > 0.4 && wouldSurvive && !isFinalActBoss) {
+        if (isChip && !wouldKill && hpRatio > 0.4 && wouldSurvive && defenseTight && !isFinalActBoss) {
           skipChipCast = true;
           telemetry.chipCastSkips = (telemetry.chipCastSkips || 0) + 1;
         }
@@ -2699,12 +2708,11 @@ function runCombat(state, enemyId, telemetry) {
       incoming += bonus;
       telemetry.arguingBackEnemyBonus = (telemetry.arguingBackEnemyBonus || 0) + bonus;
     }
-    // v2.47: DRUNKEN CONFIDENCE — +2 raw damage on every enemy attack
-    // while installed. Applied BEFORE block routing so block can still
-    // soak some of the chunk (partial-through-block, not bypass).
+    // v2.47: DRUNKEN CONFIDENCE — +1 raw damage on every enemy attack
+    // while installed (was +2 pre-v3.0). Applied BEFORE block routing.
     if (state.drunkenInstalled && incoming > 0) {
-      incoming += 2;
-      telemetry.drunkenIncomingPenalty = (telemetry.drunkenIncomingPenalty || 0) + 2;
+      incoming += 1;
+      telemetry.drunkenIncomingPenalty = (telemetry.drunkenIncomingPenalty || 0) + 1;
     }
     // v2.10: annotation enemyAtkReduction.
     if (enemy.annotation?.effect?.enemyAtkReduction) {

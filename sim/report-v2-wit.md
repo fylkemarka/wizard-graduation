@@ -3,32 +3,32 @@
 N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **0 wins / 100** = **0.0%**
-- Losses by acts-cleared: 0=37 · 1=52 · 2=11 · 3=0
+- **1 wins / 100** = **1.0%**
+- Losses by acts-cleared: 0=34 · 1=49 · 2=16 · 3=0
 
 ## Lane outcomes
-- **wit**: 100 runs · 0 wins (0.0%)
+- **wit**: 100 runs · 1 wins (1.0%)
 - **chutzpah**: 0 runs · 0 wins (0.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-mouse**: 16 runs · 0 wins (0.0%)
-- **fam-owl**: 11 runs · 0 wins (0.0%)
-- **fam-rabbit**: 9 runs · 0 wins (0.0%)
-- **fam-crow**: 9 runs · 0 wins (0.0%)
-- **fam-snake**: 15 runs · 0 wins (0.0%)
-- **fam-beetle**: 10 runs · 0 wins (0.0%)
-- **fam-cat**: 8 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 4 runs · 0 wins (0.0%)
-- **fam-toad**: 8 runs · 0 wins (0.0%)
-- **fam-raven**: 10 runs · 0 wins (0.0%)
+- **fam-beetle**: 7 runs · 1 wins (14.3%)
+- **fam-mouse**: 19 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 16 runs · 0 wins (0.0%)
+- **fam-raven**: 8 runs · 0 wins (0.0%)
+- **fam-rabbit**: 10 runs · 0 wins (0.0%)
+- **fam-crow**: 10 runs · 0 wins (0.0%)
+- **fam-cat**: 4 runs · 0 wins (0.0%)
+- **fam-toad**: 11 runs · 0 wins (0.0%)
+- **fam-owl**: 10 runs · 0 wins (0.0%)
+- **fam-snake**: 5 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 1532
-- Tier 1 (COHERENT): 1331 (86.9%)
-- Tier 2 (RESONANT): 198 (12.9%)
+- Total casts: 1666
+- Tier 1 (COHERENT): 1472 (88.4%)
+- Tier 2 (RESONANT): 191 (11.5%)
 - Tier 3 (DEVASTATING): 3 (0.2%)
-- Holds (turn ended without cast — tray persists): 3161 (67.4%)
+- Holds (turn ended without cast — tray persists): 3325 (66.6%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -74,75 +74,75 @@ N = **100** runs simulated with a greedy v2 AI.
 - Avg absorbs per skill cast: 0.00
 
 ## Wit LONG THREAD (v2.34)
-- Combats reaching LT ≥ 1: 370 (runs: 100 / 100, 100.0%)
-- Avg peak LT per run (across all combats): 4.34
-- Avg peak LT per threaded combat: 1.17
-- Thread breaks (unblocked hit reset a non-zero meter): 186
-- Thread-scaling rider triggers: 0
-- Total bonus damage from thread scaling: 0
-- "natural conclusion." target casts: 1
+- Combats reaching LT ≥ 1: 419 (runs: 100 / 100, 100.0%)
+- Avg peak LT per run (across all combats): 4.75
+- Avg peak LT per threaded combat: 1.13
+- Thread breaks (unblocked hit reset a non-zero meter): 199
+- Thread-scaling rider triggers: 273
+- Total bonus damage from thread scaling: 306
+- "natural conclusion." target casts: 5
 - v2.43 thread-preservation skip-casts: 0
-- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 45
+- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 3
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 116 granted, 115 played
-- v2.93 Find the Seam (bypass-effectiveness) fires: 9
-- v2.93 Precedent (echo-last-damage) fires: 7
-- v2.93 Insult-to-Injury (×N mult) fires: 0
+- v2.92 Passing Thoughts: 135 granted, 137 played
+- v2.93 Find the Seam (bypass-effectiveness) fires: 8
+- v2.93 Precedent (echo-last-damage) fires: 8
+- v2.93 Insult-to-Injury (×N mult) fires: 5
 - v2.93 Doubletake (cast resolves twice) fires: 3
-- v2.93 Skip-next-attack fires: 4
+- v2.93 Skip-next-attack fires: 11
 - v2.93 Mirror Reasoning (reflect debuff) fires: 2
-- v2.93 Bracing (draw-3-on-HP-loss) fires: 2
+- v2.93 Bracing (draw-3-on-HP-loss) fires: 1
 
 ## Wit FOOTNOTE (v2.35)
-- Footnotes applied: 24 (runs: 24 / 100, 24.0%)
-- Casts contributing footnote bonus: 92
-- Total footnote bonus damage: 319
-- Avg bonus per footnoted cast: 3.47
+- Footnotes applied: 32 (runs: 32 / 100, 32.0%)
+- Casts contributing footnote bonus: 108
+- Total footnote bonus damage: 370
+- Avg bonus per footnoted cast: 3.43
 
 ## Wit ACTUALLY— (v2.36)
-- Re-fires resolved: 122 (runs: 40 / 100, 40.0%)
-- Total re-fire damage: 2225
-- Avg damage / re-fire: 18.24
-- Enemy bonus from arguing-back: 39 (cost side fired)
+- Re-fires resolved: 151 (runs: 42 / 100, 42.0%)
+- Total re-fire damage: 2847
+- Avg damage / re-fire: 18.85
+- Enemy bonus from arguing-back: 38 (cost side fired)
 
 ## Wit HOLD ON — (v2.37)
-- Plays: 34 (runs: 23 / 100, 23.0%)
-- Total damage prevented: 36
-- Avg prevention / play: 1.06
+- Plays: 26 (runs: 20 / 100, 20.0%)
+- Total damage prevented: 29
+- Avg prevention / play: 1.12
 
 ## Wit SAYING SOMETHING WRONG (v2.38)
-- Casts that queued a Misstep: 150 (runs: 44 / 100, 44.0%)
-- Up-front damage dealt by those casts: 4103
-- Tokens delivered to hand: 37
-- Discarded (1 Energy paid): 5
+- Casts that queued a Misstep: 147 (runs: 48 / 100, 48.0%)
+- Up-front damage dealt by those casts: 4026
+- Tokens delivered to hand: 36
+- Discarded (1 Energy paid): 3
 - Auto-played (-3 HP eaten): 31 (total damage: 93)
 - KOs by Misstep auto-play: 0
-- Avg up-front damage / cast: 27.35
+- Avg up-front damage / cast: 27.39
 
 ## Wit OPENING STATEMENT (v2.39)
-- Bonus triggers: 10 (runs: 8 / 100, 8.0%)
-- Total bonus damage: 40
-- Avg bonus / trigger: 4.00
-- Revisit-opening skill plays: 17
+- Bonus triggers: 16 (runs: 12 / 100, 12.0%)
+- Total bonus damage: 65
+- Avg bonus / trigger: 4.06
+- Revisit-opening skill plays: 28
 
 ## Wit PATIENCE (v2.40)
-- Installs: 317 (runs: 66 / 100, 66.0%)
-- Peak stacks — max: 30, mean: 3.56
-- Total damage from patience-spend: 1854
-- Casts that consumed bank: 504
-- "I'll let you finish," skill plays: 52
-- Avg damage / spend: 3.68
+- Installs: 355 (runs: 65 / 100, 65.0%)
+- Peak stacks — max: 30, mean: 2.90
+- Total damage from patience-spend: 1934
+- Casts that consumed bank: 569
+- "I'll let you finish," skill plays: 30
+- Avg damage / spend: 3.40
 
 ## Wit SYNERGY CAPSTONE (v2.41)
-- "in summary," casts: 35 (runs: 18 / 100, 18.0%)
-- Total capstone damage: 812
-- Avg damage per cast: 23.20
+- "in summary," casts: 34 (runs: 12 / 100, 12.0%)
+- Total capstone damage: 773
+- Avg damage per cast: 22.74
 
 ## Wit INSULT VULNERABILITIES (v2.42)
-- Casts that hit the rider: 26 (runs: 12 / 100, 12.0%)
-- Total matched tags (capped 3/cast): 34
-- Total bonus damage: 136
-- Avg bonus per cast: 5.23
+- Casts that hit the rider: 34 (runs: 16 / 100, 16.0%)
+- Total matched tags (capped 3/cast): 50
+- Total bonus damage: 200
+- Avg bonus per cast: 5.88
 
 ## Jnsq TANGENT (v2.44)
 - "That reminds me," skill plays: 0 (runs: 0 / 100, 0.0%)
@@ -203,25 +203,25 @@ N = **100** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 6.92
-- Avg damage / run: 240
-- Mean final deck size: 12.7
+- Avg turns / combat: 6.70
+- Avg damage / run: 260
+- Mean final deck size: 13.4
 
 ## Archetype of winning decks
+- mid-t2t3: 1
 
 ## Top killer enemies
-- e3-boss-anvil (The Anvil-Forged): 24
-- e3-vein-devourer (Vein Devourer): 15
-- e2-boss-tapestry (The Tapestry Walker): 12
-- e2-hollow-weaver (Hollow Weaver): 9
-- e2-pattern-maker (The Pattern-Maker): 7
-- e1-boss-thornlord (The Thornlord): 6
-- e2-silent-spinner (The Silent Spinner): 5
-- e3-quartz-sentinel (Quartz Sentinel): 4
-- e3-geode-crab (Geode Crab): 4
+- e3-boss-anvil (The Anvil-Forged): 25
+- e2-boss-tapestry (The Tapestry Walker): 20
+- e3-vein-devourer (Vein Devourer): 13
+- e1-boss-thornlord (The Thornlord): 7
+- e1-thicket (Living Thicket): 5
+- e3-quartz-sentinel (Quartz Sentinel): 5
 - e2-silk-wraith (Silk Wraith): 4
-- e3-glow-mite (Glow-Mite Swarm): 4
+- e2-hollow-weaver (Hollow Weaver): 4
+- e2-pattern-maker (The Pattern-Maker): 3
+- e2-silent-spinner (The Silent Spinner): 3
+- e3-geode-crab (Geode Crab): 3
+- e3-crystal-beetle (Crystal Beetle): 3
 - e1-tutor (Stern Tutor): 2
-- e1-thicket (Living Thicket): 2
-- e3-crystal-beetle (Crystal Beetle): 1
-- e1-shrine-rat (Shrine Rat Pack): 1
+- e1-shrine-rat (Shrine Rat Pack): 2

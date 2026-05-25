@@ -7387,8 +7387,14 @@ export default function App() {
       // pre-routing add — so we lift `raw` once and let the loop ride.
       const drunkenIncomingActive = powers.some(p => p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink');
       if (drunkenIncomingActive && raw > 0) {
-        raw += 2;
-        setDrunkenTelemetry(t => ({ ...t, incomingPenalty: t.incomingPenalty + 2 }));
+        // v3.0 (cycle 2): incoming penalty +2 → +1. Drunken Confidence
+        // installs 69% of jnsq runs but the lane has 0% sim win rate —
+        // the +50% damage upside is real but the +2/swing-multi enemy
+        // damage stacks fast on multi-attackers and burns through HP
+        // before the bank cashes in. Halving the cost makes the install
+        // a clearer "trade some HP for a lot more damage."
+        raw += 1;
+        setDrunkenTelemetry(t => ({ ...t, incomingPenalty: t.incomingPenalty + 1 }));
       }
       // v2.10: annotation reduces incoming attack BEFORE shield routing.
       const annAtkRed = annoFx('enemyAtkReduction');

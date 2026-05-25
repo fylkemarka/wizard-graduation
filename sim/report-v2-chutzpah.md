@@ -4,7 +4,7 @@ N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **10 wins / 100** = **10.0%**
-- Losses by acts-cleared: 0=1 · 1=24 · 2=65 · 3=0
+- Losses by acts-cleared: 0=2 · 1=16 · 2=72 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
@@ -12,66 +12,66 @@ N = **100** runs simulated with a greedy v2 AI.
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-beetle**: 5 runs · 2 wins (40.0%)
-- **fam-toad**: 6 runs · 2 wins (33.3%)
-- **fam-mouse**: 10 runs · 3 wins (30.0%)
-- **fam-rabbit**: 9 runs · 1 wins (11.1%)
-- **fam-raven**: 10 runs · 1 wins (10.0%)
-- **fam-cat**: 12 runs · 1 wins (8.3%)
-- **fam-hedgehog**: 17 runs · 0 wins (0.0%)
-- **fam-owl**: 6 runs · 0 wins (0.0%)
-- **fam-snake**: 14 runs · 0 wins (0.0%)
-- **fam-crow**: 11 runs · 0 wins (0.0%)
+- **fam-beetle**: 8 runs · 2 wins (25.0%)
+- **fam-snake**: 11 runs · 2 wins (18.2%)
+- **fam-mouse**: 8 runs · 1 wins (12.5%)
+- **fam-owl**: 8 runs · 1 wins (12.5%)
+- **fam-raven**: 9 runs · 1 wins (11.1%)
+- **fam-cat**: 9 runs · 1 wins (11.1%)
+- **fam-rabbit**: 10 runs · 1 wins (10.0%)
+- **fam-hedgehog**: 13 runs · 1 wins (7.7%)
+- **fam-crow**: 13 runs · 0 wins (0.0%)
+- **fam-toad**: 11 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 1887
-- Tier 1 (COHERENT): 1317 (69.8%)
-- Tier 2 (RESONANT): 538 (28.5%)
-- Tier 3 (DEVASTATING): 32 (1.7%)
-- Holds (turn ended without cast — tray persists): 3216 (63.0%)
+- Total casts: 1950
+- Tier 1 (COHERENT): 1401 (71.8%)
+- Tier 2 (RESONANT): 519 (26.6%)
+- Tier 3 (DEVASTATING): 30 (1.5%)
+- Holds (turn ended without cast — tray persists): 3213 (62.2%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
-- Total RAGE triggers: 362
-- Runs with at least one RAGE turn: 100 / 100 (100.0%)
-- Bare Knuckles casts: 5 (misfires: 2)
+- Total RAGE triggers: 391
+- Runs with at least one RAGE turn: 99 / 100 (99.0%)
+- Bare Knuckles casts: 0 (misfires: 0)
 
 ## Chutzpah DOUBLING DOWN (v2.25)
-- Total double-down casts: 41
-- Runs with at least one double-down cast: 22 / 100 (22.0%)
-- Corner-token bills (enemy survived → -HP): 5
-- HP lost to corner-tokens: 10
+- Total double-down casts: 52
+- Runs with at least one double-down cast: 27 / 100 (27.0%)
+- Corner-token bills (enemy survived → -HP): 9
+- HP lost to corner-tokens: 18
 - Runs KO'd by corner-tokens: 0
 
 ## Chutzpah STORMING OUT (v2.26)
-- Storm Out casts: 3 (avg energy spent: 1.33)
+- Storm Out casts: 4 (avg energy spent: 2.00)
 - Runs with at least one Storm Out: 3 / 100 (3.0%)
 
 ## Chutzpah HIT ME AGAIN (v2.27)
-- Hit Me Again installs: 613 (runs: 85 / 100, 85.0%)
-- Total recoil damage to enemies: 3877
+- Hit Me Again installs: 617 (runs: 84 / 100, 84.0%)
+- Total recoil damage to enemies: 3472
 - Enemies killed by their own recoil: 64
-- Avg recoil per install: 6.3
+- Avg recoil per install: 5.6
 
 ## Chutzpah SAYING IT LOUDER (v2.29)
-- "I SAID." casts: 57 (runs: 21 / 100, 21.0%)
+- "I SAID." casts: 44 (runs: 22 / 100, 22.0%)
 - Avg loudCount per cast: 0.39
 - Avg bonus damage per cast: 1.16
-- Total bonus damage from louder: 66
+- Total bonus damage from louder: 51
 
 ## Chutzpah SMELL WEAKNESS (v2.30)
-- Predator triggers (cast hit while enemy debuffed): 11 (runs: 6 / 100, 6.0%)
-- Total bonus damage from predator: 58
-- Avg bonus per trigger: 5.27
+- Predator triggers (cast hit while enemy debuffed): 7 (runs: 6 / 100, 6.0%)
+- Total bonus damage from predator: 40
+- Avg bonus per trigger: 5.71
 
 ## Chutzpah SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)
-- Capstone casts: 10 (runs: 4 / 100, 4.0%)
-- Total capstone damage: 356
-- Avg damage per capstone cast: 35.60
+- Capstone casts: 15 (runs: 10 / 100, 10.0%)
+- Total capstone damage: 421
+- Avg damage per capstone cast: 28.07
 
 ## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
-- Skill casts: 343 (runs: 80 / 100, 80.0%)
-- Total debuff absorbs: 112
-- Avg absorbs per skill cast: 0.33
+- Skill casts: 366 (runs: 77 / 100, 77.0%)
+- Total debuff absorbs: 123
+- Avg absorbs per skill cast: 0.34
 
 ## Wit LONG THREAD (v2.34)
 - Combats reaching LT ≥ 1: 0 (runs: 0 / 100, 0.0%)
@@ -82,15 +82,15 @@ N = **100** runs simulated with a greedy v2 AI.
 - Total bonus damage from thread scaling: 0
 - "natural conclusion." target casts: 0
 - v2.43 thread-preservation skip-casts: 0
-- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 82
+- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 15
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 222 granted, 223 played
-- v2.93 Find the Seam (bypass-effectiveness) fires: 5
-- v2.93 Precedent (echo-last-damage) fires: 11
-- v2.93 Insult-to-Injury (×N mult) fires: 8
-- v2.93 Doubletake (cast resolves twice) fires: 12
+- v2.92 Passing Thoughts: 218 granted, 220 played
+- v2.93 Find the Seam (bypass-effectiveness) fires: 7
+- v2.93 Precedent (echo-last-damage) fires: 7
+- v2.93 Insult-to-Injury (×N mult) fires: 16
+- v2.93 Doubletake (cast resolves twice) fires: 15
 - v2.93 Skip-next-attack fires: 9
-- v2.93 Mirror Reasoning (reflect debuff) fires: 3
+- v2.93 Mirror Reasoning (reflect debuff) fires: 1
 - v2.93 Bracing (draw-3-on-HP-loss) fires: 2
 
 ## Wit FOOTNOTE (v2.35)
@@ -203,19 +203,21 @@ N = **100** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 3.79
-- Avg damage / run: 477
-- Mean final deck size: 19.6
+- Avg turns / combat: 3.93
+- Avg damage / run: 485
+- Mean final deck size: 19.7
 
 ## Archetype of winning decks
-- low-tier: 1
-- mid-t2t3: 9
+- mid-t2t3: 10
 
 ## Top killer enemies
-- e1-boss-thornlord (The Thornlord): 49
-- e3-boss-anvil (The Anvil-Forged): 20
-- e1-thicket (Living Thicket): 14
-- e3-vein-devourer (Vein Devourer): 3
-- e1-tutor (Stern Tutor): 2
-- e3-quartz-sentinel (Quartz Sentinel): 1
+- e1-boss-thornlord (The Thornlord): 47
+- e1-thicket (Living Thicket): 18
+- e3-boss-anvil (The Anvil-Forged): 11
+- e1-tutor (Stern Tutor): 5
+- e3-quartz-sentinel (Quartz Sentinel): 2
+- e1-shrine-rat (Shrine Rat Pack): 2
+- e3-vein-devourer (Vein Devourer): 2
 - e2-boss-tapestry (The Tapestry Walker): 1
+- e2-loom-familiar (Loom Familiar): 1
+- e3-geode-crab (Geode Crab): 1

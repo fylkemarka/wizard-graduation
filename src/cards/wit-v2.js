@@ -218,9 +218,16 @@ const TARGETS = [
   // ---- Basic (1, v2.95 — starter-only weak target) ----
   // v2.95.1: basic mult 3 (matches commons); smaller base 4 vs 5-7 and
   // no rider are the visible upgrades when picking a common target.
+  // v3.0 (cycle 2): added threadScaling: 1 so EVERY wit player has the
+  // Long Thread mechanic firing damage from turn 1. Previously the
+  // rider triggered 0 times in 100-run sims because the only targets
+  // with threadScaling (uncommon Natural Conclusion, rare Revelation)
+  // were rarely picked. Putting it on the starter target gives the
+  // wit-defender identity a payoff loop from the opening hand.
   { id: 'wv2-t-thats-not-it', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
     phrase: "that's not it.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure', threadScaling: 1 },
+    desc: 'Cast: 4 + Wit×3 + Long Thread × 1 composure.',
     flavor: 'Said gently. Heard sharply.' },
   // ---- Common (5) — cost 1 ----
   // v2.15: common target bases bumped +1 (sim showed +2 overshot wit
