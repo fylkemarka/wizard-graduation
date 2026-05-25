@@ -5060,12 +5060,13 @@ export default function App() {
       }
     }
 
-    // v2.50: BABBLING isSecondCast — computed BEFORE the ctx so the
-    // doubleOnSecondCast rider can fire inside computeSpellDamage. Mirrors the
-    // check at the damage-multiplier site below (line ~5040): castsThisTurn
-    // hasn't been incremented for THIS cast yet, so 1 means "this is the 2nd".
-    const ctxBabblingInstalled = powers.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing');
-    const ctxIsSecondCast = ctxBabblingInstalled && castsThisTurn === 1;
+    // v2.91: 2nd-cast scalar is UNIVERSAL (was Babbling-gated). Any cast
+    // after the first this turn applies a 0.6× damage scalar. Restores
+    // "rarely cast twice per turn" via diminishing returns rather than a
+    // structural cap. Babbling Power is repurposed below. Same flag
+    // ctxIsSecondCast still drives the doubleOnSecondCast rider on
+    // Getting-Away-From-Me; that combo is now achievable without Babbling.
+    const ctxIsSecondCast = castsThisTurn >= 1;
     const ctx = {
       discardSize: discard.length,
       deckSize: deck.length + hand.length + discard.length + exiled.length,
@@ -5217,13 +5218,13 @@ export default function App() {
     // Reads the powers array directly (no fast-flag — install/uninstall
     // happen often enough that the per-cast walk is fine).
     const drunkenInstalled = powers.some(p => p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink');
-    // v2.49: BABBLING — 2nd cast of the turn scales to 60% damage. Read
-    // castsThisTurn directly; at this point the setter for THIS cast has been
-    // queued but not flushed, so castsThisTurn === 1 means "this is the 2nd
-    // cast." Applied AFTER drunken's +50% so the trade-offs compose cleanly:
-    // 1.5 * 0.6 = 0.9× on a 2nd cast under both powers.
-    const babblingInstalled = powers.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing');
-    const isSecondCast = babblingInstalled && castsThisTurn === 1;
+    // v2.91: 2nd-cast scalar is UNIVERSAL (was Babbling-gated since v2.49).
+    // Any cast after the first this turn scales to 60% damage — restores the
+    // "rarely cast twice" feel via diminishing returns instead of a structural
+    // cap. Applied AFTER drunken's +50% so the trade-offs compose cleanly:
+    // 1.5 * 0.6 = 0.9× on a 2nd cast under both. Babbling Power is being
+    // retired in this version's cleanup.
+    const isSecondCast = castsThisTurn >= 1;
     if (drunkenInstalled) {
       const preDrunk = dmg;
       dmg = Math.round(dmg * 1.5);
@@ -5316,17 +5317,18 @@ export default function App() {
       setEnemyBlock(b => Math.max(0, b - sideEffects.stripBlock));
       pushLog(`🛇 Stripped ${sideEffects.stripBlock} enemy block.`);
     }
-    // v2.49: BABBLING — final 0.6× scalar on 2nd cast of the turn. Applied
-    // last so it scales the ENTIRE composed damage (drunken, chaos, patience,
-    // riders, opening, etc.). Telemetry captures the damage AFTER scaling
-    // — that's the actual delivered number, what matters for tuning.
+    // v2.91: UNIVERSAL 2nd-cast 0.6× scalar (was v2.49 Babbling-gated).
+    // Any cast after the first this turn scales to 60% damage — restores
+    // "rarely cast twice/turn" via diminishing returns instead of a hard
+    // cap. Applied LAST so it scales the entire composed damage.
     if (isSecondCast) {
-      const preBabble = dmg;
+      const preScale = dmg;
       dmg = Math.round(dmg * 0.6);
-      const delta = preBabble - dmg;
-      pushLog(`🗯 BABBLING (2nd cast) → ${dmg} dmg (×0.6, -${delta})`);
+      const delta = preScale - dmg;
+      pushLog(`🔁 ${castsThisTurn + 1}${castsThisTurn + 1 === 2 ? 'nd' : 'th'} cast this turn → ${dmg} dmg (×0.6, -${delta})`);
       setBabblingTelemetry(t => ({ ...t, secondCasts: t.secondCasts + 1, secondCastDamage: t.secondCastDamage + dmg }));
-      logEvent('jnsq.babbling.secondCast', {
+      logEvent('jnsq.secondCast', {
+        castsThisTurn: castsThisTurn + 1,
         damage: dmg, reduction: delta, enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }

@@ -442,21 +442,11 @@ const V250_CONTENT_CARDS = [
     flavor: 'A standard you set in jnsq for the benefit of those keeping records.' },
 ];
 
-// v2.49: BABBLING — jnsq's "wait, one more thing" Power. While installed:
-// you can cast a SECOND spell per turn at 60% damage. The first cast empties
-// the tray as usual, so the player has to re-stage a complete intro+subject+
-// target chain for the 2nd cast. The mechanic captures jnsq's identity that
-// conversations, in this lane, refuse to conclude. Read path: powers.some(
-// p => p.installPower?.id === 'babbling'). Cap raises from 1 to 2 casts/turn
-// while installed; the 2nd cast's final damage multiplies by 0.6 post-
-// effectiveness/mults (mirrors drunken's post-mult scaling shape).
+// v2.49 → v2.91: BABBLING Power retired. Per-turn cast cap was removed
+// in v2.87, and v2.91 made the 0.6× 2nd-cast scalar universal. The Power
+// has no remaining function. The supporting modifier still ships — it's
+// a fine cheap stat-pump regardless.
 const BABBLING_CARDS = [
-  { id: 'jv2-p-wait-and-another-thing', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
-    name: '"Wait — and another thing,"', phrase: '"Wait — and another thing,"',
-    tags: ['chaotic', 'absurd'],
-    installPower: { id: 'babbling' },
-    desc: 'Power. While installed: you can cast a SECOND spell per turn (re-stage required). The 2nd cast deals 60% damage.',
-    flavor: 'Conversation, in jnsq, being technically infinite.' },
   { id: 'jv2-m-and-so-and-so', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
     modifierKind: 'pre', phrase: 'and so, and so, and so,', tags: ['chaotic', 'mystical'],
     stats: { jnsq: 1 },
