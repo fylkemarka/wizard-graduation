@@ -13,20 +13,20 @@ const LANE = 'jnsq';
 const INTROS = [
   // ---- Basic (5) ----
   { id: 'jv2-i-speaking-of', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Speaking of which,', tags: ['chaotic', 'conspiratorial'], stats: { jnsq: 2 },
+    phrase: 'Speaking of which,', tags: ['chaotic', 'conspiratorial'], stats: { jnsq: 1 },
     flavor: "You weren't speaking of anything. That's the point." },
   { id: 'jv2-i-astrally', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Astrally,', tags: ['mystical', 'theatrical'], stats: { jnsq: 2 },
+    phrase: 'Astrally,', tags: ['mystical', 'theatrical'], stats: { jnsq: 1 },
     effects: { draw: 1 },
     flavor: 'The astral plane is involved. Bring a sweater.' },
   { id: 'jv2-i-on-a-tuesday', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'On a Tuesday,', tags: ['chaotic', 'absurd'], stats: { jnsq: 2 },
+    phrase: 'On a Tuesday,', tags: ['chaotic', 'absurd'], stats: { jnsq: 1 },
     flavor: 'Which Tuesday: any. All. The concept itself.' },
   { id: 'jv2-i-now', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Now,', tags: ['theatrical', 'chaotic'], stats: { jnsq: 2 },
+    phrase: 'Now,', tags: ['theatrical', 'chaotic'], stats: { jnsq: 1 },
     flavor: 'Now is a long time in jnsq.' },
   { id: 'jv2-i-funny-thing', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Funny thing —', tags: ['conspiratorial', 'chaotic'], stats: { jnsq: 2 },
+    phrase: 'Funny thing —', tags: ['conspiratorial', 'chaotic'], stats: { jnsq: 1 },
     effects: { vulnerable: 1 },
     flavor: 'It will not be funny. It will be a thing.' },
 
@@ -112,20 +112,20 @@ const INTROS = [
 const SUBJECTS = [
   // ---- Basic (5) ----
   { id: 'jv2-s-your-aura', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'your aura', tags: ['mystical'], stats: { jnsq: 2 },
+    phrase: 'your aura', tags: ['mystical'], stats: { jnsq: 1 },
     flavor: 'The aura is doing things. We will discuss what.' },
   { id: 'jv2-s-the-moon', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'the moon', tags: ['mystical', 'theatrical'], stats: { jnsq: 2 },
+    phrase: 'the moon', tags: ['mystical', 'theatrical'], stats: { jnsq: 1 },
     flavor: 'The moon is involved. The moon is always involved.' },
   { id: 'jv2-s-this-afternoon', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'this whole afternoon', tags: ['chaotic'], stats: { jnsq: 2 },
+    phrase: 'this whole afternoon', tags: ['chaotic'], stats: { jnsq: 1 },
     flavor: 'Afternoons being, in jnsq, structurally suspect.' },
   { id: 'jv2-s-the-rug', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'the rug', tags: ['absurd', 'theatrical'], stats: { jnsq: 2 },
+    phrase: 'the rug', tags: ['absurd', 'theatrical'], stats: { jnsq: 1 },
     effects: { block: 2 },
     flavor: 'The rug knows what it did.' },
   { id: 'jv2-s-the-situation', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'the situation', tags: ['conspiratorial', 'theatrical'], stats: { jnsq: 2 },
+    phrase: 'the situation', tags: ['conspiratorial', 'theatrical'], stats: { jnsq: 1 },
     flavor: 'Said with the gravity of a man who reads paint labels.' },
 
   // ---- Common (12) ----
@@ -213,6 +213,13 @@ const SUBJECTS = [
 // =============================================================================
 
 const TARGETS = [
+  // ---- Basic (1, v2.95 — starter-only weak target) ----
+  // v2.95.1: basic mult 3 (matches commons); smaller base 4 vs 4-6 and
+  // missing perLaneTag riders are the visible upgrades on commons.
+  { id: 'jv2-t-the-vibe-is-off', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
+    phrase: 'the vibe is off.', tags: ['absurd', 'chaotic'],
+    effect: { scaleBy: 'jnsq', base: 4, multiplier: 3, damageType: 'composure' },
+    flavor: 'Cannot be argued with. Can be felt.' },
   // ---- Common (5) ----
   // v2.9: jnsq common bases bumped (was 2/2/5/5/6 avg 4 — significantly
   // below chutzpah's avg 6, which combined with act-2's jnsq×0.5 made the
@@ -609,13 +616,30 @@ const DRUNKEN_STAGGER_CARDS = [
     flavor: 'Dimness being, here, a defensive posture.' },
 ];
 
-export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS, ...V250_CONTENT_CARDS, ...V251_SYNERGY_CAPSTONE_CARDS, ...DRUNKEN_STAGGER_CARDS];
+// v2.95: STARTER CARDS — jnsq-flavored chaos kit.
+const STARTER_CARDS = [
+  // Rhubarb — strong draw with HP cost. Free, exhaust. Variance via the trade.
+  { id: 'jv2-k-rhubarb', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'skill',
+    name: 'Rhubarb, Rhubarb', phrase: 'Rhubarb, Rhubarb',
+    tags: ['absurd', 'chaotic'],
+    effects: { draw: 2, loseHp: 1, exhaust: true },
+    desc: 'Draw 2 cards. Lose 1 HP. Exhaust.',
+    flavor: 'A word that sounds like other people speaking.' },
+  // Stagger — small gesture with discard cost. Bypasses tray.
+  { id: 'jv2-g-stagger', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
+    name: 'Stagger', phrase: '(staggers, in a way that is mostly intentional,)',
+    tags: ['chaotic', 'theatrical'],
+    gestureEffect: { icon: '🌀', damage: 4, damageType: 'composure', exhaust: true },
+    flavor: 'Either it is a spell or it isn\'t. The audience cannot tell.' },
+];
+
+export const JNSQ_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...TANGENT_CARDS, ...APOLOGY_CARDS, ...WONT_SHUT_UP_CARDS, ...DRUNKEN_CONFIDENCE_CARDS, ...AWKWARD_PAUSE_CARDS, ...BABBLING_CARDS, ...V250_CONTENT_CARDS, ...V251_SYNERGY_CAPSTONE_CARDS, ...DRUNKEN_STAGGER_CARDS, ...STARTER_CARDS];
 export const JNSQ_V2_BY_SLOT = {
   intro: [...INTROS, APOLOGY_CARDS[1], V250_CONTENT_CARDS[0], V251_SYNERGY_CAPSTONE_CARDS[1]],
   subject: [...SUBJECTS, V250_CONTENT_CARDS[1]],
   target: [...TARGETS, ...UNIQUE_TARGETS, ...WONT_SHUT_UP_CARDS, V250_CONTENT_CARDS[2], V251_SYNERGY_CAPSTONE_CARDS[0]],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, TANGENT_CARDS[1], BABBLING_CARDS[1], DRUNKEN_STAGGER_CARDS[1]],
-  gesture: GESTURES,
+  gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   power: [DRUNKEN_CONFIDENCE_CARDS[0], BABBLING_CARDS[0]],
-  skill: [DRUNKEN_CONFIDENCE_CARDS[1], AWKWARD_PAUSE_CARDS[0], DRUNKEN_STAGGER_CARDS[0]],
+  skill: [DRUNKEN_CONFIDENCE_CARDS[1], AWKWARD_PAUSE_CARDS[0], DRUNKEN_STAGGER_CARDS[0], ...STARTER_CARDS.filter(c => c.slot === 'skill')],
 };

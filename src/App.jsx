@@ -555,20 +555,28 @@ function buildStarterDeckForLane(lane) {
   const pool = LANE_POOL_BY_SLOT[lane];
   if (!pool) return [];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
-  const firstNCommons = (arr, n) => arr.filter(c => c.rarity === 'common').slice(0, n);
-  // v2.6: starter deck = 3 intros + 3 subjects + 3 targets + 1 Defend = 10 cards.
-  // Reverted from 2 Defends after live playtest: combat felt trivially safe,
-  // never forced a defense-vs-attack choice. One Defend means block is a
-  // real decision — when do you spend the energy?
+  // v2.95: starter shape is now 1 intro + 1 subject + 1 effect + 2
+  // lane-specific starter cards + 3 c-defend + 1 c-compose = 9 cards
+  // (wit +1 annotation = 10). The "1 of each spell slot" cut is intentional:
+  // early casts will be one-note, which makes the first new intro/subject/
+  // target picks feel like real upgrades. Basic intros/subjects now carry
+  // stats: 1 (down from 2); commons carry 2. Basic targets carry mult 2
+  // (down from common's 3) so each step of the upgrade ladder is visible.
+  // Basic-rarity skills + gestures in each lane pool are exactly the
+  // v2.95 lane-specific starter cards (Square Up/Shove for chutzpah,
+  // Page-Mark/Aside for wit, Rhubarb/Stagger for jnsq).
+  const laneStarters = [
+    ...basics(pool.skill || []),
+    ...basics(pool.gesture || []),
+  ].map(c => c.id);
   const ids = [
-    ...basics(pool.intro).slice(0, 3).map(c => c.id),
-    ...basics(pool.subject).slice(0, 3).map(c => c.id),
-    ...firstNCommons(pool.target, 3).map(c => c.id),
-    'c-defend',
-    'c-compose', // v2.9: poise shield for composure-pool attacks
-  ];
-  // v2.10: wit characters get a starter annotation. Other lanes don't
-  // (annotations are wit-flavored — characterizing the enemy in writing).
+    basics(pool.intro)[0]?.id,
+    basics(pool.subject)[0]?.id,
+    basics(pool.target)[0]?.id,
+    ...laneStarters,
+    'c-defend', 'c-defend', 'c-defend', // v2.95: 3× defend (was 1) — block is now a real budget
+    'c-compose',
+  ].filter(Boolean);
   if (lane === 'wit') {
     ids.push('wv2-ann-footnote-credibility');
   }
@@ -668,7 +676,7 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 44, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     behaviors: [
@@ -680,7 +688,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 4, count: 2, weight: 1, telegraph: '⚔ 4×2' },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (half-thought)' },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 38, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 20, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
@@ -690,7 +698,7 @@ const ENEMIES = [
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 46, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     behaviors: [
@@ -703,7 +711,7 @@ const ENEMIES = [
   // working at their craft, refusing to come back. Names follow the
   // Pratchett-tone with parenthetical bureaucratic annotations.
   { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
-    composureMax: 42, hpMax: 999, tier: 'normal',
+    composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 },
     // failure mode: refusal. 50 years on the same hem. Wit can't
     // out-argue him (heard every version); jnsq breaks his focus.
@@ -714,7 +722,7 @@ const ENEMIES = [
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (measures, again)' },
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 70, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 40, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
@@ -728,7 +736,7 @@ const ENEMIES = [
       // HP-side burst — the pattern lashes out physically.
       { kind: 'attack', value: 15, weight: 1, telegraph: '⚔ 15 (BROKEN-PATTERN STRIKE)' },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 72, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 40, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     softSpot: 'threat', // The vow of silence has limits.
     behaviors: [
@@ -739,7 +747,7 @@ const ENEMIES = [
       // breaking-of-the-vow moment.
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 85, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 55, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
@@ -751,7 +759,7 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Forge Path (the mines and caves) =====
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 44, hpMax: 22, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 22, hpMax: 12, tier: 'normal',
     // v2.4: sharpened from flat-low to chutzpah-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
     effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
@@ -761,7 +769,7 @@ const ENEMIES = [
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
-  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 34, hpMax: 26, tier: 'normal',
+  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 18, hpMax: 14, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
@@ -769,7 +777,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 44, hpMax: 22, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 22, hpMax: 12, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
     effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
@@ -781,7 +789,7 @@ const ENEMIES = [
   // v2.17: rogue wizard — chutzpah-punisher. Tried to forge a ring of
   // three metals; the ring forged him. The metal absorbs direct threat.
   { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C. (alloyed)',
-    composureMax: 48, hpMax: 26, tier: 'normal',
+    composureMax: 26, hpMax: 14, tier: 'normal',
     // failure mode: transformation. Chutzpah resist 0.6 — you can't
     // bully someone whose identity is partly an iron ring. Jnsq 1.3
     // because absurdity disrupts the alloy. Physical 1.0 — he is, after
@@ -794,7 +802,7 @@ const ENEMIES = [
       { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9 (the ring tells him to)' },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (the alloy hums)' },
     ] },
-  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 50, hpMax: 40, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 28, hpMax: 22, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
     effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
@@ -806,7 +814,7 @@ const ENEMIES = [
       // v2.9 burst — single-pool HP hammer.
       { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (RULING)' },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 80, hpMax: 50, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 45, hpMax: 28, tier: 'elite',
     // v2.4: chutzpah-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
     effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
@@ -819,7 +827,7 @@ const ENEMIES = [
       // v2.9 burst — the Devourer's "DEVOUR" is a 1-shot KO risk.
       { kind: 'attack', value: 18, weight: 1, telegraph: '⚔ 18 (DEVOUR)' },
     ] },
-  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 50, hpMax: 50, tier: 'boss',
     // v2.4: Anvil flipped from chutzpah-resist to chutzpah-favored. It's
     // a forging boss — it understands direct demands. Jnsq is now the
     // softer side (0.7); wit stays neutral.

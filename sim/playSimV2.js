@@ -29,21 +29,21 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/ca
 // thematic defaults (Pratchett-bureaucratic / vain / pedantic etc.).
 const ENEMIES = [
   // Act 1 — Thread Path (the countryside)
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 44, hp: 999, tier: 'normal', atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 38, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 }, insultVulnerabilities: ['observational', 'ironic'] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 46, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty'] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 70, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
-  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 72, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['petty', 'observational'] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 85, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 }, insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'] },
-  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 42, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'observational'] },
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 22, hp: 999, tier: 'normal', atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
+  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 20, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 }, insultVulnerabilities: ['observational', 'ironic'] },
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 24, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty'] },
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 40, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
+  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 40, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['petty', 'observational'] },
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 55, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 }, insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'] },
+  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 22, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'observational'] },
   // Act 2 — Forge Path (the mines and caves)
-  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 34, hp: 16,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 44, hp: 22,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['petty'] },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 50, hp: 40,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 80, hp: 50,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 65, hp: 75,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty', 'absurd'] },
-  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 48, hp: 26, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['academic', 'petty'] },
+  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 18, hp: 10,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['petty'] },
+  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 28, hp: 22,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 45, hp: 28,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 50, hp: 50,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty', 'absurd'] },
+  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 26, hp: 14, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['academic', 'petty'] },
   // Act 3 — Staff Path (the deep forest, final act)
   { id: 'e1-acolyte',       act: 3, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
   { id: 'e1-imp',           act: 3, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'sarcastic'] },
@@ -103,19 +103,29 @@ function shuffle(arr) {
 function buildStarterDeck(lane) {
   const pool = LANE_POOL_BY_SLOT[lane];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
-  const firstNCommons = (arr, n) => arr.filter(c => c.rarity === 'common').slice(0, n);
+  // v2.95: starter shape mirrors App.jsx — 1 intro + 1 subject + 1 effect
+  // + 2 lane-specific starter cards (basic skills/gestures) + 3 c-defend
+  // + 1 c-compose. Basic intros/subjects now carry stats: 1 (down from 2);
+  // basic targets carry mult 2 (down from common's 3). The reward draft
+  // gap between starter and picked-common is now visible.
+  const laneStarters = [
+    ...basics(pool.skill || []),
+    ...basics(pool.gesture || []),
+  ].map(c => c.id);
   const ids = [
-    ...basics(pool.intro).slice(0, 3).map(c => c.id),
-    ...basics(pool.subject).slice(0, 3).map(c => c.id),
-    ...firstNCommons(pool.target, 3).map(c => c.id),
-  ];
-  // Inline c-defend equivalent — block-5 skill the sim implements directly.
+    basics(pool.intro)[0]?.id,
+    basics(pool.subject)[0]?.id,
+    basics(pool.target)[0]?.id,
+    ...laneStarters,
+  ].filter(Boolean);
   const cards = ids.map(id => {
     const tmpl = LANE_POOL[lane].find(c => c.id === id);
     return tmpl ? { ...tmpl, uid: uid() } : null;
   }).filter(Boolean);
   cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
-  cards.push({ id: 'c-compose', type: 'skill', cost: 1, effects: { poise: 5 }, name: 'Compose Yourself', uid: uid() }); // v2.9: poise shield
+  cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
+  cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
+  cards.push({ id: 'c-compose', type: 'skill', cost: 1, effects: { poise: 5 }, name: 'Compose Yourself', uid: uid() });
   // NOTE: Wit's starter annotation is NOT modeled in the sim. The sim's
   // greedy AI doesn't use annotations effectively (it can't reason about
   // the 3-turn payback window vs spending energy on cast NOW). Live play

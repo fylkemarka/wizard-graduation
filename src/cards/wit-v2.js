@@ -12,21 +12,21 @@ const LANE = 'wit';
 const INTROS = [
   // ---- Basic (5) — cost 0, +1 wit, tier 1 ----
   { id: 'wv2-i-frankly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Frankly,', tags: ['dismissive', 'cutting'], stats: { wit: 2 },
+    phrase: 'Frankly,', tags: ['dismissive', 'cutting'], stats: { wit: 1 },
     flavor: 'The dictionary definition of confidence preceded by a comma.' },
   { id: 'wv2-i-actually', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Actually,', tags: ['academic', 'dismissive'], stats: { wit: 2 },
+    phrase: 'Actually,', tags: ['academic', 'dismissive'], stats: { wit: 1 },
     effects: { draw: 1 },
     flavor: "You haven't even said anything yet, but here we are." },
   { id: 'wv2-i-honestly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Honestly,', tags: ['observational', 'cutting'], stats: { wit: 2 },
+    phrase: 'Honestly,', tags: ['observational', 'cutting'], stats: { wit: 1 },
     effects: { block: 2 },
     flavor: 'Honesty has never been the issue.' },
   { id: 'wv2-i-truly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Truly,', tags: ['observational', 'dismissive'], stats: { wit: 2 },
+    phrase: 'Truly,', tags: ['observational', 'dismissive'], stats: { wit: 1 },
     flavor: "Said with the gravity of someone who knows they've said it before." },
   { id: 'wv2-i-curiously', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Curiously,', tags: ['observational', 'ironic'], stats: { wit: 2 },
+    phrase: 'Curiously,', tags: ['observational', 'ironic'], stats: { wit: 1 },
     flavor: 'Curiosity is, of course, the polite name for it.' },
 
   // ---- Common (12) — cost 0, +2 wit, tier 1 ----
@@ -113,20 +113,20 @@ const INTROS = [
 const SUBJECTS = [
   // ---- Basic (5) ----
   { id: 'wv2-s-your-reasoning', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your reasoning', tags: ['academic', 'observational'], stats: { wit: 2 },
+    phrase: 'your reasoning', tags: ['academic', 'observational'], stats: { wit: 1 },
     flavor: 'Reasoning, in this case, having done its part by trying.' },
   { id: 'wv2-s-this-argument', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
-    phrase: 'this argument', tags: ['academic', 'observational'], stats: { wit: 2 },
+    phrase: 'this argument', tags: ['academic', 'observational'], stats: { wit: 1 },
     flavor: 'The argument, taken on its own terms, having arrived too sure of itself.' },
   { id: 'wv2-s-your-conclusion', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your conclusion', tags: ['academic', 'dismissive'], stats: { wit: 2 },
+    phrase: 'your conclusion', tags: ['academic', 'dismissive'], stats: { wit: 1 },
     flavor: "The conclusion is the part that didn't survive the road." },
   { id: 'wv2-s-your-sources', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your sources', tags: ['academic', 'cutting'], stats: { wit: 2 },
+    phrase: 'your sources', tags: ['academic', 'cutting'], stats: { wit: 1 },
     effects: { weak: 1 },
     flavor: "Where they go is not, strictly, anyone's concern. But they go somewhere." },
   { id: 'wv2-s-the-matter', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
-    phrase: 'the matter at hand', tags: ['observational'], stats: { wit: 2 },
+    phrase: 'the matter at hand', tags: ['observational'], stats: { wit: 1 },
     flavor: 'The matter has been at hand for some time. It is patient.' },
 
   // ---- Common (12) ----
@@ -215,6 +215,13 @@ const SUBJECTS = [
 // =============================================================================
 
 const TARGETS = [
+  // ---- Basic (1, v2.95 — starter-only weak target) ----
+  // v2.95.1: basic mult 3 (matches commons); smaller base 4 vs 5-7 and
+  // no rider are the visible upgrades when picking a common target.
+  { id: 'wv2-t-thats-not-it', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
+    phrase: "that's not it.", tags: ['observational', 'cutting'],
+    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure' },
+    flavor: 'Said gently. Heard sharply.' },
   // ---- Common (5) — cost 1 ----
   // v2.15: common target bases bumped +1 (sim showed +2 overshot wit
   // from 8.2% to 24.4%; +1 lands closer to the 16-18% target).
@@ -645,11 +652,29 @@ const ANNOTATIONS = [
     flavor: 'The thesis grows. The thesis was already a problem before the growing.' },
 ];
 
+// v2.95: STARTER CARDS — wit-flavored defensive/cycling kit.
+const STARTER_CARDS = [
+  // Page-Mark — tempo defense + draw. Costs 1, exhausts (one per combat).
+  { id: 'wv2-k-page-mark', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'skill',
+    name: 'Page-Mark', phrase: 'Page-Mark',
+    tags: ['academic', 'observational'],
+    effects: { block: 3, draw: 1, exhaust: true },
+    desc: 'Gain 3 Block. Draw 1. Exhaust.',
+    flavor: 'A small triangle. The page knows what it is now.' },
+  // Aside — free poise + draw. Same shape, composure side.
+  { id: 'wv2-k-aside', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'skill',
+    name: 'An Aside', phrase: 'An Aside',
+    tags: ['observational', 'ironic'],
+    effects: { poise: 2, draw: 1, exhaust: true },
+    desc: 'Gain 2 Poise. Draw 1. Exhaust.',
+    flavor: 'Briefly: a footnote about the room.' },
+];
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS],
@@ -657,6 +682,6 @@ export const WIT_V2_BY_SLOT = {
   gesture: GESTURES,
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   annotation: ANNOTATIONS,
-  skill: SKILLS,
+  skill: [...SKILLS, ...STARTER_CARDS],
   power: PATIENCE_POWER,
 };

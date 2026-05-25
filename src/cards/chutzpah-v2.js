@@ -12,25 +12,25 @@ const LANE = 'chutzpah';
 const INTROS = [
   // ---- Basic (5) ----
   { id: 'cv2-i-look', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Look,', tags: ['direct', 'demanding'], stats: { chutzpah: 2 },
+    phrase: 'Look,', tags: ['direct', 'demanding'], stats: { chutzpah: 1 },
     flavor: 'Two letters. One verb. Full sentence.' },
   { id: 'cv2-i-listen-pal', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Listen pal,', tags: ['demanding', 'direct'], stats: { chutzpah: 2 },
+    phrase: 'Listen pal,', tags: ['demanding', 'direct'], stats: { chutzpah: 1 },
     effects: { weak: 1 },
     flavor: 'Pal is doing a lot of work here.' },
   { id: 'cv2-i-hey-now', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Hey now,', tags: ['demanding', 'dismissive'], stats: { chutzpah: 2 },
+    phrase: 'Hey now,', tags: ['demanding', 'dismissive'], stats: { chutzpah: 1 },
     flavor: 'Now being the operative word.' },
   { id: 'cv2-i-buddy', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Buddy,', tags: ['dismissive', 'direct'], stats: { chutzpah: 2 },
+    phrase: 'Buddy,', tags: ['dismissive', 'direct'], stats: { chutzpah: 1 },
     effects: { vulnerable: 1 },
     flavor: 'The friendliest insult in the language.' },
   { id: 'cv2-i-okay', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Okay,', tags: ['direct', 'dismissive'], stats: { chutzpah: 2 },
+    phrase: 'Okay,', tags: ['direct', 'dismissive'], stats: { chutzpah: 1 },
     flavor: 'Not okay. Not at all. But also: okay.' },
   // v2.4: HP-cost intro (Chutzpah HP-for-tempo identity, Ironclad-style).
   { id: 'cv2-i-be-blunt', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: "Look — I'll be blunt:", tags: ['direct', 'threatening'], stats: { chutzpah: 3 },
+    phrase: "Look — I'll be blunt:", tags: ['direct', 'threatening'], stats: { chutzpah: 2 },
     effects: { loseHp: 1 },
     flavor: 'Bluntness is, today, the only currency I have.' },
 
@@ -128,20 +128,20 @@ const INTROS = [
 const SUBJECTS = [
   // ---- Basic (5) ----
   { id: 'cv2-s-this-nonsense', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'this nonsense', tags: ['dismissive'], stats: { chutzpah: 2 },
+    phrase: 'this nonsense', tags: ['dismissive'], stats: { chutzpah: 1 },
     flavor: 'Diagnosis: nonsense. Prognosis: about to be over.' },
   { id: 'cv2-s-your-attitude', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'your attitude', tags: ['dismissive', 'direct'], stats: { chutzpah: 2 },
+    phrase: 'your attitude', tags: ['dismissive', 'direct'], stats: { chutzpah: 1 },
     effects: { vulnerable: 1 },
     flavor: 'Attitude being a thing that can, in fact, be confiscated.' },
   { id: 'cv2-s-this-whole-thing', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'this whole thing', tags: ['dismissive'], stats: { chutzpah: 2 },
+    phrase: 'this whole thing', tags: ['dismissive'], stats: { chutzpah: 1 },
     flavor: 'Whole being a measurement of the problem.' },
   { id: 'cv2-s-all-of-it', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'all of it', tags: ['dismissive', 'demanding'], stats: { chutzpah: 2 },
+    phrase: 'all of it', tags: ['dismissive', 'demanding'], stats: { chutzpah: 1 },
     flavor: 'All. Of. It. Three short words. Three short verdicts.' },
   { id: 'cv2-s-your-face', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'your face', tags: ['direct', 'dismissive'], stats: { chutzpah: 2 },
+    phrase: 'your face', tags: ['direct', 'dismissive'], stats: { chutzpah: 1 },
     flavor: 'The face has been doing things. Things are noted.' },
 
   // ---- Common (12) ----
@@ -229,6 +229,14 @@ const SUBJECTS = [
 // =============================================================================
 
 const TARGETS = [
+  // ---- Basic (1, v2.95 — starter-only weak target) ----
+  // v2.95.1: pulled-back tuning — basic targets now match commons' mult 3
+  // but with a smaller base (4 vs 5-7) and no rider. The visible upgrade
+  // when picking a common target is base+1/3 + a rider (Weak/Vuln).
+  { id: 'cv2-t-quit-it', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
+    phrase: 'quit it.', tags: ['demanding', 'dismissive'],
+    effect: { scaleBy: 'chutzpah', base: 4, multiplier: 3, damageType: 'composure' },
+    flavor: 'Two words. The first word means: I see you. The second means: stop.' },
   // ---- Common (5) ----
   { id: 'cv2-t-stops-now', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'stops right now.', tags: ['demanding', 'direct'],
@@ -496,6 +504,25 @@ const NOT_LISTENING_SKILL_ABSORB = [
     flavor: 'Said with the genuine concentration of someone who actually did not hear.' },
 ];
 
+// v2.95: STARTER CARDS — chutzpah-flavored "lane identity from turn 1"
+// cards added to the starter deck so the 1-spell-card starter doesn't
+// feel one-note. Modest power so picks remain visibly better.
+const STARTER_CARDS = [
+  // Square Up — HP-as-currency identity. Free block, costs 1 HP. Exhausts.
+  { id: 'cv2-k-square-up', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'skill',
+    name: 'Square Up', phrase: 'Square Up',
+    tags: ['threatening', 'direct'],
+    effects: { block: 4, loseHp: 1, exhaust: true },
+    desc: 'Lose 1 HP. Gain 4 Block. Exhaust.',
+    flavor: 'You take a step closer. The room rearranges itself slightly.' },
+  // Shove — small gesture that bypasses the tray.
+  { id: 'cv2-g-shove', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
+    name: 'Shove', phrase: '(a shove, brief and chiropractic,)',
+    tags: ['threatening', 'direct'],
+    gestureEffect: { icon: '👊', damage: 5, damageType: 'physical', exhaust: true },
+    flavor: 'It is not subtle. It does not need to be.' },
+];
+
 const NOT_LISTENING_SKILL = [
   { id: 'cv2-k-couldnt-catch-that', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
     name: "Couldn't quite catch that,", phrase: "Couldn't quite catch that,",
@@ -585,13 +612,13 @@ const SYNERGY_CAPSTONE_CARDS = [
 const SYNERGY_CAPSTONE_TARGETS  = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'target');
 const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'modifier');
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL];
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
   intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS],
   subject: [...SUBJECTS, ...SMELL_WEAKNESS_SUBJECTS],
   target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS, ...SYNERGY_CAPSTONE_TARGETS],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
-  gesture: GESTURES,
+  gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   power: [...HIT_ME_AGAIN_POWER],
-  skill: [...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL],
+  skill: [...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS.filter(c => c.slot === 'skill')],
 };
