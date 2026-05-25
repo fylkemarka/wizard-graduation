@@ -3210,6 +3210,11 @@ export default function App() {
   // synergy cards like Cosmic Recoil).
   const [rollOptIn, setRollOptIn] = useState(false);
   const [lastRoll, setLastRoll] = useState(null);
+  // v2.89: prominent flash for chaos-die rolls. Was: pushLog only — easy
+  // to miss in a busy combat log. Now we surface the die face + outcome
+  // name + damage multiplier + side effects in a centered overlay that
+  // auto-dismisses after 3.5s (or click to dismiss).
+  const [chaosRollFlash, setChaosRollFlash] = useState(null);
   // v2.24: chutzpah TUNNEL VISION meter. Fills +1 per chutzpah-lane card
   // played (intro/subject/modifier/target — anywhere staging completes).
   // At >= 5 at start of your turn, you enter RAGE for that turn:
@@ -3504,6 +3509,14 @@ export default function App() {
       if (raw) setHasSavedRun(true);
     } catch (_) { /* localStorage unavailable; just don't show Continue */ }
   }, []);
+
+  // v2.89: auto-dismiss the chaos-roll flash after 3.5s. Player can also
+  // click to dismiss early via the modal's backdrop.
+  useEffect(() => {
+    if (!chaosRollFlash) return;
+    const id = setTimeout(() => setChaosRollFlash(null), 3500);
+    return () => clearTimeout(id);
+  }, [chaosRollFlash]);
 
   function saveRunSnapshot() {
     if (stage !== 'map') return false;
@@ -5213,6 +5226,8 @@ export default function App() {
       const effectiveMult = 1.0 + (chaosOutcome.dmgMult - 1.0) * scale;
       dmg = Math.round(dmg * effectiveMult);
       pushLog(`🎲 ROLLED ${chaosRoll} — ${chaosOutcome.name} (×${effectiveMult.toFixed(2)} dmg)`);
+      // v2.89: prominent flash so the player actually sees the outcome.
+      setChaosRollFlash({ roll: chaosRoll, outcome: chaosOutcome, effectiveMult });
     }
     // v2.10: annotation bonusSpellDamage adds AFTER all multipliers
     // (so the +3 is a flat bonus, not amplified by tier multipliers).
@@ -7611,6 +7626,14 @@ export default function App() {
     {forgetTwoPrompt && <ForgetTwoModal
       cards={forgetTwoPrompt.cards}
       onPick={resolveForgetTwoChoice}
+    />}
+    {/* v2.89: chaos-roll flash. Pops a prominent overlay showing the
+        die face + outcome name + damage multiplier when the player
+        rolls during a jnsq cast. Auto-dismisses after 3.5s, or click
+        the backdrop to dismiss early. */}
+    {chaosRollFlash && <ChaosRollFlash
+      flash={chaosRollFlash}
+      onDismiss={() => setChaosRollFlash(null)}
     />}
   </>;
 }
@@ -10898,6 +10921,47 @@ function CardFullBody({ card }) {
         <div className="mt-auto pt-1.5 border-t border-ink-300">{tagOrResonance}</div>
       )}
     </>
+  );
+}
+
+// v2.89: chaos-roll flash. Big centered modal showing the die face +
+// outcome name + multiplier + side effects when a jnsq player rolls.
+// Auto-dismisses after 3.5s via the parent's useEffect timer; click
+// backdrop to dismiss early.
+function ChaosRollFlash({ flash, onDismiss }) {
+  const { roll, outcome, effectiveMult } = flash;
+  const dieFace = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][roll - 1] || '🎲';
+  const isGood = effectiveMult >= 1.0;
+  const tone = roll === 6 ? 'text-gold-300 border-gold-400'
+             : roll === 5 ? 'text-moss-300 border-moss-500'
+             : roll === 4 ? 'text-iris-200 border-iris-500'
+             : roll === 3 ? 'text-amber-300 border-amber-500'
+             : roll === 2 ? 'text-amber-400 border-amber-600'
+             :              'text-ember-300 border-ember-500';
+  const sideEffects = [];
+  if (outcome.hpDelta)       sideEffects.push(`${outcome.hpDelta > 0 ? '+' : ''}${outcome.hpDelta} HP`);
+  if (outcome.draw)          sideEffects.push(`Draw ${outcome.draw}`);
+  if (outcome.energyNext)    sideEffects.push(`+${outcome.energyNext} Energy`);
+  if (outcome.discardRandom) sideEffects.push(`Discard ${outcome.discardRandom} random`);
+  if (outcome.vuln)          sideEffects.push(`+${outcome.vuln} Vuln on enemy`);
+  return (
+    <div onClick={onDismiss}
+         className="fixed inset-0 z-50 bg-ink-900 bg-opacity-70 flex items-center justify-center cursor-pointer">
+      <div className={`parchment-card-strong p-6 border-2 ${tone} flex flex-col items-center gap-2 max-w-md animate-pulse`}>
+        <div className="text-[10px] uppercase tracking-widest text-parchment-300">Chaos Dice</div>
+        <div className={`text-7xl font-mono ${tone.split(' ')[0]}`}>{dieFace}</div>
+        <div className={`font-display text-3xl ${tone.split(' ')[0]}`}>{outcome.name}</div>
+        <div className="text-sm font-mono text-parchment-200">
+          Damage <b className={isGood ? 'text-moss-300' : 'text-ember-300'}>×{effectiveMult.toFixed(2)}</b>
+        </div>
+        {sideEffects.length > 0 && (
+          <div className="text-xs text-parchment-300 italic mt-1">
+            {sideEffects.join(' · ')}
+          </div>
+        )}
+        <div className="text-[10px] text-parchment-500 italic mt-2">click to dismiss</div>
+      </div>
+    </div>
   );
 }
 
