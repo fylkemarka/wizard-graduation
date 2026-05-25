@@ -1284,13 +1284,14 @@ function runCombat(state, enemyId, telemetry) {
             state.energy -= c.cost || 0;
             state.hand.splice(apologyIdx, 1);
             state.discard.push(c);
-            // Tray clear — push all filled slots to discard.
+            // v3.0 cycle 4: tray REFUND TO HAND (was discard). Apology is
+            // now a tempo reset, not a deck-thinner.
             const moved = [];
             if (tray.intro) moved.push(tray.intro);
             if (tray.subject) moved.push(tray.subject);
             if (tray.target) moved.push(tray.target);
             if (tray.modifiers && tray.modifiers.length) moved.push(...tray.modifiers);
-            for (const m of moved) state.discard.push(m);
+            for (const m of moved) state.hand.push(m);
             tray = { intro: null, subject: null, target: null, modifiers: [] };
             // Heal.
             state.hp = Math.min(state.maxHp, state.hp + 4);
@@ -2025,7 +2026,9 @@ function runCombat(state, enemyId, telemetry) {
       // last so it composes after all bonuses (drunken, patience, riders,
       // chaos, opening). Telemetry captures the post-scale damage value.
       if (isSecondCast) {
-        dmg = Math.round(dmg * 0.6);
+        // v3.0 cycle 4: Babbling Power installed → 0.85× instead of 0.6×.
+        const babblingActive = state.powers?.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing');
+        dmg = Math.round(dmg * (babblingActive ? 0.85 : 0.6));
         telemetry.babblingSecondCasts = (telemetry.babblingSecondCasts || 0) + 1;
         telemetry.babblingSecondCastDamage = (telemetry.babblingSecondCastDamage || 0) + dmg;
         // v2.50: getting-away-from-me — count the cast AND the doubled fire.
@@ -2545,6 +2548,10 @@ function runCombat(state, enemyId, telemetry) {
         const fc = state.hand[i];
         if (fc.lane !== 'jnsq') continue;
         if ((fc.cost || 0) > state.energy) continue;
+        // v3.0 cycle 4: tighten follow-up — target or tier-2+ only.
+        // App.jsx mirror: cheap basic jnsq words no longer count.
+        const qualifies = fc.slot === 'target' || fc.type === 'effect' || (fc.tier || 1) >= 2;
+        if (!qualifies) continue;
         followUpIdxs.push({ i, cost: fc.cost || 0, slot: fc.slot, type: fc.type });
       }
       if (followUpIdxs.length > 0) {

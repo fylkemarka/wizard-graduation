@@ -4859,7 +4859,15 @@ export default function App() {
     // playCard splice that staged the target — so the soup card's own play
     // can't clear the flag (armed is still false at that moment). Any
     // subsequent jnsq play (word, modifier, skill) counts as "kept going".
-    if (wontShutUpArmed && card.lane === 'jnsq') {
+    // v3.0 cycle 4: tighten Won't Shut Up dodge gate. Was: "any jnsq
+    // card counts as follow-up" → 89.9% dodge rate (109 arms, 1 damage
+    // fire). Now requires either: a jnsq TARGET card, OR a jnsq tier-2+
+    // word/modifier. Cheap basic words no longer count — the commitment
+    // is real. Per nerd-tester cycle 2: "turns 89.9% dodge into ~70%
+    // with collateral pressure to draft real chain pieces."
+    const isJnsqFollowUp = card.lane === 'jnsq'
+      && (card.slot === 'target' || card.type === 'effect' || (card.tier || 1) >= 2);
+    if (wontShutUpArmed && isJnsqFollowUp) {
       setWontShutUpArmed(false);
       setWontShutUpTelemetry(t => ({ ...t, dodges: t.dodges + 1 }));
       pushLog(`🗣 ...kept going.`);
@@ -5576,15 +5584,22 @@ export default function App() {
       setNextCastDamageMult(1.0);
     }
     // v2.91: UNIVERSAL 2nd-cast 0.6× scalar (was v2.49 Babbling-gated).
+    // v3.0 cycle 4: Babbling Power resurrected — when installed, 2nd
+    // cast scales 0.85× instead of 0.6×. This is jnsq's identity-
+    // specific multi-cast bonus and rewards the lane's "chain another
+    // sentence" fiction.
     if (isSecondCast) {
+      const babblingInstalled = powers.some(p => p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing');
+      const scalar = babblingInstalled ? 0.85 : 0.6;
       const preScale = dmg;
-      dmg = Math.round(dmg * 0.6);
+      dmg = Math.round(dmg * scalar);
       const delta = preScale - dmg;
-      pushLog(`🔁 ${castsThisTurn + 1}${castsThisTurn + 1 === 2 ? 'nd' : 'th'} cast this turn → ${dmg} dmg (×0.6, -${delta})`);
+      pushLog(`🔁 ${castsThisTurn + 1}${castsThisTurn + 1 === 2 ? 'nd' : 'th'} cast this turn → ${dmg} dmg (×${scalar}${babblingInstalled ? ' — Babbling' : ''}, -${delta})`);
       setBabblingTelemetry(t => ({ ...t, secondCasts: t.secondCasts + 1, secondCastDamage: t.secondCastDamage + dmg }));
       logEvent('jnsq.secondCast', {
         castsThisTurn: castsThisTurn + 1,
-        damage: dmg, reduction: delta, enemyId: enemy?.id, enemyTier: enemy?.tier,
+        damage: dmg, reduction: delta, babblingActive: babblingInstalled,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
     // v2.93: O-1 support — capture the damage value for the NEXT Precedent
@@ -6451,16 +6466,22 @@ export default function App() {
     // branches above. Read current `tray` state directly (closure) to avoid
     // nesting setState inside another updater — [[feedback_react_pure_updaters]].
     if (fx.apologize) {
+      // v3.0 cycle 4: was "tray cleared, no refund" — Apology played
+      // 0/100 in sim because losing the staged cards was too punishing.
+      // Now the cards REFUND TO HAND. The skill becomes a "reset this
+      // turn's setup" tool — heal 4 HP, +1 Vuln on enemy, re-stage next
+      // turn with the same cards. The cost is the 1 energy spent on
+      // Apology itself + the turn's lost cast tempo.
       const moved = [];
       if (tray.intro) moved.push(tray.intro);
       if (tray.subject) moved.push(tray.subject);
       if (tray.target) moved.push(tray.target);
       if (tray.modifiers && tray.modifiers.length) moved.push(...tray.modifiers);
       if (moved.length > 0) {
-        setDiscard(d => [...d, ...moved]);
-        logBits.push(`🙇 cleared ${moved.length} from tray`);
+        setHand(h => [...h, ...moved]);
+        logBits.push(`🙇 refunded ${moved.length} from tray to hand`);
       } else {
-        logBits.push(`🙇 cleared the tray`);
+        logBits.push(`🙇 cleared the (empty) tray`);
       }
       setTray(p => initialV2Tray({ effectFiredThisTurn: p.effectFiredThisTurn }));
       setApologyTelemetry(t => ({

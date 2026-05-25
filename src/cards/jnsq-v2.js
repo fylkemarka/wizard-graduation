@@ -454,6 +454,19 @@ const V250_CONTENT_CARDS = [
 // has no remaining function. The supporting modifier still ships — it's
 // a fine cheap stat-pump regardless.
 const BABBLING_CARDS = [
+  // v3.0 cycle 4: Babbling Power finally lives. The earlier BABBLING_CARDS
+  // export put a modifier in the power slot — installs were 0/100 because
+  // the card LITERALLY DIDN'T EXIST. New shape: a real cost-1 power that
+  // mitigates the universal 2nd-cast 0.6× scalar to 0.85× when installed.
+  // Rewards jnsq's "chain another sentence" identity and pairs with
+  // Awkward Pause (which doubles the staged stat for the next cast).
+  { id: 'jv2-p-wait-and-another-thing', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
+    name: 'Wait — and another thing,', phrase: 'Wait — and another thing,',
+    tags: ['chaotic', 'theatrical'],
+    installPower: { id: 'babbling' },
+    desc: 'Power. While installed: your 2nd cast each turn deals 85% damage (instead of 60%). The drunken wizard chains harder than the cap suggests.',
+    flavor: 'Said with the energy of someone who has not yet stopped speaking.' },
+  // Supporting modifier — basic stat-pump that pairs thematically.
   { id: 'jv2-m-and-so-and-so', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
     modifierKind: 'pre', phrase: 'and so, and so, and so,', tags: ['chaotic', 'mystical'],
     stats: { jnsq: 1 },
@@ -541,11 +554,11 @@ const APOLOGY_CARDS = [
 // what surfaces from the discard pile is unknown. Stacking jnsq cards into
 // discard before Tangent makes the outcome richer (more candidates to fire).
 const TANGENT_CARDS = [
-  { id: 'jv2-k-that-reminds-me', slot: null, tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+  { id: 'jv2-k-that-reminds-me', slot: null, tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
     name: 'That reminds me,', phrase: 'That reminds me,',
     tags: ['absurd', 'chaotic'],
-    effects: { tangentFire: true },
-    desc: 'Discard 1 random from draw pile. Fire a random jnsq card from your discard this turn.',
+    effects: { tangentFire: true, exhaust: true },
+    desc: 'Discard 1 random from draw pile. Fire a random jnsq card from your discard this turn. Exhaust.',
     flavor: 'Reminded by something that, in retrospect, was not very similar at all.' },
   // Supporting modifier — staging discards an extra hand card to deepen the
   // Tangent pool. Cost 0 + stats: jnsq 1 so it pulls weight as a normal stage.
