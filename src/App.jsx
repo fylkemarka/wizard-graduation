@@ -116,6 +116,25 @@ const CARDS = [
     upgrade: { effects: { pierceNextCast: true, draw: 1, exhaust: true } },
     desc: 'Your next Effect this turn ignores enemy resistance. Exhaust.',
     flavor: 'You speak their language, briefly. They flinch in it.' },
+  // v2.97: defensive variants (universal). Three options that each force a
+  // different "how to spend my defense energy" decision. Brace rewards
+  // safe turns; Reframe trades incoming HP for incoming Composure;
+  // Riposte arms a counter-attack baked into your block.
+  { id: 'c-brace', name: 'Brace', cost: 1, type: 'skill', rarity: 'common',
+    effects: { block: 5, braceDrawNext: 1 },
+    upgrade: { effects: { block: 7, braceDrawNext: 2 } },
+    desc: 'Gain 5 Block. If no unblocked HP damage this turn, draw 1 next turn.',
+    flavor: 'You set your feet. The room notices.' },
+  { id: 'c-reframe', name: 'Reframe', cost: 1, type: 'skill', rarity: 'uncommon',
+    effects: { block: 3, swapNextHitToComp: true, exhaust: true },
+    upgrade: { effects: { block: 5, swapNextHitToComp: true, exhaust: true } },
+    desc: 'Gain 3 Block. Next HP damage you would take is dealt to your Composure instead. Exhaust.',
+    flavor: 'The bruise was a metaphor all along.' },
+  { id: 'c-riposte', name: 'Riposte', cost: 2, type: 'skill', rarity: 'uncommon',
+    effects: { block: 4, riposteArmed: 4, exhaust: true },
+    upgrade: { effects: { block: 6, riposteArmed: 6, exhaust: true } },
+    desc: 'Gain 4 Block. The next enemy attack ALSO deals 4 Composure damage to its source.',
+    flavor: 'They will swing. You will be quoted, in their retreat.' },
 
   // ---- RARE ----
   { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
@@ -3482,6 +3501,14 @@ export default function App() {
   // If the player ends a turn WITHOUT casting AND stacks > 0, the stacks
   // fire as composure damage and clear (see endTurn).
   const [weaveStacks, setWeaveStacks] = useState(0);
+  // v2.97: Brace draws N at the start of next turn if no unblocked HP
+  // damage landed this turn. Tracked: did the player take HP damage this
+  // turn (`hpLossThisTurn`) + how many draws are armed.
+  const [braceArmedDraw, setBraceArmedDraw] = useState(0);
+  const [hpLossThisTurn, setHpLossThisTurn] = useState(0);
+  // v2.97: Riposte arms a counter-attack on the next enemy swing.
+  // Charge value = composure damage dealt back to the attacker.
+  const [riposteCharge, setRiposteCharge] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
   // v2.44: TANGENT telemetry — counts fires (skill plays), targetsCast
   // (tray was complete + fired), wordsStaged (intro/subject/modifier from
@@ -4620,6 +4647,10 @@ export default function App() {
     setNotListeningCharges(0);
     // v2.96: Hollow Weaver weave debt — reset per combat.
     setWeaveStacks(0);
+    // v2.97: defense-variant flags — reset per combat.
+    setBraceArmedDraw(0);
+    setHpLossThisTurn(0);
+    setRiposteCharge(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -6284,6 +6315,11 @@ export default function App() {
     if (fx.nextCastBypassEff)     { setNextCastBypassEff(true);       logBits.push('🎯 next cast ignores effectiveness'); }
     if (fx.nextCastDamageMult)    { setNextCastDamageMult(fx.nextCastDamageMult); logBits.push(`✦ next cast ×${fx.nextCastDamageMult}`); }
     if (fx.nextCastDoubles)       { setNextCastDoubles(true);         logBits.push('✦✦ next cast damage applies twice'); }
+    // v2.97: defense-variant flags. Brace pays out next turn if no HP
+    // damage landed this turn; Riposte arms a counter-attack on the
+    // next enemy swing (damage = charge value, comp pool).
+    if (fx.braceDrawNext) { setBraceArmedDraw(n => n + fx.braceDrawNext); logBits.push(`🛡✦ brace — draw ${fx.braceDrawNext} next turn if safe`); }
+    if (fx.riposteArmed)  { setRiposteCharge(n => Math.max(n, fx.riposteArmed)); logBits.push(`🛡⚔ riposte armed — ${fx.riposteArmed} comp on next enemy swing`); }
     if (fx.blockFromComposure) {
       // D-5 (A Measured Response): block = floor(comp / 3) at cast time.
       const bonus = Math.floor(composure / 3);
@@ -6754,6 +6790,16 @@ export default function App() {
     setEnemyBlock(newBlock);
     setEnemyComposure(newComposure);
     showDamageFloater(damage, 'composure');
+    // v2.97: Silk Wraith phase shift — at ≤50% comp, becomes wit-immune
+    // and regenerates comp each turn. Hard-coded by enemy.id for the
+    // act-1 prototype; if more phase-shifters land, generalize via a
+    // phaseTrigger field on the enemy template.
+    if (enemy?.id === 'e2-silk-wraith' && !enemy.phaseShifted
+        && newComposure > 0 && newComposure <= enemy.composureMax * 0.5) {
+      setEnemy(e => e ? { ...e, phaseShifted: true,
+        effectiveness: { ...e.effectiveness, wit: 0 } } : e);
+      pushLog('🕸 Silk Wraith thins — words slide off (wit-immune, regenerating).');
+    }
     if (newComposure <= 0) setTimeout(() => onEnemyDefeated(), 200);
     return newComposure;
   }
@@ -7150,6 +7196,24 @@ export default function App() {
     }
     setPendingMissteps(nextPending);
 
+    // v2.97: Brace payout — if no unblocked HP damage landed this turn AND
+    // the player armed Brace, draw N bonus cards into the new hand. Resets
+    // the trackers either way (next turn's window is fresh).
+    if (braceArmedDraw > 0 && hpLossThisTurn === 0) {
+      for (let i = 0; i < braceArmedDraw; i++) {
+        if (wDeck.length === 0) {
+          if (wDiscard.length === 0) break;
+          wDeck = shuffle(wDiscard);
+          wDiscard = [];
+        }
+        const c = wDeck.shift();
+        wHand.push({ ...c, uid: uid() });
+      }
+      pushLog(`🛡✦ Brace paid out: +${braceArmedDraw} card${braceArmedDraw === 1 ? '' : 's'} drawn (no HP damage taken).`);
+    }
+    setBraceArmedDraw(0);
+    setHpLossThisTurn(0);
+
     // Commit.
     setDeck(wDeck);
     setDiscard(wDiscard);
@@ -7217,6 +7281,17 @@ export default function App() {
   function applyEnemyIntent(intent) {
     const e = enemy;
     if (!e) return;
+    // v2.97: Silk Wraith phase-shift regen — fires at the start of every
+    // enemy turn once phase-shifted. Hard-coded by id for the prototype.
+    if (e.id === 'e2-silk-wraith' && e.phaseShifted) {
+      const regen = 3;
+      const targetComp = Math.min(e.composureMax, enemyComposure + regen);
+      const actualRegen = targetComp - enemyComposure;
+      if (actualRegen > 0) {
+        setEnemyComposure(targetComp);
+        pushLog(`🕸 ${e.name}: re-weaves +${actualRegen} Composure.`);
+      }
+    }
     let playerDied = false;
     if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
@@ -7430,6 +7505,16 @@ export default function App() {
       if (glancingApplied) {
         setSwapNextHitToComp(false);
         pushLog(`💢→🎭 Glancing Blow consumed.`);
+      }
+      // v2.97: track HP loss this turn for Brace's end-of-turn payout.
+      const hpDelta = hp - wHp;
+      if (hpDelta > 0) setHpLossThisTurn(n => n + hpDelta);
+      // v2.97: Riposte — the next enemy attack that lands gets a
+      // comp-damage counter equal to the charge. Consumes the charge.
+      if (riposteCharge > 0 && (hpDelta > 0 || composure - wComp > 0)) {
+        applyDamageToEnemyComposure(riposteCharge);
+        pushLog(`🛡⚔ Riposte: ${riposteCharge} comp dmg back to ${e.name}.`);
+        setRiposteCharge(0);
       }
       if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
