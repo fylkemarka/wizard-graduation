@@ -8093,6 +8093,9 @@ export default function App() {
       staggerActive={staggerActive}
       notListeningCharges={notListeningCharges}
       hitMeAgainCharges={hitMeAgainCharges}
+      weaveStacks={weaveStacks}
+      riposteCharge={riposteCharge}
+      braceArmedDraw={braceArmedDraw}
       log={log}
     />
     {tutorialActive && <TutorialOverlay
@@ -9012,7 +9015,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                        patienceInstalled = false, patienceStacks = 0,
                        pauseHeld = false, pauseHeldActive = false,
                        wontShutUpArmed = false, staggerActive = false,
-                       notListeningCharges = 0, hitMeAgainCharges = 0 }) {
+                       notListeningCharges = 0, hitMeAgainCharges = 0,
+                       weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0 }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -9213,7 +9217,8 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
         lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
         combatTurn={combatTurn} openingExtended={openingExtended}
-        pauseHeldActive={pauseHeldActive} enemy={enemy} />
+        pauseHeldActive={pauseHeldActive} enemy={enemy}
+        weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw} />
 
       {/* Relic chip row — persistent across the run, shown all combats. */}
       {relics.length > 0 && (
@@ -9637,7 +9642,8 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
                        lastRoll = null, combatRolls = [], loudCount = 0,
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
                        combatTurn = 1, openingExtended = false,
-                       pauseHeldActive = false, enemy = null }) {
+                       pauseHeldActive = false, enemy = null,
+                       weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0 }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -9761,10 +9767,15 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
     // bigger number than the actual damage dealt because this scalar fires
     // post-display. Now appears as `× 0.6 cast#N` when applicable.
     const secondCastScalar = castsThisTurn >= 1 ? 0.6 : 1;
+    // v2.98: surface enemy block as a separate subtraction chip. The cast
+    // formula applies enemy.block AFTER all multipliers (see App.jsx cast
+    // resolver — block absorbs first before the damage hits the pool).
+    const enemyBlockNow = enemy?.block || 0;
     mathBreakdown = {
       statTotal, baseDmg, mult, preTier, tierMult, preEnemy,
       enemyEff, playerMult: playerDmgMult, tagBonus,
       castLane, dmgType, secondCastScalar,
+      enemyBlock: enemyBlockNow,
     };
   }
 
@@ -9866,8 +9877,11 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
             {mathBreakdown.playerMult !== 1 && (<>
               <span className="text-parchment-500">×</span>
               <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300' : 'text-ember-300'}
-                title={`Your spell potency — adjusted by Amplify, Vulnerable on enemy, Weak on player, etc.`}>
-                {mathBreakdown.playerMult.toFixed(2)}× pot
+                title={mathBreakdown.playerMult > 1
+                  ? `Enemy is Vulnerable — your spells deal +${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`
+                  : `You're Weak — your spells deal ${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`}>
+                {mathBreakdown.playerMult > 1 ? '🩸 enemy Vuln ' : '⛧ you Weak '}
+                {mathBreakdown.playerMult.toFixed(2)}×
               </span>
             </>)}
             {mathBreakdown.secondCastScalar !== 1 && (<>
@@ -9904,10 +9918,47 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
               <span className="text-parchment-500">+</span>
               <span className="text-ember-300" title="ALL IN — staked HP buys damage.">🩸+{predicted.stakeBonus}</span>
             </>)}
+            {mathBreakdown.enemyBlock > 0 && (<>
+              <span className="text-parchment-500">−</span>
+              <span className="text-parchment-100 bg-ink-700 px-1 rounded"
+                title={`Enemy has ${mathBreakdown.enemyBlock} Block — absorbed before pool damage lands.`}>
+                🛡 {mathBreakdown.enemyBlock}
+              </span>
+            </>)}
             <span className="text-parchment-500">=</span>
             <span className="font-bold text-iris-200 text-sm">{predicted.damage}</span>
           </div>
         )}
+        {/* v2.98: enemy-state row. Surfaces enemy statuses that don't change
+            the cast's damage number but DO affect what comes next:
+            phase-shifts, weave debt, annotations. Read-only info chips. */}
+        {enemy && (() => {
+          const chips = [];
+          if (enemy.phaseShifted) {
+            chips.push({ key: 'phase', label: '🕸 thinned (wit-immune + comp regen)', tone: 'text-ember-300' });
+          }
+          if (enemy.annotation) {
+            chips.push({ key: 'ann', label: `📝 ${enemy.annotation.cardName || 'annotated'} (${enemy.annotation.turnsRemaining}t)`, tone: 'text-iris-300' });
+          }
+          if (weaveStacks > 0) {
+            chips.push({ key: 'weave', label: `🪡 Weave debt ${weaveStacks} (fires if you don't cast)`, tone: 'text-ember-300' });
+          }
+          if (riposteCharge > 0) {
+            chips.push({ key: 'rip', label: `🛡⚔ Riposte ${riposteCharge} primed`, tone: 'text-iris-300' });
+          }
+          if (braceArmedDraw > 0) {
+            chips.push({ key: 'brace', label: `🛡✦ Brace draw +${braceArmedDraw} (if no HP hit)`, tone: 'text-moss-300' });
+          }
+          if (chips.length === 0) return null;
+          return (
+            <div className="basis-full mt-1 text-[11px] font-mono text-parchment-400 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-parchment-500 uppercase tracking-widest text-[10px] mr-1">enemy state:</span>
+              {chips.map(c => (
+                <span key={c.key} className={c.tone}>{c.label}</span>
+              ))}
+            </div>
+          );
+        })()}
         {/* v2.11: ALL IN — chutzpah-only HP-wager row. */}
         {isChutzpah && ready && (
           <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded border border-ember-500 bg-ember-900 bg-opacity-30"
