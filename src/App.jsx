@@ -9204,33 +9204,12 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                      : card.type === 'effect' ? 'border-ember-500'
                      : card.type === 'power'  ? 'border-gold-500'
                      :                          'border-moss-500';
-          // Display label: prefer slot (intro/subject/target/modifier) for v2,
-          // fall back to type for v1 utilities (skill/power).
-          const displayLabel = card.slot
-            ? card.slot
-            : card.type;
-          // Display name: v2 uses `phrase` as the card text; v1 uses `name`.
-          const displayName = card.name || card.phrase || '';
-          // Card body text: v2 uses `flavor` as descriptive italics; v1 has `desc`.
-          const displayDesc = card.desc || (card.flavor ? `"${card.flavor}"` : '');
-          const dmgType = card.type === 'effect' ? card.effect?.damageType : null;
-          const dmgLabel = dmgType === 'physical' ? 'Physical dmg'
-                         : dmgType === 'composure' ? 'Composure dmg'
-                         : null;
-          const dmgChip = dmgType === 'physical' ? 'text-ember-700 bg-ember-100'
-                        :                          'text-iris-700 bg-iris-100';
-          // Tags: shown on every v2 card (intro/subject/target/modifier all carry tags).
-          // Legacy v1 cards: words show their tags; legacy effect cards show resonance.
-          const tagOrResonance =
-            card.tags && card.tags.length > 0
-              ? <div className="text-[11px] text-ink-500 italic" title="Tags this card contributes to the spell. Cards that share tags can unlock modifier bonuses.">
-                  ✦ {card.tags.join(' · ')}
-                </div>
-              : card.type === 'effect' && card.effect?.resonatesWith && card.effect.resonatesWith.length > 0
-              ? <div className="text-[11px] text-iris-700 italic" title={`+${card.effect.resonanceBonus?.perTag || 0} damage per matching theme in your spell tray.`}>
-                  ✦ {card.effect.resonatesWith.join(', ')} <span className="text-ink-500">(+{card.effect.resonanceBonus?.perTag || 0})</span>
-                </div>
-              : null;
+          const costPillClass = playable
+            ? (escalated ? 'bg-ember-500 text-parchment-50' : 'bg-gold-500 text-ink-800')
+            : 'bg-ink-500 text-parchment-300';
+          const costTooltip = escalated
+            ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).`
+            : undefined;
           return (
             <motion.button key={card.uid}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
@@ -9244,134 +9223,7 @@ function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent,
                   ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
-              <div className="flex justify-between items-start gap-1">
-                <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
-                  {displayLabel}{card.tier ? ` · T${card.tier}` : ''}
-                </div>
-                <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${playable ? (escalated ? 'bg-ember-500 text-parchment-50' : 'bg-gold-500 text-ink-800') : 'bg-ink-500 text-parchment-300'}`}
-                  title={escalated ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).` : undefined}>
-                  {effCost}
-                </div>
-              </div>
-              <div className="font-display text-[15px] leading-tight">{displayName}</div>
-              {/* v2.10: annotation duration badge */}
-              {card.slot === 'annotation' && (
-                <div className="text-[11px] font-bold text-iris-700 uppercase tracking-wider">
-                  📝 {card.duration || 3} turns · attach to enemy
-                </div>
-              )}
-              {/* Word / intro / subject / modifier stats */}
-              {(card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq)) || (card.footnotes > 0) ? (
-                <div className="flex gap-1 flex-wrap text-xs font-mono">
-                  {card.stats?.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                  {/* v2.35: FOOTNOTE — show footnote rider inline with the wit
-                      stat. Live total = base + footnotes, with the
-                      asterisk count surfaced so the player knows which
-                      cards they've already invested in. */}
-                  {(card.stats?.wit || card.footnotes > 0) ? (
-                    <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800"
-                          title={card.footnotes > 0 ? `Wit ${(card.stats?.wit || 0) + card.footnotes} = base ${card.stats?.wit || 0} + footnotes ${card.footnotes}` : undefined}>
-                      ✨ {(card.stats?.wit || 0) + (card.footnotes || 0)}{card.footnotes > 0 ? ` ${'*'.repeat(Math.min(3, card.footnotes))}${card.footnotes > 3 ? `(${card.footnotes})` : ''}` : ''}
-                    </span>
-                  ) : null}
-                  {card.stats?.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-                </div>
-              ) : null}
-              {/* On-stage status effects for intros/subjects — sized to be noticeable */}
-              {card.effects && (card.effects.weak || card.effects.vulnerable || card.effects.block || card.effects.draw || card.effects.loseHp || card.effects.hp) && (
-                <div className="flex flex-col gap-0.5 text-sm font-bold uppercase tracking-wide">
-                  {card.effects.weak && <span className="text-ember-700">⛧ Weak {card.effects.weak}</span>}
-                  {card.effects.vulnerable && <span className="text-ember-700">🩸 Vuln {card.effects.vulnerable}</span>}
-                  {card.effects.block && <span className="text-iris-700">🛡 +{card.effects.block} Block</span>}
-                  {card.effects.draw && <span className="text-moss-700">📥 Draw {card.effects.draw}</span>}
-                  {card.effects.loseHp && <span className="text-ember-700">🩸 −{card.effects.loseHp} HP</span>}
-                  {card.effects.hp && <span className="text-moss-700">💚 +{card.effects.hp} HP</span>}
-                </div>
-              )}
-              {/* Target (effect) damage formula + damage-type chip */}
-              {(card.slot === 'target' || card.type === 'effect') && card.effect && (
-                <>
-                  <div className="text-sm font-mono text-ink-700">
-                    {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
-                  </div>
-                  {dmgLabel && (
-                    <div className={`text-[10px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 self-start ${dmgChip}`}>
-                      {dmgLabel}
-                    </div>
-                  )}
-                  {card.effect.rider && (
-                    <div className="text-sm font-bold text-ember-700 uppercase tracking-wide">
-                      {Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(' · ')}
-                    </div>
-                  )}
-                  {card.effect.loseHpOnCast && (
-                    <div className="text-sm font-bold text-ember-700 uppercase tracking-wide">
-                      🩸 −{card.effect.loseHpOnCast} HP on cast
-                    </div>
-                  )}
-                  {card.effect.tier3Double && (
-                    <div className="text-xs text-ember-700 font-bold italic">Doubles at Tier 3</div>
-                  )}
-                  {card.effect.requiresTier3 && (
-                    <div className="text-xs text-ember-700 font-bold italic">Requires Tier 3 (else half damage)</div>
-                  )}
-                  {card.effect.perLaneTag && (
-                    <div className="text-sm font-bold text-iris-700 uppercase tracking-wide"
-                      title={`Tag-resonance bonus: this cast deals +${card.effect.perLaneTag.bonus} damage for each staged card whose tags include ${card.effect.perLaneTag.tags.join(' or ')}. Stack tagged words for big payoffs.`}>
-                      ✦ +{card.effect.perLaneTag.bonus} per {card.effect.perLaneTag.tags.join(' / ')} tag
-                    </div>
-                  )}
-                </>
-              )}
-              {/* Modifier kind + effect summary */}
-              {card.slot === 'modifier' && card.modifierEffect && (
-                <div className="text-[11px] text-gold-700 italic leading-tight">
-                  ({card.modifierKind})
-                  {card.modifierEffect.damageMult ? ` · ×${card.modifierEffect.damageMult} dmg` : ''}
-                  {card.modifierEffect.conditionalMult?.tier2Plus ? ` · ×${card.modifierEffect.conditionalMult.tier2Plus} if T2+` : ''}
-                  {card.modifierEffect.tier3Payoff ? ` · T3 payoff` : ''}
-                  {card.modifierEffect.rider ? ' · ' + Object.entries(card.modifierEffect.rider).map(([k, v]) => `+${v} ${k}`).join(' ') : ''}
-                  {card.modifierEffect.drawAfterCast ? ` · +${card.modifierEffect.drawAfterCast} draw` : ''}
-                  {card.modifierEffect.stripEnemyBlock ? ` · strip ${card.modifierEffect.stripEnemyBlock} block` : ''}
-                </div>
-              )}
-              {/* v2.63: Gesture summary — base damage, trayMultiplier
-                  scaling, riders, strip, draw, exhaust status. Gestures
-                  bypass the spell tray and fire immediately on play,
-                  so the player needs the full mechanic surfaced in the
-                  card itself. */}
-              {card.slot === 'gesture' && card.gestureEffect && (() => {
-                const ge = card.gestureEffect;
-                const laneLabel = (card.lane || 'wit').toUpperCase();
-                const dmgType = ge.damageType === 'physical' ? 'phys' : 'comp';
-                return (
-                  <div className="text-sm font-mono text-ink-700 leading-tight">
-                    <div className="font-bold">
-                      {ge.icon || '✊'} {ge.damage} {dmgType}
-                      {ge.trayMultiplier ? ` + ${laneLabel}×${ge.trayMultiplier}` : ''}
-                    </div>
-                    {ge.rider && Object.keys(ge.rider).length > 0 && (
-                      <div className="text-xs text-ember-700 font-bold uppercase">
-                        {Object.entries(ge.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')}
-                      </div>
-                    )}
-                    {ge.stripEnemyBlock ? <div className="text-xs text-iris-700">🛇 strip {ge.stripEnemyBlock} block</div> : null}
-                    {ge.draw ? <div className="text-xs text-moss-700">📥 draw {ge.draw}</div> : null}
-                    <div className="text-[10px] italic text-ink-500">
-                      {ge.exhaust === false ? 'Reusable · bypasses spell tray' : 'Exhausts · bypasses spell tray'}
-                    </div>
-                  </div>
-                );
-              })()}
-              <div className="text-sm flex-1 font-quill leading-snug italic">{displayDesc}</div>
-              {(card.effects?.exhaust || card.effect?.exhaust) && <div className="text-[10px] italic text-ember-700">Exhaust</div>}
-              {/* Resonance / tag row — separated visually so it reads as
-                  meta-info, not as part of the card's main effect. */}
-              {tagOrResonance && (
-                <div className="mt-auto pt-1.5 border-t border-ink-300">
-                  {tagOrResonance}
-                </div>
-              )}
+              <CardFullBody card={card} costOverride={effCost} costPillClass={costPillClass} costTooltip={costTooltip} />
             </motion.button>
           );
         })}
@@ -9760,10 +9612,15 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
       const matches = allTags.filter(t => perTag.tags.includes(t)).length;
       tagBonus = matches * perTag.bonus;
     }
+    // v2.94: 2nd-cast 0.6× scalar — universal since v2.91, but wasn't surfaced
+    // in the math bar. Players were seeing the multiplier chain end at a
+    // bigger number than the actual damage dealt because this scalar fires
+    // post-display. Now appears as `× 0.6 cast#N` when applicable.
+    const secondCastScalar = castsThisTurn >= 1 ? 0.6 : 1;
     mathBreakdown = {
       statTotal, baseDmg, mult, preTier, tierMult, preEnemy,
       enemyEff, playerMult: playerDmgMult, tagBonus,
-      castLane, dmgType,
+      castLane, dmgType, secondCastScalar,
     };
   }
 
@@ -9842,11 +9699,13 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
         {mathBreakdown && (
           <div className="basis-full mt-2 pt-2 border-t border-ink-500 text-[11px] font-mono text-parchment-300 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-iris-300 font-bold text-[10px] uppercase tracking-widest mr-1">Math:</span>
-            <span>{mathBreakdown.baseDmg}</span>
-            <span className="text-parchment-500">+</span>
-            <span title={`Sum of ${mathBreakdown.castLane} stats across all staged cards × the target's multiplier.`}>
-              {mathBreakdown.statTotal}×{mathBreakdown.mult}={mathBreakdown.statTotal * mathBreakdown.mult}
+            {/* v2.94: explicit parens + running subtotal — `5 + 4×1 = 4`
+                misread as `5+4=4`. New shape: `(5 + 4×1) = 9` then `× …`. */}
+            <span title={`${mathBreakdown.baseDmg} base + ${mathBreakdown.statTotal} stat × ${mathBreakdown.mult} target multiplier.`}>
+              ({mathBreakdown.baseDmg} + {mathBreakdown.statTotal}×{mathBreakdown.mult})
             </span>
+            <span className="text-parchment-500">=</span>
+            <span className="font-bold text-parchment-100">{mathBreakdown.preTier}</span>
             {tierMult !== 1 && (<>
               <span className="text-parchment-500">×</span>
               <span title={`Tier ${tier} multiplier — earned by tag-cohesive intro/subject/target.`}>
@@ -9865,6 +9724,13 @@ function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTu
               <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300' : 'text-ember-300'}
                 title={`Your spell potency — adjusted by Amplify, Vulnerable on enemy, Weak on player, etc.`}>
                 {mathBreakdown.playerMult.toFixed(2)}× pot
+              </span>
+            </>)}
+            {mathBreakdown.secondCastScalar !== 1 && (<>
+              <span className="text-parchment-500">×</span>
+              <span className="text-ember-300"
+                title={`Cast #${castsThisTurn + 1} this turn — each cast after the first scales to 60%. Energy still gates how many you can fire, but diminishing returns push back on chain-casting.`}>
+                0.6× cast#{castsThisTurn + 1}
               </span>
             </>)}
             {mathBreakdown.tagBonus > 0 && (<>
@@ -9980,78 +9846,7 @@ function RewardScreen({ choices, onPick }) {
         {choices.map((card, i) => (
           <button key={i} onClick={() => onPick(card)}
             className="w-48 min-h-[260px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition">
-            <div className="flex justify-between items-center">
-              <div className="font-display text-base leading-tight">{card.name || card.phrase || ''}</div>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
-            </div>
-            <div className="text-[10px] uppercase tracking-wider text-ink-400 font-bold">
-              {(card.slot || card.type)} · {card.rarity}{card.tier ? ` · T${card.tier}` : ''}
-            </div>
-            {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
-              <div className="flex gap-1 flex-wrap text-xs font-mono">
-                {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-              </div>
-            )}
-            {(card.slot === 'target' || card.type === 'effect') && card.effect && (
-              <div className="text-xs font-mono text-ink-700">
-                {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
-                {card.effect.rider && (
-                  <span className="ml-1 text-ember-700">
-                    ({Object.entries(card.effect.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')})
-                  </span>
-                )}
-                {card.effect.perLaneTag && (
-                  <div className="text-[11px] text-iris-700 font-bold uppercase mt-0.5">
-                    ✦ +{card.effect.perLaneTag.bonus} per {card.effect.perLaneTag.tags.join(' / ')} tag
-                  </div>
-                )}
-              </div>
-            )}
-            {/* v2.82: gesture rendering — was invisible on the reward screen,
-                so "Pontificate at length" looked blank. Mirrors the hand's
-                gesture summary. */}
-            {card.slot === 'gesture' && card.gestureEffect && (() => {
-              const ge = card.gestureEffect;
-              const laneLabel = (card.lane || 'wit').toUpperCase();
-              const dmgType = ge.damageType === 'physical' ? 'phys' : 'comp';
-              return (
-                <div className="text-sm font-mono text-ink-700 leading-tight">
-                  <div className="font-bold">
-                    {ge.icon || '✊'} {ge.damage} {dmgType}
-                    {ge.trayMultiplier ? ` + ${laneLabel}×${ge.trayMultiplier}` : ''}
-                  </div>
-                  {ge.rider && Object.keys(ge.rider).length > 0 && (
-                    <div className="text-xs text-ember-700 font-bold uppercase">
-                      {Object.entries(ge.rider).map(([k, v]) => `+${v} ${k}`).join(' · ')}
-                    </div>
-                  )}
-                  {ge.stripEnemyBlock ? <div className="text-xs text-iris-700">🛇 strip {ge.stripEnemyBlock} block</div> : null}
-                  {ge.draw ? <div className="text-xs text-moss-700">📥 draw {ge.draw}</div> : null}
-                  <div className="text-[10px] italic text-ink-500">
-                    {ge.exhaust === false ? 'Reusable · bypasses spell tray' : 'Exhausts · bypasses spell tray'}
-                  </div>
-                </div>
-              );
-            })()}
-            {/* v2.82: annotation rendering — same gap, annotations were blank
-                on the reward screen except for duration/desc. */}
-            {card.slot === 'annotation' && card.annotationEffect && (
-              <div className="text-sm font-mono text-ink-700 leading-tight">
-                <div className="font-bold">📝 {card.duration || 3} turns</div>
-                <div className="text-xs">
-                  {Object.entries(card.annotationEffect).map(([k, v]) => `${k}: ${v}`).join(' · ')}
-                </div>
-              </div>
-            )}
-            {card.tags && card.tags.length > 0 && (
-              <div className="text-[11px] italic text-ink-500">✦ {card.tags.join(' · ')}</div>
-            )}
-            <div className="text-xs font-quill">{card.desc || ''}</div>
-            {card.flavor && (
-              <div className="text-[11px] italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
-            )}
+            <CardFullBody card={card} />
           </button>
         ))}
       </div>
@@ -10079,38 +9874,7 @@ function CardGrantScreen({ prompt, onDismiss }) {
         {cards.map((card, i) => (
           <div key={i}
             className={`w-52 min-h-[280px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 ${tint(card)}`}>
-            <div className="flex justify-between items-start gap-1">
-              <div className="font-display text-base leading-tight">{card.name}</div>
-              <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
-            </div>
-            <div className="text-xs uppercase tracking-wider text-ink-400">{card.type} · {card.rarity}</div>
-            {card.type === 'word' && card.stats && (
-              <div className="flex gap-1 flex-wrap text-xs font-mono">
-                {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-              </div>
-            )}
-            {card.type === 'word' && card.tags && card.tags.length > 0 && (
-              <div className="text-xs text-ink-500 italic">✦ {card.tags.join(' · ')}</div>
-            )}
-            {card.type === 'effect' && card.effect && (
-              <>
-                <div className="text-xs font-mono text-ink-700">
-                  {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}{' '}
-                  <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
-                    {card.effect.damageType === 'physical' ? 'phys' : 'comp'}
-                  </span>
-                </div>
-                {card.effect.resonatesWith && card.effect.resonatesWith.length > 0 && (
-                  <div className="text-xs text-iris-700 italic">✦ resonates: {card.effect.resonatesWith.join(', ')}</div>
-                )}
-              </>
-            )}
-            <div className="text-sm font-quill leading-snug">{card.desc}</div>
-            {card.flavor && (
-              <div className="text-xs italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>
-            )}
+            <CardFullBody card={card} />
           </div>
         ))}
       </div>
@@ -11133,27 +10897,75 @@ function UpgradeCardScreen({ deck, onPick }) {
 // surfaces (forget screens, reward previews, draft confirmations) all
 // show the same level of detail. Returns the inner content; caller
 // provides the button wrapper / hover affordances.
-function CardFullBody({ card }) {
+// Data-driven map of card.effects keys → render-chip metadata. Adding a new
+// effect key here makes it visible across every CardFullBody surface (hand,
+// reward, grant, upgrade preview) automatically. Booleans (e.g. v2.93 PT
+// flags) declare `boolean: true` so the renderer skips the numeric value.
+const EFFECT_CHIP_RENDERERS = {
+  // Numeric / classic
+  weak:                    (v) => ({ icon: '⛧',  label: `Weak ${v}`,                 tone: 'text-ember-700' }),
+  vulnerable:              (v) => ({ icon: '🩸', label: `Vuln ${v}`,                 tone: 'text-ember-700' }),
+  block:                   (v) => ({ icon: '🛡', label: `+${v} Block`,               tone: 'text-iris-700'  }),
+  draw:                    (v) => ({ icon: '📥', label: `Draw ${v}`,                 tone: 'text-moss-700'  }),
+  loseHp:                  (v) => ({ icon: '🩸', label: `−${v} HP`,                  tone: 'text-ember-700' }),
+  hp:                      (v) => ({ icon: '💚', label: `+${v} HP`,                  tone: 'text-moss-700'  }),
+  energy:                  (v) => ({ icon: '⚡', label: `+${v} Energy`,              tone: 'text-gold-700'  }),
+  poise:                   (v) => ({ icon: '🪶', label: `+${v} Poise`,               tone: 'text-iris-700'  }),
+  composure:               (v) => ({ icon: '🎭', label: `+${v} Composure`,           tone: 'text-iris-700'  }),
+  compDmg:                 (v) => ({ icon: '🎭', label: `${v} Comp dmg`,             tone: 'text-iris-700'  }),
+  physDmg:                 (v) => ({ icon: '⚔',  label: `${v} Phys dmg`,             tone: 'text-ember-700' }),
+  discardRandom:           (v) => ({ icon: '🗑', label: `Discard ${v}`,              tone: 'text-ember-700' }),
+  returnDiscardToHand:     (v) => ({ icon: '↻',  label: `From discard: ${v}`,        tone: 'text-moss-700'  }),
+  removeWeak:              ()  => ({ icon: '🧹', label: `Clear Weak`,                tone: 'text-iris-700'  }),
+  reflectNextDebuff:       (v) => ({ icon: '🪞', label: `Reflect next ${v} debuff`,  tone: 'text-iris-700'  }),
+  nextCastDamageMult:      (v) => ({ icon: '✶',  label: `Next cast ×${v}`,           tone: 'text-ember-700' }),
+  // v2.93 Passing Thought flags (booleans)
+  enemySkipNextAttack:     ()  => ({ icon: '🚫', label: `Skip next enemy attack`,    tone: 'text-iris-700'  }),
+  swapNextHitToComp:       ()  => ({ icon: '↔',  label: `Next HP hit → Comp`,        tone: 'text-iris-700'  }),
+  reflectNextHitAsComp:    ()  => ({ icon: '↩',  label: `Reflect next hit as Comp`,  tone: 'text-iris-700'  }),
+  bracingArmed:            ()  => ({ icon: '🛡', label: `Brace: draw 3 if HP drops`, tone: 'text-iris-700'  }),
+  blockFromComposure:      ()  => ({ icon: '🛡', label: `Block from ⅓ Comp`,         tone: 'text-iris-700'  }),
+  compDmgFromEnemyMissing: ()  => ({ icon: '🎭', label: `+1 Comp per missing Comp`,  tone: 'text-iris-700'  }),
+  nextCastBypassEff:       ()  => ({ icon: '🎯', label: `Next cast bypasses Eff`,    tone: 'text-ember-700' }),
+  nextCastBonusEqualsLast: ()  => ({ icon: '↻',  label: `Next cast + last cast dmg`, tone: 'text-ember-700' }),
+  nextCastDoubles:         ()  => ({ icon: '✕2', label: `Next cast resolves twice`,  tone: 'text-ember-700' }),
+};
+
+// Single canonical card-body renderer used by hand, reward, grant, and
+// upgrade-preview surfaces. Optional props let the hand override the cost
+// pill (amplify recoloring) and tooltip without forking the markup.
+function CardFullBody({ card, costOverride, costPillClass, costTooltip }) {
   const displayName = card.name || card.phrase || '';
   const displayDesc = card.desc || (card.flavor ? `"${card.flavor}"` : '');
   const displayLabel = card.slot || card.type || '';
   const dmgType = card.type === 'effect' || card.slot === 'target' ? card.effect?.damageType : null;
   const dmgLabel = dmgType === 'physical' ? 'Physical dmg' : dmgType === 'composure' ? 'Composure dmg' : null;
   const dmgChip = dmgType === 'physical' ? 'text-ember-700 bg-ember-100' : 'text-iris-700 bg-iris-100';
+  const effCost = costOverride ?? card.cost ?? 0;
+  const pillClass = costPillClass ?? 'bg-gold-500 text-ink-800';
   const tagOrResonance =
     card.tags && card.tags.length > 0
       ? <div className="text-[11px] text-ink-500 italic">✦ {card.tags.join(' · ')}</div>
       : card.type === 'effect' && card.effect?.resonatesWith && card.effect.resonatesWith.length > 0
       ? <div className="text-[11px] text-iris-700 italic">✦ {card.effect.resonatesWith.join(', ')}{card.effect.resonanceBonus?.perTag ? ` (+${card.effect.resonanceBonus.perTag})` : ''}</div>
       : null;
+  const effectChips = [];
+  if (card.effects) {
+    for (const [key, val] of Object.entries(card.effects)) {
+      if (!val || key === 'exhaust') continue;
+      const renderer = EFFECT_CHIP_RENDERERS[key];
+      if (renderer) effectChips.push({ key, ...renderer(val) });
+    }
+  }
   return (
     <>
       <div className="flex justify-between items-start gap-1">
         <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
           {displayLabel}{card.tier ? ` · T${card.tier}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
         </div>
-        <div className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">
-          {card.cost ?? 0}
+        <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${pillClass}`}
+             title={costTooltip}>
+          {effCost}
         </div>
       </div>
       <div className="font-display text-[15px] leading-tight">{displayName}</div>
@@ -11173,14 +10985,11 @@ function CardFullBody({ card }) {
           {card.stats?.jnsq ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
         </div>
       ) : null}
-      {card.effects && (card.effects.weak || card.effects.vulnerable || card.effects.block || card.effects.draw || card.effects.loseHp || card.effects.hp) && (
+      {effectChips.length > 0 && (
         <div className="flex flex-col gap-0.5 text-sm font-bold uppercase tracking-wide">
-          {card.effects.weak && <span className="text-ember-700">⛧ Weak {card.effects.weak}</span>}
-          {card.effects.vulnerable && <span className="text-ember-700">🩸 Vuln {card.effects.vulnerable}</span>}
-          {card.effects.block && <span className="text-iris-700">🛡 +{card.effects.block} Block</span>}
-          {card.effects.draw && <span className="text-moss-700">📥 Draw {card.effects.draw}</span>}
-          {card.effects.loseHp && <span className="text-ember-700">🩸 −{card.effects.loseHp} HP</span>}
-          {card.effects.hp && <span className="text-moss-700">💚 +{card.effects.hp} HP</span>}
+          {effectChips.map(({ key, icon, label, tone }) => (
+            <span key={key} className={tone}>{icon} {label}</span>
+          ))}
         </div>
       )}
       {(card.slot === 'target' || card.type === 'effect') && card.effect && (
@@ -11407,62 +11216,7 @@ function UpgradePreviewCard({ card, label, tone }) {
     <div className="flex flex-col items-center gap-1">
       <div className={`text-xs uppercase tracking-widest ${labelColor}`}>{label}</div>
       <div className={`w-56 min-h-[18rem] rounded-lg border-2 p-3 bg-parchment-50 text-ink-800 ${border} flex flex-col gap-2`}>
-        <div className="flex justify-between items-start gap-1">
-          <div className="font-display text-lg leading-tight">{card.name}</div>
-          <div className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-lg bg-gold-500 text-ink-800">
-            {card.cost}
-          </div>
-        </div>
-        <div className="text-xs uppercase tracking-wider text-ink-400">{card.type}</div>
-        {card.type === 'word' && card.stats && (
-          <div className="flex gap-1 flex-wrap text-sm font-mono">
-            {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-            {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-            {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-          </div>
-        )}
-        {card.type === 'effect' && card.effect && (
-          <div className="text-sm font-mono text-ink-700">
-            {card.effect.base} + {card.effect.scaleBy?.toUpperCase()}×{card.effect.multiplier}
-            <span className={card.effect.damageType === 'physical' ? 'text-ember-700' : 'text-iris-700'}>
-              {' '}{card.effect.damageType === 'physical' ? 'phys' : 'comp'}
-            </span>
-          </div>
-        )}
-        {/* v2.18: surface gesture / annotation specifics so upgrade diff is visible */}
-        {card.slot === 'gesture' && card.gestureEffect && (
-          <div className="text-sm font-mono text-ink-700">
-            {card.gestureEffect.icon || '✊'} {card.gestureEffect.damage} {card.gestureEffect.damageType === 'physical' ? 'phys' : 'comp'}
-            {card.gestureEffect.stripEnemyBlock ? ` · strip ${card.gestureEffect.stripEnemyBlock}` : ''}
-            {card.gestureEffect.draw ? ` · draw ${card.gestureEffect.draw}` : ''}
-            {card.gestureEffect.rider && Object.keys(card.gestureEffect.rider).length > 0
-              ? ' · ' + Object.entries(card.gestureEffect.rider).map(([k,v]) => `${k}${v}`).join('·') : ''}
-          </div>
-        )}
-        {card.slot === 'annotation' && card.annotationEffect && (
-          <div className="text-sm font-mono text-ink-700">
-            📝 {card.duration} turns · {Object.entries(card.annotationEffect).map(([k,v]) => `${k}:${v}`).join(' · ')}
-          </div>
-        )}
-        {card.slot === 'modifier' && card.modifierEffect && (
-          <div className="text-sm font-mono text-ink-700">
-            {card.modifierEffect.damageMult ? `×${card.modifierEffect.damageMult} dmg` : ''}
-            {card.modifierEffect.rider?.block ? ` · block ${card.modifierEffect.rider.block}` : ''}
-            {card.modifierEffect.diceShift ? ` · roll +${card.modifierEffect.diceShift}` : ''}
-          </div>
-        )}
-        <div className="text-base font-quill leading-snug flex-1">{card.desc}</div>
-        {card.flavor && <div className="text-sm italic text-ink-500">"{card.flavor}"</div>}
-        {(card.type === 'word' && card.tags?.length > 0) && (
-          <div className="mt-1 pt-2 border-t border-ink-300 text-sm text-ink-500 italic">
-            ✦ {card.tags.join(' · ')}
-          </div>
-        )}
-        {(card.type === 'effect' && card.effect?.resonatesWith?.length > 0) && (
-          <div className="mt-1 pt-2 border-t border-ink-300 text-sm text-iris-700 italic">
-            ✦ resonates: {card.effect.resonatesWith.join(', ')}
-          </div>
-        )}
+        <CardFullBody card={card} />
       </div>
     </div>
   );

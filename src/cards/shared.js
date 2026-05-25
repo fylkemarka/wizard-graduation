@@ -132,7 +132,11 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   }
   const tier = computeSpellTier(intro, subject, target);
   const eff = target.effect;
-  const lane = target.lane || 'wit';
+  // v2.94: prefer target.effect.scaleBy over target.lane. Targets like
+  // Coil declare `scaleBy: 'chutzpah'` but carry no `lane` field — without
+  // this fallback, statTotal would sum wit stats (zero) instead of chutzpah,
+  // and the cast lands at base damage only. Math bar + cast formula now agree.
+  const lane = eff?.scaleBy || target.lane || 'wit';
 
   // Stat contribution: sum across intro + subject + target's own stats.
   // (Targets typically don't carry stat contribution but the field is honored
