@@ -376,7 +376,11 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     const stakeMults = [intro, subject, target, ...modifiers]
       .map(c => c?.stakeMultiplier || c?.effect?.stakeMultiplier || 0)
       .filter(m => m > 0);
-    const stakeMult = stakeMults.length > 0 ? Math.max(...stakeMults) : 1.0;
+    // v2.99: default stake multiplier 1.0 → 1.5 to match the design intent
+    // ("+1.5 damage per HP" was already in the UI tooltip). Brings the
+    // ALL IN baseline above 1:1 so it's value-positive without requiring
+    // a stake-multiplier synergy card. Synergy cards still boost further.
+    const stakeMult = stakeMults.length > 0 ? Math.max(...stakeMults) : 1.5;
     stakeBonus = Math.ceil(stakeAmount * stakeMult);
     const autoDouble = modifiers.some(m => m?.modifierEffect?.stakeAutoDouble);
     if (autoDouble) stakeBonus *= 2;
