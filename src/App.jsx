@@ -3240,6 +3240,11 @@ export default function App() {
   // without applying. The skill is exhausted at play time either way —
   // the prompt is the payoff window.
   const [footnotePromptActive, setFootnotePromptActive] = useState(false);
+  // v2.85: pick-one-of-two-to-forget. When an event/sidequest fires the
+  // loseRandomCard effect, pre-pick two candidates and surface a modal
+  // so the player chooses which one to lose (not silent + not pure RNG).
+  // Shape: { cards: [card, card], source: 'event/sidequest title' } | null
+  const [forgetTwoPrompt, setForgetTwoPrompt] = useState(null);
   // v2.36: ACTUALLY— state. lastCastSnapshot captures the most recent cast
   // this turn (intro/subject/target/modifiers + the ctx that was used to
   // resolve damage). Reset to null at the start of every player turn AND
@@ -4009,15 +4014,27 @@ export default function App() {
       logBits.push(`${fx.maxHp > 0 ? '+' : ''}${fx.maxHp} max HP`);
     }
     if (fx.loseRandomCard) {
-      setDeck(d => {
-        if (d.length === 0) return d;
-        const indexed = d.map((c, i) => ({ c, i }));
-        const nonStarters = indexed.filter(({ c }) => !STARTER_DECK.includes(c.id));
-        const pool = nonStarters.length > 0 ? nonStarters : indexed;
-        const pick = pool[Math.floor(Math.random() * pool.length)];
-        logBits.push(`− ${pick.c.name}`);
-        return d.filter((_, i) => i !== pick.i);
-      });
+      // v2.85: was silently picking 1 random card. Now picks 2 candidates
+      // (prefer non-starters) and surfaces a modal so the player chooses
+      // which to forget. The chosen card is removed in
+      // resolveForgetTwoChoice; the unchosen card stays. Auto-handles
+      // edge cases: 0 cards → no-op; 1 card → auto-discard with log.
+      const indexed = deck.map((c, i) => ({ c, i }));
+      const nonStarters = indexed.filter(({ c }) => !STARTER_DECK.includes(c.id));
+      const pool = nonStarters.length > 0 ? nonStarters : indexed;
+      if (pool.length === 0) {
+        logBits.push(`(no cards to forget)`);
+      } else if (pool.length === 1) {
+        const only = pool[0];
+        setDeck(d => d.filter(c => c.uid !== only.c.uid));
+        logBits.push(`− ${only.c.name} (only card available)`);
+      } else {
+        // Pick 2 distinct candidates (Fisher-Yates is overkill — sort+slice).
+        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        const choices = shuffled.slice(0, 2).map(x => x.c);
+        setForgetTwoPrompt({ cards: choices });
+        logBits.push(`✋ Choose one to forget…`);
+      }
     }
     const grantCardOf = (rarity) => {
       // v2.60: event grants respect lane AND exclude starter-deck cards
@@ -6359,6 +6376,19 @@ export default function App() {
   // v2.35: FOOTNOTE — cancel an active prompt (Esc / click-outside / explicit
   // dismiss button). The skill is already exhausted; the player just loses
   // the install opportunity.
+  // v2.85: resolve the pick-one-of-two forget prompt. Player clicked one
+  // of the two candidates to lose. Remove it by uid (not index — the
+  // deck order may have changed by reshuffles between offer and pick).
+  function resolveForgetTwoChoice(cardUid) {
+    if (!forgetTwoPrompt) return;
+    const chosen = forgetTwoPrompt.cards.find(c => c.uid === cardUid);
+    if (!chosen) { setForgetTwoPrompt(null); return; }
+    setDeck(d => d.filter(c => c.uid !== cardUid));
+    pushLog(`📜 Forgotten: ${chosen.name || chosen.phrase}.`);
+    logEvent('forget.choose', { cardId: chosen.id, cardName: chosen.name, offered: forgetTwoPrompt.cards.map(c => c.id) });
+    setForgetTwoPrompt(null);
+  }
+
   function cancelFootnotePrompt() {
     if (!footnotePromptActive) return;
     setFootnotePromptActive(false);
@@ -7563,6 +7593,13 @@ export default function App() {
       lane={tutorialLane}
       onAdvance={() => setTutorialStep(s => s + 1)}
       onExit={exitTutorial}
+    />}
+    {/* v2.85: pick-one-of-two-to-forget modal. Fires when an event /
+        sidequest triggered loseRandomCard. Modal blocks until the
+        player picks one card to lose; the other stays in the deck. */}
+    {forgetTwoPrompt && <ForgetTwoModal
+      cards={forgetTwoPrompt.cards}
+      onPick={resolveForgetTwoChoice}
     />}
   </>;
 }
@@ -10701,6 +10738,58 @@ function UpgradeCardScreen({ deck, onPick }) {
 
 // v2.8: Remove a card from the deck at a rest site. Click → confirm.
 // Same layout as the upgrade picker so the player recognizes the flow.
+// v2.85: pick-one-of-two-to-forget modal. Used when an event triggers
+// loseRandomCard — instead of silently dropping a random card, the
+// player sees two candidates and explicitly chooses which to forget.
+// No back button: the consequence has to land.
+function ForgetTwoModal({ cards, onPick }) {
+  return (
+    <div className="fixed inset-0 bg-ink-900 bg-opacity-85 flex items-center justify-center z-50 p-6">
+      <div className="parchment-card-strong p-6 max-w-3xl w-full flex flex-col gap-4">
+        <div className="text-center">
+          <h2 className="font-display text-3xl text-ember-300">Forget a Card</h2>
+          <p className="text-sm text-parchment-300 italic mt-1">
+            Pick one of the two. The other returns to your deck. The chosen card is gone for the rest of this run.
+          </p>
+        </div>
+        <div className="flex gap-4 justify-center flex-wrap">
+          {cards.map(card => {
+            const dispName = card.name || card.phrase || '';
+            const dispLabel = card.slot || card.type;
+            return (
+              <button key={card.uid} onClick={() => onPick(card.uid)}
+                className="w-56 rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-ember-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
+                    {dispLabel}{card.tier ? ` · T${card.tier}` : ''}
+                  </div>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
+                </div>
+                <div className="font-display text-base">{dispName}</div>
+                {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+                  <div className="flex gap-1 flex-wrap text-xs font-mono">
+                    {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                    {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
+                    {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
+                  </div>
+                )}
+                {(card.slot === 'target' || card.type === 'effect') && card.effect && (
+                  <div className="text-xs font-mono text-ink-700">
+                    {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
+                  </div>
+                )}
+                {card.desc && <div className="text-xs font-quill">{card.desc}</div>}
+                {card.flavor && <div className="text-[11px] italic text-ink-500 mt-auto pt-1 border-t border-ink-300">"{card.flavor}"</div>}
+              </button>
+            );
+          })}
+        </div>
+        <div className="text-[11px] text-parchment-400 italic text-center">Click the card you'd rather lose.</div>
+      </div>
+    </div>
+  );
+}
+
 function ForgetCardScreen({ deck, onPick }) {
   const [pendingUid, setPendingUid] = useState(null);
   const pendingCard = pendingUid ? deck.find(c => c.uid === pendingUid) : null;
