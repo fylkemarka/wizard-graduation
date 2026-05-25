@@ -520,6 +520,7 @@ function runCombat(state, enemyId, telemetry) {
   state.block = 0;
   state.poise = 0; // v2.9: composure-shield
   state.combatRolls = []; // v2.12: track chaos rolls this combat
+  state.backfireStreak = 0; // v2.90: consecutive 1s, for the backfire smoother
   // v2.24: chutzpah TUNNEL VISION + RAGE state — per combat.
   state.tunnelVision = 0;
   state.rageActive = false;
@@ -1605,6 +1606,13 @@ function runCombat(state, enemyId, telemetry) {
       }
       if (willRoll) {
         chaosRoll = rollChaosSim(tray.intro, tray.modifiers);
+        // v2.90: backfire smoother — mirror of App.jsx. Third consecutive
+        // 1 nudges to 2 (SPILLED IT). Telemetry: smoothedBackfires count.
+        if (chaosRoll === 1 && (state.backfireStreak || 0) >= 2) {
+          chaosRoll = 2;
+          telemetry.smoothedBackfires = (telemetry.smoothedBackfires || 0) + 1;
+        }
+        state.backfireStreak = chaosRoll === 1 ? (state.backfireStreak || 0) + 1 : 0;
         chaosOutcome = CHAOS_OUTCOMES[chaosRoll];
         state.combatRolls.push(chaosRoll);
         // v2.13: intro diceDraw bonus.
@@ -3193,6 +3201,7 @@ function simRun(forcedLane = null) {
     // v2.67: general chip-cast skip counter (HUMAN_PLAY_PROFILE — humans
     // skip-cast on chip turns; sim AI now mirrors at ~25% damage threshold).
     chipCastSkips: 0,
+    smoothedBackfires: 0,  // v2.90: pity-smooth fires (3rd-in-a-row 1 → 2)
     // v2.35: FOOTNOTE telemetry. footnotesApplied = number of times the
     // Hewn-Greaves footnote skill resolved (incremented in the sim AI's
     // play branch). footnoteCastsWithBonus = casts where the +footnote
@@ -3473,6 +3482,7 @@ function aggregate(results) {
     threadPreservationSkips: results.reduce((s, r) => s + (r.threadPreservationSkips || 0), 0),
     // v2.67: general chip-cast skip metric.
     chipCastSkips: results.reduce((s, r) => s + (r.chipCastSkips || 0), 0),
+    smoothedBackfires: results.reduce((s, r) => s + (r.smoothedBackfires || 0), 0),
     // v2.35: FOOTNOTE metrics.
     footnotesApplied: results.reduce((s, r) => s + (r.footnotesApplied || 0), 0),
     footnoteCastsWithBonus: results.reduce((s, r) => s + (r.footnoteCastsWithBonus || 0), 0),
@@ -3679,6 +3689,7 @@ function buildReport(agg) {
   lines.push(`- "natural conclusion." target casts: ${agg.naturalConclusionCasts}`);
   lines.push(`- v2.43 thread-preservation skip-casts: ${agg.threadPreservationSkips || 0}`);
   lines.push(`- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): ${agg.chipCastSkips || 0}`);
+  lines.push(`- v2.90 backfire-smoother fires (3rd consecutive 1 → 2): ${agg.smoothedBackfires || 0}`);
   lines.push('');
   lines.push(`## Wit FOOTNOTE (v2.35)`);
   lines.push(`- Footnotes applied: ${agg.footnotesApplied} (runs: ${agg.footnoteRuns} / ${agg.N}, ${pct(agg.footnoteRuns / agg.N)})`);

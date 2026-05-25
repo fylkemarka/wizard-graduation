@@ -3215,6 +3215,13 @@ export default function App() {
   // name + damage multiplier + side effects in a centered overlay that
   // auto-dismisses after 3.5s (or click to dismiss).
   const [chaosRollFlash, setChaosRollFlash] = useState(null);
+  // v2.90: backfire smoother (per HUMAN_PLAY_PROFILE snapshot 5 — player
+  // got 4 BACKFIREs in a row). Counts consecutive 1s within a combat;
+  // when at 2, the next 1 is nudged to 2 (SPILLED IT) so a third
+  // consecutive BACKFIRE never fires. Math is honest in the long run;
+  // the smoother only kicks in at the rare emotional cliff. Resets on
+  // every combat enter and on any non-1 roll.
+  const [backfireStreak, setBackfireStreak] = useState(0);
   // v2.24: chutzpah TUNNEL VISION meter. Fills +1 per chutzpah-lane card
   // played (intro/subject/modifier/target — anywhere staging completes).
   // At >= 5 at start of your turn, you enter RAGE for that turn:
@@ -4414,6 +4421,7 @@ export default function App() {
     setRollOptIn(false);
     setLastRoll(null);
     setCombatRolls([]);
+    setBackfireStreak(0);
     // v2.24: chutzpah tunnel-vision meter and RAGE state reset per combat.
     setTunnelVision(0);
     setRageActive(false);
@@ -5024,12 +5032,24 @@ export default function App() {
     let chaosOutcome = null;
     if (willRoll) {
       chaosRoll = rollChaosDie(intro, modifiers);
+      // v2.90: backfire smoother. If this would be the THIRD consecutive
+      // 1 (BACKFIRE), nudge to 2 (SPILLED IT). The math is honest in the
+      // long run; the smoother only catches the rare 0.4% emotional
+      // cliff. Logged + telemetry-flagged so we can see how often it
+      // engages.
+      let smoothed = false;
+      if (chaosRoll === 1 && backfireStreak >= 2) {
+        chaosRoll = 2;
+        smoothed = true;
+        pushLog(`🎲 Pity smoother: chained backfires nudged to SPILLED IT.`);
+      }
       chaosOutcome = CHAOS_OUTCOMES[chaosRoll];
       setLastRoll(chaosRoll);
       setCombatRolls(rs => [...rs, chaosRoll]);
+      setBackfireStreak(chaosRoll === 1 ? backfireStreak + 1 : 0);
       logEvent('jnsq.roll', {
         result: chaosRoll, outcome: chaosOutcome.name,
-        forced: forceRoll, enemyId: enemy?.id,
+        forced: forceRoll, smoothed, enemyId: enemy?.id,
       });
       // v2.13: intro diceDraw — "I have a feeling about this —"
       // becomes a sustain card.
