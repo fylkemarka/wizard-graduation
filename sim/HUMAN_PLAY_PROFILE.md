@@ -116,3 +116,41 @@ The "1 staged at turn-end" pattern is now triple-confirmed across three snapshot
 **Updated AI implications:**
 - Implement a "favorite target" memory: once the deck contains a non-starter target with mechanics, the AI should prefer it ~50% of cast picks (was: equal weight)
 - Skill plays: f-bristle (familiar active) 10× in this snapshot — same heavy use as snapshot 1. Defensive skills (c-defend, c-compose) still played every other turn.
+
+## Observations — 2026-05-25T02:03 (snapshot 4 — FIRST LOSS DATA)
+
+Wit player died to The Tapestry Walker (act 1 boss). 187 events, 6 combats (5 won + boss lost), 17 casts, 5 picks (all uncommon), 2 forgets, 1 rest pick. Died HP 0 / composure 20 at turn 7 of the boss fight.
+
+**Boss-fight cast cadence — slower than normals:**
+- 4 casts across 7 turns = **0.57 casts/turn** (vs 0.72 in snapshot 3, vs 0.40-0.50 in snapshot 1)
+- Each cast did ~25 composure damage (Tapestry comp went 81 → 56 → 31). Tapestry comp max is 85; player needed 4-5 casts but ran out of HP first.
+- The CASTS were fine, the DEFENSE was missing. Pre-cast HP: 65 / 65 / 47 / 37 / 21 / 5 / dead. Boss attacks landed for 10-16 HP per turn — no Defend/Compose plays visible in the combat log.
+
+**The player got Weak'd:**
+- Multiple boss-fight turns showed `playerDmgMult` at 0.80-0.95 (Weak applied via boss attack riders).
+- Player didn't have a cleanse card in their deck. Wit has no equivalent to chutzpah's "Sorry — what?" absorb.
+
+**Reward picks — all 5 were uncommon, no skips:**
+1. drunk-parrot target (became the workhorse — used 4× in the boss fight)
+2. The Significant Pause Power (+1 Energy/turn)
+3. Hewn-Greaves footnote skill
+4. Word card uncommon
+5. Margin Notes annotation (the only non-uncommon pick — common)
+
+Post-v2.68 act-scaling validated: 4 of 5 picks were uncommon, 0 commons, 0 rares. The new weights pushed the player into uncommons exactly as intended.
+
+**Telemetry validation (v2.84):**
+- `playerDmgMult` and `enemyDmgMult` ARE now captured in turn_end events. First snapshot with this data.
+- Sample: T2 end had `pdm=0.85 edm=1` (player at -15% spell potency from a Weak).
+- The v2.83 label fix means the chip would have read "⛧ Your spells -15% (Weak on you)" — disambiguates which side is affected.
+
+**The Tapestry Walker is unwinnable for an unprepared wit player.** Comp max 85, attacks 10-16/turn, applies Weak. Wit deck without a strong target rider, without picked defensive uncommons, with the pre-staging cost (v2.82) bleeding 1-2 comp/turn, ran out of HP at turn 7. The first-act boss is doing its job AS A WALL but wit currently has no honest answer until uncommons drop.
+
+**AI implications for next sim cycle:**
+- Boss-fight defense priority — current AI's defender pass triggers on "block < expected hit" but doesn't escalate against multi-attack bosses. Add a boss-tier bias: against bosses, threshold for defensive plays should drop (defend even when block is comfortable).
+- Long Thread was at 0 the whole fight because every turn took unblocked damage. The threadPreservation heuristic skipped chip casts but the player still couldn't keep the thread intact. Defense-first priority needs to be lane-aware AND tier-aware (wit + boss = even more block weight).
+
+**Open follow-ups:**
+- Is wit's defense kit too thin for the act-1 boss? Buff Compose (currently +5 Poise) or add a defensive uncommon?
+- Track loss rate at first-act boss across all 3 lanes — wit-specific or universal?
+- Pre-staging cost may have cost 5-10 composure across the boss fight. Worth measuring impact specifically — could be the right number, could be too punishing.

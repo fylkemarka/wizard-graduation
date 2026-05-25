@@ -3658,8 +3658,14 @@ export default function App() {
   // matching action. No-op when not in the tutorial.
   function advanceTutorialStep(trigger) {
     if (!tutorialActive) return;
-    if (tutorialStep === 1 && trigger === 'played-word') setTutorialStep(2);
-    if (tutorialStep === 2 && trigger === 'cast-spell')  setTutorialStep(3);
+    // v2.88: split intro/subject steps. Was: step 1 → 2 on any 'played-
+    // word'; step 2 → 3 on 'cast-spell'. Player would skip subject staging
+    // and get a "Need an intro AND a subject" rejection. Now each word
+    // slot gets its own step so the tutorial walks them through the
+    // sentence shape in order.
+    if (tutorialStep === 1 && trigger === 'intro')    setTutorialStep(2);
+    if (tutorialStep === 2 && trigger === 'subject')  setTutorialStep(3);
+    if (tutorialStep === 3 && trigger === 'cast-spell') setTutorialStep(4);
   }
 
   function exitTutorial() {
@@ -4686,7 +4692,9 @@ export default function App() {
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfChutzpah();
       pushLog(logBits.join(' · ') + `  →  📜 ${card.slot} staged`);
-      advanceTutorialStep('played-word');
+      // v2.88: pass the slot so the tutorial advances on intro / subject
+      // separately. Was a generic 'played-word' that conflated both.
+      advanceTutorialStep(card.slot);
       return;
     }
 
@@ -7655,7 +7663,17 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
         <p className="mt-2">Other chutzpah-only tools: <b>🏚 Doubling Down</b> (corner tokens — bill you if the enemy survives), <b>📢 Saying it Louder</b> (demanding words stack damage), <b>⚡ Hit Me Again</b> (Power — enemy attacks bill the enemy back).</p>
       </>)
     : (<>
-        <p><b>🌀 Tangent</b> — your signature trick. Skill cards like <i>"That reminds me,"</i> discard a random card from your draw pile and fire a random jnsq from your discard pile. Stack jnsq cards into discard so the chaos pool is rich.</p>
+        <p><b>🎲 Chaos Dice</b> — your signature gamble. After staging a full spell, the <b>🎲 ROLL?</b> toggle appears next to CAST. Toggle it ON to roll 1d6 on the cast:</p>
+        <ul className="text-sm list-disc list-inside mt-1 leading-relaxed">
+          <li><b>1 backfire</b> (0.5× dmg, -3 HP)</li>
+          <li><b>2 spilled it</b> (1.0× dmg, discard 1 random hand card)</li>
+          <li><b>3 half-baked</b> (0.75× dmg, +1 Energy)</li>
+          <li><b>4 sticks</b> (1.0× dmg, draw 1)</li>
+          <li><b>5 sings</b> (1.25× dmg, draw 1)</li>
+          <li><b>6 COSMIC</b> (1.75× dmg, draw 2, +25% potency next cast)</li>
+        </ul>
+        <p className="mt-1 text-xs italic">Average outcome ≈ +4% damage on top of the spell. Statistically good over time, even with the 1-in-6 backfire. Cards like <i>"with loaded dice,"</i> (+1 to roll) and <i>"and the universe rolls a die,"</i> (forces a roll) shape the odds.</p>
+        <p className="mt-2"><b>🌀 Tangent</b> — Skill cards like <i>"That reminds me,"</i> discard a random card from your draw pile and fire a random jnsq from your discard pile. Stack jnsq cards into discard so the chaos pool is rich.</p>
         <p className="mt-2">Other jnsq-only tools: <b>🤫 Awkward Pause</b> (hold the tray, double next cast), <b>🍺 Drunken Confidence</b> (Power — +50% damage but +2 incoming), <b>🌀 Stagger</b> (50% enemy miss chance).</p>
       </>);
 
@@ -7671,43 +7689,52 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       waitsForAction: false,
     },
     {
-      title: 'Step 1 — Play a Word card.',
+      title: 'Step 1 — Play an INTRO word.',
       body: (<>
         <p>Look at your hand. <b>Word cards</b> have slot labels like INTRO, SUBJECT, or MODIFIER (top-left). They don't damage the enemy alone — they add stat points to your <b>Spell Tray</b> above the hand.</p>
-        <p className="mt-2">Play a Word card. Any will do. Watch the Tray fill up with the phrase.</p>
+        <p className="mt-2">Find a card labeled <b>INTRO</b> and play it. Watch the Tray fill the intro slot.</p>
       </>),
-      cta: '(play any Word card)',
+      cta: '(play an Intro card)',
       waitsForAction: true,
     },
     {
-      title: 'Step 2 — Stage a Target and CAST.',
+      title: 'Step 2 — Now play a SUBJECT word.',
       body: (<>
-        <p>Excellent. Your tray now has a {laneStat} {laneName} stat point.</p>
-        <p className="mt-2"><b>Target cards</b> (slot label: TARGET) seal the spell. Click one — it goes to the tray. The tray shows a <b>Predicted damage</b> number. Click the big <b>✨ CAST</b> button to fire.</p>
-        <p className="mt-2">A complete spell needs <b>intro + subject + target</b>. You can stage up to 2 modifiers for extra effects. Click a staged card to take it back.</p>
+        <p>Good — your sentence is starting. Every spell needs three slots filled to cast: <b>intro + subject + target</b>.</p>
+        <p className="mt-2">Find a card labeled <b>SUBJECT</b> in your hand and play it. It adds another {laneStat} {laneName} point to the tray.</p>
+      </>),
+      cta: '(play a Subject card)',
+      waitsForAction: true,
+    },
+    {
+      title: 'Step 3 — Stage a TARGET and CAST.',
+      body: (<>
+        <p>Both word slots are full. Now you need a <b>Target</b> card to seal and cast the spell.</p>
+        <p className="mt-2">Click a <b>TARGET</b> card — it goes to the tray. The tray shows a <b>Predicted damage</b> number and a Math line showing where it comes from. Click the big <b>✨ CAST</b> button to fire.</p>
+        <p className="mt-2">You can also stage up to 2 optional modifiers for extra effects. Click a staged card to take it back.</p>
       </>),
       cta: '(stage a Target, then click CAST)',
       waitsForAction: true,
     },
     {
-      title: 'Step 3 — Resistances, defense, and fizzling.',
+      title: 'Step 4 — Resistances, defense, and fizzling.',
       body: (<>
         <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar). Drain it to 0 and he concedes.</p>
         <p className="mt-2"><b>Effectiveness badges</b> next to the Intent show how the enemy reacts to each stat: <b>×1</b> baseline · <span className="text-moss-300">×1.5–2 susceptible</span> · <span className="text-ember-300">×0.5 resistant</span> · <span className="text-parchment-400">×0 immune</span>. Pick a wizard whose lane the enemy fears.</p>
         <p className="mt-2"><b>Defend</b> grants Block (🛡) — absorbs physical damage. <b>Compose Yourself</b> grants Poise (🪞) — absorbs composure damage. Block and Poise reset at start of YOUR next turn — spend them this turn or lose them.</p>
-        <p className="mt-2">If you stage words but never play a Target, the spell <b>fizzles</b> at end of turn. The stat points vanish. Don't let that happen.</p>
+        <p className="mt-2"><b>Pre-staging cost:</b> staged cards <i>persist</i> into your next turn until you cast — but each card carried over costs <b>1 Composure</b> per turn. You're focusing on what you'll say next instead of paying attention to the enemy. Hold one card to set up next turn cheaply; hold three and bleed.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
     },
     {
-      title: `Step 4 — ${laneName}'s signature mechanic.`,
+      title: `Step 5 — ${laneName}'s signature mechanic.`,
       body: signatureBody,
       cta: 'Continue',
       waitsForAction: false,
     },
     {
-      title: 'Step 5 — Finish the match.',
+      title: 'Step 6 — Finish the match.',
       body: (<>
         <p>You've got the basics. Finish the Bursar at your leisure. Cards drift back into your deck via the discard pile; when your draw pile empties, the discard reshuffles in.</p>
         <p className="mt-2">After this match, you'll be returned to the wizard select. Choose a wizard for real and walk the path.</p>
@@ -7893,7 +7920,7 @@ const WIZARD_TUTORIALS = {
       },
       {
         heading: '🙇 THE APOLOGY — reset valve',
-        body: 'When you\'ve over-committed and the tray is going sideways, an Apology clears it: discard the spell tray, heal 4 HP, apply +1 Vulnerable to the enemy. The trade is offense-for-survival, plus a debuff for the enemy. Use it when the spell would fizzle anyway.',
+        body: 'When you\'ve over-committed and the tray is going sideways, an Apology clears it: discard the spell tray, heal 4 HP, apply +1 Vulnerable to the enemy. The trade is offense-for-survival, plus a debuff for the enemy. Use it when the carry-over cost (1 Composure per staged card) outweighs the value of the staged setup.',
         examples: [
           { name: "I shouldn't have said that — have you eaten?", text: 'The Apology skill — clear, heal, vuln.' },
           { name: 'sorry, restarting,', text: 'Cheaper apology intro — opens a clean tray.' },
