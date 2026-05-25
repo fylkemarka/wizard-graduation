@@ -187,3 +187,75 @@ Jnsq player casts MORE often than wit (snapshot 3: 0.72/turn). Probably because 
 **Open follow-ups:**
 - Roll streak watch — if BACKFIRE chains continue, redesign with a smoother.
 - Jnsq subject cost (currently 0) vs wit's (1): does jnsq deserve the same nerf for parity? Probably not given win rate, but track casts/turn.
+
+## Observations — 2026-05-25T03:43 (snapshot 6 — FIRST CHUTZPAH FULL-ACT WIN)
+
+Chutzpah-bruiser (The Bruiser) + Snake familiar (f-coil) + Sturdy Frame boon. **Won all of Act 1 including the e2-boss-tapestry boss.** 191 events, 9 combats, 20 turn_ends, 20 casts, 97 card plays, 8 picks (no skips), 2 rests (both heal), 1 stake. Alan's words: *"fun, found myself worrying about hp way more, needing the heals."*
+
+**Cast cadence — chutzpah outpaces every other lane:**
+| Snapshot | Lane | casts/turn |
+|---|---|---|
+| 3 | wit | 0.72 |
+| 5 | jnsq | 0.75 |
+| **6** | **chutzpah** | **1.00** |
+
+Probably because chutzpah subjects are still cost-0 (wit's became cost-1 in v2.59). Don't nerf chutzpah without sim cycles first — pace is what makes the lane feel aggressive.
+
+**Turn-end state (n=20):**
+| Metric | Snap 1 (wit) | Snap 3 (wit) | Snap 5 (jnsq) | **Snap 6 (chutzpah)** |
+|---|---|---|---|---|
+| Mean energy left | 0.72 | 0.47 | n/a | **0.90** |
+| Mean hand | 2.75 | n/a | n/a | **2.30** |
+| Mean tray staged | 1.02 | 0.97 | n/a | **0.85** |
+| Mean HP | 58.77/70 | 47.88/70 | high | **55.70/~78** |
+| Mean composure | 22.80/30 | 20.78/30 | high | **32.65/35** |
+| Mean playerDmgMult | n/a | n/a | n/a | **1.49** |
+| Mean enemyDmgMult | n/a | n/a | n/a | **0.91** |
+
+**Read on the chutzpah-specific deltas:**
+- **Highest energy-left mean (0.90)** — chutzpah players keep a 1-energy reserve more often than wit/jnsq. Could be for emergency Defend, or just because cv2 subject/intro costs leave odd leftover energy after a 3-energy turn.
+- **Lowest tray-staged mean (0.85)** — chutzpah does NOT pre-stage as often. Sensible: pre-staging is a wit signature (the long thread / footnote tray-building loop). Chutzpah cards trigger on cast and there's no thread to protect.
+- **playerDmgMult averaged 1.49 across every turn** — Coil applies Vulnerable on cast, so nearly every fight had an enemy debuffed. Bonus stacks naturally with f-coil's signature.
+- **enemyDmgMult averaged 0.91** — enemies kept somewhat Weak'd. Suggests the player IS managing both stat-debuffs actively.
+
+**ALL IN (stake) is criminally underused:**
+- 1 stake event in 20 casts = **5%**. Despite Alan's note about HP pressure.
+- Stake spent 8 HP for +8 damage on a single Silk Wraith fight; never tried again.
+- Either UX issue (stake nudge UI not surfacing the value clearly) OR mechanic-feel issue (Alan would rather pick c-mend than spend HP for damage). The chutzpah identity hook is being ignored by the chutzpah player.
+- **Worth a design pass:** ALL IN should feel like the WHOLE POINT of being chutzpah. Right now it's a hidden button. Consider: stake-trigger animations, tooltip prominence, OR a card that REQUIRES stake to play (already exists for some — verify and surface).
+
+**Favorite-target pattern confirmed across all 3 lanes:**
+- 4/20 casts (20%) used picked-up `cv2-t-bleeds-for-it`. Plus `f-coil` (the familiar — always available) at 5/20 (25%).
+- Sim's "favorite target" memory heuristic from snapshot 3 should keep applying.
+
+**Reward picks (8 picks, ZERO skips):**
+- 1 gesture (cv2-g-slams-table — played 7× as the highest-volume new card!)
+- 3 targets (bleeds-for-it, wont-fly, bare-knuckles)
+- 1 intro (bring-it-on — played 6×)
+- 1 subject (skin-game — played 1×, low-engagement)
+- 1 power (c-amplify — played 6×)
+- 1 healing skill (c-mend — played 2×, drove the HP recovery Alan mentioned)
+
+Pattern: chutzpah player picked **two heavy-volume cards (gesture + intro)** that got integrated into nearly every combat, plus **one healing tool** (c-mend) that addressed the HP pressure. The "always-pick, never-skip" pattern holds: v2.68 act-scaled offers are good enough that skipping isn't appealing.
+
+**Healing observations (Alan's "needing the heals" comment):**
+- Rest heals ARE working — 30% maxHp per `resolveRestChoice('heal')` at `src/App.jsx:7719`. The telemetry's `hp` field is logged BEFORE setHp fires, so the rest event payload shows pre-heal state, not post-heal.
+- Actual rest 1: HP 32 pre → 55 post (+23 = 30% of 78 maxHp). Carried 55 HP into linenfast.
+- Actual rest 2: HP 47 pre → 70 post. Carried 70 HP into the boss; ended boss at 41 = took 29 dmg over 4 turns.
+- c-mend (picked card, played 2×) is doing additional in-combat healing on top of rests. The lean-on-healing pattern is real.
+
+**Boss fight (e2-boss-tapestry):**
+- 4 turns, 22 card plays, 4 casts, won at HP 41/comp 27.
+- Much cleaner than snapshot 4's wit-vs-tapestry loss. Chutzpah's combo (intros that arm/scale + Coil's vulnerable + bleeds-for-it predator) shreds the tapestry.
+- Lane-vs-boss comment: wit's snapshot-4 loss vs chutzpah's snapshot-6 clean win against the SAME boss. Either chutzpah is stronger here or the wit kit needs sharpening.
+
+**AI implications for chutzpah sim AI:**
+- Bump casts/turn target to ~1.0 (was ~0.65 generic). Chutzpah is the aggressive lane.
+- Lower pre-staging weight at turn-end (~0.85 vs wit's 1.0). Don't carry a tray over as often.
+- Add a stake-aware heuristic: when boss tier OR predicted-finisher-kills-enemy AND HP > 30%, propose stake. Default to NO stake (matches Alan's 5%) unless those conditions trigger.
+- Favorite-target memory ports cleanly from wit; pick up a picked target and use it 25-50% of casts.
+
+**Open follow-ups:**
+- **ALL IN underuse (5% of casts)**: design pass on stake UX — make it feel like the chutzpah identity move, not a hidden nudge button. Consider: stake nudge button persistently surfaced on every chutzpah-cast turn, animation on stake-spend, OR a tooltip that calls out the EV of staking N HP for predicted +damage.
+- **Lane balance vs same boss**: wit lost to tapestry at snap 4 (HP 0), chutzpah won easily at snap 6 (HP 41). Track this — if chutzpah keeps winning act-1 boss at 90%+ and wit at 30%-, balance gap is real.
+- **Rest event payload bug**: `logEvent(TE.REST_CHOICE, { hp, ... })` at App.jsx:7714 captures hp BEFORE setHp fires. Either log post-heal hp explicitly, or document that the field is "hp at click time."
