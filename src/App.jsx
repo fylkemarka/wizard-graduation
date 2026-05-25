@@ -2892,11 +2892,17 @@ function isInterestingReward(card) {
 }
 
 function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = [], lane = null) {
-  // Lane filter: when set, only cards matching that lane OR lane-agnostic
-  // utility cards (skill/power without a `lane` field) qualify.
+  // Lane filter: only cards matching the player's lane OR lane-agnostic
+  // utility cards (no `lane` field) qualify.
+  // v2.99.3: DEFENSIVE — if `lane` is null (caller couldn't read the
+  // active character), REJECT lane-specific cards instead of allowing
+  // all. The prior shape was a bleed source: a wit player saw chutzpah
+  // cards if selectedCharacter was briefly unset (e.g. a render race
+  // around startRun's clear+set sequence). Fail-safe means "no lane
+  // info → only lane-agnostic c-* cards", never wrong-lane offers.
   const matchesLane = (c) => {
-    if (!lane) return true;
-    if (!c.lane) return true;
+    if (!c.lane) return true;       // Lane-agnostic — always OK
+    if (!lane)   return false;      // No active lane → reject lane-specific
     return c.lane === lane;
   };
   const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c));
@@ -7780,6 +7786,15 @@ export default function App() {
       if (!pick) break;
       choices.push(pick); used.push(pick.id);
     }
+    // v2.99.3: telemetry — record offered card lanes alongside player's
+    // lane. Lets us detect bleed in real time (any offered.lane that
+    // doesn't match player.lane and isn't undefined is a bug).
+    logEvent('combat.reward_offer', {
+      playerLane: lane,
+      offered: choices.map(c => ({ id: c.id, lane: c.lane || null, rarity: c.rarity })),
+      enemyId: enemy?.id,
+      enemyTier: enemy?.tier,
+    });
     setRewardChoices(choices);
     setStage('reward');
   }
