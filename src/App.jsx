@@ -7094,9 +7094,18 @@ export default function App() {
     //   - Otherwise, if the player cast a wit Effect this turn → meter +1.
     //   - Otherwise (no wit cast, no unblocked hit) → meter is unchanged.
     // Reset the per-turn flags either way.
+    // v3.0 cycle 5: Long Thread now DECAYS by 1 instead of full reset
+    // on unblocked hit. The thread is wit's identity defense; making it
+    // resilient lets thread defense actually compound across a combat.
+    // Sim cycle-3 stats: avg peak LT 1.12 / 179 breaks per 100 wit runs.
+    // The full-reset made thread effectively unusable; decay-by-1 keeps
+    // damage taken meaningful without invalidating multiple safe turns.
     if (unblockedThisTurn) {
-      if (longThread > 0) pushLog(`🧵 Lost the thread.`);
-      setLongThread(0);
+      if (longThread > 0) {
+        const next = Math.max(0, longThread - 1);
+        pushLog(`🧵 Thread frays — Long Thread: ${next}.`);
+        setLongThread(next);
+      }
     } else if (castWitEffectThisTurn) {
       setLongThread(n => {
         const next = n + 1;
@@ -7450,7 +7459,16 @@ export default function App() {
       }
       const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
                          + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
-      const reduction = Math.min(2, rawReduction);
+      // v3.0 cycle 5: Long Thread is now defensive too. While LT > 0,
+      // incoming damage is reduced by 1 per LT stack (cap at 3). Pairs
+      // with the existing offensive thread-scaling rider — wit's
+      // identity loop (build slow → finish big) becomes self-
+      // reinforcing: more thread → less HP loss → easier to keep
+      // thread alive. Resets when an unblocked hit breaks the thread.
+      // Reads `longThread` directly from React state; the cap respects
+      // existing damageReduction (2) so combined ceiling is 5 per swing.
+      const threadReduction = Math.min(3, longThread || 0);
+      const reduction = Math.min(2, rawReduction) + threadReduction;
       // v2.9: Beetle's first-hit absorb — applied BEFORE shield routing
       // so it works against both pool types. Consumed on first hit only.
       if (beetleAbsorb > 0 && raw > 0) {

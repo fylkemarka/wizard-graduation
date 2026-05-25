@@ -2778,6 +2778,14 @@ function runCombat(state, enemyId, telemetry) {
       incoming = Math.max(0, incoming - absorbed);
       state.beetleAbsorb = 0;
     }
+    // v3.0 cycle 5: Long Thread defensive bonus. While LT > 0, reduce
+    // incoming damage by 1 per LT stack (cap at 3). Pairs with the
+    // offensive thread-scaling rider on wit targets.
+    if ((state.longThread || 0) > 0 && incoming > 0) {
+      const threadReduction = Math.min(3, state.longThread);
+      incoming = Math.max(0, incoming - threadReduction);
+      telemetry.threadDefenseAbsorbs = (telemetry.threadDefenseAbsorbs || 0) + threadReduction;
+    }
     // Drift player buffs back toward 1.0 (0.25/turn)
     if (state.enemyDmgMult < 1.0) state.enemyDmgMult = Math.min(1.0, state.enemyDmgMult + 0.25);
     if (state.playerDmgMult > 1.0) state.playerDmgMult = Math.max(1.0, state.playerDmgMult - 0.25);
@@ -2966,8 +2974,9 @@ function runCombat(state, enemyId, telemetry) {
     if (state.unblockedThisTurn) {
       if ((state.longThread || 0) > 0) {
         telemetry.longThreadBreaks = (telemetry.longThreadBreaks || 0) + 1;
+        // v3.0 cycle 5: decay-by-1 instead of full reset.
+        state.longThread = Math.max(0, state.longThread - 1);
       }
-      state.longThread = 0;
     } else if (state.castWitEffectThisTurn) {
       state.longThread = (state.longThread || 0) + 1;
       if ((state.longThread || 0) > (state._longThreadPeak || 0)) {
