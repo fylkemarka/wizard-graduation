@@ -3356,18 +3356,50 @@ export default function App() {
   // the smoother only kicks in at the rare emotional cliff. Resets on
   // every combat enter and on any non-1 roll.
   const [backfireStreak, setBackfireStreak] = useState(0);
-  // v2.93: Passing Thought flags. Each one corresponds to a colorless card
-  // mechanic — set by playing the card, consumed by the relevant trigger.
-  // All cleared on enterFight; flag-style ones default false / 0.
-  const [reflectNextDebuff, setReflectNextDebuff] = useState(0);   // O-2 (also Vuln/Weak applied to enemy)
-  const [nextCastBonusEqualsLast, setNextCastBonusEqualsLast] = useState(false); // O-1 (Precedent)
-  const [nextCastBypassEff, setNextCastBypassEff] = useState(false); // O-4 (Find the Seam)
-  const [nextCastDamageMult, setNextCastDamageMult] = useState(1.0); // O-5 (Adding Insult to Injury)
-  const [nextCastDoubles, setNextCastDoubles] = useState(false);     // O-6 (The Doubletake)
-  const [enemySkipNextAttack, setEnemySkipNextAttack] = useState(false); // D-1 (Talking Over Them)
-  const [swapNextHitToComp, setSwapNextHitToComp] = useState(false); // D-2 (Glancing Blow)
-  const [reflectNextHitAsComp, setReflectNextHitAsComp] = useState(false); // D-3 (Settle the Score)
-  const [bracingArmed, setBracingArmed] = useState(false);           // D-4 (Bracing for Impact)
+  // v3.0 (architect refactor #1): collapsed 9 v2.93 + 2 v2.97 one-shot
+  // trigger flags into a single pendingTriggers object. Each flag still
+  // has the same name and setter shape — they're wrapped via the
+  // makeTriggerSetter helper so existing call sites are unchanged. The
+  // useState count for the App component dropped by 11 (architect's #11:
+  // "useState count signals state fragmentation").
+  //
+  // Each key holds either `true` (boolean flags) or a number (value flags
+  // like nextCastDamageMult, reflectNextDebuff, braceArmedDraw, riposteCharge).
+  // The setter helper clears the key when set to `false`/`0`/`1.0` (the
+  // neutral value) so the map stays trim. enterFight clears the whole map
+  // in one call instead of 11 individual setX(0/false) calls.
+  //
+  // Captured-state vars (hpAtTurnStart, lastCastDamage, hpLossThisTurn)
+  // stay as separate useState because they're snapshots/accumulators,
+  // not one-shot triggers (architect's note on Bracing).
+  const [pendingTriggers, setPendingTriggers] = useState({});
+  const makeTriggerSetter = (key, neutral = false) => (next) => setPendingTriggers(prev => {
+    const cur = prev[key];
+    const value = typeof next === 'function' ? next(cur ?? neutral) : next;
+    if (value === neutral || value === false || value === 0 || value === undefined || value === null) {
+      if (!(key in prev)) return prev;
+      const n = { ...prev }; delete n[key]; return n;
+    }
+    return { ...prev, [key]: value };
+  });
+  const reflectNextDebuff           = pendingTriggers.reflectNextDebuff ?? 0;
+  const setReflectNextDebuff        = makeTriggerSetter('reflectNextDebuff', 0);
+  const nextCastBonusEqualsLast     = !!pendingTriggers.nextCastBonusEqualsLast;
+  const setNextCastBonusEqualsLast  = makeTriggerSetter('nextCastBonusEqualsLast');
+  const nextCastBypassEff           = !!pendingTriggers.nextCastBypassEff;
+  const setNextCastBypassEff        = makeTriggerSetter('nextCastBypassEff');
+  const nextCastDamageMult          = pendingTriggers.nextCastDamageMult ?? 1.0;
+  const setNextCastDamageMult       = makeTriggerSetter('nextCastDamageMult', 1.0);
+  const nextCastDoubles             = !!pendingTriggers.nextCastDoubles;
+  const setNextCastDoubles          = makeTriggerSetter('nextCastDoubles');
+  const enemySkipNextAttack         = !!pendingTriggers.enemySkipNextAttack;
+  const setEnemySkipNextAttack      = makeTriggerSetter('enemySkipNextAttack');
+  const swapNextHitToComp           = !!pendingTriggers.swapNextHitToComp;
+  const setSwapNextHitToComp        = makeTriggerSetter('swapNextHitToComp');
+  const reflectNextHitAsComp        = !!pendingTriggers.reflectNextHitAsComp;
+  const setReflectNextHitAsComp     = makeTriggerSetter('reflectNextHitAsComp');
+  const bracingArmed                = !!pendingTriggers.bracingArmed;
+  const setBracingArmed             = makeTriggerSetter('bracingArmed');
   const [hpAtTurnStart, setHpAtTurnStart] = useState(0);             // D-4 support — capture at turn start, compare at end
   const [lastCastDamage, setLastCastDamage] = useState(0);           // O-1 support — captured per cast
   // v2.24: chutzpah TUNNEL VISION meter. Fills +1 per chutzpah-lane card
@@ -3506,11 +3538,12 @@ export default function App() {
   // v2.97: Brace draws N at the start of next turn if no unblocked HP
   // damage landed this turn. Tracked: did the player take HP damage this
   // turn (`hpLossThisTurn`) + how many draws are armed.
-  const [braceArmedDraw, setBraceArmedDraw] = useState(0);
+  // v2.97 trigger flags — collapsed into pendingTriggers (v3.0).
+  const braceArmedDraw             = pendingTriggers.braceArmedDraw ?? 0;
+  const setBraceArmedDraw          = makeTriggerSetter('braceArmedDraw', 0);
+  const riposteCharge              = pendingTriggers.riposteCharge ?? 0;
+  const setRiposteCharge           = makeTriggerSetter('riposteCharge', 0);
   const [hpLossThisTurn, setHpLossThisTurn] = useState(0);
-  // v2.97: Riposte arms a counter-attack on the next enemy swing.
-  // Charge value = composure damage dealt back to the attacker.
-  const [riposteCharge, setRiposteCharge] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
   // v2.44: TANGENT telemetry — counts fires (skill plays), targetsCast
   // (tray was complete + fired), wordsStaged (intro/subject/modifier from
@@ -4582,16 +4615,9 @@ export default function App() {
     setLastRoll(null);
     setCombatRolls([]);
     setBackfireStreak(0);
-    // v2.93: Passing Thought flags reset per combat.
-    setReflectNextDebuff(0);
-    setNextCastBonusEqualsLast(false);
-    setNextCastBypassEff(false);
-    setNextCastDamageMult(1.0);
-    setNextCastDoubles(false);
-    setEnemySkipNextAttack(false);
-    setSwapNextHitToComp(false);
-    setReflectNextHitAsComp(false);
-    setBracingArmed(false);
+    // v3.0: all v2.93 + v2.97 one-shot trigger flags live in
+    // pendingTriggers. One clear replaces 11 individual setX(0/false).
+    setPendingTriggers({});
     setHpAtTurnStart(hp);
     setLastCastDamage(0);
     // v2.24: chutzpah tunnel-vision meter and RAGE state reset per combat.
@@ -4649,10 +4675,10 @@ export default function App() {
     setNotListeningCharges(0);
     // v2.96: Hollow Weaver weave debt — reset per combat.
     setWeaveStacks(0);
-    // v2.97: defense-variant flags — reset per combat.
-    setBraceArmedDraw(0);
+    // v3.0: braceArmedDraw + riposteCharge live in pendingTriggers and
+    // were cleared by the setPendingTriggers({}) above. Only the
+    // non-trigger hpLossThisTurn accumulator needs an explicit reset.
     setHpLossThisTurn(0);
-    setRiposteCharge(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
