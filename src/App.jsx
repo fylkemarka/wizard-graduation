@@ -3564,10 +3564,10 @@ export default function App() {
   // v3.0 multi-hit cards — Headbutt arms a per-swing reduction on the
   // next enemy attack. One-shot; cleared after the attack resolves.
   const [nextAttackSwingReduction, setNextAttackSwingReduction] = useState(0);
-  // v3.0 multi-hit cards — Word in Edgewise arms a draw-between-swings
-  // flag. On next attack-multi: after each swing AFTER the first, draw 1.
-  // One-shot per arm; cleared after the attack resolves.
-  const [interjectDrawNextMulti, setInterjectDrawNextMulti] = useState(0);
+  // v3.1 multi-hit — Word in Edgewise: per-swing damage reduction that
+  // ESCALATES with swing index (1st full, 2nd -1, 3rd -2, …). Min 0.
+  // One-shot per arm; cleared after the next enemy attack resolves.
+  const [escalatingSwingReduction, setEscalatingSwingReduction] = useState(false);
   const [combatRolls, setCombatRolls] = useState([]);
   // v2.44: TANGENT telemetry — counts fires (skill plays), targetsCast
   // (tray was complete + fired), wordsStaged (intro/subject/modifier from
@@ -4806,7 +4806,7 @@ export default function App() {
     // non-trigger hpLossThisTurn accumulator needs an explicit reset.
     setHpLossThisTurn(0);
     setNextAttackSwingReduction(0);
-    setInterjectDrawNextMulti(0);
+    setEscalatingSwingReduction(false);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -6524,9 +6524,9 @@ export default function App() {
       setNextAttackSwingReduction(n => Math.max(n, fx.nextAttackSwingReduction));
       logBits.push(`🪨 −${fx.nextAttackSwingReduction} per swing on next enemy attack`);
     }
-    if (fx.interjectDrawNextMulti) {
-      setInterjectDrawNextMulti(1);
-      logBits.push(`💬 next multi-attack: draw 1 between swings`);
+    if (fx.escalatingSwingReduction) {
+      setEscalatingSwingReduction(true);
+      logBits.push(`💬 next attack: each successive swing -1 more dmg`);
     }
     if (fx.blockFromComposure) {
       // D-5 (A Measured Response): block = floor(comp / 3) at cast time.
@@ -7654,22 +7654,23 @@ export default function App() {
         let remaining = (i === 0 && holdOnFirstSwingRaw != null) ? holdOnFirstSwingRaw : raw;
         if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
         // v3.0 multi-hit cards: per-swing damage reduction from
-        // Headbutt's `nextAttackSwingReduction` flag (chutzpah's
-        // "shake it off" against multi-attackers).
+        // Headbutt's `nextAttackSwingReduction` flag (flat per-swing
+        // reduction — N off each swing).
         if (nextAttackSwingReduction > 0 && remaining > 0) {
           remaining = Math.max(1, remaining - nextAttackSwingReduction);
         }
-        // v3.0 Thorned Footnote — each enemy swing deals `damagePerEnemySwing`
-        // back to the enemy's composure. Reads from annotation effect.
-        const thornPerSwing = annoFx('damagePerEnemySwing');
-        if (thornPerSwing > 0) {
-          applyDamageToEnemyComposure(thornPerSwing);
+        // v3.1 WORD IN EDGEWISE — escalating per-swing reduction. 1st
+        // swing full damage, 2nd -1, 3rd -2, etc. Damage clamped at 0
+        // (escalation can fully shut down later swings of a long combo).
+        if (escalatingSwingReduction && remaining > 0) {
+          remaining = Math.max(0, remaining - i);
         }
-        // v3.0 Word in Edgewise — after each swing AFTER the first, if the
-        // flag is armed, draw 1 card. The 1st-swing skip means single-hit
-        // attacks don't trigger; multi-hit attackers feed you cards.
-        if (interjectDrawNextMulti > 0 && i > 0) {
-          drawCards(1);
+        // v3.1 NOVICE RETORT — escalating thorns. Nth swing (1-indexed)
+        // deals N × base composure back to the attacker. A 4-swing
+        // attack with base 1 returns 1+2+3+4 = 10 comp.
+        const escalatingThorns = annoFx('escalatingThorns');
+        if (escalatingThorns > 0) {
+          applyDamageToEnemyComposure((i + 1) * escalatingThorns);
         }
         // v2.52: DRUNKEN STAGGER — per-swing 50% dodge. Rolled BEFORE the
         // shield-routing block so a missed swing zeroes out completely (no
@@ -7783,9 +7784,9 @@ export default function App() {
       if (nextAttackSwingReduction > 0) {
         setNextAttackSwingReduction(0);
       }
-      // v3.0 multi-hit: consume Word in Edgewise after the attack.
-      if (interjectDrawNextMulti > 0) {
-        setInterjectDrawNextMulti(0);
+      // v3.1 multi-hit: consume Word in Edgewise after the attack.
+      if (escalatingSwingReduction) {
+        setEscalatingSwingReduction(false);
       }
       if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {

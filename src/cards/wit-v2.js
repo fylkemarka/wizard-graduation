@@ -512,16 +512,17 @@ const SKILLS = [
     effects: { skipCastBank: true },
     desc: 'Skill. If Patience is installed, +1 patience stack. Cost 0.',
     flavor: 'Generous in the technical sense.' },
-  // v3.0 multi-hit: WORD IN EDGEWISE — wit-flavored interject. Arms a
-  // flag; on next enemy attack-multi, draw 1 between each pair of
-  // swings. Multi-hit attackers (4×3, 3×4) feed you cards; single-hit
-  // attackers don't trigger. Pairs with Thorned Footnote — 4-swing
-  // attack = 4 thorns + 3 draws.
+  // v3.1: WORD IN EDGEWISE — escalating swing reduction. Each successive
+  // swing of the next attack-multi loses +1 more damage. A 4×3 attack
+  // deals 3+2+1+0 = 6 total instead of 12. Late swings get fully shut
+  // down; single big hits unchanged. Punishes the same enemy archetype
+  // (multi-attackers) from the defense side that Novice Retort hits
+  // from the offense side.
   { id: 'wv2-k-word-in-edgewise', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
-    name: 'Pardon — a word in edgewise.', phrase: 'Pardon — a word in edgewise.',
+    name: 'Word in Edgewise', phrase: 'Word in Edgewise',
     tags: ['rhetorical', 'cutting'],
-    effects: { interjectDrawNextMulti: true, exhaust: true },
-    desc: 'Skill. Until end of next enemy attack-multi: draw 1 card between each pair of swings. Exhaust.',
+    effects: { escalatingSwingReduction: true, exhaust: true },
+    desc: 'Skill. Until end of next enemy attack: each successive swing deals 1 more damage less (1st full, 2nd -1, 3rd -2, …). Damage caps at 0. Exhaust.',
     flavor: 'You speak. Between two of theirs.' },
 ];
 
@@ -668,16 +669,16 @@ const ANNOTATIONS = [
     duration: 4, annotationEffect: { bonusSpellDamagePerCast: 2 },
     desc: 'Attach. While attached (4 turns): your spells deal +2 composure damage per spell already cast this combat.',
     flavor: 'The thesis grows. The thesis was already a problem before the growing.' },
-  // v3.0 multi-hit cards: per-swing thorns annotation. Exploits enemies
-  // that telegraph attack-multi (4×3, 3×4, etc) — every swing deals
-  // composure damage back. A 4-swing enemy takes 8 comp this turn
-  // alone, where a single big hit takes 2.
-  { id: 'wv2-ann-thorned-footnote', slot: 'annotation', tier: 2, rarity: 'uncommon',
-    lane: LANE, cost: 2, type: 'annotation',
-    name: 'Thorned footnote', phrase: '*[thorned]',
-    duration: 3, annotationEffect: { damagePerEnemySwing: 2 },
-    desc: 'Attach. While attached (3 turns): each enemy attack swing deals 2 composure damage to them. Multi-hit attackers punish themselves.',
-    flavor: 'Every example, helpfully, sharpens the next.' },
+  // v3.1: NOVICE RETORT — escalating thorns per swing. 1st swing: 1
+  // back, 2nd: 2, 3rd: 3, etc. A 4-swing attack returns 1+2+3+4 = 10
+  // composure to the attacker. The escalation makes multi-hit enemies
+  // increasingly self-punishing as their combo continues.
+  { id: 'wv2-ann-thorned-footnote', slot: 'annotation', tier: 1, rarity: 'common',
+    lane: LANE, cost: 1, type: 'annotation',
+    name: 'Novice Retort', phrase: '*[novice retort]',
+    duration: 3, annotationEffect: { escalatingThorns: 1 },
+    desc: 'Attach. While attached (3 turns): the Nth swing of any enemy attack deals N composure damage back to the enemy. A 4×3 attack returns 1+2+3+4 = 10 comp.',
+    flavor: 'Each example, helpfully, is sharper than the last.' },
 ];
 
 // v2.95: STARTER CARDS — wit-flavored kit. One defensive skill + one
