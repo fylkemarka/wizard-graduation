@@ -679,14 +679,16 @@ const ENEMIES = [
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
+    // v2.96: signature mechanic = Weave debt. Each "weave" intent stacks
+    // +N on the player; ending a turn without casting fires ALL stacks as
+    // composure damage and clears. Forces "cast something every turn" —
+    // chip-cast skipping gets punished hard. Standard attacks alternate
+    // with weave intents so the player must defend AND keep the pressure on.
     behaviors: [
-      // v2.9.2: telemetry showed Hollow Weaver took 0 HP per fight. Bumped
-      // attack values + added a multi-hit punisher so the player has to
-      // think about block, not just walk through.
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
-      { kind: 'attack-multi', value: 4, count: 2, weight: 1, telegraph: '⚔ 4×2' },
-      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (half-thought)' },
+      { kind: 'weave', value: 2, weight: 3, telegraph: '🪡 Weave +2 (fires as 🎭 if you don\'t cast)' },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
+      { kind: 'attack', value: 4, pool: 'composure', weight: 1, telegraph: '🎭 4 (half-thought)' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 20, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
@@ -701,11 +703,16 @@ const ENEMIES = [
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
+    // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
+    // into your hand and pulls a card it "needs to weave with." Forces
+    // hand-management: do you play your key spell pieces this turn or
+    // risk losing them? Lower base attack values to compensate — the
+    // card-loss IS the pressure.
     behaviors: [
-      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
-      { kind: 'block',  value: 8, weight: 1, telegraph: '🛡 8' },
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (lonely-thread)' },
+      { kind: 'discard-hand', value: 1, weight: 3, telegraph: '🗑 takes 1 from your hand' },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
+      { kind: 'attack', value: 4, weight: 2, telegraph: '⚔ 4 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (lonely-thread)' },
     ] },
   // v2.17: ROGUE WIZARDS — first wave. Failed-graduate wizards still
   // working at their craft, refusing to come back. Names follow the
@@ -3471,6 +3478,10 @@ export default function App() {
   // (0 by default; +1 each time the player plays the "Sorry — what?" skill).
   // The on-cast Block rider from the old Power is GONE.
   const [notListeningCharges, setNotListeningCharges] = useState(0);
+  // v2.96: Weave debt — Hollow Weaver applies stacks via 'weave' intent.
+  // If the player ends a turn WITHOUT casting AND stacks > 0, the stacks
+  // fire as composure damage and clear (see endTurn).
+  const [weaveStacks, setWeaveStacks] = useState(0);
   const [combatRolls, setCombatRolls] = useState([]);
   // v2.44: TANGENT telemetry — counts fires (skill plays), targetsCast
   // (tray was complete + fired), wordsStaged (intro/subject/modifier from
@@ -4607,6 +4618,8 @@ export default function App() {
     setPatienceStacks(0);
     // v2.33: chutzpah Not Listening — pending absorb charges reset per combat.
     setNotListeningCharges(0);
+    // v2.96: Hollow Weaver weave debt — reset per combat.
+    setWeaveStacks(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -6886,6 +6899,18 @@ export default function App() {
         setComposure(c => Math.max(0, c - cost));
         pushLog(`🧠 Pre-staging: -${cost} composure (focused on next turn, not on them).`);
       }
+      // v2.96: Hollow Weaver — Weave debt fires when you end a turn without
+      // casting. All stacks discharge as composure damage and the counter
+      // clears. Pre-staging cost above also applies — the debt is on top.
+      if (weaveStacks > 0) {
+        const dmg = weaveStacks;
+        setComposure(c => Math.max(0, c - dmg));
+        pushLog(`🪡 Weave fires: -${dmg} composure (you didn't cast — the thought finishes itself).`);
+        setWeaveStacks(0);
+      }
+    } else if (weaveStacks > 0) {
+      // Cast happened — the weave is interrupted. Clear the stacks silently.
+      setWeaveStacks(0);
     }
 
     // 1. End-of-turn power triggers.
@@ -7410,6 +7435,32 @@ export default function App() {
     } else if (intent.kind === 'block') {
       setEnemyBlock(b => b + intent.value);
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
+    } else if (intent.kind === 'discard-hand') {
+      // v2.96: Loom Familiar — pulls a card out of the player's hand.
+      // Discards `value` random cards. Forces hand-management decisions:
+      // do you hold key spell pieces or play them defensively this turn?
+      const n = Math.min(intent.value || 1, hand.length);
+      if (n > 0) {
+        const idxs = [];
+        const handCopy = [...hand];
+        for (let k = 0; k < n; k++) {
+          const idx = Math.floor(Math.random() * handCopy.length);
+          idxs.push(handCopy[idx]);
+          handCopy.splice(idx, 1);
+        }
+        setHand(handCopy);
+        setDiscard(d => [...d, ...idxs]);
+        pushLog(`👹 ${e.name}: 🗑 you lose ${n} card${n === 1 ? '' : 's'} (${idxs.map(c => c.name || c.phrase || '?').join(', ')}).`);
+      } else {
+        pushLog(`👹 ${e.name}: 🗑 ${intent.telegraph || 'discard'} — no cards to take.`);
+      }
+    } else if (intent.kind === 'weave') {
+      // v2.96: Hollow Weaver — stacks Weave on the player. End-of-turn
+      // check: if the player ended their turn WITHOUT casting, all Weave
+      // stacks fire as composure damage and clear. Forces "cast something
+      // every turn" pressure — chip-cast-skip strategies get punished.
+      setWeaveStacks(w => w + (intent.value || 1));
+      pushLog(`👹 ${e.name}: 🪡 Weave +${intent.value || 1} (total: ${weaveStacks + (intent.value || 1)}).`);
     } else if (intent.kind === 'vulnerable') {
       // Enemy applies vulnerable to player → enemy hits harder.
       // v2.32: NOT LISTENING — first debuff (Weak/Vuln) per combat is ignored.
