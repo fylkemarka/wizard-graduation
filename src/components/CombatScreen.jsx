@@ -103,7 +103,18 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         )}
         <div className="flex justify-between items-start mb-2">
           <div>
-            <div className="font-display text-3xl text-ember-300">{enemy?.name}</div>
+            <div className="font-display text-3xl text-ember-300 flex items-center gap-2 flex-wrap">
+              {enemy?.name}
+              {/* v2.99.2: phase-shift badge — prominent next to the enemy
+                  name so players see the state change immediately when
+                  the Silk Wraith (or future phase-shifters) thins. */}
+              {enemy?.phaseShifted && (
+                <span className="text-xs px-2 py-1 rounded uppercase tracking-widest font-bold font-mono bg-iris-900 border-2 border-iris-400 text-iris-200 animate-pulse"
+                  title="The enemy has shifted phase. Its effectiveness profile and per-turn behaviors have changed — check the lane chips below.">
+                  🕸 Thinned
+                </span>
+              )}
+            </div>
             <div className="text-sm text-parchment-300 italic">
               {enemy?.tier === 'boss' ? 'Boss' : enemy?.tier === 'elite' ? 'Elite' : 'Enemy'}
             </div>
@@ -956,7 +967,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {enemy && (() => {
           const chips = [];
           if (enemy.phaseShifted) {
-            chips.push({ key: 'phase', label: '🕸 thinned (wit-immune + comp regen)', tone: 'text-ember-300' });
+            chips.push({ key: 'phase', label: '🕸 thinned (wit-resist + comp regen)', tone: 'text-ember-300' });
           }
           if (enemy.annotation) {
             chips.push({ key: 'ann', label: `📝 ${enemy.annotation.cardName || 'annotated'} (${enemy.annotation.turnsRemaining}t)`, tone: 'text-iris-300' });
