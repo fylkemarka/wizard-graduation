@@ -3476,6 +3476,13 @@ export default function App() {
   // `threadScaling: N` add N × longThread flat damage on cast. Persists
   // across turns; resets between combats.
   const [longThread, setLongThread] = useState(0);
+  // v3.3 FFT strategy tiers:
+  //   enemyDotStacks: [{ amount, turns }] — ticks each enemy turn-start
+  //   thornsCharges:  { amount, count }    — next N enemy hits reflect amount
+  //   wordsBank:      integer              — Crescendo currency; +1 per card play
+  const [enemyDotStacks, setEnemyDotStacks] = useState([]);
+  const [thornsCharges, setThornsCharges] = useState({ amount: 0, count: 0 });
+  const [wordsBank, setWordsBank] = useState(0);
   const [compendiumOpen, setCompendiumOpen] = useState(false);
   const [deckViewOpen, setDeckViewOpen] = useState(false);
   // Track whether the player took unblocked HP damage this turn — read at
@@ -4794,6 +4801,10 @@ export default function App() {
     setRageActive(false);
     // v2.34: wit LONG THREAD — meter + per-turn flags reset per combat.
     setLongThread(0);
+    // v3.3: FFT strategy resets per combat.
+    setEnemyDotStacks([]);
+    setThornsCharges({ amount: 0, count: 0 });
+    setWordsBank(0);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
     // v2.35: FOOTNOTE prompt — never persists between combats. Card
@@ -5009,6 +5020,9 @@ export default function App() {
     const cost = effectiveCardCost(card);
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
     setEnergy(e => e - cost);
+    // v3.3 Crescendo: every card play increments Words Bank (capped to
+    // prevent runaway). Crescendo targets consume the bank for bonus dmg.
+    setWordsBank(b => Math.min(b + 1, 20));
     // v2.46: WON'T SHUT UP — clear the commitment flag when ANY jnsq-lane
     // card is played AFTER the rider armed. The arming itself happens in
     // castV2SentenceSpell (the soup target's cast), which fires AFTER the
@@ -5806,6 +5820,13 @@ export default function App() {
       const rider = row.rider || {};
       if (rider.damageMult)  dmg = Math.round(dmg * rider.damageMult);
       if (rider.bonus)       dmg += rider.bonus;
+      // v3.3 Crescendo: consumeBank — spend wordsBank, +bank×perWord bonus.
+      if (rider.consumeBank && wordsBank > 0) {
+        const bonus = wordsBank * rider.consumeBank;
+        dmg += bonus;
+        pushLog(`📚 Crescendo: consumed ${wordsBank} words → +${bonus} dmg.`);
+        setWordsBank(0);
+      }
       pushLog(`✨✨ FULLY FORMED THOUGHT — ${row.name}.`);
       if (row.canonical) pushLog(`📜 "${row.canonical}"`);
       logEvent('wit.fft.cast', {
@@ -5837,33 +5858,40 @@ export default function App() {
     let after = 0;
     if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
     else                        after = applyDamageToEnemyComposure(dmg);
-    // v3.2: post-damage FFT/partial/tier rider effects — state-setting
-    // keys fire here so they compose with the cast's combat-state
-    // mutations. Hierarchy matches the pre-damage branch: most specific
-    // bonus wins (fft > partialRow > tierId).
-    if (fftResult.fft) {
-      const rider = fftResult.fft.rider || {};
+    // v3.2/v3.3: post-damage FFT/partial/tier rider effects — state-
+    // setting keys fire here so they compose with the cast's combat-
+    // state mutations. Hierarchy: fft > partialRow > tierId.
+    //
+    // v3.3 strategy keys:
+    //   dot: { amount, turns } — push onto enemyDotStacks; ticks each
+    //     enemy turn-start until turns expire.
+    //   thorns: { amount, count } — set/extend thornsCharges; next
+    //     `count` enemy hits reflect `amount` composure dmg.
+    //   addBank: N — increment wordsBank.
+    //   consumeBank: N — handled PRE-damage above (consumes for bonus).
+    const applyRider = (rider) => {
+      if (!rider) return;
       if (rider.longThreadPerm) setLongThread(lt => lt + rider.longThreadPerm);
       if (rider.composure)      setComposure(c => clamp(c + rider.composure, 0, composureMax));
       if (rider.block)          setBlock(b => b + rider.block);
       if (rider.energy)         setEnergy(e => e + rider.energy);
       if (rider.draw)           drawCards(rider.draw);
       if (rider.poise)          setPoise(p => p + rider.poise);
+      if (rider.dot)            setEnemyDotStacks(s => [...s, { amount: rider.dot.amount, turns: rider.dot.turns }]);
+      if (rider.thorns) {
+        setThornsCharges(t => ({
+          amount: Math.max(t.amount, rider.thorns.amount),
+          count: t.count + rider.thorns.count,
+        }));
+      }
+      if (rider.addBank)        setWordsBank(b => b + rider.addBank);
+    };
+    if (fftResult.fft) {
+      applyRider(fftResult.fft.rider);
     } else if (fftResult.partialRow) {
-      const bonus = WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId];
-      if (bonus) {
-        if (bonus.longThreadPerm) setLongThread(lt => lt + bonus.longThreadPerm);
-        if (bonus.composure)      setComposure(c => clamp(c + bonus.composure, 0, composureMax));
-        if (bonus.block)          setBlock(b => b + bonus.block);
-        if (bonus.poise)          setPoise(p => p + bonus.poise);
-      }
+      applyRider(WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId]);
     } else if (fftResult.tierId) {
-      const sub = WIT_TIER_SUB_BONUSES[fftResult.tierId];
-      if (sub) {
-        if (sub.longThreadPerm) setLongThread(lt => lt + sub.longThreadPerm);
-        if (sub.composure)      setComposure(c => clamp(c + sub.composure, 0, composureMax));
-        if (sub.block)          setBlock(b => b + sub.block);
-      }
+      applyRider(WIT_TIER_SUB_BONUSES[fftResult.tierId]);
     }
     // v2.93: O-6 (The Doubletake) — apply damage a second time. Same dmg
     // value, same type, no second cast counter / scalar (it's a copy, not
@@ -7655,6 +7683,23 @@ export default function App() {
   function applyEnemyIntent(intent) {
     const e = enemy;
     if (!e) return;
+    // v3.3 Slow Burn: DoT stacks tick at start of every enemy turn. Each
+    // stack deals `amount` composure damage and decrements `turns`.
+    // Expired stacks (turns ≤ 0) are filtered out. Multiple stacks all
+    // tick on the same turn.
+    if (enemyDotStacks.length > 0) {
+      let totalDot = 0;
+      const remaining = [];
+      for (const s of enemyDotStacks) {
+        totalDot += s.amount;
+        if (s.turns > 1) remaining.push({ amount: s.amount, turns: s.turns - 1 });
+      }
+      if (totalDot > 0) {
+        applyDamageToEnemyComposure(totalDot);
+        pushLog(`🔥 Slow Burn: ${totalDot} composure damage from DoT stacks.`);
+      }
+      setEnemyDotStacks(remaining);
+    }
     // v2.97: Silk Wraith phase-shift regen — fires at the start of every
     // enemy turn once phase-shifted. Hard-coded by id for the prototype.
     if (e.id === 'e2-silk-wraith' && e.phaseShifted) {
@@ -7777,6 +7822,11 @@ export default function App() {
       let recoilWHp = enemyHp;
       let recoilCharges = hitMeAgainCharges;
       let recoilTotal = 0;
+      // v3.3 Thorns: per-swing reflect from FFT-armed thorns charges.
+      // Capture closure snapshot of starting charges, track used count
+      // locally, flush state update once after the loop.
+      const initialThorns = thornsCharges;
+      let thornsUsed = 0;
       for (let i = 0; i < hits; i++) {
         // Recoil fires BEFORE the swing's player-damage resolves.
         if (hitMeAgainInstalled && recoilCharges > 0) {
@@ -7817,6 +7867,15 @@ export default function App() {
         const escalatingThorns = annoFx('escalatingThorns');
         if (escalatingThorns > 0) {
           applyDamageToEnemyComposure((i + 1) * escalatingThorns);
+        }
+        // v3.3 Thorns (FFT Thorns school): per-swing flat reflect from
+        // armed charges. Fixed amount regardless of incoming damage.
+        // Decrements charges; expires when count hits 0.
+        const chargesLeft = initialThorns.count - thornsUsed;
+        if (chargesLeft > 0 && initialThorns.amount > 0) {
+          applyDamageToEnemyComposure(initialThorns.amount);
+          pushLog(`🌹 Thorns: ${initialThorns.amount} comp reflected.`);
+          thornsUsed++;
         }
         // v2.52: DRUNKEN STAGGER — per-swing 50% dodge. Rolled BEFORE the
         // shield-routing block so a missed swing zeroes out completely (no
@@ -7878,6 +7937,10 @@ export default function App() {
       }
       if (hitMeAgainInstalled && recoilCharges !== hitMeAgainCharges) {
         setHitMeAgainCharges(recoilCharges);
+      }
+      // v3.3 Thorns flush: write back updated charge count.
+      if (thornsUsed > 0) {
+        setThornsCharges(t => ({ amount: t.amount, count: Math.max(0, t.count - thornsUsed) }));
       }
       setBlock(wBlock);
       setPoise(wPoise);

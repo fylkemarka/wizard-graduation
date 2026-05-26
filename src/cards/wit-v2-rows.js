@@ -1,307 +1,207 @@
 // Wit v2 — Fully Formed Thought (FFT) row data.
 //
-// The 24 named rows that the Wit wizard's 72 set-tagged cards are organized
-// into. Each row is one canonical Pratchett-style sentence broken into three
-// cards (intro/subject/target). All cards still combine freely with any
-// other wit-v2 card — the row structure is an OVERLAY for set-collection
-// bonuses, not a constraint on stitching.
+// v3.3 — tiers are STRATEGY-themed (not personality-themed). Each tier
+// expresses a distinct combat strategy:
 //
-// Three tiers, eight rows each:
-//   - 'atelier'        — fabric, linen, silk pajamas, fabric merchant, evening rituals
-//   - 'hygiene'        — bidet morality, judgement, the right way to live, propriety
-//   - 'transportation' — civic responsibilities on public roads, the Volvo, sensible defense
+//   slowburn  — DoT. Casts apply ticking composure damage. Set and forget.
+//   thorns    — Reflect. Casts arm incoming-hit reflects. Reactive playstyle.
+//   crescendo — Buildup. Casts grow / consume a "words bank" for big payoffs.
 //
 // Schema on a card (in wit-v2.js):
-//   setId:    'atelier-1' | 'hygiene-3' | etc. (one of WIT_ROWS[*].id)
+//   setId:    'slowburn-1' | 'thorns-3' | etc. (one of WIT_ROWS[*].id)
 //   setSlot:  'intro' | 'subject' | 'target'   (matches the card's slot field)
-//   tierId:   'atelier' | 'hygiene' | 'transportation'
+//   tierId:   'slowburn' | 'thorns' | 'crescendo'
 //
 // Cards without these fields are FLAVOR POOL — still combine freely, never
 // trigger FFT or same-tier bonuses.
 
-// Tier sub-bonuses fire when all three played cards (intro+subject+target)
-// share the same tierId but DO NOT share a setId (a "thematically coherent
-// but not fully formed" cast). Wit-identity payouts only — no flat damage,
-// so chasing a tier deepens the lane's defender engine rather than chasing
-// a burst.
 export const WIT_TIER_SUB_BONUSES = {
-  atelier: {
-    name: 'The Atelier',
-    longThreadPerm: 1,
-    flavor: 'A well-tailored argument carries longer.',
+  slowburn: {
+    name: 'Slow Burn',
+    dot: { amount: 2, turns: 2 },
+    flavor: 'The argument keeps working long after the moment ends.',
   },
-  hygiene: {
-    name: 'Hygiene',
-    composure: 3,
-    flavor: 'Smug certainty is its own armor.',
+  thorns: {
+    name: 'Thorns',
+    thorns: { amount: 2, count: 2 },
+    flavor: 'Their next blows answer themselves.',
   },
-  transportation: {
-    name: 'Transportation',
-    block: 4,
-    flavor: 'Civic-minded defense, no theatrics.',
+  crescendo: {
+    name: 'Crescendo',
+    addBank: 2,
+    flavor: 'Words gathering. The point is taking shape.',
   },
 };
 
-// v3.2 Phase 5: Half-Formed Thought — fires when ANY 2 of the 3 played
-// cards share a setId (but the 3rd doesn't, so it's not a full FFT). Tier-
-// flavored payouts that are noticeably bigger than the tier sub-bonus
-// (because the player has committed to a SPECIFIC row, not just a theme)
-// but smaller than a full row rider (because the third card is still
-// random / from a different row). The log message names the row, doubling
-// as a discovery hint: "Half-Formed Thought: Linen Truths — find the
-// missing target."
+// Half-Formed Thought (2-of-row partial bonus). Tier-flavored payouts
+// that are noticeably bigger than the tier sub-bonus (the player has
+// committed to a SPECIFIC row, not just a theme) but smaller than the
+// full row rider (the third card is still random / from a different row).
 export const WIT_PARTIAL_ROW_BONUSES = {
-  atelier: {
-    name: 'The Atelier (half-formed)',
-    longThreadPerm: 1,
-    poise: 1,
+  slowburn: {
+    name: 'Slow Burn (half-formed)',
+    dot: { amount: 3, turns: 2 },
     flavor: 'The seam is already pulling tight.',
   },
-  hygiene: {
-    name: 'Hygiene (half-formed)',
-    composure: 3,
-    block: 1,
-    flavor: 'The point is forming. The point is, in fact, already taken.',
+  thorns: {
+    name: 'Thorns (half-formed)',
+    thorns: { amount: 3, count: 2 },
+    flavor: 'The boomerang is in flight; one shot is enough to land.',
   },
-  transportation: {
-    name: 'Transportation (half-formed)',
-    block: 3,
-    longThreadPerm: 1,
-    flavor: 'The lecture has begun. The driver does not yet know.',
+  crescendo: {
+    name: 'Crescendo (half-formed)',
+    addBank: 3,
+    flavor: 'The momentum is forming. Bigger words are coming.',
   },
 };
 
-// The 24 named rows. Phase 2 fills this in; Phase 1 keeps it empty so the
-// FFT detection layer is invisible to the player until content lands.
+// v3.3 — 15 rows, 5 per strategy tier. Canonicals are placeholders for
+// now (Alan: "make them more straightforward and understandable; I'll
+// improve them later"). Riders are the focus this pass.
 //
-// Row shape:
-//   {
-//     id: 'atelier-1',
-//     tierId: 'atelier',
-//     name: 'Linen Truths',
-//     canonical: 'As I was saying to the fabric merchant, your taste would not be tolerated after 8.',
-//     introId:   'wv2-i-as-i-was-saying-fabric-merchant',
-//     subjectId: 'wv2-s-your-taste',
-//     targetId:  'wv2-t-not-tolerated-after-8',
-//     rider: { /* see RIDER_KEYS below */ },
-//   }
+// Rider keys interpreted by App.jsx castV2SentenceSpell + sim mirror:
+//   damageMult, bonus    — cast damage modifiers (apply before damage lands)
+//   composure, block, poise, energy, draw, longThreadPerm  — combat state
+//   dot: { amount, turns } — apply DoT stack to enemy (ticks each enemy turn)
+//   thorns: { amount, count } — arm N enemy hits to reflect amount damage
+//   addBank: N           — increment player's wordsBank (Crescendo currency)
+//   consumeBank: N       — consume wordsBank, +bank×N bonus damage to cast
 export const WIT_ROWS = [
-  // ---- Atelier (5 rows total) ----
+  // ---- Slow Burn (DoT) ----
   {
-    id: 'atelier-1',
-    tierId: 'atelier',
-    name: 'Linen Truths',
+    id: 'slowburn-1', tierId: 'slowburn', name: 'Linen Truths',
     canonical: 'As I was saying to the fabric merchant, your taste would not be tolerated after 8.',
-    introId:   'wv2-i-fabric-merchant',
-    subjectId: 'wv2-s-your-taste',
-    targetId:  'wv2-t-not-tolerated-after-8',
-    rider: { longThreadPerm: 2 },
-    riderDesc: '+2 Long Thread permanently this combat.',
+    introId: 'wv2-i-fabric-merchant', subjectId: 'wv2-s-your-taste', targetId: 'wv2-t-not-tolerated-after-8',
+    rider: { dot: { amount: 4, turns: 3 } },
+    riderDesc: 'Apply DoT 4/turn for 3 turns (12 total).',
   },
   {
-    id: 'atelier-2',
-    tierId: 'atelier',
-    name: 'The Off-Season',
+    id: 'slowburn-2', tierId: 'slowburn', name: 'The Off-Season',
     canonical: 'Permit me to observe that linen, in October, is precisely what one does not do.',
-    introId:   'wv2-i-permit-me-observe',
-    subjectId: 'wv2-s-linen-october',
-    targetId:  'wv2-t-precisely-what-one-does-not-do',
-    rider: { longThreadPerm: 1, draw: 1 },
-    riderDesc: '+1 Long Thread permanently AND draw 1.',
+    introId: 'wv2-i-permit-me-observe', subjectId: 'wv2-s-linen-october', targetId: 'wv2-t-precisely-what-one-does-not-do',
+    rider: { dot: { amount: 3, turns: 4 } },
+    riderDesc: 'Apply DoT 3/turn for 4 turns (12 total).',
   },
   {
-    id: 'atelier-4',
-    tierId: 'atelier',
-    name: 'The Bouclé Suggestion',
+    id: 'slowburn-4', tierId: 'slowburn', name: 'The Bouclé Suggestion',
     canonical: 'Frankly, your bouclé suggestion is what happens when fabric stops asking permission.',
-    introId:   'wv2-i-frankly',
-    subjectId: 'wv2-s-boucle-suggestion',
-    targetId:  'wv2-t-fabric-stops-asking',
-    rider: { longThreadPerm: 1, composure: 2 },
-    riderDesc: '+1 Long Thread permanently AND +2 Composure.',
+    introId: 'wv2-i-frankly', subjectId: 'wv2-s-boucle-suggestion', targetId: 'wv2-t-fabric-stops-asking',
+    rider: { dot: { amount: 2, turns: 3 }, draw: 1 },
+    riderDesc: 'Apply DoT 2/turn for 3 turns AND draw 1.',
   },
   {
-    id: 'atelier-5',
-    tierId: 'atelier',
-    name: 'Late Pajamas',
+    id: 'slowburn-5', tierId: 'slowburn', name: 'Late Pajamas',
     canonical: 'Speaking plainly, your evening wear announces, with regret, that 8 has been and gone.',
-    introId:   'wv2-i-speaking-plainly',
-    subjectId: 'wv2-s-evening-wear',
-    targetId:  'wv2-t-8-has-been-and-gone',
-    rider: { longThreadPerm: 2, composure: 1 },
-    riderDesc: '+2 Long Thread permanently AND +1 Composure.',
+    introId: 'wv2-i-speaking-plainly', subjectId: 'wv2-s-evening-wear', targetId: 'wv2-t-8-has-been-and-gone',
+    rider: { dot: { amount: 5, turns: 2 }, composure: 2 },
+    riderDesc: 'Apply DoT 5/turn for 2 turns AND +2 Composure.',
   },
   {
-    id: 'atelier-8',
-    tierId: 'atelier',
-    name: 'Silk by Eight',
+    id: 'slowburn-8', tierId: 'slowburn', name: 'Silk by Eight',
     canonical: 'If memory serves, the silk one wears before 8 is not what one wears after.',
-    introId:   'wv2-i-memory-serves',
-    subjectId: 'wv2-s-silk-before-8',
-    targetId:  'wv2-t-not-what-one-wears-after',
-    rider: { longThreadPerm: 2, composure: 2 },
-    riderDesc: '+2 Long Thread permanently AND +2 Composure.',
+    introId: 'wv2-i-memory-serves', subjectId: 'wv2-s-silk-before-8', targetId: 'wv2-t-not-what-one-wears-after',
+    rider: { dot: { amount: 3, turns: 3 }, longThreadPerm: 1 },
+    riderDesc: 'Apply DoT 3/turn for 3 turns AND +1 Long Thread permanently.',
   },
 
-  // ---- Hygiene (5 rows total) ----
+  // ---- Thorns (Reflect) ----
   {
-    id: 'hygiene-1',
-    tierId: 'hygiene',
-    name: 'The First Principle',
+    id: 'thorns-1', tierId: 'thorns', name: 'The First Principle',
     canonical: 'Specifically speaking, the gentleman who skips the bidet is not a gentleman at all.',
-    introId:   'wv2-i-specifically-speaking',
-    subjectId: 'wv2-s-gentleman-bidet',
-    targetId:  'wv2-t-not-a-gentleman',
-    rider: { damageMult: 1.25 },
-    riderDesc: 'Cast damage ×1.25 — the moral truth cuts through.',
+    introId: 'wv2-i-specifically-speaking', subjectId: 'wv2-s-gentleman-bidet', targetId: 'wv2-t-not-a-gentleman',
+    rider: { thorns: { amount: 5, count: 3 } },
+    riderDesc: 'Reflect 5 damage on next 3 enemy hits.',
   },
   {
-    id: 'hygiene-2',
-    tierId: 'hygiene',
-    name: 'Dry Shaving',
+    id: 'thorns-2', tierId: 'thorns', name: 'Dry Shaving',
     canonical: 'Pardon my saying, dry shaving is, frankly, an aesthetic failure first.',
-    introId:   'wv2-i-pardon-saying',
-    subjectId: 'wv2-s-dry-shaving',
-    targetId:  'wv2-t-aesthetic-failure-first',
-    rider: { composure: 4 },
-    riderDesc: '+4 Composure — aesthetic certainty as armor.',
+    introId: 'wv2-i-pardon-saying', subjectId: 'wv2-s-dry-shaving', targetId: 'wv2-t-aesthetic-failure-first',
+    rider: { thorns: { amount: 4, count: 2 }, composure: 3 },
+    riderDesc: 'Reflect 4 damage on next 2 enemy hits AND +3 Composure.',
   },
   {
-    id: 'hygiene-3',
-    tierId: 'hygiene',
-    name: 'Dental',
+    id: 'thorns-3', tierId: 'thorns', name: 'Dental',
     canonical: 'Or rather, your dental schedule is what the rest of us would politely call a memorial.',
-    introId:   'wv2-i-or-rather',
-    subjectId: 'wv2-s-dental-schedule',
-    targetId:  'wv2-t-politely-call-memorial',
-    rider: { damageMult: 1.15, composure: 2 },
-    riderDesc: 'Cast damage ×1.15 AND +2 Composure.',
+    introId: 'wv2-i-or-rather', subjectId: 'wv2-s-dental-schedule', targetId: 'wv2-t-politely-call-memorial',
+    rider: { thorns: { amount: 6, count: 2 } },
+    riderDesc: 'Reflect 6 damage on next 2 enemy hits.',
   },
   {
-    id: 'hygiene-5',
-    tierId: 'hygiene',
-    name: 'The Towel',
+    id: 'thorns-5', tierId: 'thorns', name: 'The Towel',
     canonical: 'Curiously, your towel rotation tells us things we did not ask to know.',
-    introId:   'wv2-i-curiously',
-    subjectId: 'wv2-s-towel-rotation',
-    targetId:  'wv2-t-did-not-ask-to-know',
-    rider: { composure: 5 },
-    riderDesc: '+5 Composure — towel-grade certainty.',
+    introId: 'wv2-i-curiously', subjectId: 'wv2-s-towel-rotation', targetId: 'wv2-t-did-not-ask-to-know',
+    rider: { thorns: { amount: 3, count: 3 }, block: 4 },
+    riderDesc: 'Reflect 3 damage on next 3 enemy hits AND +4 Block.',
   },
   {
-    id: 'hygiene-6',
-    tierId: 'hygiene',
-    name: 'Civic Cleanliness',
+    id: 'thorns-6', tierId: 'thorns', name: 'Civic Cleanliness',
     canonical: 'Setting aside the obvious, your bathroom door is left open, often, and the rest follows.',
-    introId:   'wv2-i-setting-aside',
-    subjectId: 'wv2-s-bathroom-door',
-    targetId:  'wv2-t-rest-follows',
-    rider: { composure: 3, draw: 1 },
-    riderDesc: '+3 Composure AND draw 1.',
+    introId: 'wv2-i-setting-aside', subjectId: 'wv2-s-bathroom-door', targetId: 'wv2-t-rest-follows',
+    rider: { thorns: { amount: 4, count: 2 }, draw: 1 },
+    riderDesc: 'Reflect 4 damage on next 2 enemy hits AND draw 1.',
   },
-  // ---- Transportation (5 rows total) ----
+
+  // ---- Crescendo (Buildup / wordsBank) ----
   {
-    id: 'transportation-1',
-    tierId: 'transportation',
-    name: 'The Long Signal',
+    id: 'crescendo-1', tierId: 'crescendo', name: 'The Long Signal',
     canonical: 'Civically speaking, your relationship to the turn signal lasts, somehow, the entire drive.',
-    introId:   'wv2-i-civically-speaking',
-    subjectId: 'wv2-s-turn-signal',
-    targetId:  'wv2-t-entire-drive',
-    rider: { block: 6, draw: 1 },
-    riderDesc: '+6 Block this turn AND draw 1.',
+    introId: 'wv2-i-civically-speaking', subjectId: 'wv2-s-turn-signal', targetId: 'wv2-t-entire-drive',
+    rider: { consumeBank: 2 },
+    riderDesc: 'Consume Words Bank — +2 damage per word.',
   },
   {
-    id: 'transportation-2',
-    tierId: 'transportation',
-    name: 'The Yield',
+    id: 'crescendo-2', tierId: 'crescendo', name: 'The Yield',
     canonical: 'Strictly speaking, your relationship to the yield sign is, on review, a suggestion at best.',
-    introId:   'wv2-i-strictly-speaking',
-    subjectId: 'wv2-s-yield-sign',
-    targetId:  'wv2-t-suggestion-at-best',
-    rider: { block: 4, longThreadPerm: 1 },
-    riderDesc: '+4 Block this turn AND +1 Long Thread permanently.',
+    introId: 'wv2-i-strictly-speaking', subjectId: 'wv2-s-yield-sign', targetId: 'wv2-t-suggestion-at-best',
+    rider: { consumeBank: 2, addBank: 3 },
+    riderDesc: 'Consume Words Bank for +2/word AND immediately re-bank 3.',
   },
   {
-    id: 'transportation-3',
-    tierId: 'transportation',
-    name: 'The Volvo Sermon',
+    id: 'crescendo-3', tierId: 'crescendo', name: 'The Volvo Sermon',
     canonical: 'I should think that your Volvo would have, by now, had the conversation with you itself.',
-    introId:   'wv2-i-i-should-think',
-    subjectId: 'wv2-s-your-volvo',
-    targetId:  'wv2-t-conversation-with-you-itself',
-    rider: { block: 5, poise: 1 },
-    riderDesc: '+5 Block this turn AND +1 Poise.',
+    introId: 'wv2-i-i-should-think', subjectId: 'wv2-s-your-volvo', targetId: 'wv2-t-conversation-with-you-itself',
+    rider: { consumeBank: 3 },
+    riderDesc: 'Consume Words Bank — +3 damage per word (biggest payoff).',
   },
   {
-    id: 'transportation-4',
-    tierId: 'transportation',
-    name: 'The Parallel',
+    id: 'crescendo-4', tierId: 'crescendo', name: 'The Parallel',
     canonical: 'Actually, your parallel parking attempt is, in essence, a public service.',
-    introId:   'wv2-i-actually',
-    subjectId: 'wv2-s-parallel-parking',
-    targetId:  'wv2-t-essence-public-service',
-    rider: { block: 5, draw: 1 },
-    riderDesc: '+5 Block this turn AND draw 1.',
+    introId: 'wv2-i-actually', subjectId: 'wv2-s-parallel-parking', targetId: 'wv2-t-essence-public-service',
+    rider: { consumeBank: 2, draw: 1 },
+    riderDesc: 'Consume Words Bank for +2/word AND draw 1.',
   },
   {
-    id: 'transportation-5',
-    tierId: 'transportation',
-    name: 'The Left Lane',
+    id: 'crescendo-5', tierId: 'crescendo', name: 'The Left Lane',
     canonical: 'Honestly, your left-lane behavior is, in this jurisdiction, a moral failing.',
-    introId:   'wv2-i-honestly',
-    subjectId: 'wv2-s-left-lane-behavior',
-    targetId:  'wv2-t-jurisdiction-moral-failing',
-    rider: { block: 4, longThreadPerm: 1, poise: 1 },
-    riderDesc: '+4 Block this turn, +1 Long Thread permanently, +1 Poise.',
+    introId: 'wv2-i-honestly', subjectId: 'wv2-s-left-lane-behavior', targetId: 'wv2-t-jurisdiction-moral-failing',
+    rider: { consumeBank: 2, poise: 2 },
+    riderDesc: 'Consume Words Bank for +2/word AND +2 Poise.',
   },
 ];
 
-// Rider keys interpreted by applyFFTRider() in App.jsx and sim/playSimV2.js.
-// Add new keys here AND in both dispatchers.
-//   damageMult     — multiply cast damage (final, after all other multipliers)
-//   bonus          — flat add to cast damage
-//   longThreadPerm — +N longThread permanently this combat
-//   composure      — +N Composure
-//   block          — +N Block this turn
-//   energy         — refund/grant N energy this turn
-//   draw           — draw N cards
-//   poise          — +N Poise
 export const WIT_RIDER_KEYS = [
   'damageMult', 'bonus', 'longThreadPerm', 'composure',
   'block', 'energy', 'draw', 'poise',
+  'dot', 'thorns', 'addBank', 'consumeBank',
 ];
 
-// Quick lookup. Phase 2 will populate as WIT_ROWS fills.
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));
 
 // Helper: given three cards, return { fft, partialRow, tierId }.
-// Hierarchy (most specific wins; only one bonus type fires per cast):
-//   1. fft        — all three cards share a setId (full row).
-//   2. partialRow — any two cards share a setId (half-formed thought).
-//   3. tierId     — all three share a tierId (no row match at all).
-//   4. neither    — none of the above; random combo.
-//
-// Both `partialRow` and `tierId` can be non-null on the same cast (e.g. 2
-// Atelier cards from Linen Truths + 1 Atelier card from a different row);
-// the CALLER decides which to apply. By convention partial > tier when
-// both fire, since partial means tighter player intent.
+// See castV2SentenceSpell in App.jsx for hierarchy semantics.
 export function detectFFT(intro, subject, target) {
   if (!intro || !subject || !target) return { fft: null, partialRow: null, tierId: null };
   const sid = intro.setId;
 
-  // Full row: all three share setId.
   if (sid && subject.setId === sid && target.setId === sid) {
     return { fft: WIT_ROW_BY_ID[sid] || null, partialRow: null, tierId: intro.tierId || null };
   }
 
-  // Partial row: any 2 share setId.
   let partialRow = null;
   if (intro.setId && intro.setId === subject.setId) partialRow = WIT_ROW_BY_ID[intro.setId] || null;
   else if (intro.setId && intro.setId === target.setId) partialRow = WIT_ROW_BY_ID[intro.setId] || null;
   else if (subject.setId && subject.setId === target.setId) partialRow = WIT_ROW_BY_ID[subject.setId] || null;
 
-  // Tier sub-bonus: all three share tierId.
   let tierId = null;
   const tid = intro.tierId;
   if (tid && subject.tierId === tid && target.tierId === tid) tierId = tid;

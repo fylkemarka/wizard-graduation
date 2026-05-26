@@ -785,6 +785,7 @@ function runCombat(state, enemyId, telemetry) {
           const wantsDiscard = existential || lowHp;
           if (wantsDiscard && (tok.cost || 1) <= state.energy) {
             state.energy -= tok.cost || 1;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             state.exiled.push(tok);
             state.hand.splice(idx, 1);
             telemetry.missTepDiscards = (telemetry.missTepDiscards || 0) + 1;
@@ -834,6 +835,7 @@ function runCombat(state, enemyId, telemetry) {
         const c = state.hand[i];
         if (c.slot === 'annotation' && (c.cost || 0) <= state.energy) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           enemy.annotation = {
             id: c.id, name: c.name,
             effect: c.annotationEffect || {},
@@ -857,6 +859,7 @@ function runCombat(state, enemyId, telemetry) {
         const c = state.hand[i];
         if (c.id === 'cv2-p-hit-me-again' && (c.cost || 0) <= state.energy && state.energy >= 3) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.hitMeAgainInstalled = true;
           telemetry.hitMeAgainInstalls = (telemetry.hitMeAgainInstalls || 0) + 1;
           state.discard.push(c);
@@ -877,6 +880,7 @@ function runCombat(state, enemyId, telemetry) {
         if ((c.id === 'wv2-p-patience' || c.installPower?.id === 'patience')
             && (c.cost || 0) <= state.energy && state.energy >= 3) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.patienceInstalled = true;
           telemetry.patienceInstalls = (telemetry.patienceInstalls || 0) + 1;
           state.discard.push(c);
@@ -896,6 +900,7 @@ function runCombat(state, enemyId, telemetry) {
         if ((c.id === 'jv2-p-hold-my-drink' || c.installPower?.id === 'drunken-confidence')
             && (c.cost || 0) <= state.energy && state.energy >= 2) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.drunkenInstalled = true;
           telemetry.drunkenInstalls = (telemetry.drunkenInstalls || 0) + 1;
           state.discard.push(c);
@@ -917,6 +922,7 @@ function runCombat(state, enemyId, telemetry) {
         if ((c.id === 'jv2-p-wait-and-another-thing' || c.installPower?.id === 'babbling')
             && (c.cost || 0) <= state.energy && state.energy >= 2) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.babblingInstalled = true;
           telemetry.babblingInstalls = (telemetry.babblingInstalls || 0) + 1;
           state.discard.push(c);
@@ -939,6 +945,7 @@ function runCombat(state, enemyId, telemetry) {
           const c = state.hand[i];
           if (c.id === 'jv2-k-sober-second-thought' && (c.cost || 0) <= state.energy) {
             state.energy -= c.cost || 0;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             state.drunkenInstalled = false;
             telemetry.drunkenUninstalls = (telemetry.drunkenUninstalls || 0) + 1;
             state.discard.push(c);
@@ -967,6 +974,7 @@ function runCombat(state, enemyId, telemetry) {
           const c = state.hand[letFinishIdx];
           if ((c.cost || 0) <= state.energy) {
             state.energy -= c.cost || 0;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             state.patienceStacks = (state.patienceStacks || 0) + 1;
             telemetry.patienceSkillPlays = (telemetry.patienceSkillPlays || 0) + 1;
             if ((state.patienceStacks || 0) > (state._patiencePeak || 0)) {
@@ -1003,6 +1011,7 @@ function runCombat(state, enemyId, telemetry) {
         const c = state.hand[i];
         if (c.id === 'cv2-k-sorry-what' && (c.cost || 0) <= state.energy) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.notListeningCharges += (c.effects?.absorbNextDebuff || 1);
           telemetry.notListeningSkillCasts = (telemetry.notListeningSkillCasts || 0) + 1;
           state.discard.push(c);
@@ -1057,6 +1066,7 @@ function runCombat(state, enemyId, telemetry) {
         const worthwhile = (target.tier || 1) >= 2 || (target.stats?.wit || 0) >= 2;
         if (!worthwhile) break;
         state.energy -= c.cost || 0;
+        state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
         if (bestPile === 'discard') {
           state.discard[bestIdx] = { ...target, footnotes: (target.footnotes || 0) + 1 };
         } else {
@@ -1085,6 +1095,7 @@ function runCombat(state, enemyId, telemetry) {
           c => c.slot === 'target' && c.lane === 'wit' && (c.effect?.openingBonus || 0) > 0);
         if (hasOpeningTarget && (sk.cost || 0) <= state.energy) {
           state.energy -= sk.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.openingExtended = true;
           state.discard.push(sk);
           state.hand.splice(skillIdx, 1);
@@ -1297,6 +1308,7 @@ function runCombat(state, enemyId, telemetry) {
           const shouldApologize = (hpPct <= 0.60) || chipCast;
           if (shouldApologize) {
             state.energy -= c.cost || 0;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             state.hand.splice(apologyIdx, 1);
             state.discard.push(c);
             // v3.0 cycle 4: tray REFUND TO HAND (was discard). Apology is
@@ -1336,6 +1348,7 @@ function runCombat(state, enemyId, telemetry) {
         const traySetup = !!(tray.intro && tray.subject);
         if ((c.cost || 0) <= state.energy && jnsqInDiscard >= 3 && traySetup) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.hand.splice(tangentIdx, 1);
           state.discard.push(c);
           telemetry.tangentFires = (telemetry.tangentFires || 0) + 1;
@@ -1413,6 +1426,7 @@ function runCombat(state, enemyId, telemetry) {
           if (hpCost > 0 && state.hp <= hpCost + 2) continue;
           // Pay cost + apply effects.
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.block += fx.block || 0;
           if (fx.poise) state.poise += fx.poise;
           if (fx.draw) drawCards(state, fx.draw);
@@ -1453,6 +1467,7 @@ function runCombat(state, enemyId, telemetry) {
         if (fx.discardHand && state.hand.length >= 4) continue;
         // OK, play it.
         state.energy -= c.cost || 0;
+        state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
         if (fx.block)               state.block += fx.block;
         if (fx.poise)               state.poise += fx.poise;
         if (fx.hp)                  state.hp = Math.min(state.maxHp, state.hp + fx.hp);
@@ -1530,6 +1545,7 @@ function runCombat(state, enemyId, telemetry) {
           const hpCost = fx.loseHp || 0;
           if (hpCost > 0 && state.hp <= hpCost + 2) continue;
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.poise += fx.poise || 0;
           if (fx.block) state.block += fx.block;
           if (fx.draw) drawCards(state, fx.draw);
@@ -1556,6 +1572,7 @@ function runCombat(state, enemyId, telemetry) {
           const hpCost = fx.loseHp || 0;
           if (hpCost > 0 && state.hp <= hpCost + 4) continue;
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           drawCards(state, fx.draw);
           if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
           if (fx.exhaust) state.exiled.push(c);
@@ -1594,6 +1611,7 @@ function runCombat(state, enemyId, telemetry) {
           const finalDmg = Math.round(dmg * enemyMult * (state.playerDmgMult || 1));
           if (finalDmg <= 0) continue;
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - finalDmg);
           else                        enemy.currentComp = Math.max(0, enemy.currentComp - finalDmg);
           if (ge.stripEnemyBlock) enemy.block = Math.max(0, (enemy.block || 0) - ge.stripEnemyBlock);
@@ -1616,6 +1634,7 @@ function runCombat(state, enemyId, telemetry) {
           const c = state.hand[i];
           if (c.id === 'cv2-k-couldnt-catch-that' && (c.cost || 0) <= state.energy) {
             state.energy -= c.cost || 0;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             const fx = c.effects || {};
             if (fx.removeWeak && (state.playerDmgMult || 1) < 1.0) {
               state.playerDmgMult = Math.min(1.0, (state.playerDmgMult || 1) + 0.25 * fx.removeWeak);
@@ -1687,6 +1706,7 @@ function runCombat(state, enemyId, telemetry) {
         if (idx >= 0) {
           tray.intro = state.hand[idx];
           state.energy -= tray.intro.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.hand.splice(idx, 1);
           applyStageEffects(tray.intro);
           bumpTunnelOnStage(tray.intro);
@@ -1699,6 +1719,7 @@ function runCombat(state, enemyId, telemetry) {
         if (idx >= 0) {
           tray.subject = state.hand[idx];
           state.energy -= tray.subject.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.hand.splice(idx, 1);
           applyStageEffects(tray.subject);
           bumpTunnelOnStage(tray.subject);
@@ -1717,6 +1738,7 @@ function runCombat(state, enemyId, telemetry) {
         if (idx >= 0) {
           tray.target = state.hand[idx];
           state.energy -= tray.target.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.hand.splice(idx, 1);
           bumpTunnelOnStage(tray.target);
           progressed = true;
@@ -1737,6 +1759,7 @@ function runCombat(state, enemyId, telemetry) {
             : m;
           tray.modifiers.push(stagedM);
           state.energy -= m.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.hand.splice(idx, 1);
           // v2.29: modifier staging also bumps loud-count + tunnel-vision.
           // (Was missing — only intro/subject/target called bumpTunnelOnStage.)
@@ -1805,6 +1828,7 @@ function runCombat(state, enemyId, telemetry) {
           const wouldSurvive = state.hp - unblockedExpected > 0;
           if (!castNowKills && lowDamage && wouldSurvive) {
             state.energy -= c.cost || 0;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             state.hand.splice(pauseIdx, 1);
             state.discard.push(c);
             state.pauseHeld = true;
@@ -1833,6 +1857,7 @@ function runCombat(state, enemyId, telemetry) {
           const isMeaningful = unblockedExpected >= 5 || expectedSwing >= 12;
           if (isMeaningful) {
             state.energy -= c.cost || 0;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             state.hand.splice(stagIdx, 1);
             state.discard.push(c);
             state.staggerActive = true;
@@ -2089,6 +2114,11 @@ function runCombat(state, enemyId, telemetry) {
         const rider = fftResult.fft.rider || {};
         if (rider.damageMult) dmg = Math.round(dmg * rider.damageMult);
         if (rider.bonus)      dmg += rider.bonus;
+        // v3.3 Crescendo consumeBank — applies pre-damage.
+        if (rider.consumeBank && (state.wordsBank || 0) > 0) {
+          dmg += state.wordsBank * rider.consumeBank;
+          state.wordsBank = 0;
+        }
         telemetry.fftCasts = (telemetry.fftCasts || 0) + 1;
         telemetry.fftDamage = (telemetry.fftDamage || 0) + dmg;
       } else if (fftResult.partialRow) {
@@ -2121,30 +2151,34 @@ function runCombat(state, enemyId, telemetry) {
         else                        enemy.currentComp = Math.max(0, enemy.currentComp - r2);
         telemetry.passingThoughtDoubletakeFires = (telemetry.passingThoughtDoubletakeFires || 0) + 1;
       }
-      // v3.2: post-damage FFT/partial/tier rider state effects (mirror App.jsx).
-      if (fftResult.fft) {
-        const rider = fftResult.fft.rider || {};
+      // v3.2/v3.3: post-damage FFT/partial/tier rider state effects.
+      // Mirrors App.jsx applyRider — including the v3.3 strategy keys
+      // (dot/thorns/addBank).
+      const applyRiderSim = (rider) => {
+        if (!rider) return;
         if (rider.longThreadPerm) state.longThread = (state.longThread || 0) + rider.longThreadPerm;
         if (rider.composure)      state.composure = Math.min(state.composureMax || 30, (state.composure || 0) + rider.composure);
         if (rider.block)          state.block = (state.block || 0) + rider.block;
         if (rider.energy)         state.energy = (state.energy || 0) + rider.energy;
         if (rider.draw)           drawCards(state, rider.draw);
         if (rider.poise)          state.poise = (state.poise || 0) + rider.poise;
+        if (rider.dot) {
+          if (!state.enemyDotStacks) state.enemyDotStacks = [];
+          state.enemyDotStacks.push({ amount: rider.dot.amount, turns: rider.dot.turns });
+        }
+        if (rider.thorns) {
+          if (!state.thornsCharges) state.thornsCharges = { amount: 0, count: 0 };
+          state.thornsCharges.amount = Math.max(state.thornsCharges.amount, rider.thorns.amount);
+          state.thornsCharges.count += rider.thorns.count;
+        }
+        if (rider.addBank)        state.wordsBank = (state.wordsBank || 0) + rider.addBank;
+      };
+      if (fftResult.fft) {
+        applyRiderSim(fftResult.fft.rider);
       } else if (fftResult.partialRow) {
-        const bonus = WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId];
-        if (bonus) {
-          if (bonus.longThreadPerm) state.longThread = (state.longThread || 0) + bonus.longThreadPerm;
-          if (bonus.composure)      state.composure = Math.min(state.composureMax || 30, (state.composure || 0) + bonus.composure);
-          if (bonus.block)          state.block = (state.block || 0) + bonus.block;
-          if (bonus.poise)          state.poise = (state.poise || 0) + bonus.poise;
-        }
+        applyRiderSim(WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId]);
       } else if (fftResult.tierId) {
-        const sub = WIT_TIER_SUB_BONUSES[fftResult.tierId];
-        if (sub) {
-          if (sub.longThreadPerm) state.longThread = (state.longThread || 0) + sub.longThreadPerm;
-          if (sub.composure)      state.composure = Math.min(state.composureMax || 30, (state.composure || 0) + sub.composure);
-          if (sub.block)          state.block = (state.block || 0) + sub.block;
-        }
+        applyRiderSim(WIT_TIER_SUB_BONUSES[fftResult.tierId]);
       }
       // v2.15: BURST exiles cashed-in annotation; wit auto-attach stub
       // for casual casts that lacked one.
@@ -2457,6 +2491,7 @@ function runCombat(state, enemyId, telemetry) {
             // in descending-index order so splice doesn't shift later indices.
             const indices = [introIdx, subjIdx, tgtIdx].sort((a, b) => b - a);
             state.energy -= (intro.cost || 0) + (subject.cost || 0) + (target.cost || 0);
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             for (const i of indices) state.hand.splice(i, 1);
             tray = { intro, subject, target, modifiers: [] };
             // Direct cast — reuse the same damage pipeline by setting a flag
@@ -2580,6 +2615,7 @@ function runCombat(state, enemyId, telemetry) {
         // Pay cost, fire.
         const c = state.hand[actuallyIdx];
         state.energy -= c.cost || 0;
+        state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
         // Apply through enemy block (mirrors cast-time absorption).
         let remainingDmg = reDmg;
         if (enemy.block > 0 && dmgTypeRe !== 'physical') {
@@ -2641,6 +2677,7 @@ function runCombat(state, enemyId, telemetry) {
         const pick = followUpIdxs[0];
         const fc = state.hand[pick.i];
         state.energy -= fc.cost || 0;
+        state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
         state.hand.splice(pick.i, 1);
         // Route by shape — simplest path: stage if word, discard if skill,
         // discard if modifier-into-empty-tray (no slot to fill post-cast),
@@ -2690,6 +2727,7 @@ function runCombat(state, enemyId, telemetry) {
         ) && (c.cost || 0) <= state.energy;
         if (worthPlaying) {
           state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.holdOnArmed = true;
           state.holdOnValue = lt;
           state.discard.push(c);
@@ -2751,6 +2789,25 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // Enemy turn
+    // v3.3 Slow Burn: DoT stacks tick at start of every enemy turn.
+    if (state.enemyDotStacks && state.enemyDotStacks.length > 0) {
+      let totalDot = 0;
+      const remaining = [];
+      for (const s of state.enemyDotStacks) {
+        totalDot += s.amount;
+        if (s.turns > 1) remaining.push({ amount: s.amount, turns: s.turns - 1 });
+      }
+      if (totalDot > 0) {
+        enemy.currentComp = Math.max(0, enemy.currentComp - totalDot);
+        telemetry.fftDotTickDamage = (telemetry.fftDotTickDamage || 0) + totalDot;
+      }
+      state.enemyDotStacks = remaining;
+      // Check kill
+      if (enemy.currentComp <= 0) {
+        flushThreadPeak();
+        return { outcome: 'won', turns, telemetry };
+      }
+    }
     // v2.27: HIT ME AGAIN recoil fires BEFORE the enemy's swing damage.
     // The sim models each enemy turn as one composite attack (no per-swing
     // model), so charges arm +1 per landed turn — a lower bound vs the
@@ -2814,6 +2871,18 @@ function runCombat(state, enemyId, telemetry) {
       telemetry.holdOnDamagePrevented = (telemetry.holdOnDamagePrevented || 0) + prevented;
       state.holdOnArmed = false;
       state.holdOnValue = 0;
+    }
+    // v3.3 Thorns: per-enemy-turn reflect. Sim models 1 composite swing
+    // per turn, so 1 charge consumed per attack turn (App is per-swing).
+    if (state.thornsCharges && state.thornsCharges.count > 0 && state.thornsCharges.amount > 0 && incoming > 0) {
+      enemy.currentComp = Math.max(0, enemy.currentComp - state.thornsCharges.amount);
+      telemetry.fftThornsReflectDamage = (telemetry.fftThornsReflectDamage || 0) + state.thornsCharges.amount;
+      state.thornsCharges.count -= 1;
+      // Check kill — thorns can be the killing blow.
+      if (enemy.currentComp <= 0) {
+        flushThreadPeak();
+        return { outcome: 'won', turns, telemetry };
+      }
     }
     // v2.52: DRUNKEN STAGGER — 50% dodge roll. Sim models the enemy turn as a
     // single composite swing, so we roll ONCE per turn (the App rolls per
@@ -2954,6 +3023,7 @@ function runCombat(state, enemyId, telemetry) {
             const cost = tok.cost || 1;
             if (cost > state.energy) break;
             state.energy -= cost;
+            state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
             state.exiled.push(tok);
             state.hand.splice(idx, 1);
             telemetry.missTepDiscards = (telemetry.missTepDiscards || 0) + 1;
