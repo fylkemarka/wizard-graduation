@@ -48,6 +48,7 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText
 import { CardFullBody } from './components/CardFullBody.jsx';
 import { CombatScreen } from './components/CombatScreen.jsx';
 import { Compendium } from './components/Compendium.jsx';
+import { ReadingRoom } from './components/ReadingRoom.jsx';
 
 // v2 card-pool lookup table keyed by lane.
 const LANE_POOL = { wit: WIT_V2, chutzpah: CHUTZPAH_V2, jnsq: JNSQ_V2 };
@@ -8316,6 +8317,43 @@ export default function App() {
       setStage('card-grant');
       return;
     }
+    if (kind === 'read') {
+      // v3.2 Phase 5c: open the Reading Room. Wit-only — UI gates the button.
+      logEvent('rest.read.open', { hp });
+      setStage('reading-room');
+      return;
+    }
+  }
+
+  // v3.2 Phase 5c: Reading Room confirm — apply HP cost, push picked cards
+  // to discard (so they shuffle into the deck on next reshuffle), close the
+  // rest node, return to map.
+  function resolveReadingRoom(pickedCards, hpCost) {
+    if (hpCost > 0) {
+      setHp(h => Math.max(1, h - hpCost));
+    }
+    if (pickedCards.length > 0) {
+      const fresh = pickedCards.map(c => ({ ...c, uid: uid() }));
+      setDiscard(d => [...d, ...fresh]);
+      const names = fresh.map(c => c.name || c.phrase).join(', ');
+      pushLog(`📖 Reading Room: took ${fresh.length} card${fresh.length > 1 ? 's' : ''} (${names})${hpCost > 0 ? ` for ${hpCost} HP` : ''}.`);
+      logEvent('rest.read.confirm', {
+        count: fresh.length, hpCost,
+        cardIds: fresh.map(c => c.id),
+        setIds: fresh.map(c => c.setId).filter(Boolean),
+      });
+    } else {
+      logEvent('rest.read.empty', {});
+    }
+    setRestNode(null);
+    returnToMap();
+  }
+
+  function cancelReadingRoom() {
+    // Cancel from Reading Room returns to the rest screen so the player
+    // can pick a different rest option without losing the visit.
+    logEvent('rest.read.cancel', {});
+    setStage('rest');
   }
 
   // v2.8: Remove a card from the deck at a rest site. Mirrors
@@ -8422,7 +8460,14 @@ export default function App() {
     onConfirm={craftingConfirm}
   />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
-  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} />;
+  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} isWit={selectedCharacter?.lane === 'wit'} />;
+  if (stage === 'reading-room') return <ReadingRoom
+    open={true}
+    witCards={WIT_V2}
+    currentHp={hp}
+    ownedCards={[...hand, ...deck, ...discard, ...exiled]}
+    onConfirm={resolveReadingRoom}
+    onCancel={cancelReadingRoom} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
   if (stage === 'forget')  return <ForgetCardScreen deck={deck} onPick={pickCardToForget} />;
   // Floating menu button (☰) + overlay. Only renders on play stages.
@@ -10372,7 +10417,7 @@ function EquipmentEffectBreakdown({ equipment }) {
   );
 }
 
-function RestScreen({ onChoose }) {
+function RestScreen({ onChoose, isWit = false }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
       <h2 className="font-display text-3xl text-moss-300">A Rest Site</h2>
@@ -10382,6 +10427,9 @@ function RestScreen({ onChoose }) {
         <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
         <button onClick={() => onChoose('forget')}  className="btn btn-iris">Forget a card — remove one from your deck</button>
         <button onClick={() => onChoose('reflect')} className="btn btn-ember">Reflect — gain a random Passing Thought (one-shot)</button>
+        {isWit && (
+          <button onClick={() => onChoose('read')}  className="btn btn-iris">📖 Read — browse the Library for set-tagged cards</button>
+        )}
       </div>
     </div>
   );
