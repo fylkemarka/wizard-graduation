@@ -41,7 +41,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
-import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
@@ -5762,13 +5762,13 @@ export default function App() {
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
-    // v3.2: FULLY FORMED THOUGHT — set-collection overlay. When all three
-    // played cards share a setId, the row's `rider` fires (per-row unique
-    // bonus). When they share a tierId but NOT a setId, the tier's
-    // sub-bonus fires (themed coherence). Phase 1: detection + dispatcher
-    // live, but WIT_ROWS is empty so neither path triggers until Phase 2
-    // content lands. Damage-mutating rider keys apply HERE; state-setting
-    // ones (longThread/composure/block/...) apply post-damage below.
+    // v3.2: FULLY FORMED THOUGHT — set-collection overlay. Hierarchy:
+    //   1. fft         — all 3 share setId → row's per-row unique rider
+    //   2. partialRow  — any 2 share setId → tier-flavored half-formed bonus
+    //   3. tierId      — all 3 share tierId (no row match) → tier sub-bonus
+    //   4. neither     — no bonus
+    // Most specific match wins; only one bonus fires per cast. Damage-
+    // mutating rider keys apply HERE; state-setting ones apply post-damage.
     const fftResult = detectFFT(intro, subject, target);
     if (fftResult.fft) {
       const row = fftResult.fft;
@@ -5780,6 +5780,13 @@ export default function App() {
       logEvent('wit.fft.cast', {
         rowId: row.id, rowName: row.name, tierId: row.tierId,
         rider: { ...rider }, damageAfterRider: dmg,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    } else if (fftResult.partialRow) {
+      const row = fftResult.partialRow;
+      pushLog(`✨ HALF-FORMED THOUGHT — ${row.name} (find the missing slot).`);
+      logEvent('wit.fft.partial', {
+        rowId: row.id, rowName: row.name, tierId: row.tierId,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     } else if (fftResult.tierId) {
@@ -5799,9 +5806,10 @@ export default function App() {
     let after = 0;
     if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
     else                        after = applyDamageToEnemyComposure(dmg);
-    // v3.2: post-damage FFT rider effects — state-setting keys fire here
-    // so they compose with the cast's combat-state mutations. Same applies
-    // for tier sub-bonuses.
+    // v3.2: post-damage FFT/partial/tier rider effects — state-setting
+    // keys fire here so they compose with the cast's combat-state
+    // mutations. Hierarchy matches the pre-damage branch: most specific
+    // bonus wins (fft > partialRow > tierId).
     if (fftResult.fft) {
       const rider = fftResult.fft.rider || {};
       if (rider.longThreadPerm) setLongThread(lt => lt + rider.longThreadPerm);
@@ -5810,6 +5818,14 @@ export default function App() {
       if (rider.energy)         setEnergy(e => e + rider.energy);
       if (rider.draw)           drawCards(rider.draw);
       if (rider.poise)          setPoise(p => p + rider.poise);
+    } else if (fftResult.partialRow) {
+      const bonus = WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId];
+      if (bonus) {
+        if (bonus.longThreadPerm) setLongThread(lt => lt + bonus.longThreadPerm);
+        if (bonus.composure)      setComposure(c => clamp(c + bonus.composure, 0, composureMax));
+        if (bonus.block)          setBlock(b => b + bonus.block);
+        if (bonus.poise)          setPoise(p => p + bonus.poise);
+      }
     } else if (fftResult.tierId) {
       const sub = WIT_TIER_SUB_BONUSES[fftResult.tierId];
       if (sub) {

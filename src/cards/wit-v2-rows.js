@@ -42,6 +42,35 @@ export const WIT_TIER_SUB_BONUSES = {
   },
 };
 
+// v3.2 Phase 5: Half-Formed Thought — fires when ANY 2 of the 3 played
+// cards share a setId (but the 3rd doesn't, so it's not a full FFT). Tier-
+// flavored payouts that are noticeably bigger than the tier sub-bonus
+// (because the player has committed to a SPECIFIC row, not just a theme)
+// but smaller than a full row rider (because the third card is still
+// random / from a different row). The log message names the row, doubling
+// as a discovery hint: "Half-Formed Thought: Linen Truths — find the
+// missing target."
+export const WIT_PARTIAL_ROW_BONUSES = {
+  atelier: {
+    name: 'The Atelier (half-formed)',
+    longThreadPerm: 1,
+    poise: 1,
+    flavor: 'The seam is already pulling tight.',
+  },
+  hygiene: {
+    name: 'Hygiene (half-formed)',
+    composure: 3,
+    block: 1,
+    flavor: 'The point is forming. The point is, in fact, already taken.',
+  },
+  transportation: {
+    name: 'Transportation (half-formed)',
+    block: 3,
+    longThreadPerm: 1,
+    flavor: 'The lecture has begun. The driver does not yet know.',
+  },
+};
+
 // The 24 named rows. Phase 2 fills this in; Phase 1 keeps it empty so the
 // FFT detection layer is invisible to the player until content lands.
 //
@@ -346,18 +375,36 @@ export const WIT_RIDER_KEYS = [
 // Quick lookup. Phase 2 will populate as WIT_ROWS fills.
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));
 
-// Helper: given three cards, return { fft: row | null, tierId: string | null }.
-// FFT wins if all three cards share a setId (a fully-formed thought).
-// Same-tier wins if all three share a tierId but NOT a setId.
+// Helper: given three cards, return { fft, partialRow, tierId }.
+// Hierarchy (most specific wins; only one bonus type fires per cast):
+//   1. fft        — all three cards share a setId (full row).
+//   2. partialRow — any two cards share a setId (half-formed thought).
+//   3. tierId     — all three share a tierId (no row match at all).
+//   4. neither    — none of the above; random combo.
+//
+// Both `partialRow` and `tierId` can be non-null on the same cast (e.g. 2
+// Atelier cards from Linen Truths + 1 Atelier card from a different row);
+// the CALLER decides which to apply. By convention partial > tier when
+// both fire, since partial means tighter player intent.
 export function detectFFT(intro, subject, target) {
-  if (!intro || !subject || !target) return { fft: null, tierId: null };
+  if (!intro || !subject || !target) return { fft: null, partialRow: null, tierId: null };
   const sid = intro.setId;
+
+  // Full row: all three share setId.
   if (sid && subject.setId === sid && target.setId === sid) {
-    return { fft: WIT_ROW_BY_ID[sid] || null, tierId: intro.tierId || null };
+    return { fft: WIT_ROW_BY_ID[sid] || null, partialRow: null, tierId: intro.tierId || null };
   }
+
+  // Partial row: any 2 share setId.
+  let partialRow = null;
+  if (intro.setId && intro.setId === subject.setId) partialRow = WIT_ROW_BY_ID[intro.setId] || null;
+  else if (intro.setId && intro.setId === target.setId) partialRow = WIT_ROW_BY_ID[intro.setId] || null;
+  else if (subject.setId && subject.setId === target.setId) partialRow = WIT_ROW_BY_ID[subject.setId] || null;
+
+  // Tier sub-bonus: all three share tierId.
+  let tierId = null;
   const tid = intro.tierId;
-  if (tid && subject.tierId === tid && target.tierId === tid) {
-    return { fft: null, tierId: tid };
-  }
-  return { fft: null, tierId: null };
+  if (tid && subject.tierId === tid && target.tierId === tid) tierId = tid;
+
+  return { fft: null, partialRow, tierId };
 }

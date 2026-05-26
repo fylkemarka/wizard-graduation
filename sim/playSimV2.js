@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WIT_V2, WIT_V2_BY_SLOT } from '../src/cards/wit-v2.js';
-import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID, detectFFT } from '../src/cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from '../src/cards/wit-v2-rows.js';
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from '../src/cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from '../src/cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/cards/shared.js';
@@ -2078,6 +2078,8 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.bonus)      dmg += rider.bonus;
         telemetry.fftCasts = (telemetry.fftCasts || 0) + 1;
         telemetry.fftDamage = (telemetry.fftDamage || 0) + dmg;
+      } else if (fftResult.partialRow) {
+        telemetry.fftPartialCasts = (telemetry.fftPartialCasts || 0) + 1;
       } else if (fftResult.tierId) {
         telemetry.fftTierBonusCasts = (telemetry.fftTierBonusCasts || 0) + 1;
       }
@@ -2106,7 +2108,7 @@ function runCombat(state, enemyId, telemetry) {
         else                        enemy.currentComp = Math.max(0, enemy.currentComp - r2);
         telemetry.passingThoughtDoubletakeFires = (telemetry.passingThoughtDoubletakeFires || 0) + 1;
       }
-      // v3.2: post-damage FFT rider state effects (mirror App.jsx).
+      // v3.2: post-damage FFT/partial/tier rider state effects (mirror App.jsx).
       if (fftResult.fft) {
         const rider = fftResult.fft.rider || {};
         if (rider.longThreadPerm) state.longThread = (state.longThread || 0) + rider.longThreadPerm;
@@ -2115,6 +2117,14 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.energy)         state.energy = (state.energy || 0) + rider.energy;
         if (rider.draw)           drawCards(state, rider.draw);
         if (rider.poise)          state.poise = (state.poise || 0) + rider.poise;
+      } else if (fftResult.partialRow) {
+        const bonus = WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId];
+        if (bonus) {
+          if (bonus.longThreadPerm) state.longThread = (state.longThread || 0) + bonus.longThreadPerm;
+          if (bonus.composure)      state.composure = Math.min(state.composureMax || 30, (state.composure || 0) + bonus.composure);
+          if (bonus.block)          state.block = (state.block || 0) + bonus.block;
+          if (bonus.poise)          state.poise = (state.poise || 0) + bonus.poise;
+        }
       } else if (fftResult.tierId) {
         const sub = WIT_TIER_SUB_BONUSES[fftResult.tierId];
         if (sub) {
