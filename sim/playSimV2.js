@@ -114,6 +114,7 @@ function buildStarterDeck(lane) {
   ].map(c => c.id);
   const ids = [
     basics(pool.intro)[0]?.id,
+    basics(pool.intro)[1]?.id, // v3.1.4: +1 basic intro (less draw-friction)
     basics(pool.subject)[0]?.id,
     basics(pool.target)[0]?.id,
     ...laneStarters,
@@ -1988,7 +1989,8 @@ function runCombat(state, enemyId, telemetry) {
       // installed. Applied AFTER playerDmgMult so it composes with Vuln/Weak.
       if (state.drunkenInstalled) {
         const preDrunk = dmg;
-        dmg = Math.round(dmg * 1.5);
+        // v3.1.4: 1.5 → 1.35 to match App-side nerf.
+        dmg = Math.round(dmg * 1.35);
         telemetry.drunkenCastBonus = (telemetry.drunkenCastBonus || 0) + (dmg - preDrunk);
         telemetry.drunkenCasts = (telemetry.drunkenCasts || 0) + 1;
       }

@@ -601,8 +601,14 @@ function buildStarterDeckForLane(lane) {
     ...basics(pool.skill || []),
     ...basics(pool.gesture || []),
   ].map(c => c.id);
+  // v3.1.4: +1 basic intro. Alan playtest: "having to draw one more
+  // turn than I'd like to have enough spell components." Adding a 2nd
+  // intro keeps the "few spell options" feel while easing the hand-
+  // refill bottleneck (you'll usually have AT LEAST one intro in hand).
+  // Picks of common intros are still meaningfully better (stat 2 vs 1).
   const ids = [
     basics(pool.intro)[0]?.id,
+    basics(pool.intro)[1]?.id,
     basics(pool.subject)[0]?.id,
     basics(pool.target)[0]?.id,
     ...laneStarters,
@@ -5584,7 +5590,11 @@ export default function App() {
     const isSecondCast = castsThisTurn >= 1;
     if (drunkenInstalled) {
       const preDrunk = dmg;
-      dmg = Math.round(dmg * 1.5);
+      // v3.1.4: Drunken Confidence +50% → +35%. Real-play: jnsq one-
+      // shotting enemies pre-boss. Combo math: 1.35 × 2.0 (Awkward
+      // Pause double) × 0.85 (Babbling 2nd cast) = 2.3× still strong,
+      // but not nuclear. Was 2.55× at 1.5×.
+      dmg = Math.round(dmg * 1.35);
       const bonus = dmg - preDrunk;
       if (bonus > 0) {
         setDrunkenTelemetry(t => ({ ...t, castBonus: t.castBonus + bonus }));
@@ -6442,6 +6452,21 @@ export default function App() {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
     }
+    // v3.1.4 BUGFIX: discardHand must run BEFORE draw. Decisively
+    // Inconclusive has both `draw: 5` + `discardHand: true` — the old
+    // order drew 5 first, then discarded the entire (just-drawn) hand,
+    // leaving an empty hand until end-of-turn. Re-ordered so discard
+    // happens first, then draw refills.
+    if (fx.discardHand) {
+      // Pure-updater pattern (no nested setState — per memory:
+      // [[wg-react-pure-updaters]]). Capture hand snapshot via closure.
+      if (hand.length > 0) {
+        const captured = [...hand];
+        setHand([]);
+        setDiscard(d => [...d, ...captured]);
+      }
+      logBits.push(`discard hand`);
+    }
     if (fx.draw) {
       drawCards(fx.draw);
       logBits.push(`+${fx.draw} draw`);
@@ -6483,10 +6508,7 @@ export default function App() {
       });
       logBits.push(`discard ${fx.discardRandom} random`);
     }
-    if (fx.discardHand) {
-      setHand(h => { if (h.length > 0) setDiscard(d => [...d, ...h]); return []; });
-      logBits.push(`discard hand`);
-    }
+    // v3.1.4: discardHand moved above draw — see top of this function.
     if (fx.returnDiscardToHand) {
       setDiscard(d => {
         if (d.length === 0) return d;
@@ -8197,14 +8219,18 @@ export default function App() {
     }
     if (kind === 'reflect') {
       // v2.92: grant a random Passing Thought (colorless one-shot card).
-      // Adds it to the deck; player draws it like any other card next
-      // combat. Returns to map immediately.
+      // v3.1.4: surface the granted card via CardGrantScreen so the
+      // player can actually SEE what they got, mirroring event-grant
+      // and combat-reward flows. Was previously silently appended +
+      // a log line — easy to miss.
       const picked = PASSING_THOUGHTS[Math.floor(Math.random() * PASSING_THOUGHTS.length)];
-      setDeck(d => [...d, { ...picked, uid: uid() }]);
+      const newCard = { ...picked, uid: uid() };
+      setDeck(d => [...d, newCard]);
       pushLog(`💭 Reflect: a Passing Thought drifts up — ${picked.name}.`);
       logEvent('rest.reflect', { cardId: picked.id, cardName: picked.name });
       setRestNode(null);
-      returnToMap();
+      setCardGrantPrompt({ cards: [newCard], title: 'Reflection — a Passing Thought drifts up.' });
+      setStage('card-grant');
       return;
     }
   }
@@ -10302,31 +10328,13 @@ function UpgradeCardScreen({ deck, onPick }) {
           )}
           {eligible.map(card => {
             const upgraded = upgradeCard(card);
-            const dispName = card.name || card.phrase || '';
-            const upDispName = upgraded.name || upgraded.phrase || dispName;
-            const dispLabel = card.slot || card.type;
+            const upDispName = upgraded.name || upgraded.phrase || card.name || card.phrase || '';
             return (
               <button key={card.uid} onClick={() => setPendingUid(card.uid)}
-                className="w-52 rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <div className={`text-[10px] uppercase tracking-wider font-bold ${card.slot === 'target' ? 'text-ember-700' : card.slot === 'modifier' ? 'text-gold-700' : card.slot ? 'text-iris-700' : 'text-ink-400'}`}>
-                    {dispLabel}{card.tier ? ` · T${card.tier}` : ''}
-                  </div>
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold bg-gold-500 text-ink-800">{card.cost}</div>
-                </div>
-                <div className="font-display text-base">{dispName}</div>
-                {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
-                  <div className="flex gap-1 flex-wrap text-xs font-mono">
-                    {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
-                    {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
-                    {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
-                  </div>
-                )}
-                {(card.slot === 'target' || card.type === 'effect') && card.effect && (
-                  <div className="text-xs font-mono text-ink-700">
-                    {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
-                  </div>
-                )}
+                className="w-52 min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+                {/* v3.1.4: full card body (Alan: "Study a Card screen
+                    is still only showing stubs of cards. Show the whole card") */}
+                <CardFullBody card={card} />
                 <div className="text-xs mt-auto pt-2 border-t border-ink-300 text-moss-700">
                   → <b>{upDispName}</b>{(() => {
                     if (upgraded.effect && card.effect) {
