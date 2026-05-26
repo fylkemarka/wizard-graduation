@@ -14,7 +14,7 @@ import { useMemo } from 'react';
 import { CardFullBody } from './CardFullBody.jsx';
 import { WIT_ROWS, WIT_ROW_BY_ID, WIT_TIER_SUB_BONUSES } from '../cards/wit-v2-rows.js';
 
-const TIER_ORDER = ['atelier', 'hygiene', 'transportation'];
+const TIER_ORDER = ['slowburn', 'thorns', 'crescendo'];
 const SLOT_ORDER = ['intro', 'subject', 'target', 'modifier', 'gesture', 'annotation', 'skill', 'power'];
 
 function locationLabel(loc) {

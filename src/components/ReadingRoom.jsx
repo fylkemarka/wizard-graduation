@@ -14,7 +14,7 @@ import { CardFullBody } from './CardFullBody.jsx';
 import { DeckView } from './DeckView.jsx';
 import { WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
 
-const TIER_IDS = ['atelier', 'hygiene', 'transportation'];
+const TIER_IDS = ['slowburn', 'thorns', 'crescendo'];
 
 function rng(seed) {
   // Deterministic-enough shuffle for one screen.

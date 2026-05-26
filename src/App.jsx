@@ -613,11 +613,11 @@ function buildStarterDeckForLane(lane) {
   //
   // v3.2: WIT-only — seed the starter with one COMPLETE FFT row so the
   // player can trigger Fully Formed Thought in their first combat. We
-  // hardcode the Atelier-4 row ("The Bouclé Suggestion") because its
-  // intro (Frankly,) is already the first basic intro that would be
-  // picked anyway; we just override the generic basic subject/target
-  // with same-row cards. After this the starter has 3 atelier-4 cards
-  // (full row) + 1 transportation-4 intro + the usual util slots.
+  // hardcode the slowburn-4 row ("Lingering Point") because its intro
+  // (Frankly,) is already the first basic intro that would be picked
+  // anyway; we just override the generic basic subject/target with
+  // same-row cards. After this the starter has 3 slowburn-4 cards
+  // (full row) + 1 crescendo-4 intro + the usual util slots.
   // Telemetry from real play (2026-05-26) showed 11 casts / 0 FFT
   // triggers — the system was invisible because the starter never had
   // 2 cards from one row. Seeding the row makes FFT teach-itself in
@@ -625,7 +625,7 @@ function buildStarterDeckForLane(lane) {
   let introIds, subjectId, targetId;
   if (lane === 'wit') {
     // v3.2 damage tune: use basic-tier STARTER variants of Bouclé/Fabric.
-    // Same setId='atelier-4' so FFT still fires in combat 1; basic stats
+    // Same setId='slowburn-4' so FFT still fires in combat 1; basic stats
     // keep the cast at ~10 dmg vs the uncommon variants' ~27 dmg one-shot.
     introIds = ['wv2-i-frankly', 'wv2-i-actually'];
     subjectId = 'wv2-s-boucle-starter';

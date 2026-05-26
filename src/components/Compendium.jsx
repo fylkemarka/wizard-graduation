@@ -9,7 +9,7 @@
 
 import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_PARTIAL_ROW_BONUSES } from '../cards/wit-v2-rows.js';
 
-const TIER_ORDER = ['atelier', 'hygiene', 'transportation'];
+const TIER_ORDER = ['slowburn', 'thorns', 'crescendo'];
 
 function describeBonus(bonus) {
   if (!bonus) return '';
