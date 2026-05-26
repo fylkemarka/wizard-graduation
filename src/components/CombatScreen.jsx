@@ -14,12 +14,13 @@ import { motion } from 'framer-motion';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText } from '../cards/shared.js';
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
+import { WIT_ROWS, WIT_TIER_SUB_BONUSES } from '../cards/wit-v2-rows.js';
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
-                       block, poise, energy, energyMax, hand, deck, discard, tray,
+                       block, poise, energy, energyMax, hand, deck, discard, exiled = [], tray,
                        amplifyPlaysThisCombat,
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
@@ -251,6 +252,52 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         combatTurn={combatTurn} openingExtended={openingExtended}
         pauseHeldActive={pauseHeldActive} enemy={enemy}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw} />
+
+      {/* FFT Progress panel — wit-only. Shows player progress on the named
+          Fully Formed Thought rows (set-collection overlay). A row's three
+          cards live anywhere in the player's pool (hand/deck/discard/tray/
+          exiled). Hover for the canonical sentence + rider. Only renders
+          rows the player has at least 1 card from, to avoid clutter; if no
+          set-tagged cards are owned at all, the panel is hidden entirely. */}
+      {isWit && WIT_ROWS.length > 0 && (() => {
+        const trayCards = [tray?.intro, tray?.subject, tray?.target, ...(tray?.modifiers || [])].filter(Boolean);
+        const allCards = [...hand, ...deck, ...discard, ...exiled, ...trayCards];
+        const progress = WIT_ROWS.map(row => {
+          const has = { intro: false, subject: false, target: false };
+          for (const c of allCards) {
+            if (c.setId === row.id) {
+              if (c.setSlot === 'intro')   has.intro = true;
+              if (c.setSlot === 'subject') has.subject = true;
+              if (c.setSlot === 'target')  has.target = true;
+            }
+          }
+          const owned = (has.intro ? 1 : 0) + (has.subject ? 1 : 0) + (has.target ? 1 : 0);
+          return { row, owned, has };
+        });
+        const visible = progress.filter(p => p.owned > 0);
+        if (visible.length === 0) return null;
+        return (
+          <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
+            <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">🎩 FFT Progress</span>
+            {visible.map(({ row, owned, has }) => {
+              const tier = WIT_TIER_SUB_BONUSES[row.tierId];
+              const complete = owned === 3;
+              const slotsLabel = `Intro ${has.intro ? '✓' : '✗'} · Subject ${has.subject ? '✓' : '✗'} · Target ${has.target ? '✓' : '✗'}`;
+              return (
+                <span key={row.id}
+                  title={`"${row.canonical}"\n\nTier: ${tier?.name || row.tierId}\nRider: ${row.riderDesc || '(none)'}\n\n${slotsLabel}`}
+                  className={`px-2 py-1 text-xs rounded border cursor-help ${
+                    complete ? 'bg-gold-700 text-parchment-50 border-gold-400 font-bold'
+                             : owned === 2 ? 'bg-iris-800 text-parchment-100 border-iris-500'
+                             : 'bg-ink-700 text-parchment-200 border-ink-500'
+                  }`}>
+                  {row.name} {owned}/3
+                </span>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Relic chip row — persistent across the run, shown all combats. */}
       {relics.length > 0 && (

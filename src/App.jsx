@@ -8476,7 +8476,7 @@ export default function App() {
       playerComposure={composure} playerComposureMax={composureMax}
       block={block} poise={poise} energy={energy} hand={hand}
       amplifyPlaysThisCombat={amplifyPlaysThisCombat}
-      deck={deck} discard={discard} tray={tray}
+      deck={deck} discard={discard} exiled={exiled} tray={tray}
       energyMax={energyPerTurnRefill()}
       equipment={equipment} powers={powers} relics={relics}
       familiar={familiar} familiarName={familiarName}
