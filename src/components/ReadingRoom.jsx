@@ -11,6 +11,7 @@
 
 import { useState, useMemo } from 'react';
 import { CardFullBody } from './CardFullBody.jsx';
+import { DeckView } from './DeckView.jsx';
 import { WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
 
 const TIER_IDS = ['atelier', 'hygiene', 'transportation'];
@@ -56,6 +57,7 @@ export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConf
   }, [open]);
 
   const [selectedUids, setSelectedUids] = useState(new Set());
+  const [deckPeekOpen, setDeckPeekOpen] = useState(false);
 
   if (!open) return null;
 
@@ -105,7 +107,7 @@ export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConf
         </p>
       </div>
 
-      <div className="parchment-card p-3 flex items-center justify-center gap-6 text-sm">
+      <div className="parchment-card p-3 flex items-center justify-center gap-6 text-sm flex-wrap">
         <div>
           <span className="text-parchment-300">Selected:</span>{' '}
           <span className="font-mono text-parchment-50">{selectedCount} / 3</span>
@@ -119,6 +121,12 @@ export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConf
         <div className="text-[11px] text-parchment-400 italic">
           1 free · 2 for 4 HP · 3 for 8 HP
         </div>
+        {ownedCards.length > 0 && (
+          <button onClick={() => setDeckPeekOpen(true)}
+                  className="text-xs px-2 py-1 rounded border border-iris-400 bg-iris-700 text-parchment-50 hover:bg-iris-600">
+            🗂 Peek deck ({ownedCards.length})
+          </button>
+        )}
       </div>
 
       {TIER_IDS.filter(t => groupedByTier[t]).map(tierId => {
@@ -173,6 +181,9 @@ export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConf
           The price would put you in the grave. Pick fewer.
         </div>
       )}
+
+      <DeckView open={deckPeekOpen} onClose={() => setDeckPeekOpen(false)}
+                hand={[]} deck={ownedCards} discard={[]} exiled={[]} tray={null} />
     </div>
   );
 }

@@ -39,7 +39,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        wontShutUpArmed = false, staggerActive = false,
                        notListeningCharges = 0, hitMeAgainCharges = 0,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
-                       onOpenCompendium }) {
+                       onOpenCompendium, onOpenDeckView }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -284,6 +284,13 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                       title="Open the Compendium of Fully Formed Thoughts"
                       className="px-2 py-1 text-xs rounded border bg-iris-700 text-parchment-50 border-iris-400 hover:bg-iris-600">
                 📚 Compendium
+              </button>
+            )}
+            {onOpenDeckView && (
+              <button onClick={onOpenDeckView}
+                      title="View all the cards currently in your deck (hand + draw + discard + exiled + tray), grouped by row"
+                      className="px-2 py-1 text-xs rounded border bg-moss-700 text-parchment-50 border-moss-400 hover:bg-moss-600">
+                🗂 Deck
               </button>
             )}
             {visible.length === 0 && (

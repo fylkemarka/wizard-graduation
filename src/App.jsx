@@ -48,6 +48,7 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText
 import { CardFullBody } from './components/CardFullBody.jsx';
 import { CombatScreen } from './components/CombatScreen.jsx';
 import { Compendium } from './components/Compendium.jsx';
+import { DeckView } from './components/DeckView.jsx';
 import { ReadingRoom } from './components/ReadingRoom.jsx';
 
 // v2 card-pool lookup table keyed by lane.
@@ -3476,6 +3477,7 @@ export default function App() {
   // across turns; resets between combats.
   const [longThread, setLongThread] = useState(0);
   const [compendiumOpen, setCompendiumOpen] = useState(false);
+  const [deckViewOpen, setDeckViewOpen] = useState(false);
   // Track whether the player took unblocked HP damage this turn — read at
   // end-of-turn by the long-thread bookkeeping. Reset at the start of every
   // player turn.
@@ -8613,9 +8615,12 @@ export default function App() {
       braceArmedDraw={braceArmedDraw}
       log={log}
       onOpenCompendium={() => setCompendiumOpen(true)}
+      onOpenDeckView={() => setDeckViewOpen(true)}
     />
     <Compendium open={compendiumOpen} onClose={() => setCompendiumOpen(false)}
                 hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
+    <DeckView open={deckViewOpen} onClose={() => setDeckViewOpen(false)}
+              hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
     <CardLossOverlay notice={cardLossNotice} onDismiss={() => setCardLossNotice(null)} />
     {tutorialActive && <TutorialOverlay
       step={tutorialStep}
