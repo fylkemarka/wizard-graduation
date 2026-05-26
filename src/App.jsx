@@ -41,6 +41,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
+import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
@@ -5761,6 +5762,36 @@ export default function App() {
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
+    // v3.2: FULLY FORMED THOUGHT — set-collection overlay. When all three
+    // played cards share a setId, the row's `rider` fires (per-row unique
+    // bonus). When they share a tierId but NOT a setId, the tier's
+    // sub-bonus fires (themed coherence). Phase 1: detection + dispatcher
+    // live, but WIT_ROWS is empty so neither path triggers until Phase 2
+    // content lands. Damage-mutating rider keys apply HERE; state-setting
+    // ones (longThread/composure/block/...) apply post-damage below.
+    const fftResult = detectFFT(intro, subject, target);
+    if (fftResult.fft) {
+      const row = fftResult.fft;
+      const rider = row.rider || {};
+      if (rider.damageMult)  dmg = Math.round(dmg * rider.damageMult);
+      if (rider.bonus)       dmg += rider.bonus;
+      pushLog(`✨✨ FULLY FORMED THOUGHT — ${row.name}.`);
+      if (row.canonical) pushLog(`📜 "${row.canonical}"`);
+      logEvent('wit.fft.cast', {
+        rowId: row.id, rowName: row.name, tierId: row.tierId,
+        rider: { ...rider }, damageAfterRider: dmg,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+    } else if (fftResult.tierId) {
+      const sub = WIT_TIER_SUB_BONUSES[fftResult.tierId];
+      if (sub) {
+        pushLog(`✨ ${sub.name} — themed coherence.`);
+        logEvent('wit.fft.tierBonus', {
+          tierId: fftResult.tierId, tierName: sub.name,
+          enemyId: enemy?.id, enemyTier: enemy?.tier,
+        });
+      }
+    }
     // v2.93: O-1 support — capture the damage value for the NEXT Precedent
     // cast. Also captures last cast for any future card that wants it.
     setLastCastDamage(dmg);
@@ -5768,6 +5799,25 @@ export default function App() {
     let after = 0;
     if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
     else                        after = applyDamageToEnemyComposure(dmg);
+    // v3.2: post-damage FFT rider effects — state-setting keys fire here
+    // so they compose with the cast's combat-state mutations. Same applies
+    // for tier sub-bonuses.
+    if (fftResult.fft) {
+      const rider = fftResult.fft.rider || {};
+      if (rider.longThreadPerm) setLongThread(lt => lt + rider.longThreadPerm);
+      if (rider.composure)      setComposure(c => clamp(c + rider.composure, 0, composureMax));
+      if (rider.block)          setBlock(b => b + rider.block);
+      if (rider.energy)         setEnergy(e => e + rider.energy);
+      if (rider.draw)           drawCards(rider.draw);
+      if (rider.poise)          setPoise(p => p + rider.poise);
+    } else if (fftResult.tierId) {
+      const sub = WIT_TIER_SUB_BONUSES[fftResult.tierId];
+      if (sub) {
+        if (sub.longThreadPerm) setLongThread(lt => lt + sub.longThreadPerm);
+        if (sub.composure)      setComposure(c => clamp(c + sub.composure, 0, composureMax));
+        if (sub.block)          setBlock(b => b + sub.block);
+      }
+    }
     // v2.93: O-6 (The Doubletake) — apply damage a second time. Same dmg
     // value, same type, no second cast counter / scalar (it's a copy, not
     // a re-cast). Flag is one-shot.
