@@ -57,7 +57,7 @@ export const WIT_TIER_SUB_BONUSES = {
 //     rider: { /* see RIDER_KEYS below */ },
 //   }
 export const WIT_ROWS = [
-  // ---- Atelier (8 rows total — 1 of 8 written) ----
+  // ---- Atelier (8 rows total — 3 of 8 written) ----
   {
     id: 'atelier-1',
     tierId: 'atelier',
@@ -69,8 +69,30 @@ export const WIT_ROWS = [
     rider: { longThreadPerm: 2 },
     riderDesc: '+2 Long Thread permanently this combat.',
   },
+  {
+    id: 'atelier-2',
+    tierId: 'atelier',
+    name: 'The Off-Season',
+    canonical: 'Permit me to observe that linen, in October, is precisely what one does not do.',
+    introId:   'wv2-i-permit-me-observe',
+    subjectId: 'wv2-s-linen-october',
+    targetId:  'wv2-t-precisely-what-one-does-not-do',
+    rider: { longThreadPerm: 1, draw: 1 },
+    riderDesc: '+1 Long Thread permanently AND draw 1.',
+  },
+  {
+    id: 'atelier-3',
+    tierId: 'atelier',
+    name: 'The Cuff',
+    canonical: 'By any measure, your cuff is, somehow, both wrong and proud.',
+    introId:   'wv2-i-by-any-measure',
+    subjectId: 'wv2-s-your-cuff',
+    targetId:  'wv2-t-wrong-and-proud',
+    rider: { longThreadPerm: 1, poise: 1 },
+    riderDesc: '+1 Long Thread permanently AND +1 Poise.',
+  },
 
-  // ---- Hygiene (8 rows total — 1 of 8 written) ----
+  // ---- Hygiene (8 rows total — 3 of 8 written) ----
   {
     id: 'hygiene-1',
     tierId: 'hygiene',
@@ -82,8 +104,30 @@ export const WIT_ROWS = [
     rider: { damageMult: 1.5 },
     riderDesc: 'Cast damage ×1.5 — the moral truth cuts through.',
   },
+  {
+    id: 'hygiene-2',
+    tierId: 'hygiene',
+    name: 'Dry Shaving',
+    canonical: 'Pardon my saying, dry shaving is, frankly, an aesthetic failure first.',
+    introId:   'wv2-i-pardon-saying',
+    subjectId: 'wv2-s-dry-shaving',
+    targetId:  'wv2-t-aesthetic-failure-first',
+    rider: { composure: 4 },
+    riderDesc: '+4 Composure — aesthetic certainty as armor.',
+  },
+  {
+    id: 'hygiene-3',
+    tierId: 'hygiene',
+    name: 'Dental',
+    canonical: 'Or rather, your dental schedule is what the rest of us would politely call a memorial.',
+    introId:   'wv2-i-or-rather',
+    subjectId: 'wv2-s-dental-schedule',
+    targetId:  'wv2-t-politely-call-memorial',
+    rider: { damageMult: 1.3, composure: 2 },
+    riderDesc: 'Cast damage ×1.3 AND +2 Composure.',
+  },
 
-  // ---- Transportation (8 rows total — 1 of 8 written) ----
+  // ---- Transportation (8 rows total — 3 of 8 written) ----
   {
     id: 'transportation-1',
     tierId: 'transportation',
@@ -94,6 +138,28 @@ export const WIT_ROWS = [
     targetId:  'wv2-t-for-a-long-time',
     rider: { block: 6, draw: 1 },
     riderDesc: '+6 Block this turn AND draw 1.',
+  },
+  {
+    id: 'transportation-2',
+    tierId: 'transportation',
+    name: 'The Yield',
+    canonical: 'Strictly speaking, your relationship to the yield sign is, on review, a suggestion at best.',
+    introId:   'wv2-i-strictly-speaking',
+    subjectId: 'wv2-s-yield-sign',
+    targetId:  'wv2-t-suggestion-at-best',
+    rider: { block: 4, longThreadPerm: 1 },
+    riderDesc: '+4 Block this turn AND +1 Long Thread permanently.',
+  },
+  {
+    id: 'transportation-3',
+    tierId: 'transportation',
+    name: 'The Volvo Sermon',
+    canonical: 'I should think that your Volvo would have, by now, had the conversation with you itself.',
+    introId:   'wv2-i-i-should-think',
+    subjectId: 'wv2-s-your-volvo',
+    targetId:  'wv2-t-conversation-with-you-itself',
+    rider: { block: 5, poise: 1 },
+    riderDesc: '+5 Block this turn AND +1 Poise.',
   },
 ];
 
