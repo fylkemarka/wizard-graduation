@@ -3694,6 +3694,7 @@ export default function App() {
   // events / shops that hand the player cards silently. Shape:
   // { cards: [...card objects...], title?, body? } — null means no modal.
   const [cardGrantPrompt, setCardGrantPrompt] = useState(null);
+  const [cardLossNotice, setCardLossNotice] = useState(null);
 
   // ---- Crafting state (Commit 2: gather; Commit 3: craft) ----
   // Inventory of raw materials gathered per slot during this act and
@@ -7956,6 +7957,13 @@ export default function App() {
         setHand(handCopy);
         setDiscard(d => [...d, ...idxs]);
         pushLog(`👹 ${e.name}: 🗑 you lose ${n} card${n === 1 ? '' : 's'} (${idxs.map(c => c.name || c.phrase || '?').join(', ')}).`);
+        // v3.2: surface the taken cards visually. The log line alone gets
+        // missed — Alan playtest: "When loom familiar takes a card,
+        // something should show the player what card they just lost.
+        // Otherwise it's confusing to be waiting on a card in your draw
+        // that you don't know you've lost." Modal overlay pauses the
+        // game until acknowledged.
+        setCardLossNotice({ source: e.name, cards: idxs });
       } else {
         pushLog(`👹 ${e.name}: 🗑 ${intent.telegraph || 'discard'} — no cards to take.`);
       }
@@ -8605,6 +8613,7 @@ export default function App() {
     />
     <Compendium open={compendiumOpen} onClose={() => setCompendiumOpen(false)}
                 hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
+    <CardLossOverlay notice={cardLossNotice} onDismiss={() => setCardLossNotice(null)} />
     {tutorialActive && <TutorialOverlay
       step={tutorialStep}
       lane={tutorialLane}
@@ -9579,6 +9588,49 @@ function RewardScreen({ choices, onPick }) {
 // Played when an event / shop / familiar hands the player one or more
 // cards. Shows them face-up with a single "Got it" button. Prompt shape:
 // { cards: [card objects], title: string }
+// v3.2: Overlay popup that surfaces cards involuntarily taken from the
+// player's hand mid-combat (currently Loom Familiar's discard-hand). The
+// in-log line was easy to miss — Alan playtest: "it's confusing to be
+// waiting on a card in your draw that you don't know you've lost." This
+// pauses combat until the player clicks Acknowledged.
+function CardLossOverlay({ notice, onDismiss }) {
+  if (!notice) return null;
+  const { source, cards } = notice;
+  return (
+    <div className="fixed inset-0 bg-ink-900 bg-opacity-80 z-50 flex items-center justify-center p-4"
+         onClick={onDismiss}>
+      <div className="parchment-card-strong max-w-3xl p-6 relative"
+           onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-display text-2xl text-ember-300 text-center mb-1">
+          🪡 {source} reaches into your hand
+        </h2>
+        <div className="text-sm text-parchment-300 italic text-center mb-4">
+          {cards.length === 1 ? 'You lost a card:' : `You lost ${cards.length} cards:`}
+        </div>
+        <div className="flex gap-4 flex-wrap justify-center mb-4">
+          {cards.map((card, i) => (
+            <div key={i}
+              className="w-52 min-h-[280px] rounded-lg border-2 border-ember-500 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 relative">
+              <CardFullBody card={card} />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-ember-700 font-display text-3xl tracking-widest font-bold transform -rotate-12 bg-parchment-50/90 px-3 py-1 rounded border-2 border-ember-700">
+                  TAKEN
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="text-center text-[11px] text-parchment-300 italic mb-3">
+          The card moves to your discard pile — it returns to your deck on the next reshuffle.
+        </div>
+        <div className="text-center">
+          <button onClick={onDismiss} className="btn btn-iris">Acknowledged</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CardGrantScreen({ prompt, onDismiss }) {
   if (!prompt) return null;
   const { cards, title } = prompt;
