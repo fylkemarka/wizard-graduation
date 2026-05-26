@@ -741,7 +741,12 @@ const ENEMIES = [
     // risk losing them? Lower base attack values to compensate — the
     // card-loss IS the pressure.
     behaviors: [
-      { kind: 'discard-hand', value: 1, weight: 3, telegraph: '🗑 takes 1 from your hand' },
+      // v3.1.2: weight 3 → 2. 37.5% discard rate was locking wit players
+      // out of casts (they only carry 1 of each intro/subject/target;
+      // losing one to a random pull means no cast that cycle until
+      // reshuffle). Now ~25% per turn, paired with the smarter target
+      // filter (prefers utility cards over spell pieces).
+      { kind: 'discard-hand', value: 1, weight: 2, telegraph: '🗑 takes 1 from your hand' },
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'attack', value: 4, weight: 2, telegraph: '⚔ 4 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (lonely-thread)' },
@@ -7794,16 +7799,24 @@ export default function App() {
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
     } else if (intent.kind === 'discard-hand') {
       // v2.96: Loom Familiar — pulls a card out of the player's hand.
-      // Discards `value` random cards. Forces hand-management decisions:
-      // do you hold key spell pieces or play them defensively this turn?
+      // v3.1.2: prefer NON-SPELL cards (skills, gestures, c-* utilities).
+      // Spell pieces (intro/subject/target) are rare and singletons in
+      // most starter decks — losing one randomly locked players out of
+      // casts entirely. Now the discard hits utility cards first, only
+      // touching spell pieces if no other options are available.
       const n = Math.min(intent.value || 1, hand.length);
       if (n > 0) {
         const idxs = [];
         const handCopy = [...hand];
+        const isSpellPiece = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
         for (let k = 0; k < n; k++) {
-          const idx = Math.floor(Math.random() * handCopy.length);
-          idxs.push(handCopy[idx]);
-          handCopy.splice(idx, 1);
+          if (handCopy.length === 0) break;
+          // Try non-spell pool first; fall back to anything if that's empty.
+          const nonSpellIdxs = handCopy.map((c, i) => isSpellPiece(c) ? -1 : i).filter(i => i >= 0);
+          const pool = nonSpellIdxs.length > 0 ? nonSpellIdxs : handCopy.map((_, i) => i);
+          const pickedIdx = pool[Math.floor(Math.random() * pool.length)];
+          idxs.push(handCopy[pickedIdx]);
+          handCopy.splice(pickedIdx, 1);
         }
         setHand(handCopy);
         setDiscard(d => [...d, ...idxs]);
