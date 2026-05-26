@@ -38,7 +38,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        pauseHeld = false, pauseHeldActive = false,
                        wontShutUpArmed = false, staggerActive = false,
                        notListeningCharges = 0, hitMeAgainCharges = 0,
-                       weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0 }) {
+                       weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
+                       onOpenCompendium }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -275,10 +276,19 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           return { row, owned, has };
         });
         const visible = progress.filter(p => p.owned > 0);
-        if (visible.length === 0) return null;
         return (
           <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
             <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">🎩 FFT Progress</span>
+            {onOpenCompendium && (
+              <button onClick={onOpenCompendium}
+                      title="Open the Compendium of Fully Formed Thoughts"
+                      className="px-2 py-1 text-xs rounded border bg-iris-700 text-parchment-50 border-iris-400 hover:bg-iris-600">
+                📚 Compendium
+              </button>
+            )}
+            {visible.length === 0 && (
+              <span className="text-[11px] text-parchment-400 italic">No rows collected yet — pick up a set-tagged card to start.</span>
+            )}
             {visible.map(({ row, owned, has }) => {
               const tier = WIT_TIER_SUB_BONUSES[row.tierId];
               const complete = owned === 3;

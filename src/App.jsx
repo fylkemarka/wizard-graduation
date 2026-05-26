@@ -47,6 +47,7 @@ import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
 import { CardFullBody } from './components/CardFullBody.jsx';
 import { CombatScreen } from './components/CombatScreen.jsx';
+import { Compendium } from './components/Compendium.jsx';
 
 // v2 card-pool lookup table keyed by lane.
 const LANE_POOL = { wit: WIT_V2, chutzpah: CHUTZPAH_V2, jnsq: JNSQ_V2 };
@@ -3448,6 +3449,7 @@ export default function App() {
   // `threadScaling: N` add N × longThread flat damage on cast. Persists
   // across turns; resets between combats.
   const [longThread, setLongThread] = useState(0);
+  const [compendiumOpen, setCompendiumOpen] = useState(false);
   // Track whether the player took unblocked HP damage this turn — read at
   // end-of-turn by the long-thread bookkeeping. Reset at the start of every
   // player turn.
@@ -8532,7 +8534,10 @@ export default function App() {
       riposteCharge={riposteCharge}
       braceArmedDraw={braceArmedDraw}
       log={log}
+      onOpenCompendium={() => setCompendiumOpen(true)}
     />
+    <Compendium open={compendiumOpen} onClose={() => setCompendiumOpen(false)}
+                hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
     {tutorialActive && <TutorialOverlay
       step={tutorialStep}
       lane={tutorialLane}
