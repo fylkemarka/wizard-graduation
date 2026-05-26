@@ -13,20 +13,25 @@ const INTROS = [
   // ---- Basic (5) — cost 0, +1 wit, tier 1 ----
   { id: 'wv2-i-frankly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Frankly,', tags: ['dismissive', 'cutting'], stats: { wit: 1 },
+    setId: 'atelier-4', setSlot: 'intro', tierId: 'atelier',
     flavor: 'The dictionary definition of confidence preceded by a comma.' },
   { id: 'wv2-i-actually', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Actually,', tags: ['academic', 'dismissive'], stats: { wit: 1 },
     effects: { draw: 1 },
+    setId: 'transportation-4', setSlot: 'intro', tierId: 'transportation',
     flavor: "You haven't even said anything yet, but here we are." },
   { id: 'wv2-i-honestly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Honestly,', tags: ['observational', 'cutting'], stats: { wit: 1 },
     effects: { block: 2 },
+    setId: 'transportation-5', setSlot: 'intro', tierId: 'transportation',
     flavor: 'Honesty has never been the issue.' },
   { id: 'wv2-i-truly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Truly,', tags: ['observational', 'dismissive'], stats: { wit: 1 },
+    setId: 'hygiene-4', setSlot: 'intro', tierId: 'hygiene',
     flavor: "Said with the gravity of someone who knows they've said it before." },
   { id: 'wv2-i-curiously', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Curiously,', tags: ['observational', 'ironic'], stats: { wit: 1 },
+    setId: 'hygiene-5', setSlot: 'intro', tierId: 'hygiene',
     flavor: 'Curiosity is, of course, the polite name for it.' },
 
   // ---- Common (12) — cost 0, +2 wit, tier 1 ----
@@ -56,6 +61,7 @@ const INTROS = [
   { id: 'wv2-i-speaking-plainly', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'Speaking plainly,', tags: ['cutting', 'observational'], stats: { wit: 2 },
     effects: { vulnerable: 1 },
+    setId: 'atelier-5', setSlot: 'intro', tierId: 'atelier',
     flavor: 'Plainness is the most decorated of the rhetorical arts.' },
   { id: 'wv2-i-or-rather', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'Or rather,', tags: ['observational', 'ironic'], stats: { wit: 2 },
@@ -271,6 +277,32 @@ const SUBJECTS = [
     phrase: 'your Volvo', tags: ['observational', 'continuing'], stats: { wit: 3 },
     setId: 'transportation-3', setSlot: 'subject', tierId: 'transportation',
     flavor: 'A patient car. A patient car with opinions.' },
+
+  // ---- FFT Phase 2 batch 2 — Atelier-4/5, Hygiene-4/5, Transportation-4/5 ----
+  { id: 'wv2-s-boucle-suggestion', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your bouclé suggestion', tags: ['observational', 'ironic'], stats: { wit: 3 },
+    setId: 'atelier-4', setSlot: 'subject', tierId: 'atelier',
+    flavor: 'A suggestion that, mercifully, can be revoked.' },
+  { id: 'wv2-s-evening-wear', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your evening wear', tags: ['observational', 'continuing'], stats: { wit: 3 },
+    setId: 'atelier-5', setSlot: 'subject', tierId: 'atelier',
+    flavor: 'Evening wear being, of course, time-stamped.' },
+  { id: 'wv2-s-standards-of-upkeep', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your standards of upkeep', tags: ['academic', 'cutting'], stats: { wit: 3 },
+    setId: 'hygiene-4', setSlot: 'subject', tierId: 'hygiene',
+    flavor: 'Standards being, broadly, what one calls the absence of them.' },
+  { id: 'wv2-s-towel-rotation', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your towel rotation', tags: ['observational', 'cutting'], stats: { wit: 3 },
+    setId: 'hygiene-5', setSlot: 'subject', tierId: 'hygiene',
+    flavor: 'A rotation, technically. A cycle, generously. A habit, charitably.' },
+  { id: 'wv2-s-parallel-parking', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your parallel parking attempt', tags: ['observational', 'ironic'], stats: { wit: 3 },
+    setId: 'transportation-4', setSlot: 'subject', tierId: 'transportation',
+    flavor: 'The attempt is the moral. The result is the comedy.' },
+  { id: 'wv2-s-left-lane-behavior', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your left-lane behavior', tags: ['academic', 'cutting'], stats: { wit: 3 },
+    setId: 'transportation-5', setSlot: 'subject', tierId: 'transportation',
+    flavor: 'The left lane is a covenant. You have, somehow, declined to sign.' },
 ];
 
 // =============================================================================
@@ -449,6 +481,44 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 10, multiplier: 3, damageType: 'composure' },
     setId: 'transportation-3', setSlot: 'target', tierId: 'transportation',
     flavor: 'Volvos are patient. The conversation has been queued since 2003.' },
+
+  // ---- FFT Phase 2 batch 2 — targets for rows 4-5 of each tier ----
+  // The Bouclé Suggestion (Atelier-4)
+  { id: 'wv2-t-fabric-stops-asking', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is what happens when fabric stops asking permission.', tags: ['observational', 'ironic'],
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
+    setId: 'atelier-4', setSlot: 'target', tierId: 'atelier',
+    flavor: 'Permission, in fabric, is the entire moral system.' },
+  // Late Pajamas (Atelier-5)
+  { id: 'wv2-t-8-has-been-and-gone', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'announces, with regret, that 8 has been and gone.', tags: ['observational', 'cutting'],
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
+    setId: 'atelier-5', setSlot: 'target', tierId: 'atelier',
+    flavor: 'The regret is the giveaway. Eight was, in fact, a deadline.' },
+  // Standards (Hygiene-4)
+  { id: 'wv2-t-soft-start', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'are what the rest of us call a soft start.', tags: ['academic', 'cutting'],
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
+    setId: 'hygiene-4', setSlot: 'target', tierId: 'hygiene',
+    flavor: 'Softness, here, is a clinical observation. Not a kindness.' },
+  // The Towel (Hygiene-5)
+  { id: 'wv2-t-did-not-ask-to-know', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'tells us things we did not ask to know.', tags: ['observational', 'cutting'],
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
+    setId: 'hygiene-5', setSlot: 'target', tierId: 'hygiene',
+    flavor: 'We did not ask. The towel still spoke.' },
+  // The Parallel (Transportation-4)
+  { id: 'wv2-t-essence-public-service', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is, in essence, a public service.', tags: ['observational', 'ironic'],
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
+    setId: 'transportation-4', setSlot: 'target', tierId: 'transportation',
+    flavor: 'The service being free entertainment for everyone watching.' },
+  // The Left Lane (Transportation-5)
+  { id: 'wv2-t-jurisdiction-moral-failing', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is, in this jurisdiction, a moral failing.', tags: ['academic', 'cutting'],
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
+    setId: 'transportation-5', setSlot: 'target', tierId: 'transportation',
+    flavor: 'Most jurisdictions, in fact. Civilised ones, certainly.' },
 ];
 
 // =============================================================================

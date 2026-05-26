@@ -91,8 +91,30 @@ export const WIT_ROWS = [
     rider: { longThreadPerm: 1, poise: 1 },
     riderDesc: '+1 Long Thread permanently AND +1 Poise.',
   },
+  {
+    id: 'atelier-4',
+    tierId: 'atelier',
+    name: 'The Bouclé Suggestion',
+    canonical: 'Frankly, your bouclé suggestion is what happens when fabric stops asking permission.',
+    introId:   'wv2-i-frankly',
+    subjectId: 'wv2-s-boucle-suggestion',
+    targetId:  'wv2-t-fabric-stops-asking',
+    rider: { longThreadPerm: 1, composure: 2 },
+    riderDesc: '+1 Long Thread permanently AND +2 Composure.',
+  },
+  {
+    id: 'atelier-5',
+    tierId: 'atelier',
+    name: 'Late Pajamas',
+    canonical: 'Speaking plainly, your evening wear announces, with regret, that 8 has been and gone.',
+    introId:   'wv2-i-speaking-plainly',
+    subjectId: 'wv2-s-evening-wear',
+    targetId:  'wv2-t-8-has-been-and-gone',
+    rider: { longThreadPerm: 2, composure: 1 },
+    riderDesc: '+2 Long Thread permanently AND +1 Composure.',
+  },
 
-  // ---- Hygiene (8 rows total — 3 of 8 written) ----
+  // ---- Hygiene (8 rows total — 5 of 8 written) ----
   {
     id: 'hygiene-1',
     tierId: 'hygiene',
@@ -126,8 +148,30 @@ export const WIT_ROWS = [
     rider: { damageMult: 1.3, composure: 2 },
     riderDesc: 'Cast damage ×1.3 AND +2 Composure.',
   },
+  {
+    id: 'hygiene-4',
+    tierId: 'hygiene',
+    name: 'Standards',
+    canonical: 'Truly, your standards of upkeep are what the rest of us call a soft start.',
+    introId:   'wv2-i-truly',
+    subjectId: 'wv2-s-standards-of-upkeep',
+    targetId:  'wv2-t-soft-start',
+    rider: { composure: 3, block: 2 },
+    riderDesc: '+3 Composure AND +2 Block this turn.',
+  },
+  {
+    id: 'hygiene-5',
+    tierId: 'hygiene',
+    name: 'The Towel',
+    canonical: 'Curiously, your towel rotation tells us things we did not ask to know.',
+    introId:   'wv2-i-curiously',
+    subjectId: 'wv2-s-towel-rotation',
+    targetId:  'wv2-t-did-not-ask-to-know',
+    rider: { composure: 5 },
+    riderDesc: '+5 Composure — towel-grade certainty.',
+  },
 
-  // ---- Transportation (8 rows total — 3 of 8 written) ----
+  // ---- Transportation (8 rows total — 5 of 8 written) ----
   {
     id: 'transportation-1',
     tierId: 'transportation',
@@ -160,6 +204,28 @@ export const WIT_ROWS = [
     targetId:  'wv2-t-conversation-with-you-itself',
     rider: { block: 5, poise: 1 },
     riderDesc: '+5 Block this turn AND +1 Poise.',
+  },
+  {
+    id: 'transportation-4',
+    tierId: 'transportation',
+    name: 'The Parallel',
+    canonical: 'Actually, your parallel parking attempt is, in essence, a public service.',
+    introId:   'wv2-i-actually',
+    subjectId: 'wv2-s-parallel-parking',
+    targetId:  'wv2-t-essence-public-service',
+    rider: { block: 5, draw: 1 },
+    riderDesc: '+5 Block this turn AND draw 1.',
+  },
+  {
+    id: 'transportation-5',
+    tierId: 'transportation',
+    name: 'The Left Lane',
+    canonical: 'Honestly, your left-lane behavior is, in this jurisdiction, a moral failing.',
+    introId:   'wv2-i-honestly',
+    subjectId: 'wv2-s-left-lane-behavior',
+    targetId:  'wv2-t-jurisdiction-moral-failing',
+    rider: { block: 4, longThreadPerm: 1, poise: 1 },
+    riderDesc: '+4 Block this turn, +1 Long Thread permanently, +1 Poise.',
   },
 ];
 
