@@ -119,8 +119,8 @@ function buildStarterDeck(lane) {
   let introIds, subjectId, targetId;
   if (lane === 'wit') {
     introIds = ['wv2-i-frankly', 'wv2-i-actually'];
-    subjectId = 'wv2-s-boucle-suggestion';
-    targetId  = 'wv2-t-fabric-stops-asking';
+    subjectId = 'wv2-s-boucle-starter';
+    targetId  = 'wv2-t-fabric-starter';
   } else {
     introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
     subjectId = basics(pool.subject)[0]?.id;

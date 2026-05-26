@@ -623,9 +623,12 @@ function buildStarterDeckForLane(lane) {
   // the first combat.
   let introIds, subjectId, targetId;
   if (lane === 'wit') {
+    // v3.2 damage tune: use basic-tier STARTER variants of Bouclé/Fabric.
+    // Same setId='atelier-4' so FFT still fires in combat 1; basic stats
+    // keep the cast at ~10 dmg vs the uncommon variants' ~27 dmg one-shot.
     introIds = ['wv2-i-frankly', 'wv2-i-actually'];
-    subjectId = 'wv2-s-boucle-suggestion';
-    targetId  = 'wv2-t-fabric-stops-asking';
+    subjectId = 'wv2-s-boucle-starter';
+    targetId  = 'wv2-t-fabric-starter';
   } else {
     introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
     subjectId = basics(pool.subject)[0]?.id;

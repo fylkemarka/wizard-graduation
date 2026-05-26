@@ -152,8 +152,8 @@ export const WIT_ROWS = [
     introId:   'wv2-i-specifically-speaking',
     subjectId: 'wv2-s-gentleman-bidet',
     targetId:  'wv2-t-not-a-gentleman',
-    rider: { damageMult: 1.5 },
-    riderDesc: 'Cast damage ×1.5 — the moral truth cuts through.',
+    rider: { damageMult: 1.25 },
+    riderDesc: 'Cast damage ×1.25 — the moral truth cuts through.',
   },
   {
     id: 'hygiene-2',
@@ -174,8 +174,8 @@ export const WIT_ROWS = [
     introId:   'wv2-i-or-rather',
     subjectId: 'wv2-s-dental-schedule',
     targetId:  'wv2-t-politely-call-memorial',
-    rider: { damageMult: 1.3, composure: 2 },
-    riderDesc: 'Cast damage ×1.3 AND +2 Composure.',
+    rider: { damageMult: 1.15, composure: 2 },
+    riderDesc: 'Cast damage ×1.15 AND +2 Composure.',
   },
   {
     id: 'hygiene-5',

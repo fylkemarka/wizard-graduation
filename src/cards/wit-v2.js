@@ -12,11 +12,11 @@ const LANE = 'wit';
 const INTROS = [
   // ---- Basic (5) — cost 0, +1 wit, tier 1 ----
   { id: 'wv2-i-frankly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Frankly,', tags: ['dismissive', 'cutting'], stats: { wit: 1 },
+    phrase: 'Frankly,', tags: ['cutting'], stats: { wit: 1 },
     setId: 'atelier-4', setSlot: 'intro', tierId: 'atelier',
     flavor: 'The dictionary definition of confidence preceded by a comma.' },
   { id: 'wv2-i-actually', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Actually,', tags: ['academic', 'dismissive'], stats: { wit: 1 },
+    phrase: 'Actually,', tags: ['academic', 'cutting'], stats: { wit: 1 },
     effects: { draw: 1 },
     setId: 'transportation-4', setSlot: 'intro', tierId: 'transportation',
     flavor: "You haven't even said anything yet, but here we are." },
@@ -26,19 +26,19 @@ const INTROS = [
     setId: 'transportation-5', setSlot: 'intro', tierId: 'transportation',
     flavor: 'Honesty has never been the issue.' },
   { id: 'wv2-i-truly', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Truly,', tags: ['observational', 'dismissive'], stats: { wit: 1 },
+    phrase: 'Truly,', tags: ['observational', 'cutting'], stats: { wit: 1 },
     flavor: "Said with the gravity of someone who knows they've said it before." },
   { id: 'wv2-i-curiously', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Curiously,', tags: ['observational', 'ironic'], stats: { wit: 1 },
+    phrase: 'Curiously,', tags: ['observational'], stats: { wit: 1 },
     setId: 'hygiene-5', setSlot: 'intro', tierId: 'hygiene',
     flavor: 'Curiosity is, of course, the polite name for it.' },
 
   // ---- Common (12) — cost 0, +2 wit, tier 1 ----
   { id: 'wv2-i-strikes-me', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'It strikes me that', tags: ['observational', 'dismissive'], stats: { wit: 2 },
+    phrase: 'It strikes me that', tags: ['observational', 'cutting'], stats: { wit: 2 },
     flavor: 'The strike is yours. The me is not.' },
   { id: 'wv2-i-i-should-think', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'I should think that', tags: ['academic', 'dismissive'], stats: { wit: 2 },
+    phrase: 'I should think that', tags: ['academic', 'cutting'], stats: { wit: 2 },
     setId: 'transportation-3', setSlot: 'intro', tierId: 'transportation',
     flavor: 'Should-think being a softer cousin of must-acknowledge.' },
   { id: 'wv2-i-pardon-saying', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
@@ -51,11 +51,11 @@ const INTROS = [
     setId: 'transportation-2', setSlot: 'intro', tierId: 'transportation',
     flavor: 'Strictness is, today, a virtue worth performing.' },
   { id: 'wv2-i-memory-serves', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'If memory serves,', tags: ['academic', 'ironic'], stats: { wit: 2 },
+    phrase: 'If memory serves,', tags: ['academic', 'observational'], stats: { wit: 2 },
     setId: 'atelier-8', setSlot: 'intro', tierId: 'atelier',
     flavor: 'Memory is serving. The food is leftovers.' },
   { id: 'wv2-i-by-any-measure', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'By any measure,', tags: ['academic', 'dismissive'], stats: { wit: 2 },
+    phrase: 'By any measure,', tags: ['academic', 'cutting'], stats: { wit: 2 },
     flavor: 'Most measures, anyway. Certainly the kind one.' },
   { id: 'wv2-i-speaking-plainly', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'Speaking plainly,', tags: ['cutting', 'observational'], stats: { wit: 2 },
@@ -63,19 +63,19 @@ const INTROS = [
     setId: 'atelier-5', setSlot: 'intro', tierId: 'atelier',
     flavor: 'Plainness is the most decorated of the rhetorical arts.' },
   { id: 'wv2-i-or-rather', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'Or rather,', tags: ['observational', 'ironic'], stats: { wit: 2 },
+    phrase: 'Or rather,', tags: ['observational'], stats: { wit: 2 },
     effects: { draw: 1 },
     setId: 'hygiene-3', setSlot: 'intro', tierId: 'hygiene',
     flavor: 'The revision is the point. The original was scaffolding.' },
   { id: 'wv2-i-it-would-appear', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'It would appear that', tags: ['observational', 'dismissive'], stats: { wit: 2 },
+    phrase: 'It would appear that', tags: ['observational', 'cutting'], stats: { wit: 2 },
     flavor: 'Appearances, in matters like this, are the entire substance.' },
   { id: 'wv2-i-being-honest', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: "If we're being honest,", tags: ['dismissive', 'cutting'], stats: { wit: 2 },
+    phrase: "If we're being honest,", tags: ['cutting'], stats: { wit: 2 },
     effects: { draw: 1, loseHp: 1 },
     flavor: 'The we is presumptuous. It always is.' },
   { id: 'wv2-i-one-could-argue', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'One could argue that', tags: ['academic', 'ironic'], stats: { wit: 2 },
+    phrase: 'One could argue that', tags: ['academic', 'observational'], stats: { wit: 2 },
     flavor: "One could. One won't have to." },
   { id: 'wv2-i-let-the-record', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
     phrase: 'Let the record show that', tags: ['academic'], stats: { wit: 2 },
@@ -84,7 +84,7 @@ const INTROS = [
   // 'continuing' tag is reserved for future thread-payoff cards that key
   // off carrying the argument forward; right now it's narrative.
   { id: 'wv2-i-as-i-was-saying', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
-    phrase: 'as I was saying,', tags: ['continuing', 'elaborate'], stats: { wit: 2 },
+    phrase: 'as I was saying,', tags: ['academic'], stats: { wit: 2 },
     flavor: 'The thread, after all, was never broken — only set aside briefly.' },
 
   // ---- Uncommon (6) — cost 1, +3 wit, tier 2 ----
@@ -93,17 +93,17 @@ const INTROS = [
     setId: 'atelier-2', setSlot: 'intro', tierId: 'atelier',
     flavor: 'Observation, in this dialect, is a verb that lands.' },
   { id: 'wv2-i-charitable', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'Were I being charitable,', tags: ['ironic', 'dismissive'], stats: { wit: 3 },
+    phrase: 'Were I being charitable,', tags: ['observational', 'cutting'], stats: { wit: 3 },
     flavor: 'Charity is a discipline. You may not be ready for it.' },
   { id: 'wv2-i-setting-aside', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'Setting aside the obvious,', tags: ['academic', 'cutting'], stats: { wit: 3 },
     setId: 'hygiene-6', setSlot: 'intro', tierId: 'hygiene',
     flavor: 'The obvious is a heavy thing. You leave it on the table for now.' },
   { id: 'wv2-i-if-records-trusted', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'If the records can be trusted,', tags: ['academic', 'ironic'], stats: { wit: 3 },
+    phrase: 'If the records can be trusted,', tags: ['academic', 'observational'], stats: { wit: 3 },
     flavor: 'They can. That is, in fact, the worst part.' },
   { id: 'wv2-i-put-generously', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'To put it generously,', tags: ['ironic', 'dismissive'], stats: { wit: 3 },
+    phrase: 'To put it generously,', tags: ['observational', 'cutting'], stats: { wit: 3 },
     flavor: 'Generosity, here, is an act of restraint. Witnessed.' },
   { id: 'wv2-i-purely-analytical', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'From a purely analytical perspective,', tags: ['academic', 'observational'], stats: { wit: 3 },
@@ -120,7 +120,7 @@ const INTROS = [
   // ---- FFT Sample Rows (Phase 2 — three sample intros, one per tier) ----
   // Linen Truths (Atelier) — "As I was saying to the fabric merchant,"
   { id: 'wv2-i-fabric-merchant', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'As I was saying to the fabric merchant,', tags: ['observational', 'continuing'], stats: { wit: 3 },
+    phrase: 'As I was saying to the fabric merchant,', tags: ['observational', 'academic'], stats: { wit: 3 },
     setId: 'atelier-1', setSlot: 'intro', tierId: 'atelier',
     flavor: 'The fabric merchant has, in fact, been waiting for the conclusion of that thought.' },
   // The First Principle (Hygiene) — "Specifically speaking,"
@@ -148,7 +148,7 @@ const SUBJECTS = [
     phrase: 'this argument', tags: ['academic', 'observational'], stats: { wit: 1 },
     flavor: 'The argument, taken on its own terms, having arrived too sure of itself.' },
   { id: 'wv2-s-your-conclusion', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your conclusion', tags: ['academic', 'dismissive'], stats: { wit: 1 },
+    phrase: 'your conclusion', tags: ['academic', 'cutting'], stats: { wit: 1 },
     flavor: "The conclusion is the part that didn't survive the road." },
   { id: 'wv2-s-your-sources', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
     phrase: 'your sources', tags: ['academic', 'cutting'], stats: { wit: 1 },
@@ -160,16 +160,16 @@ const SUBJECTS = [
 
   // ---- Common (12) ----
   { id: 'wv2-s-your-dissertation', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your dissertation', tags: ['academic', 'dismissive'], stats: { wit: 2 },
+    phrase: 'your dissertation', tags: ['academic', 'cutting'], stats: { wit: 2 },
     flavor: 'Bound, defended, and from this distance — undamaged.' },
   { id: 'wv2-s-this-entire-enterprise', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-    phrase: 'this entire enterprise', tags: ['dismissive', 'observational'], stats: { wit: 2 },
+    phrase: 'this entire enterprise', tags: ['cutting', 'observational'], stats: { wit: 2 },
     flavor: 'The word entire being asked to do unusual lifting today.' },
   { id: 'wv2-s-the-very-premise', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
     phrase: 'the very premise', tags: ['academic', 'cutting'], stats: { wit: 2 },
     flavor: 'Very is the most generous adverb in the philosophical lexicon.' },
   { id: 'wv2-s-your-standards', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your standards', tags: ['academic', 'dismissive'], stats: { wit: 2 },
+    phrase: 'your standards', tags: ['academic', 'cutting'], stats: { wit: 2 },
     flavor: 'They are, at the very least, your own.' },
   { id: 'wv2-s-your-taste', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
     phrase: 'your taste', tags: ['observational', 'cutting'], stats: { wit: 2 },
@@ -189,11 +189,11 @@ const SUBJECTS = [
     effects: { stealBlock: { strip: 5, gain: 3 } },
     flavor: "The defenses, on inspection, were ornamental. Useful to neither party." },
   { id: 'wv2-s-the-syllabus', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-    phrase: 'the syllabus', tags: ['academic', 'dismissive'], stats: { wit: 2 },
+    phrase: 'the syllabus', tags: ['academic', 'cutting'], stats: { wit: 2 },
     effects: { draw: 1 },
     flavor: 'A reading list, in the older and more honest sense.' },
   { id: 'wv2-s-the-bibliography', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-    phrase: "the bibliography you've assembled", tags: ['academic', 'ironic'], stats: { wit: 2 },
+    phrase: "the bibliography you've assembled", tags: ['academic', 'observational'], stats: { wit: 2 },
     flavor: 'Assembled, here, being a polite word for collected and shrugged at.' },
   { id: 'wv2-s-your-central-thesis', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
     phrase: 'your central thesis', tags: ['academic', 'cutting'], stats: { wit: 2 },
@@ -205,7 +205,7 @@ const SUBJECTS = [
     phrase: 'your methodology', tags: ['academic'], stats: { wit: 2 },
     flavor: 'Method, ology, and the silence between them.' },
   { id: 'wv2-s-so-called-proof', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-    phrase: 'this so-called proof', tags: ['academic', 'ironic'], stats: { wit: 2 },
+    phrase: 'this so-called proof', tags: ['academic', 'observational'], stats: { wit: 2 },
     flavor: 'So-called by the kindest among us. The rest have other words.' },
   { id: 'wv2-s-conclusions-drawn', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
     phrase: "the conclusions you've drawn", tags: ['academic', 'observational'], stats: { wit: 2 },
@@ -213,7 +213,7 @@ const SUBJECTS = [
 
   // ---- Uncommon (6) ----
   { id: 'wv2-s-elaborate-edifice', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'the elaborate edifice of your reasoning', tags: ['academic', 'ironic'], stats: { wit: 3 },
+    phrase: 'the elaborate edifice of your reasoning', tags: ['academic', 'observational'], stats: { wit: 3 },
     flavor: 'Elaborate, in architecture, often signals load-bearing fashion.' },
   { id: 'wv2-s-studied-opacity', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'the studied opacity of your prose', tags: ['academic', 'cutting'], stats: { wit: 3 },
@@ -222,10 +222,10 @@ const SUBJECTS = [
     phrase: "every assumption you've quietly imported", tags: ['academic', 'cutting'], stats: { wit: 3 },
     flavor: 'Quietness is, on inspection, the most audible thing here.' },
   { id: 'wv2-s-passes-for-rigor', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'what passes for rigor here', tags: ['academic', 'dismissive'], stats: { wit: 3 },
+    phrase: 'what passes for rigor here', tags: ['academic', 'cutting'], stats: { wit: 3 },
     flavor: 'Passes, in this context, being a verb of movement, not validation.' },
   { id: 'wv2-s-breathtaking-confidence', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'the breathtaking confidence of your claim', tags: ['observational', 'ironic'], stats: { wit: 3 },
+    phrase: 'the breathtaking confidence of your claim', tags: ['observational'], stats: { wit: 3 },
     flavor: 'Breath is being lost, certainly. The reason is unclear.' },
   { id: 'wv2-s-unexamined-certainty', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'your impressively unexamined certainty', tags: ['observational', 'cutting'], stats: { wit: 3 },
@@ -233,11 +233,23 @@ const SUBJECTS = [
 
   // ---- Rare (2) ----
   { id: 'wv2-s-slow-architecture', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
-    phrase: 'the slow architecture of your self-deception', tags: ['academic', 'cutting', 'ironic'], stats: { wit: 4 },
+    phrase: 'the slow architecture of your self-deception', tags: ['academic', 'cutting', 'observational'], stats: { wit: 4 },
     flavor: 'Slow because it had time. Architecture because someone clearly drew plans.' },
   { id: 'wv2-s-not-thought-through', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'everything you have not thought through carefully', tags: ['academic', 'cutting', 'observational'], stats: { wit: 4 },
     flavor: 'Everything is a strong word. It is, here, the precisely correct one.' },
+
+  // v3.2 damage tune: basic-tier STARTER variant of the Bouclé subject.
+  // Wit starter seeds Atelier-4 row so the player triggers FFT in combat 1,
+  // but the uncommon-tier original made starter casts ~27 dmg (one-shot
+  // act-1 enemies). This basic-tier copy keeps the same phrase + setId so
+  // FFT detection still fires, while bringing the cast back to ~10 dmg.
+  // Rarity 'basic' keeps it out of the reward pool — only used at starter.
+  // Player can draft the uncommon version later for the damage upgrade.
+  { id: 'wv2-s-boucle-starter', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your bouclé suggestion', tags: ['observational'], stats: { wit: 1 },
+    setId: 'atelier-4', setSlot: 'subject', tierId: 'atelier',
+    flavor: 'A suggestion that, mercifully, can be revoked.' },
 
   // ---- FFT Sample Rows (Phase 2 — two new subjects; Atelier reuses your-taste) ----
   // The First Principle (Hygiene) — "the gentleman who skips the bidet"
@@ -273,17 +285,17 @@ const SUBJECTS = [
     setId: 'transportation-2', setSlot: 'subject', tierId: 'transportation',
     flavor: 'The sign is a contract. The contract is in dispute.' },
   { id: 'wv2-s-your-volvo', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your Volvo', tags: ['observational', 'continuing'], stats: { wit: 3 },
+    phrase: 'your Volvo', tags: ['observational', 'academic'], stats: { wit: 3 },
     setId: 'transportation-3', setSlot: 'subject', tierId: 'transportation',
     flavor: 'A patient car. A patient car with opinions.' },
 
   // ---- FFT Phase 2 batch 2 — Atelier-4/5, Hygiene-4/5, Transportation-4/5 ----
   { id: 'wv2-s-boucle-suggestion', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your bouclé suggestion', tags: ['observational', 'ironic'], stats: { wit: 3 },
+    phrase: 'your bouclé suggestion', tags: ['observational'], stats: { wit: 3 },
     setId: 'atelier-4', setSlot: 'subject', tierId: 'atelier',
     flavor: 'A suggestion that, mercifully, can be revoked.' },
   { id: 'wv2-s-evening-wear', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your evening wear', tags: ['observational', 'continuing'], stats: { wit: 3 },
+    phrase: 'your evening wear', tags: ['observational', 'academic'], stats: { wit: 3 },
     setId: 'atelier-5', setSlot: 'subject', tierId: 'atelier',
     flavor: 'Evening wear being, of course, time-stamped.' },
   { id: 'wv2-s-standards-of-upkeep', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -294,7 +306,7 @@ const SUBJECTS = [
     setId: 'hygiene-5', setSlot: 'subject', tierId: 'hygiene',
     flavor: 'A rotation, technically. A cycle, generously. A habit, charitably.' },
   { id: 'wv2-s-parallel-parking', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your parallel parking attempt', tags: ['observational', 'ironic'], stats: { wit: 3 },
+    phrase: 'your parallel parking attempt', tags: ['observational'], stats: { wit: 3 },
     setId: 'transportation-4', setSlot: 'subject', tierId: 'transportation',
     flavor: 'The attempt is the moral. The result is the comedy.' },
   { id: 'wv2-s-left-lane-behavior', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -304,13 +316,13 @@ const SUBJECTS = [
 
   // ---- FFT Phase 2 final batch — Atelier 6-8, Hygiene 6-8, Transportation 6-8 ----
   { id: 'wv2-s-wool-spring', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your wool, in spring,', tags: ['observational', 'ironic'], stats: { wit: 3 },
+    phrase: 'your wool, in spring,', tags: ['observational'], stats: { wit: 3 },
     flavor: 'Wool, in spring, being a sartorial cry for help.' },
   { id: 'wv2-s-hem-garment', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'the hem of that garment', tags: ['observational', 'cutting'], stats: { wit: 3 },
     flavor: 'The hem is, in tailoring, where the honesty lives.' },
   { id: 'wv2-s-silk-before-8', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'the silk one wears before 8', tags: ['academic', 'continuing'], stats: { wit: 3 },
+    phrase: 'the silk one wears before 8', tags: ['academic'], stats: { wit: 3 },
     setId: 'atelier-8', setSlot: 'subject', tierId: 'atelier',
     flavor: 'A specific silk. He has, of course, an example.' },
   { id: 'wv2-s-bathroom-door', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
@@ -324,7 +336,7 @@ const SUBJECTS = [
     phrase: 'your post-meal ritual', tags: ['academic', 'cutting'], stats: { wit: 3 },
     flavor: 'Ritual being, in any civilised house, the entire compact.' },
   { id: 'wv2-s-roundabout', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your relationship to the roundabout', tags: ['academic', 'ironic'], stats: { wit: 3 },
+    phrase: 'your relationship to the roundabout', tags: ['academic', 'observational'], stats: { wit: 3 },
     flavor: 'A roundabout requires a thesis. You arrived with a question.' },
   { id: 'wv2-s-speed-limit', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'your relationship to the speed limit', tags: ['academic', 'observational'], stats: { wit: 3 },
@@ -361,7 +373,7 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
     flavor: 'The whole sentence is a setup. This is the snap.' },
   { id: 'wv2-t-what-i-expected', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
-    phrase: 'is exactly what I expected.', tags: ['dismissive', 'observational'],
+    phrase: 'is exactly what I expected.', tags: ['cutting', 'observational'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', rider: { weak: 1 } },
     flavor: 'Expectations, in this case, were a kindness.' },
   { id: 'wv2-t-not-survive-scrutiny', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
@@ -369,7 +381,7 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
     flavor: 'Survival being a matter of one careful look.' },
   { id: 'wv2-t-politely-overlooked', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
-    phrase: 'has been politely overlooked, until now.', tags: ['ironic', 'dismissive'],
+    phrase: 'has been politely overlooked, until now.', tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure', drawAfterCast: 1 },
     flavor: 'Politeness is a renewable resource. Today it ran out.' },
   { id: 'wv2-t-questions-you-fear', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
@@ -379,11 +391,11 @@ const TARGETS = [
 
   // ---- Uncommon (6) — cost 2 ----
   { id: 'wv2-t-lacks-seriousness', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'lacks the seriousness it pretends to.', tags: ['academic', 'dismissive'],
+    phrase: 'lacks the seriousness it pretends to.', tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 8, multiplier: 2, damageType: 'composure', rider: { weak: 1 } },
     flavor: 'The pretense was the only weight it carried.' },
   { id: 'wv2-t-drunk-parrot', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'could have been written by a slightly drunk parrot.', tags: ['ironic', 'cutting'],
+    phrase: 'could have been written by a slightly drunk parrot.', tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
     flavor: 'Slightly drunk because the parrot, like you, has standards.' },
   { id: 'wv2-t-mistakes-vehemence', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
@@ -391,29 +403,29 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
     flavor: 'The two have, at this point, never even been introduced.' },
   { id: 'wv2-t-dried-apricot', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'has the texture of a dried apricot.', tags: ['ironic', 'observational'],
+    phrase: 'has the texture of a dried apricot.', tags: ['observational'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     flavor: 'The apricot, to be fair, never claimed to be more.' },
   { id: 'wv2-t-remembered-briefly', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'will be remembered, briefly, with embarrassment.', tags: ['cutting', 'dismissive'],
+    phrase: 'will be remembered, briefly, with embarrassment.', tags: ['cutting'],
     effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
     flavor: 'Briefly, because embarrassment is exhausting work.' },
   { id: 'wv2-t-too-dull', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'survives only by being too dull to attack.', tags: ['ironic', 'cutting'],
+    phrase: 'survives only by being too dull to attack.', tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 9, multiplier: 2, damageType: 'composure' },
     flavor: 'And yet, here we are.' },
   // v2.34: LONG THREAD payoff target. Cast damage = base 6 + Wit×3 +
   // (Long Thread × 3). Wit's first thread-scaling card — at LT=3 it's
   // +9 dmg, at LT=5 it's +15. Pays off conservative defensive play.
   { id: 'wv2-t-natural-conclusion', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is, perhaps, the natural conclusion.', tags: ['rhetorical', 'elaborate'],
+    phrase: 'is, perhaps, the natural conclusion.', tags: ['academic'],
     effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure', threadScaling: 3 },
     desc: 'Cast: 6 + Wit×3 + Long Thread × 3 composure.',
     flavor: 'Natural is doing some work here, but it gets to.' },
 
   // ---- Rare (4) — cost 2-3 ----
   { id: 'wv2-t-generous-error', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is, in the most generous reading, an error.', tags: ['academic', 'ironic'],
+    phrase: 'is, in the most generous reading, an error.', tags: ['academic', 'observational'],
     effect: { scaleBy: 'wit', base: 10, multiplier: 3, damageType: 'composure', rider: { weak: 2 } },
     flavor: 'Less generous readings have been collected and indexed.' },
   { id: 'wv2-t-future-studies', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
@@ -421,7 +433,7 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure', tier3Double: true },
     flavor: 'The citation is the gift. The avoidance is the lesson.' },
   { id: 'wv2-t-announces-itself', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'announces itself, repeatedly, while saying nothing.', tags: ['observational', 'ironic', 'cutting'],
+    phrase: 'announces itself, repeatedly, while saying nothing.', tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 11, multiplier: 3, damageType: 'composure' },
     flavor: 'The announcement was the entire content. Loudness mistaken for substance.' },
   { id: 'wv2-t-own-punctuation', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 3, type: 'effect',
@@ -448,10 +460,21 @@ const TARGETS = [
   // drops back to a baseline 5 + Wit×3 — you held it too long. Pratchett-tone
   // dovetails with the existing 'rhetorical' / 'continuing' wit cluster.
   { id: 'wv2-t-let-me-begin', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
-    phrase: 'is what I propose to begin by saying.', tags: ['rhetorical', 'continuing'],
+    phrase: 'is what I propose to begin by saying.', tags: ['academic'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', openingBonus: 4 },
     desc: 'Cast: 5 + Wit×3 composure (+4 on turn 1 OR while the opening is extended).',
     flavor: 'A standard convocation. The standard is the trick.' },
+
+  // v3.2 damage tune: basic-tier STARTER variant of the Fabric target.
+  // Same setId as the uncommon Fabric (atelier-4) so FFT detection still
+  // fires, but base damage is 4 (vs uncommon's 7) and tier 1 (vs 2). At
+  // tier 1, full row cast = (4 + 2×3) × 1.0 = 10 dmg + atelier-4 rider.
+  // Rarity 'basic' keeps it out of reward pool.
+  { id: 'wv2-t-fabric-starter', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
+    phrase: 'is what happens when fabric stops asking permission.', tags: ['observational'],
+    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure' },
+    setId: 'atelier-4', setSlot: 'target', tierId: 'atelier',
+    flavor: 'Permission, in fabric, is the entire moral system.' },
 
   // ---- FFT Sample Rows (Phase 2 — three sample targets, one per tier) ----
   // Linen Truths (Atelier)
@@ -482,7 +505,7 @@ const TARGETS = [
     flavor: 'One being, in this case, the entire civilised population.' },
   // The Cuff (Atelier-3)
   { id: 'wv2-t-wrong-and-proud', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is, somehow, both wrong and proud.', tags: ['observational', 'ironic'],
+    phrase: 'is, somehow, both wrong and proud.', tags: ['observational'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     flavor: 'The pride is the worse half. The wrongness is just the setup.' },
   // Dry Shaving (Hygiene-2)
@@ -493,7 +516,7 @@ const TARGETS = [
     flavor: 'Aesthetics being, in his school, the only ethics that hold up.' },
   // Dental (Hygiene-3)
   { id: 'wv2-t-politely-call-memorial', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is what the rest of us would politely call a memorial.', tags: ['ironic', 'cutting'],
+    phrase: 'is what the rest of us would politely call a memorial.', tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 10, multiplier: 3, damageType: 'composure' },
     setId: 'hygiene-3', setSlot: 'target', tierId: 'hygiene',
     flavor: 'Politeness, in a memorial setting, is the entire performance.' },
@@ -505,7 +528,7 @@ const TARGETS = [
     flavor: 'A suggestion being, legally speaking, a contract you ignored.' },
   // The Volvo Sermon (Transportation-3)
   { id: 'wv2-t-conversation-with-you-itself', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'would have, by now, had the conversation with you itself.', tags: ['observational', 'ironic'],
+    phrase: 'would have, by now, had the conversation with you itself.', tags: ['observational'],
     effect: { scaleBy: 'wit', base: 10, multiplier: 3, damageType: 'composure' },
     setId: 'transportation-3', setSlot: 'target', tierId: 'transportation',
     flavor: 'Volvos are patient. The conversation has been queued since 2003.' },
@@ -513,7 +536,7 @@ const TARGETS = [
   // ---- FFT Phase 2 batch 2 — targets for rows 4-5 of each tier ----
   // The Bouclé Suggestion (Atelier-4)
   { id: 'wv2-t-fabric-stops-asking', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is what happens when fabric stops asking permission.', tags: ['observational', 'ironic'],
+    phrase: 'is what happens when fabric stops asking permission.', tags: ['observational'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     setId: 'atelier-4', setSlot: 'target', tierId: 'atelier',
     flavor: 'Permission, in fabric, is the entire moral system.' },
@@ -536,7 +559,7 @@ const TARGETS = [
     flavor: 'We did not ask. The towel still spoke.' },
   // The Parallel (Transportation-4)
   { id: 'wv2-t-essence-public-service', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is, in essence, a public service.', tags: ['observational', 'ironic'],
+    phrase: 'is, in essence, a public service.', tags: ['observational'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     setId: 'transportation-4', setSlot: 'target', tierId: 'transportation',
     flavor: 'The service being free entertainment for everyone watching.' },
@@ -550,7 +573,7 @@ const TARGETS = [
   // ---- FFT Phase 2 final batch — targets for rows 6-8 of each tier ----
   // Wool's Opinions (Atelier-6)
   { id: 'wv2-t-its-own-opinions', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'has its own opinions.', tags: ['observational', 'ironic'],
+    phrase: 'has its own opinions.', tags: ['observational'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     flavor: 'Wool develops opinions. Linen, in spring, simply behaves.' },
   // The Hem (Atelier-7)
@@ -560,7 +583,7 @@ const TARGETS = [
     flavor: 'Charity has its limits. The hem has, regretfully, exposed them.' },
   // Silk by Eight (Atelier-8)
   { id: 'wv2-t-not-what-one-wears-after', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is not what one wears after.', tags: ['academic', 'continuing'],
+    phrase: 'is not what one wears after.', tags: ['academic'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     setId: 'atelier-8', setSlot: 'target', tierId: 'atelier',
     flavor: 'Before 8 and after 8 being, in textiles, two different gravities.' },
@@ -582,12 +605,12 @@ const TARGETS = [
     flavor: 'Optional being, in this case, a synonym for "absent altogether."' },
   // Roundabouts (Transportation-6)
   { id: 'wv2-t-insurance-forms', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is what insurance forms are for.', tags: ['observational', 'ironic'],
+    phrase: 'is what insurance forms are for.', tags: ['observational'],
     effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
     flavor: 'The forms have been pre-filled. By the underwriter. With a sigh.' },
   // Speed Limits (Transportation-7)
   { id: 'wv2-t-generously-aspirational', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is, generously, aspirational.', tags: ['academic', 'ironic'],
+    phrase: 'is, generously, aspirational.', tags: ['academic', 'observational'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     flavor: 'Aspiration, here, being a polite name for "regularly exceeded."' },
   // The Four-Way Stop (Transportation-8)
@@ -612,11 +635,11 @@ const MODIFIERS = [
   // time it's footnoted. The 'continuing' tag makes it eligible for any
   // future long-thread payoff card that keys off carrying the argument.
   { id: 'wv2-m-on-reflection', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'modifier',
-    modifierKind: 'pre', phrase: 'On reflection,', tags: ['hedge', 'continuing'], stats: { wit: 1 },
+    modifierKind: 'pre', phrase: 'On reflection,', tags: ['academic'], stats: { wit: 1 },
     modifierEffect: { addsTag: 'hedge' },
     flavor: 'Reflection being the second-most-honest of the rhetorical positions.' },
   { id: 'wv2-m-obviously', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'modifier',
-    modifierKind: 'post', phrase: '— obviously,', tags: ['dismissive'],
+    modifierKind: 'post', phrase: '— obviously,', tags: ['cutting'],
     modifierEffect: { addsTag: 'dismissive', rider: { weak: 1 } },
     flavor: 'Obviousness has, in this case, taken its sweet time.' },
   { id: 'wv2-m-i-daresay', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'modifier',
@@ -638,17 +661,17 @@ const MODIFIERS = [
     modifierEffect: { addsTag: 'cutting', damageMult: 1.5 },
     flavor: 'Apologies being the only honest part of the sentence.' },
   { id: 'wv2-m-back-row-hears', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'modifier',
-    modifierKind: 'pre', phrase: '(shouted clearly so the back row hears,)', tags: ['dismissive'],
+    modifierKind: 'pre', phrase: '(shouted clearly so the back row hears,)', tags: ['cutting'],
     modifierEffect: { addsTag: 'dismissive', rider: { weak: 2 }, selfComposureCost: 1 },
     flavor: 'Volume is, on rare occasions, the entire argument.' },
   { id: 'wv2-m-three-ways', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'modifier',
-    modifierKind: 'post', phrase: "— and I mean this in three ways,", tags: ['ironic'],
+    modifierKind: 'post', phrase: "— and I mean this in three ways,", tags: ['observational'],
     modifierEffect: { perSharedTag: 3 },
     flavor: 'Three ways being a polite undercount.' },
 
   // ---- Rare (2) ----
   { id: 'wv2-m-needlepoint', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
-    modifierKind: 'post', phrase: '— to be made into a needlepoint by your enemies,', tags: ['cutting', 'ironic'],
+    modifierKind: 'post', phrase: '— to be made into a needlepoint by your enemies,', tags: ['cutting', 'observational'],
     modifierEffect: { tier3Payoff: { damageMult: 2.0, rider: { vulnerable: 2 } } },
     flavor: 'The needlepoint will hang in their hallway. They will see it daily.' },
   { id: 'wv2-m-anyone-with-eyes', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
@@ -657,7 +680,7 @@ const MODIFIERS = [
     flavor: 'The eyes have, until now, been politely closed.' },
   // Defensive modifier — block on cast.
   { id: 'wv2-m-measured-restraint', slot: 'modifier', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'modifier',
-    modifierKind: 'post', phrase: '— with measured restraint,', tags: ['formal', 'academic'],
+    modifierKind: 'post', phrase: '— with measured restraint,', tags: ['academic'],
     modifierEffect: { addsTag: 'formal', rider: { block: 4 } },
     flavor: 'Restraint, in this case, being a verb performed at audience.' },
 ];
@@ -694,7 +717,7 @@ const GESTURES = [
 
 const UNIQUE_TARGETS = [
   { id: 'wv2-t-footnote-bears-out', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: '…as the long footnote bears out.', tags: ['academic', 'ironic'],
+    phrase: '…as the long footnote bears out.', tags: ['academic', 'observational'],
     effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure', perDiscardCard: 1 },
     flavor: 'The footnote is on page 814. The page is, technically, also a footnote.' },
   // v2.15: BURST card — wit's signature payoff. Cash in the attached
@@ -725,7 +748,7 @@ const SKILLS = [
   // (card instances are rebuilt at combat start from buildStartingDeck).
   { id: 'wv2-k-hewn-greaves-footnotes', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
     name: 'As Hewn-Greaves notes in his footnotes,', phrase: 'As Hewn-Greaves notes in his footnotes,',
-    tags: ['rhetorical', 'elaborate'],
+    tags: ['academic'],
     effects: { footnotePrompt: true, exhaust: true },
     desc: 'Skill. Exhaust. Pick a Word card in hand or discard — that copy gains a permanent +1 wit footnote for the rest of combat. Stacks.',
     flavor: 'Citation needed. Citation provided. Citation, you must understand, in the technical sense.' },
@@ -737,7 +760,7 @@ const SKILLS = [
   // turn the player keeps lining up cast → correct.
   { id: 'wv2-k-actually', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
     name: 'Actually—', phrase: 'Actually—',
-    tags: ['rhetorical', 'continuing'],
+    tags: ['academic'],
     effects: { refireLastCast: true },
     desc: 'Skill. Re-fire your last cast this turn at ×1.5 damage. Each play this turn: +1 damage from every enemy attack this turn. Needs a cast.',
     flavor: 'Actually being a word that, in wit, recasts the room.' },
@@ -750,7 +773,7 @@ const SKILLS = [
   // each turn.
   { id: 'wv2-k-hold-on', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
     name: 'Hold on, hold on —', phrase: 'Hold on, hold on —',
-    tags: ['rhetorical', 'continuing'],
+    tags: ['academic'],
     effects: { holdOnPrep: true },
     desc: 'Skill. Arm: next enemy swing is reduced by your current Long Thread. Snapshotted on play. Clears when used OR at start of your next turn.',
     flavor: 'A pause given the same weight as the speech it interrupts.' },
@@ -763,7 +786,7 @@ const SKILLS = [
   // within one fight.
   { id: 'wv2-k-revisit-opening', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
     name: 'to revisit my opening point,', phrase: 'to revisit my opening point,',
-    tags: ['rhetorical', 'hedge'],
+    tags: ['academic'],
     effects: { extendOpening: true },
     desc: 'Skill. Your next wit Effect cast this combat counts as turn 1 (its openingBonus still applies). Single-use per combat.',
     flavor: 'Revisitation being, properly executed, a small civic ceremony.' },
@@ -775,7 +798,7 @@ const SKILLS = [
   // a stack without losing the whole turn to inactivity.
   { id: 'wv2-k-let-you-finish', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'skill',
     name: "I'll let you finish,", phrase: "I'll let you finish,",
-    tags: ['hedge', 'rhetorical'],
+    tags: ['academic'],
     effects: { skipCastBank: true },
     desc: 'Skill. If Patience is installed, +1 patience stack. Cost 0.',
     flavor: 'Generous in the technical sense.' },
@@ -787,7 +810,7 @@ const SKILLS = [
   // from the offense side.
   { id: 'wv2-k-word-in-edgewise', slot: 'skill', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'skill',
     name: 'Word in Edgewise', phrase: 'Word in Edgewise',
-    tags: ['rhetorical', 'cutting'],
+    tags: ['academic', 'cutting'],
     effects: { escalatingSwingReduction: true, exhaust: true },
     desc: 'Skill. Until end of next enemy attack: each successive swing deals 1 more damage less (1st full, 2nd -1, 3rd -2, …). Damage caps at 0. Exhaust.',
     flavor: 'You speak. Between two of theirs.' },
@@ -805,13 +828,13 @@ const SKILLS = [
 // also lets the player skip the Hewn-Greaves prompt for this one slot.
 const SYNERGY_CAPSTONE_CARDS = [
   { id: 'wv2-t-in-summary', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is, in summary, the inescapable conclusion.', tags: ['rhetorical', 'elaborate', 'continuing'],
+    phrase: 'is, in summary, the inescapable conclusion.', tags: ['academic'],
     effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure',
               threadScaling: 4, openingBonus: 5, delayedMisstep: true },
     desc: 'Cast: 8 + Wit×3 comp. +4/Long Thread, +5 on turn 1 (or extended). Queues a Misstep in 2 turns.',
     flavor: 'Summary being a polite word for verdict.' },
   { id: 'wv2-m-as-previously-stated', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
-    modifierKind: 'pre', phrase: 'as previously stated,', tags: ['continuing', 'hedge'], stats: { wit: 1 },
+    modifierKind: 'pre', phrase: 'as previously stated,', tags: ['academic'], stats: { wit: 1 },
     effects: { footnoteSelfOnStage: true },
     modifierEffect: { addsTag: 'continuing' },
     desc: 'Stage: this card gains +1 footnote on itself (wit stat → 2 for this cast).',
@@ -834,7 +857,7 @@ const INSULT_VULN_CARDS = [
   // insultable enemy), 'observational' (a wit-cluster tag that's NOT in the
   // current vuln pools, included for general utility on non-insult casts).
   { id: 'wv2-s-manner-of-speaking', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'your manner of speaking,', tags: ['petty', 'dismissive', 'observational'], stats: { wit: 3 },
+    phrase: 'your manner of speaking,', tags: ['cutting', 'observational'], stats: { wit: 3 },
     effects: { vulnerable: 1 },
     flavor: 'A subject one returns to with the certainty of an honest critic.' },
   // Target — pierceVulnerableInsult: 4. With the manner-of-speaking subject
@@ -842,7 +865,7 @@ const INSULT_VULN_CARDS = [
   // adds +8 dmg (2 matches × 4). A third match (modifier tagged matching)
   // caps the bonus at +12.
   { id: 'wv2-t-cannot-bear', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'that being, of course, the very thing you cannot bear to hear.', tags: ['rhetorical', 'continuing', 'elaborate'],
+    phrase: 'that being, of course, the very thing you cannot bear to hear.', tags: ['academic'],
     effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure', pierceVulnerableInsult: 4 },
     desc: 'Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy\'s insult vulnerabilities (max 3 matches).',
     flavor: 'A flaw named is a flaw amplified.' },
@@ -859,7 +882,7 @@ const INSULT_VULN_SUBJECTS = INSULT_VULN_CARDS.filter(c => c.slot === 'subject')
 const PATIENCE_POWER = [
   { id: 'wv2-p-patience', slot: 'power', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'power',
     name: 'Patience.', phrase: 'Patience.',
-    tags: ['hedge'],
+    tags: ['academic'],
     installPower: { id: 'patience' },
     desc: 'Power. End of any turn you did NOT cast: +1 Patience. Next cast adds Patience × 2 flat damage and clears it.',
     flavor: 'Patience being, in wit, the act of not speaking yet.' },
@@ -869,7 +892,7 @@ const PATIENCE_POWER = [
 // (damage-type flip from composure to physical).
 const NEW_MODIFIERS_V26 = [
   { id: 'wv2-m-say-again', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
-    modifierKind: 'post', phrase: "— and I'll say it again,", tags: ['cutting', 'dismissive'],
+    modifierKind: 'post', phrase: "— and I'll say it again,", tags: ['cutting'],
     modifierEffect: { damageMult: 2.0 },
     flavor: 'The first time was free. The second time is on record.' },
   { id: 'wv2-m-words-actions', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'modifier',
@@ -962,7 +985,7 @@ const STARTER_CARDS = [
   // Throat-Clear — small gesture, chip + draw. Bypasses tray.
   { id: 'wv2-g-throat-clear', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
     name: 'Throat-Clear', phrase: '(clears throat. Audibly.)',
-    tags: ['observational', 'ironic'],
+    tags: ['observational'],
     gestureEffect: { icon: '🗣', damage: 3, damageType: 'composure', draw: 1, exhaust: true },
     flavor: 'A polite intervention. They will pause. They will not enjoy it.' },
 ];
