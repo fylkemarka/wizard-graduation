@@ -86,7 +86,7 @@ export const WIT_PARTIAL_ROW_BONUSES = {
 //     rider: { /* see RIDER_KEYS below */ },
 //   }
 export const WIT_ROWS = [
-  // ---- Atelier (8 rows total — 3 of 8 written) ----
+  // ---- Atelier (5 rows total) ----
   {
     id: 'atelier-1',
     tierId: 'atelier',
@@ -108,17 +108,6 @@ export const WIT_ROWS = [
     targetId:  'wv2-t-precisely-what-one-does-not-do',
     rider: { longThreadPerm: 1, draw: 1 },
     riderDesc: '+1 Long Thread permanently AND draw 1.',
-  },
-  {
-    id: 'atelier-3',
-    tierId: 'atelier',
-    name: 'The Cuff',
-    canonical: 'By any measure, your cuff is, somehow, both wrong and proud.',
-    introId:   'wv2-i-by-any-measure',
-    subjectId: 'wv2-s-your-cuff',
-    targetId:  'wv2-t-wrong-and-proud',
-    rider: { longThreadPerm: 1, poise: 1 },
-    riderDesc: '+1 Long Thread permanently AND +1 Poise.',
   },
   {
     id: 'atelier-4',
@@ -143,28 +132,6 @@ export const WIT_ROWS = [
     riderDesc: '+2 Long Thread permanently AND +1 Composure.',
   },
   {
-    id: 'atelier-6',
-    tierId: 'atelier',
-    name: "Wool's Opinions",
-    canonical: 'It would appear that your wool, in spring, has its own opinions.',
-    introId:   'wv2-i-it-would-appear',
-    subjectId: 'wv2-s-wool-spring',
-    targetId:  'wv2-t-its-own-opinions',
-    rider: { longThreadPerm: 1, draw: 1 },
-    riderDesc: '+1 Long Thread permanently AND draw 1.',
-  },
-  {
-    id: 'atelier-7',
-    tierId: 'atelier',
-    name: 'The Hem',
-    canonical: 'Were I being charitable, the hem of that garment would still be unkind.',
-    introId:   'wv2-i-charitable',
-    subjectId: 'wv2-s-hem-garment',
-    targetId:  'wv2-t-still-be-unkind',
-    rider: { longThreadPerm: 3 },
-    riderDesc: '+3 Long Thread permanently — the heaviest tailoring payout.',
-  },
-  {
     id: 'atelier-8',
     tierId: 'atelier',
     name: 'Silk by Eight',
@@ -176,7 +143,7 @@ export const WIT_ROWS = [
     riderDesc: '+2 Long Thread permanently AND +2 Composure.',
   },
 
-  // ---- Hygiene (8 rows total) ----
+  // ---- Hygiene (5 rows total) ----
   {
     id: 'hygiene-1',
     tierId: 'hygiene',
@@ -211,17 +178,6 @@ export const WIT_ROWS = [
     riderDesc: 'Cast damage ×1.3 AND +2 Composure.',
   },
   {
-    id: 'hygiene-4',
-    tierId: 'hygiene',
-    name: 'Standards',
-    canonical: 'Truly, your standards of upkeep are what the rest of us call a soft start.',
-    introId:   'wv2-i-truly',
-    subjectId: 'wv2-s-standards-of-upkeep',
-    targetId:  'wv2-t-soft-start',
-    rider: { composure: 3, block: 2 },
-    riderDesc: '+3 Composure AND +2 Block this turn.',
-  },
-  {
     id: 'hygiene-5',
     tierId: 'hygiene',
     name: 'The Towel',
@@ -243,30 +199,7 @@ export const WIT_ROWS = [
     rider: { composure: 3, draw: 1 },
     riderDesc: '+3 Composure AND draw 1.',
   },
-  {
-    id: 'hygiene-7',
-    tierId: 'hygiene',
-    name: 'The Regimen',
-    canonical: 'If the records can be trusted, your evening regimen is, in fact, ongoing.',
-    introId:   'wv2-i-if-records-trusted',
-    subjectId: 'wv2-s-evening-regimen',
-    targetId:  'wv2-t-in-fact-ongoing',
-    rider: { composure: 4, longThreadPerm: 1 },
-    riderDesc: '+4 Composure AND +1 Long Thread permanently.',
-  },
-  {
-    id: 'hygiene-8',
-    tierId: 'hygiene',
-    name: 'The Civilizing Hour',
-    canonical: 'It strikes me that your post-meal ritual is, regrettably, optional in your house.',
-    introId:   'wv2-i-strikes-me',
-    subjectId: 'wv2-s-post-meal-ritual',
-    targetId:  'wv2-t-optional-in-your-house',
-    rider: { damageMult: 1.4, composure: 1 },
-    riderDesc: 'Cast damage ×1.4 AND +1 Composure.',
-  },
-
-  // ---- Transportation (8 rows total) ----
+  // ---- Transportation (5 rows total) ----
   {
     id: 'transportation-1',
     tierId: 'transportation',
@@ -321,39 +254,6 @@ export const WIT_ROWS = [
     targetId:  'wv2-t-jurisdiction-moral-failing',
     rider: { block: 4, longThreadPerm: 1, poise: 1 },
     riderDesc: '+4 Block this turn, +1 Long Thread permanently, +1 Poise.',
-  },
-  {
-    id: 'transportation-6',
-    tierId: 'transportation',
-    name: 'Roundabouts',
-    canonical: 'One could argue that your relationship to the roundabout is what insurance forms are for.',
-    introId:   'wv2-i-one-could-argue',
-    subjectId: 'wv2-s-roundabout',
-    targetId:  'wv2-t-insurance-forms',
-    rider: { block: 5, longThreadPerm: 1 },
-    riderDesc: '+5 Block this turn AND +1 Long Thread permanently.',
-  },
-  {
-    id: 'transportation-7',
-    tierId: 'transportation',
-    name: 'Speed Limits',
-    canonical: 'Let the record show that your relationship to the speed limit is, generously, aspirational.',
-    introId:   'wv2-i-let-the-record',
-    subjectId: 'wv2-s-speed-limit',
-    targetId:  'wv2-t-generously-aspirational',
-    rider: { block: 4, draw: 1 },
-    riderDesc: '+4 Block this turn AND draw 1.',
-  },
-  {
-    id: 'transportation-8',
-    tierId: 'transportation',
-    name: 'The Four-Way Stop',
-    canonical: 'From a purely analytical perspective, your relationship to the four-way stop is, on its own, a category of confusion.',
-    introId:   'wv2-i-purely-analytical',
-    subjectId: 'wv2-s-four-way-stop',
-    targetId:  'wv2-t-category-of-confusion',
-    rider: { block: 6, poise: 1 },
-    riderDesc: '+6 Block this turn AND +1 Poise.',
   },
 ];
 
