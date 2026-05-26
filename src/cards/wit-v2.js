@@ -137,11 +137,11 @@ const INTROS = [
     phrase: 'Specifically speaking,', tags: ['academic', 'cutting'], stats: { wit: 3 },
     setId: 'hygiene-1', setSlot: 'intro', tierId: 'hygiene',
     flavor: 'Specificity, here, is a politeness. The general case is worse.' },
-  // The Long Signal (Transportation) — "I'll bet when you drive,"
-  { id: 'wv2-i-bet-when-you-drive', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: "I'll bet when you drive,", tags: ['observational', 'continuing'], stats: { wit: 3 },
+  // The Long Signal (Transportation) — "Civically speaking,"
+  { id: 'wv2-i-civically-speaking', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'Civically speaking,', tags: ['academic', 'observational'], stats: { wit: 3 },
     setId: 'transportation-1', setSlot: 'intro', tierId: 'transportation',
-    flavor: 'A small wager. He has already won it.' },
+    flavor: 'Civic, here, being the only frame that contains the offence.' },
 ];
 
 // =============================================================================
@@ -249,16 +249,16 @@ const SUBJECTS = [
     flavor: 'Everything is a strong word. It is, here, the precisely correct one.' },
 
   // ---- FFT Sample Rows (Phase 2 — two new subjects; Atelier reuses your-taste) ----
-  // The First Principle (Hygiene) — "the gentleman who skips the bidet,"
+  // The First Principle (Hygiene) — "the gentleman who skips the bidet"
   { id: 'wv2-s-gentleman-bidet', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
-    phrase: 'the gentleman who skips the bidet,', tags: ['observational', 'cutting'], stats: { wit: 4 },
+    phrase: 'the gentleman who skips the bidet', tags: ['observational', 'cutting'], stats: { wit: 4 },
     setId: 'hygiene-1', setSlot: 'subject', tierId: 'hygiene',
-    flavor: 'There exists, the wit-wizard insists, no kind way to put this.' },
-  // The Long Signal (Transportation) — "you leave your signal on,"
-  { id: 'wv2-s-leave-signal-on', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
-    phrase: 'you leave your signal on,', tags: ['observational', 'cutting'], stats: { wit: 3 },
+    flavor: 'A small distinction. A defining one.' },
+  // The Long Signal (Transportation) — "your relationship to the turn signal"
+  { id: 'wv2-s-turn-signal', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'your relationship to the turn signal', tags: ['academic', 'observational'], stats: { wit: 3 },
     setId: 'transportation-1', setSlot: 'subject', tierId: 'transportation',
-    flavor: 'For three blocks. Possibly four. He has counted.' },
+    flavor: 'A relationship, evidently, of mutual tolerance.' },
 
   // ---- FFT Phase 2 batch — Atelier-2, Atelier-3, Hygiene-2, Hygiene-3,
   //      Transportation-2, Transportation-3 (subjects) ----
@@ -485,11 +485,11 @@ const TARGETS = [
     setId: 'hygiene-1', setSlot: 'target', tierId: 'hygiene',
     flavor: 'A conclusion arrived at, regretfully, by direct observation.' },
   // The Long Signal (Transportation)
-  { id: 'wv2-t-for-a-long-time', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'for a long time.', tags: ['observational', 'cutting'],
+  { id: 'wv2-t-entire-drive', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'lasts, somehow, the entire drive.', tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
     setId: 'transportation-1', setSlot: 'target', tierId: 'transportation',
-    flavor: 'Long, in this case, being a phrase the wit-wizard has documented.' },
+    flavor: 'Lasts being, on this evidence, an indictment.' },
 
   // ---- FFT Phase 2 batch — targets for rows 2-3 of each tier ----
   // The Off-Season (Atelier-2)
