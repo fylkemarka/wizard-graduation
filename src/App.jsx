@@ -4896,7 +4896,14 @@ export default function App() {
       setDeck(opts.forcedDeck.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
       setDiscard([]);
     } else {
-      const fullDeck = [...deck, ...hand, ...discard];
+      // v3.1.3: include tray + exiled in fullDeck pool. The explicit
+      // combat-end merges (pickReward, boss-path) already fold these
+      // in, but this is the defensive catch — sidequest exits and any
+      // other transition path that bypasses those merges still have
+      // tray/exiled cards intact here, and we don't want them lost.
+      const trayCardsIn = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
+      const fullDeck = [...deck, ...hand, ...discard, ...exiled, ...trayCardsIn];
+      setExiled([]);
       // v2.13: jnsq +1 hand size at combat start (chaos dice need full
       // trays to roll). Real-play impact only — sim AI runs both ways.
       const jnsqBonus = selectedCharacter?.lane === 'jnsq' ? 1 : 0;
@@ -7976,8 +7983,14 @@ export default function App() {
         setRelics(prev => [...prev, rareRelic]);
         pushLog(`📿 Boss relic claimed: ${rareRelic.name}.`);
       }
-      setDeck(d => [...d, ...hand, ...discard, ...exiled]);
+      // v3.1.3 BUGFIX: tray cards staged at combat end were being LOST
+      // forever — enterFight resets the tray on next combat. Alan's
+      // telemetry: ended Hollow Weaver with subject staged → Pattern
+      // Maker started with no subject in deck → 0 casts across 4 turns.
+      const trayCards = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
+      setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards]);
       setHand([]); setDiscard([]); setExiled([]);
+      setTray(initialV2Tray());
       pushLog(`👑 ${enemy.name} falls. Time to craft your ${SLOT_LABEL[slot]}.`);
       setCraftingPrompt({
         slot,
@@ -8051,16 +8064,21 @@ export default function App() {
   }
 
   function pickReward(cardOrSkip) {
+    // v3.1.3 BUGFIX: include tray-staged cards in the merge. Without this,
+    // any card staged at combat end (waiting for the next turn's cast)
+    // got obliterated by enterFight's tray reset on the next combat.
+    const trayCards = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
     if (cardOrSkip) {
       logEvent(TE.CARD_PICK, { cardId: cardOrSkip.id, cardName: cardOrSkip.name, type: cardOrSkip.type, rarity: cardOrSkip.rarity, offered: rewardChoices.map(c => c?.id), source: 'combat-reward' });
-      setDeck(d => [...d, ...hand, ...discard, ...exiled, { ...cardOrSkip, uid: uid() }]);
+      setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, { ...cardOrSkip, uid: uid() }]);
       pushLog(`+ ${cardOrSkip.name} added to deck.`);
     } else {
       logEvent(TE.REWARD_SKIP, { offered: rewardChoices.map(c => c?.id), source: 'combat-reward' });
-      setDeck(d => [...d, ...hand, ...discard, ...exiled]);
+      setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards]);
       pushLog(`Skipped reward.`);
     }
     setHand([]); setDiscard([]); setExiled([]);
+    setTray(initialV2Tray());
     setRewardChoices([]);
     returnToMap();
   }
