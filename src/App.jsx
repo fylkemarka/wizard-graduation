@@ -609,11 +609,33 @@ function buildStarterDeckForLane(lane) {
   // intro keeps the "few spell options" feel while easing the hand-
   // refill bottleneck (you'll usually have AT LEAST one intro in hand).
   // Picks of common intros are still meaningfully better (stat 2 vs 1).
+  //
+  // v3.2: WIT-only — seed the starter with one COMPLETE FFT row so the
+  // player can trigger Fully Formed Thought in their first combat. We
+  // hardcode the Atelier-4 row ("The Bouclé Suggestion") because its
+  // intro (Frankly,) is already the first basic intro that would be
+  // picked anyway; we just override the generic basic subject/target
+  // with same-row cards. After this the starter has 3 atelier-4 cards
+  // (full row) + 1 transportation-4 intro + the usual util slots.
+  // Telemetry from real play (2026-05-26) showed 11 casts / 0 FFT
+  // triggers — the system was invisible because the starter never had
+  // 2 cards from one row. Seeding the row makes FFT teach-itself in
+  // the first combat.
+  let introIds, subjectId, targetId;
+  if (lane === 'wit') {
+    introIds = ['wv2-i-frankly', 'wv2-i-actually'];
+    subjectId = 'wv2-s-boucle-suggestion';
+    targetId  = 'wv2-t-fabric-stops-asking';
+  } else {
+    introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
+    subjectId = basics(pool.subject)[0]?.id;
+    targetId  = basics(pool.target)[0]?.id;
+  }
   const ids = [
-    basics(pool.intro)[0]?.id,
-    basics(pool.intro)[1]?.id,
-    basics(pool.subject)[0]?.id,
-    basics(pool.target)[0]?.id,
+    introIds[0],
+    introIds[1],
+    subjectId,
+    targetId,
     ...laneStarters,
     'c-defend', 'c-defend', 'c-defend', // v2.95: 3× defend (was 1) — block is now a real budget
     'c-compose',

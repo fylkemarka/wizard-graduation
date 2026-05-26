@@ -113,11 +113,24 @@ function buildStarterDeck(lane) {
     ...basics(pool.skill || []),
     ...basics(pool.gesture || []),
   ].map(c => c.id);
+  // v3.2: WIT-only — seed the starter with one COMPLETE FFT row
+  // (Atelier-4, "The Bouclé Suggestion") so the player can trigger
+  // Fully Formed Thought in their first combat. Mirrors App.jsx.
+  let introIds, subjectId, targetId;
+  if (lane === 'wit') {
+    introIds = ['wv2-i-frankly', 'wv2-i-actually'];
+    subjectId = 'wv2-s-boucle-suggestion';
+    targetId  = 'wv2-t-fabric-stops-asking';
+  } else {
+    introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
+    subjectId = basics(pool.subject)[0]?.id;
+    targetId  = basics(pool.target)[0]?.id;
+  }
   const ids = [
-    basics(pool.intro)[0]?.id,
-    basics(pool.intro)[1]?.id, // v3.1.4: +1 basic intro (less draw-friction)
-    basics(pool.subject)[0]?.id,
-    basics(pool.target)[0]?.id,
+    introIds[0],
+    introIds[1],
+    subjectId,
+    targetId,
     ...laneStarters,
   ].filter(Boolean);
   const cards = ids.map(id => {
