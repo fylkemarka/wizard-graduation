@@ -2,6 +2,7 @@
 // upgrade-preview, forget, and Passing-Thoughts surfaces. Extracted from
 // App.jsx (architect-review item #3 + #8: "5 divergent card renderers"
 // unified via CardFullBody in v2.86, then moved to its own module here).
+import { WIT_ROW_BY_ID, WIT_TIER_SUB_BONUSES } from '../cards/wit-v2-rows.js';
 
 // Data-driven map of card.effects keys → render-chip metadata. Adding a
 // new effect key here makes it visible across every CardFullBody surface
@@ -74,6 +75,12 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
           {effCost}
         </div>
       </div>
+      {card.setId && WIT_ROW_BY_ID[card.setId] && (
+        <div className="text-[10px] font-bold text-iris-700 uppercase tracking-wider"
+             title={`Play all three cards of "${WIT_ROW_BY_ID[card.setId].name}" together for Fully Formed Thought: ${WIT_ROW_BY_ID[card.setId].riderDesc || 'special bonus'}`}>
+          🎩 {(WIT_TIER_SUB_BONUSES[card.tierId]?.name || card.tierId)} · {WIT_ROW_BY_ID[card.setId].name}
+        </div>
+      )}
       <div className="font-display text-[15px] leading-tight">{displayName}</div>
       {card.slot === 'annotation' && (
         <div className="text-[11px] font-bold text-iris-700 uppercase tracking-wider">

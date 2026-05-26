@@ -56,7 +56,46 @@ export const WIT_TIER_SUB_BONUSES = {
 //     targetId:  'wv2-t-not-tolerated-after-8',
 //     rider: { /* see RIDER_KEYS below */ },
 //   }
-export const WIT_ROWS = [];
+export const WIT_ROWS = [
+  // ---- Atelier (8 rows total — 1 of 8 written) ----
+  {
+    id: 'atelier-1',
+    tierId: 'atelier',
+    name: 'Linen Truths',
+    canonical: 'As I was saying to the fabric merchant, your taste would not be tolerated after 8.',
+    introId:   'wv2-i-fabric-merchant',
+    subjectId: 'wv2-s-your-taste',
+    targetId:  'wv2-t-not-tolerated-after-8',
+    rider: { longThreadPerm: 2 },
+    riderDesc: '+2 Long Thread permanently this combat.',
+  },
+
+  // ---- Hygiene (8 rows total — 1 of 8 written) ----
+  {
+    id: 'hygiene-1',
+    tierId: 'hygiene',
+    name: 'The First Principle',
+    canonical: 'Specifically speaking, the gentleman who skips the bidet, is not a gentleman at all.',
+    introId:   'wv2-i-specifically-speaking',
+    subjectId: 'wv2-s-gentleman-bidet',
+    targetId:  'wv2-t-not-a-gentleman',
+    rider: { damageMult: 1.5 },
+    riderDesc: 'Cast damage ×1.5 — the moral truth cuts through.',
+  },
+
+  // ---- Transportation (8 rows total — 1 of 8 written) ----
+  {
+    id: 'transportation-1',
+    tierId: 'transportation',
+    name: 'The Long Signal',
+    canonical: "I'll bet when you drive, you leave your signal on, for a long time.",
+    introId:   'wv2-i-bet-when-you-drive',
+    subjectId: 'wv2-s-leave-signal-on',
+    targetId:  'wv2-t-for-a-long-time',
+    rider: { block: 6, draw: 1 },
+    riderDesc: '+6 Block this turn AND draw 1.',
+  },
+];
 
 // Rider keys interpreted by applyFFTRider() in App.jsx and sim/playSimV2.js.
 // Add new keys here AND in both dispatchers.

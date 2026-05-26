@@ -4,7 +4,7 @@ N = **3** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **0 wins / 3** = **0.0%**
-- Losses by acts-cleared: 0=2 · 1=1 · 2=0 · 3=0
+- Losses by acts-cleared: 0=1 · 1=1 · 2=1 · 3=0
 
 ## Lane outcomes
 - **wit**: 1 runs · 0 wins (0.0%)
@@ -12,19 +12,19 @@ N = **3** runs simulated with a greedy v2 AI.
 - **jnsq**: 1 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-mouse**: 1 runs · 0 wins (0.0%)
-- **fam-raven**: 1 runs · 0 wins (0.0%)
-- **fam-beetle**: 1 runs · 0 wins (0.0%)
+- **fam-owl**: 1 runs · 0 wins (0.0%)
+- **fam-crow**: 1 runs · 0 wins (0.0%)
+- **fam-cat**: 1 runs · 0 wins (0.0%)
 
 ## Cast distribution
-- Total casts: 20
-- Tier 1 (COHERENT): 17 (85.0%)
-- Tier 2 (RESONANT): 3 (15.0%)
+- Total casts: 46
+- Tier 1 (COHERENT): 38 (82.6%)
+- Tier 2 (RESONANT): 8 (17.4%)
 - Tier 3 (DEVASTATING): 0 (0.0%)
-- Holds (turn ended without cast — tray persists): 79 (79.8%)
+- Holds (turn ended without cast — tray persists): 94 (67.1%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
-- Total RAGE triggers: 4
+- Total RAGE triggers: 6
 - Runs with at least one RAGE turn: 1 / 3 (33.3%)
 - Bare Knuckles casts: 0 (misfires: 0)
 
@@ -40,13 +40,13 @@ N = **3** runs simulated with a greedy v2 AI.
 - Runs with at least one Storm Out: 0 / 3 (0.0%)
 
 ## Chutzpah HIT ME AGAIN (v2.27)
-- Hit Me Again installs: 0 (runs: 0 / 3, 0.0%)
-- Total recoil damage to enemies: 0
+- Hit Me Again installs: 3 (runs: 1 / 3, 33.3%)
+- Total recoil damage to enemies: 18
 - Enemies killed by their own recoil: 0
-- Avg recoil per install: 0.0
+- Avg recoil per install: 6.0
 
 ## Chutzpah SAYING IT LOUDER (v2.29)
-- "I SAID." casts: 0 (runs: 0 / 3, 0.0%)
+- "I SAID." casts: 1 (runs: 1 / 3, 33.3%)
 - Avg loudCount per cast: 0.00
 - Avg bonus damage per cast: 0.00
 - Total bonus damage from louder: 0
@@ -62,26 +62,26 @@ N = **3** runs simulated with a greedy v2 AI.
 - Avg damage per capstone cast: 0.00
 
 ## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)
-- Skill casts: 4 (runs: 1 / 3, 33.3%)
-- Total debuff absorbs: 1
-- Avg absorbs per skill cast: 0.25
+- Skill casts: 10 (runs: 1 / 3, 33.3%)
+- Total debuff absorbs: 4
+- Avg absorbs per skill cast: 0.40
 
 ## Wit LONG THREAD (v2.34)
 - Combats reaching LT ≥ 1: 1 (runs: 1 / 3, 33.3%)
 - Avg peak LT per run (across all combats): 0.33
 - Avg peak LT per threaded combat: 1.00
-- Thread breaks (unblocked hit reset a non-zero meter): 0
-- Thread-scaling rider triggers: 1
-- Total bonus damage from thread scaling: 1
+- Thread breaks (unblocked hit reset a non-zero meter): 1
+- Thread-scaling rider triggers: 0
+- Total bonus damage from thread scaling: 0
 - "natural conclusion." target casts: 0
 - v2.43 thread-preservation skip-casts: 0
-- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
+- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 1
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 4 granted, 3 played
+- v2.92 Passing Thoughts: 6 granted, 6 played
 - v2.93 Find the Seam (bypass-effectiveness) fires: 0
 - v2.93 Precedent (echo-last-damage) fires: 0
 - v2.93 Insult-to-Injury (×N mult) fires: 0
-- v2.93 Doubletake (cast resolves twice) fires: 0
+- v2.93 Doubletake (cast resolves twice) fires: 1
 - v2.93 Skip-next-attack fires: 0
 - v2.93 Mirror Reasoning (reflect debuff) fires: 0
 - v2.93 Bracing (draw-3-on-HP-loss) fires: 0
@@ -119,12 +119,12 @@ N = **3** runs simulated with a greedy v2 AI.
 - Revisit-opening skill plays: 0
 
 ## Wit PATIENCE (v2.40)
-- Installs: 2 (runs: 1 / 3, 33.3%)
-- Peak stacks — max: 30, mean: 10.00
-- Total damage from patience-spend: 8
-- Casts that consumed bank: 1
+- Installs: 0 (runs: 0 / 3, 0.0%)
+- Peak stacks — max: 0, mean: 0.00
+- Total damage from patience-spend: 0
+- Casts that consumed bank: 0
 - "I'll let you finish," skill plays: 0
-- Avg damage / spend: 8.00
+- Avg damage / spend: 0.00
 
 ## Wit SYNERGY CAPSTONE (v2.41)
 - "in summary," casts: 0 (runs: 0 / 3, 0.0%)
@@ -157,12 +157,12 @@ N = **3** runs simulated with a greedy v2 AI.
 - Total HP lost to commitment: 0
 
 ## Jnsq DRUNKEN CONFIDENCE (v2.47)
-- Installs (per-combat): 0 (runs: 0 / 3, 0.0%)
+- Installs (per-combat): 2 (runs: 1 / 3, 33.3%)
 - Uninstalls (sober second thought): 0
-- Casts that received the +50%: 0
-- Total bonus damage from +50% on casts: 0
-- Total +2 incoming penalty taken: 0
-- Net trade: 0 (positive = paying off)
+- Casts that received the +50%: 2
+- Total bonus damage from +50% on casts: 10
+- Total +2 incoming penalty taken: 5
+- Net trade: 5 (positive = paying off)
 
 ## Jnsq AWKWARD PAUSE (v2.48)
 - "...go on, I'm listening." plays: 0 (runs: 0 / 3, 0.0%)
@@ -196,13 +196,13 @@ N = **3** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 9.57
-- Avg damage / run: 138
-- Mean final deck size: 9.7
+- Avg turns / combat: 8.20
+- Avg damage / run: 275
+- Mean final deck size: 13.7
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e3-boss-anvil (The Anvil-Forged): 1
+- e1-boss-thornlord (The Thornlord): 1
 - e2-loom-familiar (Loom Familiar): 1
-- e2-silk-wraith (Silk Wraith): 1
+- e3-geode-crab (Geode Crab): 1

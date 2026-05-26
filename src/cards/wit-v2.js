@@ -104,6 +104,23 @@ const INTROS = [
   { id: 'wv2-i-full-possession', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'And I say this with full possession of the facts,', tags: ['academic', 'cutting'], stats: { wit: 4 },
     flavor: 'The facts have been alphabetized. Indexed. Cross-referenced. Their footnotes have footnotes.' },
+
+  // ---- FFT Sample Rows (Phase 2 — three sample intros, one per tier) ----
+  // Linen Truths (Atelier) — "As I was saying to the fabric merchant,"
+  { id: 'wv2-i-fabric-merchant', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'As I was saying to the fabric merchant,', tags: ['observational', 'continuing'], stats: { wit: 3 },
+    setId: 'atelier-1', setSlot: 'intro', tierId: 'atelier',
+    flavor: 'The fabric merchant has, in fact, been waiting for the conclusion of that thought.' },
+  // The First Principle (Hygiene) — "Specifically speaking,"
+  { id: 'wv2-i-specifically-speaking', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'Specifically speaking,', tags: ['academic', 'cutting'], stats: { wit: 3 },
+    setId: 'hygiene-1', setSlot: 'intro', tierId: 'hygiene',
+    flavor: 'Specificity, here, is a politeness. The general case is worse.' },
+  // The Long Signal (Transportation) — "I'll bet when you drive,"
+  { id: 'wv2-i-bet-when-you-drive', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: "I'll bet when you drive,", tags: ['observational', 'continuing'], stats: { wit: 3 },
+    setId: 'transportation-1', setSlot: 'intro', tierId: 'transportation',
+    flavor: 'A small wager. He has already won it.' },
 ];
 
 // =============================================================================
@@ -145,6 +162,7 @@ const SUBJECTS = [
   { id: 'wv2-s-your-taste', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
     phrase: 'your taste', tags: ['observational', 'cutting'], stats: { wit: 2 },
     effects: { vulnerable: 1 },
+    setId: 'atelier-1', setSlot: 'subject', tierId: 'atelier',
     flavor: 'Taste is a private matter that has, unfortunately, become public.' },
   // v2.7: NOVEL — Tag Amplifier. When in tray, perLaneTag/perSharedTag
   // bonuses on the cast are DOUBLED. Rewards committed tag-cohesive decks.
@@ -208,6 +226,18 @@ const SUBJECTS = [
   { id: 'wv2-s-not-thought-through', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'everything you have not thought through carefully', tags: ['academic', 'cutting', 'observational'], stats: { wit: 4 },
     flavor: 'Everything is a strong word. It is, here, the precisely correct one.' },
+
+  // ---- FFT Sample Rows (Phase 2 — two new subjects; Atelier reuses your-taste) ----
+  // The First Principle (Hygiene) — "the gentleman who skips the bidet,"
+  { id: 'wv2-s-gentleman-bidet', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+    phrase: 'the gentleman who skips the bidet,', tags: ['observational', 'cutting'], stats: { wit: 4 },
+    setId: 'hygiene-1', setSlot: 'subject', tierId: 'hygiene',
+    flavor: 'There exists, the wit-wizard insists, no kind way to put this.' },
+  // The Long Signal (Transportation) — "you leave your signal on,"
+  { id: 'wv2-s-leave-signal-on', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'you leave your signal on,', tags: ['observational', 'cutting'], stats: { wit: 3 },
+    setId: 'transportation-1', setSlot: 'subject', tierId: 'transportation',
+    flavor: 'For three blocks. Possibly four. He has counted.' },
 ];
 
 // =============================================================================
@@ -328,6 +358,26 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', openingBonus: 4 },
     desc: 'Cast: 5 + Wit×3 composure (+4 on turn 1 OR while the opening is extended).',
     flavor: 'A standard convocation. The standard is the trick.' },
+
+  // ---- FFT Sample Rows (Phase 2 — three sample targets, one per tier) ----
+  // Linen Truths (Atelier)
+  { id: 'wv2-t-not-tolerated-after-8', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'would not be tolerated after 8.', tags: ['observational', 'cutting'],
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
+    setId: 'atelier-1', setSlot: 'target', tierId: 'atelier',
+    flavor: 'Eight being, of course, the appointed hour for everything that matters.' },
+  // The First Principle (Hygiene)
+  { id: 'wv2-t-not-a-gentleman', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'is not a gentleman at all.', tags: ['academic', 'cutting'],
+    effect: { scaleBy: 'wit', base: 11, multiplier: 3, damageType: 'composure' },
+    setId: 'hygiene-1', setSlot: 'target', tierId: 'hygiene',
+    flavor: 'A conclusion arrived at, regretfully, by direct observation.' },
+  // The Long Signal (Transportation)
+  { id: 'wv2-t-for-a-long-time', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'for a long time.', tags: ['observational', 'cutting'],
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure' },
+    setId: 'transportation-1', setSlot: 'target', tierId: 'transportation',
+    flavor: 'Long, in this case, being a phrase the wit-wizard has documented.' },
 ];
 
 // =============================================================================
