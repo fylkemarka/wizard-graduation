@@ -38,14 +38,19 @@ function costForCount(n) {
 export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConfirm, onCancel }) {
   // Generate pool once per open: 2 random tiers, 5 cards each. We memoize
   // on `open` so re-renders don't reroll; closing + reopening rerolls.
+  // Each pool entry gets a unique slot-uid so the selection Set can
+  // distinguish them (the source templates in WIT_V2 have no `uid`).
   const pool = useMemo(() => {
     if (!open) return [];
     const tiers = shuffle(TIER_IDS).slice(0, 2);
     const draws = [];
+    let i = 0;
     for (const t of tiers) {
       const tierCards = witCards.filter(c => c.tierId === t && c.setId);
       const picked = shuffle(tierCards).slice(0, 5);
-      draws.push(...picked);
+      for (const c of picked) {
+        draws.push({ ...c, uid: `read-${i++}-${c.id}-${Math.random().toString(36).slice(2, 8)}` });
+      }
     }
     return draws;
   }, [open]);
