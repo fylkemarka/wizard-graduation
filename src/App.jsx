@@ -5224,8 +5224,34 @@ export default function App() {
     }
     // SKILL CARD — pure utility, no stat / spell. Fires immediately.
     const fx = card.effects || {};
-    applySideEffects(fx, logBits);
-    setHand(h => h.filter((_, i) => i !== handIdx));
+    // v3.1.5 BUGFIX: handle discardHand INLINE here, before applySideEffects.
+    // Two bugs the old order caused (Decisively Inconclusive = discardHand
+    // + draw + exhaust):
+    //   1. applySideEffects swept the FULL hand (including the played card)
+    //      to discard via closure `hand`, then fx.exhaust ALSO sent the
+    //      played card to exile → duplicate on combat-end pile merge.
+    //   2. After applySideEffects ran draw 5, the post-applySideEffects
+    //      `setHand(h => h.filter((_, i) => i !== handIdx))` operated on a
+    //      stale handIdx pointing into the OLD hand layout — applied to
+    //      the new 5-drawn hand it removed a random drawn card forever
+    //      (no pile to recover from). This is how subject cards
+    //      vanished mid-game.
+    // Fix: sweep hand-minus-played to discard, clear hand to [], then skip
+    // the stale-index filter when discardHand was set. The played card's
+    // own disposition (exile via fx.exhaust, else discard) runs as normal.
+    if (fx.discardHand) {
+      const handMinusPlayed = hand.filter((_, i) => i !== handIdx);
+      if (handMinusPlayed.length > 0) {
+        setDiscard(d => [...d, ...handMinusPlayed]);
+      }
+      setHand([]);
+      logBits.push(`discard hand`);
+    }
+    const fxRest = fx.discardHand ? { ...fx, discardHand: undefined } : fx;
+    applySideEffects(fxRest, logBits);
+    if (!fx.discardHand) {
+      setHand(h => h.filter((_, i) => i !== handIdx));
+    }
     if (fx.exhaust) setExiled(ex => [...ex, card]);
     else            setDiscard(d => [...d, card]);
     pushLog(logBits.join(' · '));
@@ -6452,21 +6478,10 @@ export default function App() {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
     }
-    // v3.1.4 BUGFIX: discardHand must run BEFORE draw. Decisively
-    // Inconclusive has both `draw: 5` + `discardHand: true` — the old
-    // order drew 5 first, then discarded the entire (just-drawn) hand,
-    // leaving an empty hand until end-of-turn. Re-ordered so discard
-    // happens first, then draw refills.
-    if (fx.discardHand) {
-      // Pure-updater pattern (no nested setState — per memory:
-      // [[wg-react-pure-updaters]]). Capture hand snapshot via closure.
-      if (hand.length > 0) {
-        const captured = [...hand];
-        setHand([]);
-        setDiscard(d => [...d, ...captured]);
-      }
-      logBits.push(`discard hand`);
-    }
+    // v3.1.5: discardHand is handled INLINE in playCard's skill branch
+    // (see comment there). It MUST NOT fire here, because applySideEffects
+    // runs with stale closure `hand` that still contains the played card
+    // → duplicate + lost-card cascade. Intentionally absent.
     if (fx.draw) {
       drawCards(fx.draw);
       logBits.push(`+${fx.draw} draw`);
