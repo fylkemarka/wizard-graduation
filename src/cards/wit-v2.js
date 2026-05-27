@@ -486,13 +486,13 @@ const TARGETS = [
   // The First Principle (Hygiene)
   { id: 'wv2-t-not-a-gentleman', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: "comes back to you.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 9, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure' },
     setId: 'thorns-1', setSlot: 'target', tierId: 'thorns',
     flavor: 'A conclusion arrived at, regretfully, by direct observation.' },
   // The Long Signal (Transportation)
   { id: 'wv2-t-entire-drive', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "lands at once.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'crescendo-1', setSlot: 'target', tierId: 'crescendo',
     flavor: 'Lasts being, on this evidence, an indictment.' },
 
@@ -511,25 +511,25 @@ const TARGETS = [
   // Dry Shaving (Hygiene-2)
   { id: 'wv2-t-aesthetic-failure-first', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "rebounds with interest.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'thorns-2', setSlot: 'target', tierId: 'thorns',
     flavor: 'Aesthetics being, in his school, the only ethics that hold up.' },
   // Dental (Hygiene-3)
   { id: 'wv2-t-politely-call-memorial', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: "turns inward, sharply.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure' },
     setId: 'thorns-3', setSlot: 'target', tierId: 'thorns',
     flavor: 'Politeness, in a memorial setting, is the entire performance.' },
   // The Yield (Transportation-2)
   { id: 'wv2-t-suggestion-at-best', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "is just getting started.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'crescendo-2', setSlot: 'target', tierId: 'crescendo',
     flavor: 'A suggestion being, legally speaking, a contract you ignored.' },
   // The Volvo Sermon (Transportation-3)
   { id: 'wv2-t-conversation-with-you-itself', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: "lands hardest now.", tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure' },
     setId: 'crescendo-3', setSlot: 'target', tierId: 'crescendo',
     flavor: 'Volvos are patient. The conversation has been queued since 2003.' },
 
@@ -554,19 +554,19 @@ const TARGETS = [
   // The Towel (Hygiene-5)
   { id: 'wv2-t-did-not-ask-to-know', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "is what you get back.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'thorns-5', setSlot: 'target', tierId: 'thorns',
     flavor: 'We did not ask. The towel still spoke.' },
   // The Parallel (Transportation-4)
   { id: 'wv2-t-essence-public-service', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "adds up here.", tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'crescendo-4', setSlot: 'target', tierId: 'crescendo',
     flavor: 'The service being free entertainment for everyone watching.' },
   // The Left Lane (Transportation-5)
   { id: 'wv2-t-jurisdiction-moral-failing', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "delivers itself now.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'crescendo-5', setSlot: 'target', tierId: 'crescendo',
     flavor: 'Most jurisdictions, in fact. Civilised ones, certainly.' },
 
@@ -590,7 +590,7 @@ const TARGETS = [
   // Civic Cleanliness (Hygiene-6)
   { id: 'wv2-t-rest-follows', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "answers itself.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'thorns-6', setSlot: 'target', tierId: 'thorns',
     flavor: 'The rest, in his house, being a long list of consequences.' },
   // The Regimen (Hygiene-7)

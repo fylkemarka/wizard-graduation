@@ -391,3 +391,53 @@ Acted on (v3.4.4):
   feel like commitment rewarded, or like flavor lost?
 - Implement school-consistent draft bias in sim.
 - Tune FFT-chain awareness into sim's tray-staging heuristic.
+
+## Observations — 2026-05-27 20:11 (snapshot 9 — REAL human, v3.4.4 wit)
+
+**Validates v3.4.4 (DoT-only-on-full-FFT pivot) PLUS exposes next damage
+gap.** Telemetry: `wg-telemetry-2026-05-27T20-11-28-565Z.json`.
+4 combats, 16 turn-ends, 10 casts, 3 picks. Alan said:
+  1. "DoT feels much better. It's fun and I can feel the progression
+     aspect of it growing at a good pace."
+  2. "Using any Thorns or Crescendo effects turns wit back into an
+     immediate one-shot cannon."
+
+**Cadence:**
+- Casts/combat: **2.5** (snapshot 8 was 2.2)
+- Turns/combat: **4.0** ← dropped sharply, suggests fast kills from
+  Thorns/Crescendo burst
+- Casts/turn: **0.625**
+
+The DROP in turns/combat (5.8 → 4.0) IS the burst problem he's
+flagging. Slow Burn alone was producing ~5-6 turn combats with DoT
+ramping up; mixing in Thorns/Crescendo cast = one-shot kills again.
+
+**Picks (3 total — drafted AWAY from starter Slow Burn this run):**
+- crescendo-4 target → Thorns/Crescendo splash
+- thorns-6 subject
+- crescendo-4 subject (second copy)
+
+**Identified damage source:** Thorns/Crescendo TARGETS sit at base 5-6,
+mult 3 (vs Slow Burn's base 3 mult 2 post-v3.4.4). A mid-game cast
+with stats=5 lands ~28 burst damage on a T2 Thorns/Crescendo cast —
+sufficient to one-shot mid-tier enemies.
+
+**Acted on (v3.4.5):**
+- Brought all 10 Thorns/Crescendo set-tagged targets to MATCH Slow Burn
+  cast power: T2 → base 3 mult 2, T3 → base 5 mult 2.
+- School effects (reflect arming, bank consume) UNCHANGED — they still
+  fire only on full FFT match, same gating as Slow Burn DoT.
+- All wit targets now equally weak on baseline cast. School commitment
+  (full FFT) is the path to school payoffs across the board.
+
+**AI-heuristic deltas (still queued):**
+1. School-consistent draft bias.
+2. FFT-chain awareness in chip-skip.
+3. New: account for the lower wit baseline cast damage in sim's preview
+   logic — currently sim's "favorite target" bias may overweight the
+   wit target draft choice now that baseline cast is intentionally weak.
+
+**Open follow-ups:**
+- Snapshot 10 to confirm Thorns/Crescendo cast no longer one-shots.
+- Validate that FFT casts still feel rewarding (reflect armings,
+  bank consumes) now that baseline is weaker.
