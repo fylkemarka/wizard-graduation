@@ -7777,7 +7777,22 @@ export default function App() {
         }
       }
       if (totalDot > 0) {
-        applyDamageToEnemyComposure(totalDot);
+        // v3.3 bugfix (Alan: "Silent Spinner's block reduces by 2 each
+        // turn rather than disappearing"): DoT ticks BYPASS enemy block.
+        // The block from last turn's intent has logically just faded
+        // via setEnemyBlock(0) at endTurn:7407 — but that setState is
+        // queued, not applied. Using applyDamageToEnemyComposure here
+        // reads enemyBlock from STALE CLOSURE (pre-fade), absorbs the
+        // DoT through it, and writes back the leftover block value AFTER
+        // the queued (0)-write — last-wins direct setter restores the
+        // "faded" block. Direct setEnemyComposure bypasses the bug AND
+        // matches the intended semantic (DoT chips composure, not block).
+        setEnemyComposure(c => {
+          const after = Math.max(0, c - totalDot);
+          if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+          return after;
+        });
+        showDamageFloater(totalDot, 'composure');
         pushLog(`🔥 Slow Burn: ${totalDot} composure damage from DoT stacks.`);
       }
       if (weakStacks > 0) {
@@ -7789,7 +7804,15 @@ export default function App() {
         pushLog(`🩸 Slow Burn: enemy Vulnerable +${vulnStacks} (your spells +${25 * vulnStacks}%).`);
       }
       if (dormantBurst > 0) {
-        applyDamageToEnemyComposure(dormantBurst);
+        // v3.3 bugfix (same as DoT above): bypass block to avoid the
+        // stale-closure stale-block restoration. Dormant burst lands
+        // directly on composure — block has faded.
+        setEnemyComposure(c => {
+          const after = Math.max(0, c - dormantBurst);
+          if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+          return after;
+        });
+        showDamageFloater(dormantBurst, 'composure');
         pushLog(`💥 Festering Wound bursts — ${dormantBurst} composure damage.`);
       }
       if (bankDoubled) {
