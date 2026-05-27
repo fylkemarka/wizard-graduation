@@ -658,7 +658,7 @@ const STARTER_DECK = buildStarterDeckForLane('wit');
 // behaviors[*]: { kind, value, weight, telegraph, count? } — unchanged.
 const ENEMIES = [
   // ===== ACT 3 — The Staff Path (the deep forest, final act) =====
-  { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
+  { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 25, hpMax: 18, tier: 'normal',
     effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic', // Wants someone to explain what they're doing here.
     behaviors: [
@@ -666,7 +666,7 @@ const ENEMIES = [
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
     ] },
-  { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
+  { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 23, hpMax: 999, tier: 'normal',
     // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah in act 1).
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'threat', // Bullies fold the moment you don't.
@@ -675,7 +675,7 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
-  { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
+  { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 20, hpMax: 12, tier: 'normal',
     // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
     // partly because Shrine Rat and Thicket were freebies for it.
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
@@ -689,7 +689,7 @@ const ENEMIES = [
   // to the work. The staff turned him to wood. He is, the records will
   // show, both. The bureaucracy is unclear on the matter.
   { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather (recently inanimate)',
-    composureMax: 36, hpMax: 32, tier: 'normal',
+    composureMax: 45, hpMax: 32, tier: 'normal',
     // failure mode: mystical mishap (transformation). Chutzpah 0.6 —
     // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
     // wound. Physical 1.0 — he is also wood, axe him.
@@ -701,7 +701,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (the staff insists)' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
     ] },
-  { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
+  { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 40, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     softSpot: 'logic', // Will argue the methodology over the outcome.
     behaviors: [
@@ -710,7 +710,7 @@ const ENEMIES = [
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (cutting remark)' },
     ] },
-  { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
+  { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 69, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 },
@@ -720,7 +720,7 @@ const ENEMIES = [
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
     ] },
-  { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 95, hpMax: 115, tier: 'boss',
+  { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 119, hpMax: 115, tier: 'boss',
     // v2.16: was killing 182/500 chutzpah runs. First pass 0.7→0.85
     // overcorrected (chutzpah jumped to 41%). Settled at 0.75: still
     // a chutzpah-hostile boss, just not a trap.
@@ -735,7 +735,7 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     // v2.96: signature mechanic = Weave debt. Each "weave" intent stacks
@@ -749,7 +749,7 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
       { kind: 'attack', value: 4, pool: 'composure', weight: 1, telegraph: '🎭 4 (half-thought)' },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 20, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 25, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
@@ -759,7 +759,7 @@ const ENEMIES = [
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
@@ -782,7 +782,7 @@ const ENEMIES = [
   // working at their craft, refusing to come back. Names follow the
   // Pratchett-tone with parenthetical bureaucratic annotations.
   { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
-    composureMax: 22, hpMax: 999, tier: 'normal',
+    composureMax: 28, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 },
     // failure mode: refusal. 50 years on the same hem. Wit can't
     // out-argue him (heard every version); jnsq breaks his focus.
@@ -793,7 +793,7 @@ const ENEMIES = [
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (measures, again)' },
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 40, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
@@ -807,7 +807,7 @@ const ENEMIES = [
       // HP-side burst — the pattern lashes out physically.
       { kind: 'attack', value: 15, weight: 1, telegraph: '⚔ 15 (BROKEN-PATTERN STRIKE)' },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 40, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     softSpot: 'threat', // The vow of silence has limits.
     behaviors: [
@@ -818,7 +818,7 @@ const ENEMIES = [
       // breaking-of-the-vow moment.
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 55, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 69, hpMax: 999, tier: 'boss',
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
@@ -830,7 +830,7 @@ const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Forge Path (the mines and caves) =====
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 22, hpMax: 12, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 28, hpMax: 12, tier: 'normal',
     // v2.4: sharpened from flat-low to chutzpah-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
     effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
@@ -840,7 +840,7 @@ const ENEMIES = [
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
-  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 18, hpMax: 14, tier: 'normal',
+  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 23, hpMax: 14, tier: 'normal',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
@@ -848,7 +848,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 22, hpMax: 12, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 28, hpMax: 12, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
     effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
@@ -860,7 +860,7 @@ const ENEMIES = [
   // v2.17: rogue wizard — chutzpah-punisher. Tried to forge a ring of
   // three metals; the ring forged him. The metal absorbs direct threat.
   { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C. (alloyed)',
-    composureMax: 26, hpMax: 14, tier: 'normal',
+    composureMax: 33, hpMax: 14, tier: 'normal',
     // failure mode: transformation. Chutzpah resist 0.6 — you can't
     // bully someone whose identity is partly an iron ring. Jnsq 1.3
     // because absurdity disrupts the alloy. Physical 1.0 — he is, after
@@ -873,7 +873,7 @@ const ENEMIES = [
       { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9 (the ring tells him to)' },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (the alloy hums)' },
     ] },
-  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 28, hpMax: 22, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 35, hpMax: 22, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
     effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
@@ -885,7 +885,7 @@ const ENEMIES = [
       // v2.9 burst — single-pool HP hammer.
       { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (RULING)' },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 45, hpMax: 28, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 57, hpMax: 28, tier: 'elite',
     // v2.4: chutzpah-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
     effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
@@ -898,7 +898,7 @@ const ENEMIES = [
       // v2.9 burst — the Devourer's "DEVOUR" is a 1-shot KO risk.
       { kind: 'attack', value: 18, weight: 1, telegraph: '⚔ 18 (DEVOUR)' },
     ] },
-  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 50, hpMax: 50, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 63, hpMax: 50, tier: 'boss',
     // v2.4: Anvil flipped from chutzpah-resist to chutzpah-favored. It's
     // a forging boss — it understands direct demands. Jnsq is now the
     // softer side (0.7); wit stays neutral.
@@ -917,7 +917,7 @@ const ENEMIES = [
   // player sees clean numbers. Light incoming damage so they learn
   // Block without ever being in danger.
   // ===== SIDEQUEST ENEMIES — gated by sidequest combat nodes =====
-  { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 60, hpMax: 999, tier: 'elite',
+  { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 75, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 0 },
     softSpot: 'logic',
     insultVulnerabilities: ['dismissive', 'absurd'], // Pedant; absurdity destabilizes him most.
@@ -928,7 +928,7 @@ const ENEMIES = [
       { kind: 'block', value: 12, weight: 1, telegraph: '🛡 12 (citing himself)' },
     ] },
 
-  { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 24, hpMax: 999, tier: 'normal',
+  { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 30, hpMax: 999, tier: 'normal',
     effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic',
     behaviors: [
@@ -2345,22 +2345,21 @@ const SIDEQUESTS_BY_ACT = (() => {
 //     draw     → +N Draw every turn
 //     vuln     → applies N enemy Vulnerable every turn
 const MATERIAL_TEMPLATES = {
+  // v3.3 — staff material `power` stat (was chutzpah). Lane-agnostic.
+  // Each staff scales off the player's OWN lane at craft time (see
+  // buildCraftedEquipment) — a wit-wizard's Maple Staff scales off wit,
+  // a jnsq-wizard's off jnsq, etc.
   staff: [
-    // The Workhorse — pure damage, no rider. Predictable, reliable.
     { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', flavor: 'Clean grain, predictable yield.',
-      stats: { chutzpah: 3 } },
-    // The Glass Cannon — biggest damage in the game, but it COSTS.
+      stats: { power: 3 } },
     { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', flavor: 'Heavy in the hand; quietly self-important. Every swing takes something from you.',
-      stats: { chutzpah: 4, loseHp: 3 } },
-    // The Shield — mid damage + cast Block rider + permanent Defense.
+      stats: { power: 4, loseHp: 3 } },
     { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', flavor: "Smells of someone's grandmother. Smells of protection.",
-      stats: { chutzpah: 2, defense: 2 } },
-    // The Chaos — moderate damage + chance rider (50% bonus Vuln, 50% self-Weak).
+      stats: { power: 2, defense: 2 } },
     { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', flavor: 'Burnished red. Reads the weather. Sometimes hits the wrong target.',
-      stats: { chutzpah: 3, chance: 1, jnsq: 1 } },
-    // The Slow Burn — low damage, punishing Weak rider.
+      stats: { power: 3, chance: 1 } },
     { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', flavor: "Slightly off in a way you can't place. The enemy noticed first.",
-      stats: { chutzpah: 2, dot: 3 } },
+      stats: { power: 2, dot: 3 } },
   ],
   robes: [
     // Pure defensive baseline — damageReduction only.
@@ -2742,7 +2741,7 @@ function upgradeCard(card) {
 const QUALITY_MULT = { rough: 0.5, fine: 1.0, master: 1.5 };
 const QUALITY_LABEL = { rough: 'Rough', fine: 'Fine', master: 'Master' };
 
-function buildCraftedEquipment({ slot, material, quality, skill }) {
+function buildCraftedEquipment({ slot, material, quality, skill, lane }) {
   const q = QUALITY_MULT[quality] ?? 1.0;
   const qLabel = QUALITY_LABEL[quality] || 'Fine';
   const matStats = material.stats || {};
@@ -2751,26 +2750,22 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
   const craftedMeta = { slot, materialId: material.id, quality, skill };
 
   if (slot === 'staff') {
-    // Drawable Effect card. Material's stat profile shapes both the
-    // numbers AND the card's "feel" — Rosewood is glass-cannon,
-    // Cedar is defensive, Madrone is chaos, Hemlock is control.
-    const baseAtk = mult(8 + (matStats.chutzpah || 0) * 2);
-    const multAtk = mult(2 + (matStats.chutzpah || 0));
-    const resonatesWith = [];
-    if ((matStats.chutzpah || 0) >= 3) resonatesWith.push('booming');
-    if ((matStats.loseHp || 0)   >= 1) resonatesWith.push('threatening');
-    if ((matStats.defense || 0)  >= 1) resonatesWith.push('formal');
-    if ((matStats.jnsq || 0)     >= 1) resonatesWith.push('absurd');
-    if ((matStats.dot || 0)      >= 1) resonatesWith.push('threatening');
-    if ((matStats.chance || 0)   >= 1) resonatesWith.push('chaotic');
-    if (resonatesWith.length === 0)    resonatesWith.push('dismissive');
+    // Drawable Effect card. Material's `power` stat shapes the numbers,
+    // and the crafted staff scales off the player's OWN lane at craft
+    // time — so a wit-wizard's Maple Staff is a wit-stat card, a
+    // jnsq-wizard's is jnsq-stat, etc. Material identity (Rosewood
+    // glass-cannon, Cedar defender, etc.) carries through riders.
+    const power = matStats.power || 0;
+    const baseAtk = mult(8 + power * 2);
+    const multAtk = mult(2 + power);
+    // v3.3: lane-agnostic — staff scales off the player's lane, falling
+    // back to 'wit' if unknown.
+    const castLane = lane || 'wit';
     const effect = {
-      scaleBy: 'chutzpah',
+      scaleBy: castLane,
       base: baseAtk,
       multiplier: multAtk,
       damageType: 'composure',
-      resonatesWith: Array.from(new Set(resonatesWith)),
-      resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
       exhaust: false,
     };
     const rider = {};
@@ -2784,15 +2779,18 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     if (rider.weak)          riderText.push(`apply ${rider.weak} Weak`);
     if (effect.loseHpOnPlay) riderText.push(`lose ${effect.loseHpOnPlay} HP`);
     if (effect.chance)       riderText.push(`50%: +2 Vuln / 50%: gain 1 Weak`);
+    const laneLabel = castLane.charAt(0).toUpperCase() + castLane.slice(1);
     const card = {
       id: `eq-staff-${material.id}-${quality}`,
       name: `${namePrefix} Staff`,
       cost: 2,
       type: 'effect',
+      lane: castLane,
       rarity: 'rare',
+      slot: 'target',
       effect,
       phrase: '…and that is what the Staff says, and the Staff does not say it twice.',
-      desc: `Cast: ${baseAtk} + Chutzpah×${multAtk} Composure${riderText.length ? '. ' + riderText.join('. ') + '.' : '.'}`,
+      desc: `Cast: ${baseAtk} + ${laneLabel}×${multAtk} Composure${riderText.length ? '. ' + riderText.join('. ') + '.' : '.'}`,
       flavor: material.flavor,
       crafted: craftedMeta,
     };
@@ -4298,18 +4296,20 @@ export default function App() {
     if (node.type === 'boss')          return enterFight(currentAct.bossId);
   }
 
-  // Material node — roll 3 random variants from the current act's
-  // slot pool and open the chooser screen. The player picks one;
-  // the chosen material lands in inventory[slot].
+  // Material node — v3.3: randomize the material instead of letting the
+  // player pick from 3. Alan: "Material gathering should be randomized
+  // instead of being able to pick from 3. It's far too easy to get
+  // exactly what you want." Roll ONE material from the slot pool and
+  // drop it directly in inventory. Bypasses the chooser screen.
   function enterMaterialNode() {
     const slot = currentAct.slot;
     const pool = MATERIAL_TEMPLATES[slot] || [];
     if (pool.length === 0) { pushLog('Nothing of use here.'); return; }
-    // Pick up to 3 distinct candidates.
-    const shuffled = shuffle(pool);
-    const choices = shuffled.slice(0, Math.min(3, shuffled.length));
-    setMaterialChoices({ slot, choices });
-    setStage('material-choose');
+    const m = pool[Math.floor(Math.random() * pool.length)];
+    setInventory(prev => ({ ...prev, [m.slot]: [...prev[m.slot], m] }));
+    pushLog(`🪵 You gather ${m.name} — the road decided for you.`);
+    logEvent(TE.MATERIAL_HARVEST, { materialId: m.id, name: m.name, slot: m.slot, randomized: true });
+    returnToMap();
   }
 
   function claimMaterial(materialId) {
@@ -8445,6 +8445,7 @@ export default function App() {
       material: craftingPrompt.chosenMaterial,
       quality,
       skill,
+      lane: selectedCharacter?.lane,
     });
     setCraftingPrompt(prev => ({ ...prev, phase: 'result', quality, result: built }));
   }
@@ -8634,7 +8635,10 @@ export default function App() {
         } else advanceToNextAct();
       }} />;
   }
-  if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward} />;
+  if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward}
+    onOpenDeck={() => setDeckViewOpen(true)} deckViewOpen={deckViewOpen}
+    deck={deck} hand={hand} discard={discard} exiled={exiled} tray={tray}
+    onCloseDeck={() => setDeckViewOpen(false)} />;
   if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
   if (stage === 'material-choose') return <MaterialChooseScreen prompt={materialChoices} onPick={claimMaterial} onSkip={skipMaterial} />;
   if (stage === 'skill-event') return <SkillEventScreen event={activeSkillEvent} skills={skills} onChoose={resolveSkillChoice} />;
@@ -9739,7 +9743,8 @@ function Legend({ glyph, label }) {
 }
 
 
-function RewardScreen({ choices, onPick }) {
+function RewardScreen({ choices, onPick, onOpenDeck, deckViewOpen, onCloseDeck,
+                       deck = [], hand = [], discard = [], exiled = [], tray = null }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-3xl mx-auto">
       <h2 className="font-display text-3xl text-gold-300">Card Reward</h2>
@@ -9752,7 +9757,19 @@ function RewardScreen({ choices, onPick }) {
           </button>
         ))}
       </div>
-      <button onClick={() => onPick(null)} className="btn btn-ink mt-4">Skip</button>
+      <div className="flex gap-3 mt-4">
+        {onOpenDeck && (
+          <button onClick={onOpenDeck} className="btn btn-moss"
+                  title="See every card in your deck (hand + draw + discard + exiled + tray), grouped by FFT row">
+            🗂 View Deck
+          </button>
+        )}
+        <button onClick={() => onPick(null)} className="btn btn-ink">Skip</button>
+      </div>
+      {onOpenDeck && (
+        <DeckView open={deckViewOpen} onClose={onCloseDeck}
+                  hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
+      )}
     </div>
   );
 }
