@@ -189,6 +189,11 @@ export const TelemetryEvents = {
   CARD_PLAY: 'combat.card_play',
   SPELL_CAST: 'combat.spell_cast',
   TURN_END: 'combat.turn_end',
+  ENEMY_BLOCK_CHANGE: 'combat.enemy_block_change',
+  // v3.3 — FFT system engagement (snapshot 7 follow-ups)
+  REWARD_SAMPLER_OFFERED: 'reward.sampler_offered',
+  COMPENDIUM_OPEN: 'ui.compendium_open',
+  DECKVIEW_OPEN: 'ui.deckview_open',
   // Crafting / progression
   MATERIAL_HARVEST: 'craft.harvest',
   CRAFT_DONE: 'craft.done',

@@ -7397,7 +7397,13 @@ export default function App() {
     // fires — so an enemy that blocks on consecutive turns gets a fresh
     // pool each time, and player attacks during the previous turn can't
     // free-rider through stale block.
-    if (enemyBlock > 0) pushLog(`👹 ${enemy?.name || 'Enemy'}: 🛡 fades.`);
+    if (enemyBlock > 0) {
+      pushLog(`👹 ${enemy?.name || 'Enemy'}: 🛡 fades.`);
+      logEvent(TE.ENEMY_BLOCK_CHANGE, {
+        before: enemyBlock, after: 0, reason: 'turn-start-fade',
+        enemyId: enemy?.id, intentKind: enemyIntent?.kind,
+      });
+    }
     setEnemyBlock(0);
 
     // 3. Enemy intent.
@@ -8100,7 +8106,13 @@ export default function App() {
       }
       if (wHp <= 0 || wComp <= 0) playerDied = true;
     } else if (intent.kind === 'block') {
-      setEnemyBlock(b => b + intent.value);
+      setEnemyBlock(b => {
+        logEvent(TE.ENEMY_BLOCK_CHANGE, {
+          before: b, after: b + intent.value, reason: 'intent-block-add',
+          enemyId: e.id, intentValue: intent.value,
+        });
+        return b + intent.value;
+      });
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
     } else if (intent.kind === 'discard-hand') {
       // v2.96: Loom Familiar — pulls a card out of the player's hand.
@@ -8395,6 +8407,10 @@ export default function App() {
         if (!pick) break;
         choices.push(pick); used.push(pick.id);
       }
+      logEvent(TE.REWARD_SAMPLER_OFFERED, {
+        rowId: samplerRow.id, rowName: samplerRow.name, tierId: samplerRow.tierId,
+        slotsOffered: choices.filter(c => c.setId === samplerRow.id).length,
+      });
     } else {
       while (choices.length < 3) {
         const pick = pickCardByRarity(weights, used, lane);
@@ -8428,7 +8444,26 @@ export default function App() {
     // got obliterated by enterFight's tray reset on the next combat.
     const trayCards = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
     if (cardOrSkip) {
-      logEvent(TE.CARD_PICK, { cardId: cardOrSkip.id, cardName: cardOrSkip.name, type: cardOrSkip.type, rarity: cardOrSkip.rarity, offered: rewardChoices.map(c => c?.id), source: 'combat-reward' });
+      // v3.3: include FFT row affinity (setId/tierId) + whether the
+      // offered set looked like a school sampler. Lets snapshot 7+
+      // measure "how often do players actually pick the synergy card
+      // vs the stat card?" from telemetry.
+      const samplerSig = (() => {
+        const tags = rewardChoices.map(c => c?.setId).filter(Boolean);
+        if (tags.length < 2) return null;
+        const allMatch = tags.every(t => t === tags[0]);
+        return allMatch ? tags[0] : null;
+      })();
+      logEvent(TE.CARD_PICK, {
+        cardId: cardOrSkip.id, cardName: cardOrSkip.name, type: cardOrSkip.type,
+        rarity: cardOrSkip.rarity,
+        setId: cardOrSkip.setId || null,
+        tierId: cardOrSkip.tierId || null,
+        wasSampler: !!samplerSig,
+        samplerRowId: samplerSig,
+        offered: rewardChoices.map(c => ({ id: c?.id, setId: c?.setId || null, tierId: c?.tierId || null })),
+        source: 'combat-reward',
+      });
       setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, { ...cardOrSkip, uid: uid() }]);
       pushLog(`+ ${cardOrSkip.name} added to deck.`);
     } else {
@@ -8690,7 +8725,8 @@ export default function App() {
       }} />;
   }
   if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward}
-    onOpenDeck={() => setDeckViewOpen(true)} deckViewOpen={deckViewOpen}
+    onOpenDeck={() => { setDeckViewOpen(true); logEvent(TE.DECKVIEW_OPEN, { source: 'reward' }); }}
+    deckViewOpen={deckViewOpen}
     deck={deck} hand={hand} discard={discard} exiled={exiled} tray={tray}
     onCloseDeck={() => setDeckViewOpen(false)} />;
   if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
@@ -8836,8 +8872,8 @@ export default function App() {
       riposteCharge={riposteCharge}
       braceArmedDraw={braceArmedDraw}
       log={log}
-      onOpenCompendium={() => setCompendiumOpen(true)}
-      onOpenDeckView={() => setDeckViewOpen(true)}
+      onOpenCompendium={() => { setCompendiumOpen(true); logEvent(TE.COMPENDIUM_OPEN, { source: 'combat' }); }}
+      onOpenDeckView={() => { setDeckViewOpen(true); logEvent(TE.DECKVIEW_OPEN, { source: 'combat' }); }}
     />
     <Compendium open={compendiumOpen} onClose={() => setCompendiumOpen(false)}
                 hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
