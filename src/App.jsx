@@ -3477,11 +3477,18 @@ export default function App() {
   // across turns; resets between combats.
   const [longThread, setLongThread] = useState(0);
   // v3.3 FFT strategy tiers:
-  //   enemyDotStacks: [{ amount, turns }] — ticks each enemy turn-start
-  //   thornsCharges:  { amount, count }    — next N enemy hits reflect amount
-  //   wordsBank:      integer              — Crescendo currency; +1 per card play
-  const [enemyDotStacks, setEnemyDotStacks] = useState([]);
-  const [thornsCharges, setThornsCharges] = useState({ amount: 0, count: 0 });
+  //   scheduledEffects — unified over-time effect queue, each entry knows
+  //     its `trigger` ('enemy-turn-start' | 'player-turn-start'), its
+  //     `kind` ('damage' | 'weak' | 'vuln' | 'block' | 'draw' |
+  //     'dormantDamage' | 'bankDouble'), `amount`, and `turnsRemaining`.
+  //     Replaces v3.3-stage1's enemyDotStacks with a single mechanism
+  //     that handles DoT, debuff-over-time, self-boons, and dormant
+  //     delayed-payoff cards.
+  //   thornsCharges — { amount, count, weakOnReflect } — next N enemy
+  //     hits reflect amount, optionally apply weakOnReflect Weak each.
+  //   wordsBank — Crescendo currency; +1 per card play.
+  const [scheduledEffects, setScheduledEffects] = useState([]);
+  const [thornsCharges, setThornsCharges] = useState({ amount: 0, count: 0, weakOnReflect: 0 });
   const [wordsBank, setWordsBank] = useState(0);
   const [compendiumOpen, setCompendiumOpen] = useState(false);
   const [deckViewOpen, setDeckViewOpen] = useState(false);
@@ -4802,8 +4809,8 @@ export default function App() {
     // v2.34: wit LONG THREAD — meter + per-turn flags reset per combat.
     setLongThread(0);
     // v3.3: FFT strategy resets per combat.
-    setEnemyDotStacks([]);
-    setThornsCharges({ amount: 0, count: 0 });
+    setScheduledEffects([]);
+    setThornsCharges({ amount: 0, count: 0, weakOnReflect: 0 });
     setWordsBank(0);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
@@ -5877,12 +5884,43 @@ export default function App() {
       if (rider.energy)         setEnergy(e => e + rider.energy);
       if (rider.draw)           drawCards(rider.draw);
       if (rider.poise)          setPoise(p => p + rider.poise);
-      if (rider.dot)            setEnemyDotStacks(s => [...s, { amount: rider.dot.amount, turns: rider.dot.turns }]);
+      // v3.3 unified scheduled-effects pushes. Each rider key shape:
+      //   dot:                 { amount, turns } — composure tick per enemy turn
+      //   enemyWeakPerTurn:    { amount, turns } — Weak applied each enemy turn
+      //   enemyVulnPerTurn:    { amount, turns } — Vuln applied each enemy turn
+      //   dormantDamage:       { amount, delay }  — fires after `delay` enemy turns
+      //   selfBlockPerTurn:    { amount, turns } — block at start of player turn
+      //   selfDrawPerTurn:     { amount, turns } — draw at start of player turn
+      //   bankDoublePerTurn:   { turns }          — Words Bank doubles each enemy turn
+      const scheduleQueue = [];
+      if (rider.dot)              scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'damage', amount: rider.dot.amount, turnsRemaining: rider.dot.turns });
+      if (rider.enemyWeakPerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'weak',   amount: rider.enemyWeakPerTurn.amount, turnsRemaining: rider.enemyWeakPerTurn.turns });
+      if (rider.enemyVulnPerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'vuln',   amount: rider.enemyVulnPerTurn.amount, turnsRemaining: rider.enemyVulnPerTurn.turns });
+      if (rider.dormantDamage)    scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'dormantDamage', amount: rider.dormantDamage.amount, turnsRemaining: rider.dormantDamage.delay });
+      if (rider.selfBlockPerTurn) scheduleQueue.push({ trigger: 'player-turn-start', kind: 'block', amount: rider.selfBlockPerTurn.amount, turnsRemaining: rider.selfBlockPerTurn.turns });
+      if (rider.selfDrawPerTurn)  scheduleQueue.push({ trigger: 'player-turn-start', kind: 'draw',  amount: rider.selfDrawPerTurn.amount, turnsRemaining: rider.selfDrawPerTurn.turns });
+      if (rider.bankDoublePerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'bankDouble', amount: 0, turnsRemaining: rider.bankDoublePerTurn.turns });
+      if (scheduleQueue.length > 0) {
+        setScheduledEffects(s => [...s, ...scheduleQueue]);
+      }
+      // Thorns: extended rider shape now { amount, count, weakOnReflect }.
       if (rider.thorns) {
         setThornsCharges(t => ({
           amount: Math.max(t.amount, rider.thorns.amount),
           count: t.count + rider.thorns.count,
+          weakOnReflect: Math.max(t.weakOnReflect || 0, rider.thorns.weakOnReflect || 0),
         }));
+      }
+      // Thorns one-shot strip-block (sparkles): remove N enemy block on cast.
+      if (rider.stripEnemyBlock) {
+        setEnemyBlock(b => Math.max(0, b - rider.stripEnemyBlock));
+        pushLog(`🌹 Thorns — strip ${rider.stripEnemyBlock} block.`);
+      }
+      // Thorns one-shot force-skip-next-attack: arms the existing
+      // enemySkipNextAttack flag (used by colorless Passing Thoughts).
+      if (rider.forceSkipNextAttack) {
+        setEnemySkipNextAttack(true);
+        pushLog(`🌹 Thorns — their next attack will be answered before it lands.`);
       }
       if (rider.addBank)        setWordsBank(b => b + rider.addBank);
     };
@@ -7636,6 +7674,36 @@ export default function App() {
     // turns until consumed by a wit target cast.
     setCombatTurn(n => n + 1);
 
+    // v3.3 unified scheduled-effects tick (player-turn-start trigger).
+    // Self-boons fire here so the player sees block/draw before the
+    // enemy attacks. Iterates the same scheduledEffects state but only
+    // touches entries with trigger='player-turn-start'.
+    if (scheduledEffects.length > 0) {
+      const remaining = [];
+      let blockGained = 0;
+      let drawGained = 0;
+      for (const eff of scheduledEffects) {
+        if (eff.trigger !== 'player-turn-start') {
+          remaining.push(eff);
+          continue;
+        }
+        if (eff.kind === 'block')      blockGained += eff.amount;
+        else if (eff.kind === 'draw')  drawGained += eff.amount;
+        if (eff.turnsRemaining > 1) {
+          remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
+        }
+      }
+      if (blockGained > 0) {
+        setBlock(b => b + blockGained);
+        pushLog(`🛡 Slow Burn boon: +${blockGained} Block.`);
+      }
+      if (drawGained > 0) {
+        drawCards(drawGained);
+        pushLog(`📥 Slow Burn boon: drew ${drawGained}.`);
+      }
+      setScheduledEffects(remaining);
+    }
+
     // v2.24: RAGE entry. If the chutzpah TUNNEL VISION meter is at 5+
     // entering the new player turn, flip into RAGE: +50% potency for
     // this turn. The bonus is applied to playerDmgMult (clamped at 1.5)
@@ -7683,22 +7751,57 @@ export default function App() {
   function applyEnemyIntent(intent) {
     const e = enemy;
     if (!e) return;
-    // v3.3 Slow Burn: DoT stacks tick at start of every enemy turn. Each
-    // stack deals `amount` composure damage and decrements `turns`.
-    // Expired stacks (turns ≤ 0) are filtered out. Multiple stacks all
-    // tick on the same turn.
-    if (enemyDotStacks.length > 0) {
-      let totalDot = 0;
+    // v3.3 unified scheduled-effects tick (enemy-turn-start trigger).
+    // Handles: DoT damage, debuff-over-time (Weak/Vuln), dormant delayed
+    // payloads, and Crescendo's bankDouble. Self-boons (selfBlock/selfDraw)
+    // are not in this batch — they trigger at player-turn-start.
+    if (scheduledEffects.length > 0) {
       const remaining = [];
-      for (const s of enemyDotStacks) {
-        totalDot += s.amount;
-        if (s.turns > 1) remaining.push({ amount: s.amount, turns: s.turns - 1 });
+      let totalDot = 0;
+      let weakStacks = 0;
+      let vulnStacks = 0;
+      let dormantBurst = 0;
+      let bankDoubled = false;
+      for (const eff of scheduledEffects) {
+        if (eff.trigger !== 'enemy-turn-start') {
+          remaining.push(eff);
+          continue;
+        }
+        if (eff.kind === 'damage')        totalDot += eff.amount;
+        else if (eff.kind === 'weak')     weakStacks += eff.amount;
+        else if (eff.kind === 'vuln')     vulnStacks += eff.amount;
+        else if (eff.kind === 'bankDouble') bankDoubled = true;
+        else if (eff.kind === 'dormantDamage' && eff.turnsRemaining <= 1) {
+          dormantBurst += eff.amount;
+        }
+        if (eff.turnsRemaining > 1) {
+          remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
+        }
       }
       if (totalDot > 0) {
         applyDamageToEnemyComposure(totalDot);
         pushLog(`🔥 Slow Burn: ${totalDot} composure damage from DoT stacks.`);
       }
-      setEnemyDotStacks(remaining);
+      if (weakStacks > 0) {
+        adjustEnemyDmg(-0.25 * weakStacks);
+        pushLog(`🌡 Slow Burn: enemy weakened by ${weakStacks} stack${weakStacks > 1 ? 's' : ''}.`);
+      }
+      if (vulnStacks > 0) {
+        adjustPlayerDmg(+0.25 * vulnStacks);
+        pushLog(`🩸 Slow Burn: enemy Vulnerable +${vulnStacks} (your spells +${25 * vulnStacks}%).`);
+      }
+      if (dormantBurst > 0) {
+        applyDamageToEnemyComposure(dormantBurst);
+        pushLog(`💥 Festering Wound bursts — ${dormantBurst} composure damage.`);
+      }
+      if (bankDoubled) {
+        setWordsBank(b => {
+          const next = b * 2;
+          if (next > b) pushLog(`📚 Crescendo: Words Bank doubled (${b} → ${next}).`);
+          return Math.min(next, 40);
+        });
+      }
+      setScheduledEffects(remaining);
     }
     // v2.97: Silk Wraith phase-shift regen — fires at the start of every
     // enemy turn once phase-shifted. Hard-coded by id for the prototype.
@@ -7870,11 +7973,17 @@ export default function App() {
         }
         // v3.3 Thorns (FFT Thorns school): per-swing flat reflect from
         // armed charges. Fixed amount regardless of incoming damage.
-        // Decrements charges; expires when count hits 0.
+        // Decrements charges; expires when count hits 0. v3.3 extension:
+        // weakOnReflect amount applies Weak to enemy per charge consumed.
         const chargesLeft = initialThorns.count - thornsUsed;
         if (chargesLeft > 0 && initialThorns.amount > 0) {
           applyDamageToEnemyComposure(initialThorns.amount);
-          pushLog(`🌹 Thorns: ${initialThorns.amount} comp reflected.`);
+          let logExtra = '';
+          if (initialThorns.weakOnReflect > 0) {
+            adjustEnemyDmg(-0.25 * initialThorns.weakOnReflect);
+            logExtra = ` + Weak ${initialThorns.weakOnReflect}`;
+          }
+          pushLog(`🌹 Thorns: ${initialThorns.amount} comp reflected${logExtra}.`);
           thornsUsed++;
         }
         // v2.52: DRUNKEN STAGGER — per-swing 50% dodge. Rolled BEFORE the

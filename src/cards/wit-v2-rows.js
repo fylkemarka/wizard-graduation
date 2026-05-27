@@ -68,6 +68,8 @@ export const WIT_PARTIAL_ROW_BONUSES = {
 //   consumeBank: N       — consume wordsBank, +bank×N bonus damage to cast
 export const WIT_ROWS = [
   // ---- Slow Burn (DoT) ----
+  // SLOW BURN — each row exhibits a distinct DoT-school mechanic so the
+  // five cards feel mechanically distinct, not five flavors of "tick dmg."
   {
     id: 'slowburn-1', tierId: 'slowburn', name: 'Slow Unraveling',
     canonical: 'Over time, your argument will slowly unravel.',
@@ -79,66 +81,68 @@ export const WIT_ROWS = [
     id: 'slowburn-2', tierId: 'slowburn', name: 'Slow Decay',
     canonical: 'Permit me to observe that your reasoning will slowly decay.',
     introId: 'wv2-i-permit-me-observe', subjectId: 'wv2-s-linen-october', targetId: 'wv2-t-precisely-what-one-does-not-do',
-    rider: { dot: { amount: 3, turns: 4 } },
-    riderDesc: 'Apply DoT 3/turn for 4 turns (12 total).',
+    rider: { dot: { amount: 2, turns: 3 }, enemyWeakPerTurn: { amount: 1, turns: 3 } },
+    riderDesc: 'DoT 2/turn for 3 turns AND Weak the enemy by 1 each turn — their attacks soften as the decay sets in.',
   },
   {
     id: 'slowburn-4', tierId: 'slowburn', name: 'Lingering Point',
     canonical: 'Frankly, your point lingers, badly.',
     introId: 'wv2-i-frankly', subjectId: 'wv2-s-boucle-suggestion', targetId: 'wv2-t-fabric-stops-asking',
     rider: { dot: { amount: 2, turns: 3 }, draw: 1 },
-    riderDesc: 'Apply DoT 2/turn for 3 turns AND draw 1.',
+    riderDesc: 'DoT 2/turn for 3 turns AND draw 1. Gentle intro to the school.',
   },
   {
     id: 'slowburn-5', tierId: 'slowburn', name: 'Steady Erosion',
     canonical: 'Speaking plainly, your premise will erode steadily.',
     introId: 'wv2-i-speaking-plainly', subjectId: 'wv2-s-evening-wear', targetId: 'wv2-t-8-has-been-and-gone',
-    rider: { dot: { amount: 5, turns: 2 }, composure: 2 },
-    riderDesc: 'Apply DoT 5/turn for 2 turns AND +2 Composure.',
+    rider: { dot: { amount: 4, turns: 2 }, enemyVulnPerTurn: { amount: 1, turns: 2 } },
+    riderDesc: 'DoT 4/turn for 2 turns AND Vulnerable each turn — every cast you land during the burn hits harder.',
   },
   {
     id: 'slowburn-8', tierId: 'slowburn', name: 'The Festering Wound',
     canonical: 'If memory serves, your conclusion will fester.',
     introId: 'wv2-i-memory-serves', subjectId: 'wv2-s-silk-before-8', targetId: 'wv2-t-not-what-one-wears-after',
-    rider: { dot: { amount: 3, turns: 3 }, longThreadPerm: 1 },
-    riderDesc: 'Apply DoT 3/turn for 3 turns AND +1 Long Thread permanently.',
+    rider: { dormantDamage: { amount: 22, delay: 3 }, selfBlockPerTurn: { amount: 2, turns: 3 } },
+    riderDesc: 'DORMANT — 3 turns of nothing, then 22 composure damage. While you wait, +2 Block at the start of each of your turns.',
   },
 
   // ---- Thorns (Reflect) ----
+  // THORNS — channel the "sparkling clean surface" motif: reflect their
+  // attack as their own face, strip grime (block), preempt the move.
   {
     id: 'thorns-1', tierId: 'thorns', name: 'Returned in Kind',
     canonical: 'Specifically speaking, your next attack comes back to you.',
     introId: 'wv2-i-specifically-speaking', subjectId: 'wv2-s-gentleman-bidet', targetId: 'wv2-t-not-a-gentleman',
     rider: { thorns: { amount: 5, count: 3 } },
-    riderDesc: 'Reflect 5 damage on next 3 enemy hits.',
+    riderDesc: 'Reflect 5 damage on next 3 enemy hits. The school\'s pure-reflect baseline.',
   },
   {
     id: 'thorns-2', tierId: 'thorns', name: 'Rebound',
     canonical: 'Pardon my saying, every blow you throw rebounds with interest.',
     introId: 'wv2-i-pardon-saying', subjectId: 'wv2-s-dry-shaving', targetId: 'wv2-t-aesthetic-failure-first',
-    rider: { thorns: { amount: 4, count: 2 }, composure: 3 },
-    riderDesc: 'Reflect 4 damage on next 2 enemy hits AND +3 Composure.',
+    rider: { thorns: { amount: 4, count: 2, weakOnReflect: 1 } },
+    riderDesc: 'Reflect 4 damage on next 2 enemy hits AND apply 1 Weak per reflect. Their second swing softens what would have been the third.',
   },
   {
     id: 'thorns-3', tierId: 'thorns', name: 'Sharp Reflection',
     canonical: 'Or rather, your aggression turns inward, sharply.',
     introId: 'wv2-i-or-rather', subjectId: 'wv2-s-dental-schedule', targetId: 'wv2-t-politely-call-memorial',
-    rider: { thorns: { amount: 6, count: 2 } },
-    riderDesc: 'Reflect 6 damage on next 2 enemy hits.',
+    rider: { thorns: { amount: 9, count: 1 } },
+    riderDesc: 'ONE HUGE reflect — 9 damage on their next hit. Best opened on a multi-swing enemy where one swing matters most.',
   },
   {
     id: 'thorns-5', tierId: 'thorns', name: 'What You Get Back',
     canonical: 'Curiously, what you throw is what you get back.',
     introId: 'wv2-i-curiously', subjectId: 'wv2-s-towel-rotation', targetId: 'wv2-t-did-not-ask-to-know',
-    rider: { thorns: { amount: 3, count: 3 }, block: 4 },
-    riderDesc: 'Reflect 3 damage on next 3 enemy hits AND +4 Block.',
+    rider: { thorns: { amount: 3, count: 3 }, stripEnemyBlock: 5 },
+    riderDesc: 'Reflect 3 damage on next 3 enemy hits AND strip 5 of their Block right now. Cleans the surface so the reflect lands clean.',
   },
   {
     id: 'thorns-6', tierId: 'thorns', name: 'Answered in Advance',
     canonical: 'Setting aside the obvious, your next move answers itself.',
     introId: 'wv2-i-setting-aside', subjectId: 'wv2-s-bathroom-door', targetId: 'wv2-t-rest-follows',
-    rider: { thorns: { amount: 4, count: 2 }, draw: 1 },
-    riderDesc: 'Reflect 4 damage on next 2 enemy hits AND draw 1.',
+    rider: { thorns: { amount: 4, count: 2 }, forceSkipNextAttack: true },
+    riderDesc: 'Reflect 4 damage on next 2 hits AND their NEXT attack is skipped entirely. Pre-empts the swing — they cannot land a thing.',
   },
 
   // ---- Crescendo (Buildup / wordsBank) ----
@@ -174,15 +178,21 @@ export const WIT_ROWS = [
     id: 'crescendo-5', tierId: 'crescendo', name: 'Delivered',
     canonical: "Honestly, the case I've laid out delivers itself now.",
     introId: 'wv2-i-honestly', subjectId: 'wv2-s-left-lane-behavior', targetId: 'wv2-t-jurisdiction-moral-failing',
-    rider: { consumeBank: 2, poise: 2 },
-    riderDesc: 'Consume Words Bank for +2/word AND +2 Poise.',
+    rider: { consumeBank: 2, bankDoublePerTurn: { turns: 3 } },
+    riderDesc: 'Consume Words Bank for +2/word NOW — AND for the next 3 enemy turns, the bank doubles automatically. The longer you wait to cast another Crescendo, the bigger the next one.',
   },
 ];
 
 export const WIT_RIDER_KEYS = [
   'damageMult', 'bonus', 'longThreadPerm', 'composure',
   'block', 'energy', 'draw', 'poise',
-  'dot', 'thorns', 'addBank', 'consumeBank',
+  // v3.3 scheduled-effect riders (each pushes onto state.scheduledEffects):
+  'dot', 'enemyWeakPerTurn', 'enemyVulnPerTurn', 'dormantDamage',
+  'selfBlockPerTurn', 'selfDrawPerTurn', 'bankDoublePerTurn',
+  // Thorns extended: thorns now accepts { amount, count, weakOnReflect }.
+  'thorns', 'stripEnemyBlock', 'forceSkipNextAttack',
+  // Crescendo bank:
+  'addBank', 'consumeBank',
 ];
 
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));

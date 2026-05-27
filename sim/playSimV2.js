@@ -2152,8 +2152,7 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.passingThoughtDoubletakeFires = (telemetry.passingThoughtDoubletakeFires || 0) + 1;
       }
       // v3.2/v3.3: post-damage FFT/partial/tier rider state effects.
-      // Mirrors App.jsx applyRider — including the v3.3 strategy keys
-      // (dot/thorns/addBank).
+      // Mirrors App.jsx applyRider — unified scheduled-effects queue.
       const applyRiderSim = (rider) => {
         if (!rider) return;
         if (rider.longThreadPerm) state.longThread = (state.longThread || 0) + rider.longThreadPerm;
@@ -2162,16 +2161,23 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.energy)         state.energy = (state.energy || 0) + rider.energy;
         if (rider.draw)           drawCards(state, rider.draw);
         if (rider.poise)          state.poise = (state.poise || 0) + rider.poise;
-        if (rider.dot) {
-          if (!state.enemyDotStacks) state.enemyDotStacks = [];
-          state.enemyDotStacks.push({ amount: rider.dot.amount, turns: rider.dot.turns });
-        }
+        if (!state.scheduledEffects) state.scheduledEffects = [];
+        if (rider.dot)              state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'damage', amount: rider.dot.amount, turnsRemaining: rider.dot.turns });
+        if (rider.enemyWeakPerTurn) state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'weak',   amount: rider.enemyWeakPerTurn.amount, turnsRemaining: rider.enemyWeakPerTurn.turns });
+        if (rider.enemyVulnPerTurn) state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'vuln',   amount: rider.enemyVulnPerTurn.amount, turnsRemaining: rider.enemyVulnPerTurn.turns });
+        if (rider.dormantDamage)    state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'dormantDamage', amount: rider.dormantDamage.amount, turnsRemaining: rider.dormantDamage.delay });
+        if (rider.selfBlockPerTurn) state.scheduledEffects.push({ trigger: 'player-turn-start', kind: 'block', amount: rider.selfBlockPerTurn.amount, turnsRemaining: rider.selfBlockPerTurn.turns });
+        if (rider.selfDrawPerTurn)  state.scheduledEffects.push({ trigger: 'player-turn-start', kind: 'draw',  amount: rider.selfDrawPerTurn.amount, turnsRemaining: rider.selfDrawPerTurn.turns });
+        if (rider.bankDoublePerTurn) state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'bankDouble', amount: 0, turnsRemaining: rider.bankDoublePerTurn.turns });
         if (rider.thorns) {
-          if (!state.thornsCharges) state.thornsCharges = { amount: 0, count: 0 };
+          if (!state.thornsCharges) state.thornsCharges = { amount: 0, count: 0, weakOnReflect: 0 };
           state.thornsCharges.amount = Math.max(state.thornsCharges.amount, rider.thorns.amount);
           state.thornsCharges.count += rider.thorns.count;
+          state.thornsCharges.weakOnReflect = Math.max(state.thornsCharges.weakOnReflect || 0, rider.thorns.weakOnReflect || 0);
         }
-        if (rider.addBank)        state.wordsBank = (state.wordsBank || 0) + rider.addBank;
+        if (rider.stripEnemyBlock)  enemy.block = Math.max(0, (enemy.block || 0) - rider.stripEnemyBlock);
+        if (rider.forceSkipNextAttack) state.enemySkipNextAttack = true;
+        if (rider.addBank)          state.wordsBank = (state.wordsBank || 0) + rider.addBank;
       };
       if (fftResult.fft) {
         applyRiderSim(fftResult.fft.rider);
@@ -2789,20 +2795,32 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // Enemy turn
-    // v3.3 Slow Burn: DoT stacks tick at start of every enemy turn.
-    if (state.enemyDotStacks && state.enemyDotStacks.length > 0) {
-      let totalDot = 0;
+    // v3.3 unified scheduled-effects tick (enemy-turn-start trigger).
+    if (state.scheduledEffects && state.scheduledEffects.length > 0) {
       const remaining = [];
-      for (const s of state.enemyDotStacks) {
-        totalDot += s.amount;
-        if (s.turns > 1) remaining.push({ amount: s.amount, turns: s.turns - 1 });
+      let totalDot = 0, weakStacks = 0, vulnStacks = 0, dormantBurst = 0, bankDoubled = false;
+      for (const eff of state.scheduledEffects) {
+        if (eff.trigger !== 'enemy-turn-start') {
+          remaining.push(eff);
+          continue;
+        }
+        if (eff.kind === 'damage')      totalDot += eff.amount;
+        else if (eff.kind === 'weak')   weakStacks += eff.amount;
+        else if (eff.kind === 'vuln')   vulnStacks += eff.amount;
+        else if (eff.kind === 'bankDouble') bankDoubled = true;
+        else if (eff.kind === 'dormantDamage' && eff.turnsRemaining <= 1) dormantBurst += eff.amount;
+        if (eff.turnsRemaining > 1) remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
       }
-      if (totalDot > 0) {
-        enemy.currentComp = Math.max(0, enemy.currentComp - totalDot);
+      const totalEnemyDmg = totalDot + dormantBurst;
+      if (totalEnemyDmg > 0) {
+        enemy.currentComp = Math.max(0, enemy.currentComp - totalEnemyDmg);
         telemetry.fftDotTickDamage = (telemetry.fftDotTickDamage || 0) + totalDot;
+        telemetry.fftDormantDamage = (telemetry.fftDormantDamage || 0) + dormantBurst;
       }
-      state.enemyDotStacks = remaining;
-      // Check kill
+      if (weakStacks > 0) state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * weakStacks);
+      if (vulnStacks > 0) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * vulnStacks);
+      if (bankDoubled)    state.wordsBank = Math.min(40, (state.wordsBank || 0) * 2);
+      state.scheduledEffects = remaining;
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
         return { outcome: 'won', turns, telemetry };
@@ -2874,11 +2892,15 @@ function runCombat(state, enemyId, telemetry) {
     }
     // v3.3 Thorns: per-enemy-turn reflect. Sim models 1 composite swing
     // per turn, so 1 charge consumed per attack turn (App is per-swing).
+    // v3.3+: weakOnReflect applies Weak to enemy per charge consumed.
     if (state.thornsCharges && state.thornsCharges.count > 0 && state.thornsCharges.amount > 0 && incoming > 0) {
       enemy.currentComp = Math.max(0, enemy.currentComp - state.thornsCharges.amount);
       telemetry.fftThornsReflectDamage = (telemetry.fftThornsReflectDamage || 0) + state.thornsCharges.amount;
+      if ((state.thornsCharges.weakOnReflect || 0) > 0) {
+        state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * state.thornsCharges.weakOnReflect);
+        telemetry.fftThornsWeakApplied = (telemetry.fftThornsWeakApplied || 0) + state.thornsCharges.weakOnReflect;
+      }
       state.thornsCharges.count -= 1;
-      // Check kill — thorns can be the killing blow.
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
         return { outcome: 'won', turns, telemetry };
@@ -3148,6 +3170,23 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
     drawCards(state, HAND_SIZE);
+    // v3.3 unified scheduled-effects tick (player-turn-start trigger).
+    if (state.scheduledEffects && state.scheduledEffects.length > 0) {
+      const remaining = [];
+      let blockGained = 0, drawGained = 0;
+      for (const eff of state.scheduledEffects) {
+        if (eff.trigger !== 'player-turn-start') {
+          remaining.push(eff);
+          continue;
+        }
+        if (eff.kind === 'block')     blockGained += eff.amount;
+        else if (eff.kind === 'draw') drawGained += eff.amount;
+        if (eff.turnsRemaining > 1) remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
+      }
+      if (blockGained > 0) state.block = (state.block || 0) + blockGained;
+      if (drawGained > 0) drawCards(state, drawGained);
+      state.scheduledEffects = remaining;
+    }
     // v2.38: SAYING SOMETHING WRONG — decrement pending Misstep timers and
     // deliver any that hit zero into the freshly-drawn hand. Mirrors the
     // App's endTurn ordering: decrement runs AFTER hand reshuffle so the
