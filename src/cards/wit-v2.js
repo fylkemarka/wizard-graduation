@@ -472,7 +472,7 @@ const TARGETS = [
   // Rarity 'basic' keeps it out of reward pool.
   { id: 'wv2-t-fabric-starter', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
     phrase: "lingers, badly.", tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 2, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 2, multiplier: 1, damageType: 'composure' },
     setId: 'slowburn-4', setSlot: 'target', tierId: 'slowburn',
     flavor: 'Permission, in fabric, is the entire moral system.' },
 
@@ -480,7 +480,7 @@ const TARGETS = [
   // Linen Truths (Atelier)
   { id: 'wv2-t-not-tolerated-after-8', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will slowly unravel.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-1', setSlot: 'target', tierId: 'slowburn',
     flavor: 'Eight being, of course, the appointed hour for everything that matters.' },
   // The First Principle (Hygiene)
@@ -500,7 +500,7 @@ const TARGETS = [
   // The Off-Season (Atelier-2)
   { id: 'wv2-t-precisely-what-one-does-not-do', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will slowly decay.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-2', setSlot: 'target', tierId: 'slowburn',
     flavor: 'One being, in this case, the entire civilised population.' },
   // The Cuff (Atelier-3)
@@ -537,13 +537,13 @@ const TARGETS = [
   // The Bouclé Suggestion (Atelier-4)
   { id: 'wv2-t-fabric-stops-asking', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "lingers, badly.", tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-4', setSlot: 'target', tierId: 'slowburn',
     flavor: 'Permission, in fabric, is the entire moral system.' },
   // Late Pajamas (Atelier-5)
   { id: 'wv2-t-8-has-been-and-gone', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will erode steadily.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-5', setSlot: 'target', tierId: 'slowburn',
     flavor: 'The regret is the giveaway. Eight was, in fact, a deadline.' },
   // Standards (Hygiene-4)
@@ -584,7 +584,7 @@ const TARGETS = [
   // Silk by Eight (Atelier-8)
   { id: 'wv2-t-not-what-one-wears-after', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will fester.", tags: ['academic'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-8', setSlot: 'target', tierId: 'slowburn',
     flavor: 'Before 8 and after 8 being, in textiles, two different gravities.' },
   // Civic Cleanliness (Hygiene-6)

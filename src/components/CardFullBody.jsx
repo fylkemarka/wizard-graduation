@@ -187,13 +187,21 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
         </div>
       )}
 
-      {/* Target damage formula + rider */}
+      {/* Target damage formula + rider. v3.4.x: Slow Burn targets show
+          their DoT shape ("DoT N + WIT for M turns") instead of the
+          standard burst formula. */}
       {(card.slot === 'target' || card.type === 'effect') && card.effect && (
         <>
-          <div className="text-sm font-mono text-ink-700">
-            {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
-          </div>
-          {dmgLabel && (
+          {card.tierId === 'slowburn' ? (
+            <div className="text-sm font-mono text-ember-700">
+              🩸 DoT {card.effect.base} + {(card.effect.scaleBy || 'wit').toUpperCase()} for {card.effect.multiplier} turn{card.effect.multiplier === 1 ? '' : 's'}
+            </div>
+          ) : (
+            <div className="text-sm font-mono text-ink-700">
+              {card.effect.base} + {(card.effect.scaleBy || card.lane || 'wit').toUpperCase()}×{card.effect.multiplier}
+            </div>
+          )}
+          {dmgLabel && card.tierId !== 'slowburn' && (
             <div className={`text-[10px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 self-start ${dmgChip}`}>
               {dmgLabel}
             </div>

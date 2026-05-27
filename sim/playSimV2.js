@@ -2128,6 +2128,18 @@ function runCombat(state, enemyId, telemetry) {
       }
       // v2.93: O-1 support — capture this cast's pre-block damage as
       // lastCastDamage so the NEXT Precedent cast has something to mirror.
+      // v3.4.x — Slow Burn targets DEPOSIT DoT (mirror App.jsx).
+      // No upfront damage; cast pushes per-turn × turns into enemy.dot.
+      if (tray.target.tierId === 'slowburn') {
+        const statWit = (tray.intro?.stats?.wit || 0) + (tray.subject?.stats?.wit || 0);
+        const perTurn = Math.max(1, (tray.target.effect?.base || 0) + statWit);
+        const turns = tray.target.effect?.multiplier || 1;
+        if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
+        enemy.dot.damage += perTurn;
+        enemy.dot.turnsRemaining += turns;
+        telemetry.fftDotDepositDamage = (telemetry.fftDotDepositDamage || 0) + (perTurn * turns);
+        dmg = 0; // suppress direct damage application
+      }
       state.lastCastDamage = dmg;
       // Apply damage absorbed by enemy block first
       let remaining = dmg;

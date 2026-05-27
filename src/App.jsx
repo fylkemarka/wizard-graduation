@@ -5895,13 +5895,38 @@ export default function App() {
         });
       }
     }
+    // v3.4.x — Slow Burn targets DEPOSIT DoT instead of dealing direct
+    // damage (Alan: "For DoT, let's try out the effects cards not
+    // having a multiplier, but instead have it be the number of turns
+    // the damage will be inflicted over. Higher tiers = more turns").
+    // Reinterpret the target's effect fields for Slow Burn only:
+    //   effect.base       = base DoT damage per turn (chip value)
+    //   effect.multiplier = TURN COUNT (not damage multiplier anymore)
+    //   statTotal (wit)   = added to per-turn damage (still scales)
+    // The cast does NO upfront damage; all output flows through the
+    // Poison-style counter on enemy.dot.
+    const isSlowBurnTarget = target.tierId === 'slowburn';
+    if (isSlowBurnTarget) {
+      const statWit = (intro?.stats?.wit || 0) + (subject?.stats?.wit || 0);
+      const perTurn = Math.max(1, (target.effect?.base || 0) + statWit);
+      const turns = target.effect?.multiplier || 1;
+      setEnemy(e => {
+        if (!e) return e;
+        const cur = e.dot || { damage: 0, turnsRemaining: 0 };
+        return { ...e, dot: { damage: cur.damage + perTurn, turnsRemaining: cur.turnsRemaining + turns } };
+      });
+      pushLog(`🩸 Slow Burn deposit: +${perTurn} DoT × ${turns} turn${turns === 1 ? '' : 's'} (${perTurn * turns} total over time).`);
+      dmg = 0; // Suppress direct damage application below.
+    }
     // v2.93: O-1 support — capture the damage value for the NEXT Precedent
     // cast. Also captures last cast for any future card that wants it.
     setLastCastDamage(dmg);
     // Apply damage.
     let after = 0;
-    if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
-    else                        after = applyDamageToEnemyComposure(dmg);
+    if (dmg > 0) {
+      if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
+      else                        after = applyDamageToEnemyComposure(dmg);
+    }
     // v3.2/v3.3: post-damage FFT/partial/tier rider effects — state-
     // setting keys fire here so they compose with the cast's combat-
     // state mutations. Hierarchy: fft > partialRow > tierId.
