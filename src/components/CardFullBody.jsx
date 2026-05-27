@@ -52,37 +52,40 @@ function slotPalette(slot) {
   switch (slot) {
     case 'intro':
       return { text: 'text-iris-700',  artBg: 'bg-gradient-to-br from-iris-200 to-iris-400',
-               artText: 'text-iris-800', icon: '✒', bannerBg: 'bg-iris-900/85 text-iris-100' };
+               artText: 'text-iris-800', icon: '✒', bannerBg: 'bg-iris-100/95 text-iris-900' };
     case 'subject':
       return { text: 'text-moss-700',  artBg: 'bg-gradient-to-br from-moss-200 to-moss-400',
-               artText: 'text-moss-800', icon: '🎯', bannerBg: 'bg-moss-900/85 text-moss-100' };
+               artText: 'text-moss-800', icon: '🎯', bannerBg: 'bg-moss-100/95 text-moss-900' };
     case 'target':
       return { text: 'text-ember-700', artBg: 'bg-gradient-to-br from-ember-200 to-ember-400',
-               artText: 'text-ember-800', icon: '💥', bannerBg: 'bg-ember-900/85 text-ember-100' };
+               artText: 'text-ember-800', icon: '💥', bannerBg: 'bg-ember-100/95 text-ember-900' };
     case 'modifier':
       return { text: 'text-gold-700',  artBg: 'bg-gradient-to-br from-gold-200 to-gold-400',
-               artText: 'text-gold-800', icon: '✦', bannerBg: 'bg-gold-900/85 text-gold-100' };
+               artText: 'text-gold-800', icon: '✦', bannerBg: 'bg-gold-100/95 text-gold-900' };
     case 'gesture':
       return { text: 'text-ember-600', artBg: 'bg-gradient-to-br from-ember-100 to-ember-300',
-               artText: 'text-ember-700', icon: '✊', bannerBg: 'bg-ember-900/85 text-ember-100' };
+               artText: 'text-ember-700', icon: '✊', bannerBg: 'bg-ember-100/95 text-ember-900' };
     case 'annotation':
       return { text: 'text-iris-600',  artBg: 'bg-gradient-to-br from-iris-100 to-iris-300',
-               artText: 'text-iris-700', icon: '📝', bannerBg: 'bg-iris-900/85 text-iris-100' };
+               artText: 'text-iris-700', icon: '📝', bannerBg: 'bg-iris-100/95 text-iris-900' };
     case 'skill':
       return { text: 'text-ink-600',   artBg: 'bg-gradient-to-br from-ink-100 to-ink-300',
-               artText: 'text-ink-600', icon: '🪶', bannerBg: 'bg-ink-800/85 text-parchment-100' };
+               artText: 'text-ink-600', icon: '🪶', bannerBg: 'bg-parchment-100/95 text-ink-800' };
     case 'power':
       return { text: 'text-gold-800',  artBg: 'bg-gradient-to-br from-gold-100 to-gold-300',
-               artText: 'text-gold-800', icon: '⚜', bannerBg: 'bg-gold-900/85 text-gold-100' };
+               artText: 'text-gold-800', icon: '⚜', bannerBg: 'bg-gold-100/95 text-gold-900' };
     default:
       return { text: 'text-ink-500',   artBg: 'bg-gradient-to-br from-parchment-100 to-parchment-300',
-               artText: 'text-ink-400', icon: '◇', bannerBg: 'bg-ink-700/85 text-parchment-100' };
+               artText: 'text-ink-400', icon: '◇', bannerBg: 'bg-parchment-100/95 text-ink-800' };
   }
 }
 
 export function CardFullBody({ card, costOverride, costPillClass, costTooltip }) {
   const displayName = card.name || card.phrase || '';
-  const displayDesc = card.desc || (card.flavor ? `"${card.flavor}"` : '');
+  // v3.3: Alan asked to drop flavor text from cards for now — only render
+  // `desc` (the mechanical description) when present. Flavor stays in the
+  // data files for future re-introduction but doesn't show in the card UI.
+  const displayDesc = card.desc || '';
   const displayLabel = card.slot || card.type || '';
   const palette = slotPalette(card.slot);
   const dmgType = card.type === 'effect' || card.slot === 'target' ? card.effect?.damageType : null;
