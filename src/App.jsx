@@ -2946,7 +2946,20 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
     if (!lane)   return false;      // No active lane → reject lane-specific
     return c.lane === lane;
   };
-  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c));
+  // v3.3 (Alan: "intro/subject/effect cards that don't belong to a
+  // specific category … are mostly just clutter"). Wit-only: spell-piece
+  // cards (intro/subject/target) MUST be set-tagged to appear in the
+  // reward pool. Untagged spell-pieces still exist as flavor (in the
+  // starter, in random stitching) but are never offered as draft choices.
+  // Skills, gestures, modifiers, annotations, powers are unaffected —
+  // they're still drafted regardless of setId.
+  const isSpellPieceSlot = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
+  const setTaggedOnly = (c) => {
+    if (lane !== 'wit') return true;
+    if (!isSpellPieceSlot(c)) return true;
+    return !!c.setId;
+  };
+  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c));
   if (pool.length === 0) return null;
   // Weight by rarity AND slot together.
   const weightOf = (c) => (rarityWeights[c.rarity] || 0) * (REWARD_SLOT_WEIGHTS[c.slot] || 10);
@@ -3704,6 +3717,7 @@ export default function App() {
   // { cards: [...card objects...], title?, body? } — null means no modal.
   const [cardGrantPrompt, setCardGrantPrompt] = useState(null);
   const [cardLossNotice, setCardLossNotice] = useState(null);
+  const [materialGainNotice, setMaterialGainNotice] = useState(null);
 
   // ---- Crafting state (Commit 2: gather; Commit 3: craft) ----
   // Inventory of raw materials gathered per slot during this act and
@@ -4309,7 +4323,10 @@ export default function App() {
     setInventory(prev => ({ ...prev, [m.slot]: [...prev[m.slot], m] }));
     pushLog(`🪵 You gather ${m.name} — the road decided for you.`);
     logEvent(TE.MATERIAL_HARVEST, { materialId: m.id, name: m.name, slot: m.slot, randomized: true });
-    returnToMap();
+    // v3.3 (Alan: "When I gain a material, needs a popup modal to show
+    // what it is I got"). Show the material via a modal — player can
+    // dismiss to return to map.
+    setMaterialGainNotice(m);
   }
 
   function claimMaterial(materialId) {
@@ -8838,6 +8855,8 @@ export default function App() {
         mapFog={postcardState === 'failed'}
         player={{ hp, maxHp, composure, composureMax, equipment, relics, deckSize: deck.length, familiar, familiarName, inventory, skills }}
         onPick={pickNode} log={log} />
+      <MaterialGainOverlay material={materialGainNotice}
+                           onDismiss={() => setMaterialGainNotice(null)} />
       {menuOverlay}
     </>;
   }
@@ -9973,6 +9992,51 @@ function CardLossOverlay({ notice, onDismiss }) {
         </div>
         <div className="text-center">
           <button onClick={onDismiss} className="btn btn-iris">Acknowledged</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// v3.3: Material-gain notice. Pops up after auto-harvest to show the
+// material the road decided for them (Alan: "needs a popup modal to
+// show what it is I got"). Click backdrop or Continue to dismiss and
+// return to map.
+function MaterialGainOverlay({ material, onDismiss }) {
+  if (!material) return null;
+  const stats = material.stats || {};
+  const statSummary = Object.entries(stats)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(' · ');
+  return (
+    <div className="fixed inset-0 bg-ink-900 bg-opacity-80 z-50 flex items-center justify-center p-4"
+         onClick={onDismiss}>
+      <div className="parchment-card-strong max-w-md p-6 relative"
+           onClick={(e) => e.stopPropagation()}>
+        <div className="text-center mb-3">
+          <div className="text-[11px] uppercase tracking-widest text-moss-300">
+            🪵 You gathered ({material.slot})
+          </div>
+          <h2 className="font-display text-3xl text-moss-200 mt-1">
+            {material.name}
+          </h2>
+        </div>
+        {material.flavor && (
+          <div className="text-sm font-quill italic text-parchment-200 text-center mb-3 leading-snug">
+            "{material.flavor}"
+          </div>
+        )}
+        {statSummary && (
+          <div className="text-xs font-mono text-center text-gold-300 mb-3">
+            {statSummary}
+          </div>
+        )}
+        <div className="text-center text-[11px] text-parchment-400 italic mb-4">
+          Held in your inventory. Crafted at the end of the act.
+        </div>
+        <div className="text-center">
+          <button onClick={onDismiss} className="btn btn-moss">Continue</button>
         </div>
       </div>
     </div>
