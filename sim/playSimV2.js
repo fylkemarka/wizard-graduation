@@ -138,8 +138,6 @@ function buildStarterDeck(lane) {
     return tmpl ? { ...tmpl, uid: uid() } : null;
   }).filter(Boolean);
   cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
-  cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
-  cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
   cards.push({ id: 'c-compose', type: 'skill', cost: 1, effects: { poise: 5 }, name: 'Compose Yourself', uid: uid() });
   // NOTE: Wit's starter annotation is NOT modeled in the sim. The sim's
   // greedy AI doesn't use annotations effectively (it can't reason about

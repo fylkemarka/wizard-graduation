@@ -661,7 +661,7 @@ function buildStarterDeckForLane(lane) {
     subjectId,
     targetId,
     ...laneStarters,
-    'c-defend', 'c-defend', 'c-defend', // v2.95: 3× defend (was 1) — block is now a real budget
+    'c-defend', // v3.4.6 (Alan): 3× defend was too much. Drop to 1.
     'c-compose',
   ].filter(Boolean);
   if (lane === 'wit') {
