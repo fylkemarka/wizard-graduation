@@ -2162,7 +2162,34 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.draw)           drawCards(state, rider.draw);
         if (rider.poise)          state.poise = (state.poise || 0) + rider.poise;
         if (!state.scheduledEffects) state.scheduledEffects = [];
-        if (rider.dot)              state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'damage', amount: rider.dot.amount, turnsRemaining: rider.dot.turns });
+        // v3.4 Poison-style DoT helpers — operate on enemy.dot directly.
+        if (rider.addDotDamage) {
+          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
+          enemy.dot.damage += rider.addDotDamage;
+          if (enemy.dot.turnsRemaining < 1) enemy.dot.turnsRemaining = 1;
+        }
+        if (rider.addDotTurns) {
+          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
+          enemy.dot.turnsRemaining += rider.addDotTurns;
+        }
+        if (rider.setDotMinDamage) {
+          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
+          enemy.dot.damage = Math.max(enemy.dot.damage, rider.setDotMinDamage);
+          if (enemy.dot.turnsRemaining < 1) enemy.dot.turnsRemaining = 1;
+        }
+        if (rider.setDotMinTurns) {
+          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
+          enemy.dot.turnsRemaining = Math.max(enemy.dot.turnsRemaining, rider.setDotMinTurns);
+        }
+        if (rider.dotMultiply && enemy.dot) {
+          enemy.dot.damage = Math.round(enemy.dot.damage * rider.dotMultiply);
+        }
+        if (rider.dotConsumeBig && enemy.dot && enemy.dot.damage > 0 && enemy.dot.turnsRemaining > 0) {
+          const total = enemy.dot.damage * enemy.dot.turnsRemaining;
+          enemy.currentComp = Math.max(0, enemy.currentComp - total);
+          enemy.dot = null;
+          telemetry.fftDotConsumeBigDamage = (telemetry.fftDotConsumeBigDamage || 0) + total;
+        }
         if (rider.enemyWeakPerTurn) state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'weak',   amount: rider.enemyWeakPerTurn.amount, turnsRemaining: rider.enemyWeakPerTurn.turns });
         if (rider.enemyVulnPerTurn) state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'vuln',   amount: rider.enemyVulnPerTurn.amount, turnsRemaining: rider.enemyVulnPerTurn.turns });
         if (rider.dormantDamage)    state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'dormantDamage', amount: rider.dormantDamage.amount, turnsRemaining: rider.dormantDamage.delay });
@@ -2795,26 +2822,34 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // Enemy turn
-    // v3.3 unified scheduled-effects tick (enemy-turn-start trigger).
+    // v3.4 Poison-style DoT tick (single counter on enemy.dot).
+    if (enemy.dot && enemy.dot.turnsRemaining > 0 && enemy.dot.damage > 0) {
+      enemy.currentComp = Math.max(0, enemy.currentComp - enemy.dot.damage);
+      telemetry.fftDotTickDamage = (telemetry.fftDotTickDamage || 0) + enemy.dot.damage;
+      enemy.dot.turnsRemaining -= 1;
+      if (enemy.dot.turnsRemaining <= 0) enemy.dot = null;
+      if (enemy.currentComp <= 0) {
+        flushThreadPeak();
+        return { outcome: 'won', turns, telemetry };
+      }
+    }
+    // v3.3 scheduled-effects tick (non-DoT over-time effects).
     if (state.scheduledEffects && state.scheduledEffects.length > 0) {
       const remaining = [];
-      let totalDot = 0, weakStacks = 0, vulnStacks = 0, dormantBurst = 0, bankDoubled = false;
+      let weakStacks = 0, vulnStacks = 0, dormantBurst = 0, bankDoubled = false;
       for (const eff of state.scheduledEffects) {
         if (eff.trigger !== 'enemy-turn-start') {
           remaining.push(eff);
           continue;
         }
-        if (eff.kind === 'damage')      totalDot += eff.amount;
-        else if (eff.kind === 'weak')   weakStacks += eff.amount;
+        if (eff.kind === 'weak')   weakStacks += eff.amount;
         else if (eff.kind === 'vuln')   vulnStacks += eff.amount;
         else if (eff.kind === 'bankDouble') bankDoubled = true;
         else if (eff.kind === 'dormantDamage' && eff.turnsRemaining <= 1) dormantBurst += eff.amount;
         if (eff.turnsRemaining > 1) remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
       }
-      const totalEnemyDmg = totalDot + dormantBurst;
-      if (totalEnemyDmg > 0) {
-        enemy.currentComp = Math.max(0, enemy.currentComp - totalEnemyDmg);
-        telemetry.fftDotTickDamage = (telemetry.fftDotTickDamage || 0) + totalDot;
+      if (dormantBurst > 0) {
+        enemy.currentComp = Math.max(0, enemy.currentComp - dormantBurst);
         telemetry.fftDormantDamage = (telemetry.fftDormantDamage || 0) + dormantBurst;
       }
       if (weakStacks > 0) state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * weakStacks);

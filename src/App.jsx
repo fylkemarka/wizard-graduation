@@ -158,6 +158,34 @@ const CARDS = [
     effects: { block: 16 }, upgrade: { effects: { block: 21 } },
     desc: 'Gain 16 Block.' },
 
+  // v3.4 — COLORLESS ONE-SHOT OFFENSIVE skills. Alan: "I think more
+  // one-shot damage cards are needed that can be used while staging
+  // spells. I'm never using colorless cards for the most part, need
+  // more incentive to make them useful." These are deliberately
+  // lane-agnostic (no `lane` field) so they appear in any wizard's
+  // reward pool. Fire-and-forget chip damage that lets the player
+  // pressure the enemy on turns where the big spell isn't ready.
+  { id: 'c-sharp-aside', name: 'Sharp Aside', cost: 0, type: 'skill', rarity: 'common',
+    effects: { compDmg: 4, exhaust: true },
+    upgrade: { effects: { compDmg: 6, exhaust: true } },
+    desc: '4 Composure damage. Exhaust.',
+    flavor: 'A small remark with a quiet edge.' },
+  { id: 'c-cutting-remark', name: 'Cutting Remark', cost: 1, type: 'skill', rarity: 'common',
+    effects: { compDmg: 7 },
+    upgrade: { effects: { compDmg: 10 } },
+    desc: '7 Composure damage.',
+    flavor: 'Pre-considered. Pre-felt.' },
+  { id: 'c-slip-word', name: 'Slip In A Word', cost: 0, type: 'skill', rarity: 'common',
+    effects: { compDmg: 3, block: 2, exhaust: true },
+    upgrade: { effects: { compDmg: 5, block: 3, exhaust: true } },
+    desc: '3 Composure damage. Gain 2 Block. Exhaust.',
+    flavor: 'Between their sentences. Briefly. Lethally.' },
+  { id: 'c-crack-wise', name: 'Crack Wise', cost: 1, type: 'skill', rarity: 'uncommon',
+    effects: { compDmg: 5, draw: 1 },
+    upgrade: { effects: { compDmg: 7, draw: 1 } },
+    desc: '5 Composure damage. Draw 1.',
+    flavor: 'The line was already there. You just delivered it.' },
+
   // ---- MODIFIER SKILLS — stacking toward [0.5, 1.5] caps ----
   // v2.65: per-play shift dropped 0.25 → 0.15. Combined with the
   // slower 0.10/turn drift, you now need 3-4 plays to reach the cap
@@ -5893,8 +5921,7 @@ export default function App() {
       if (rider.energy)         setEnergy(e => e + rider.energy);
       if (rider.draw)           drawCards(rider.draw);
       if (rider.poise)          setPoise(p => p + rider.poise);
-      // v3.3 unified scheduled-effects pushes. Each rider key shape:
-      //   dot:                 { amount, turns } — composure tick per enemy turn
+      // v3.3 scheduledEffects (non-DoT over-time effects):
       //   enemyWeakPerTurn:    { amount, turns } — Weak applied each enemy turn
       //   enemyVulnPerTurn:    { amount, turns } — Vuln applied each enemy turn
       //   dormantDamage:       { amount, delay }  — fires after `delay` enemy turns
@@ -5902,7 +5929,6 @@ export default function App() {
       //   selfDrawPerTurn:     { amount, turns } — draw at start of player turn
       //   bankDoublePerTurn:   { turns }          — Words Bank doubles each enemy turn
       const scheduleQueue = [];
-      if (rider.dot)              scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'damage', amount: rider.dot.amount, turnsRemaining: rider.dot.turns });
       if (rider.enemyWeakPerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'weak',   amount: rider.enemyWeakPerTurn.amount, turnsRemaining: rider.enemyWeakPerTurn.turns });
       if (rider.enemyVulnPerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'vuln',   amount: rider.enemyVulnPerTurn.amount, turnsRemaining: rider.enemyVulnPerTurn.turns });
       if (rider.dormantDamage)    scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'dormantDamage', amount: rider.dormantDamage.amount, turnsRemaining: rider.dormantDamage.delay });
@@ -5911,6 +5937,61 @@ export default function App() {
       if (rider.bankDoublePerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'bankDouble', amount: 0, turnsRemaining: rider.bankDoublePerTurn.turns });
       if (scheduleQueue.length > 0) {
         setScheduledEffects(s => [...s, ...scheduleQueue]);
+      }
+      // v3.4 — DoT Poison-style mechanic (Alan: "DoT spells should do
+      // way less up front damage and significantly more DoT damage …
+      // like the poison mechanic in STS"). Six new rider keys
+      // manipulate enemy.dot.{damage, turnsRemaining} as a single
+      // counter. Each enemy turn: comp -= damage, turnsRemaining--,
+      // turns=0 → dot cleared. Cards stack the counter rather than
+      // each casting its own independent DoT stack.
+      const updateDot = (mutator) => {
+        setEnemy(e => {
+          if (!e) return e;
+          const cur = e.dot || { damage: 0, turnsRemaining: 0, total: 0 };
+          const next = mutator({ ...cur });
+          // Normalize: if either field zero, clear the whole thing.
+          if ((next.damage || 0) <= 0 || (next.turnsRemaining || 0) <= 0) return { ...e, dot: null };
+          return { ...e, dot: next };
+        });
+      };
+      if (rider.addDotDamage) {
+        updateDot(d => ({
+          ...d,
+          damage: d.damage + rider.addDotDamage,
+          turnsRemaining: Math.max(d.turnsRemaining, 1),  // ensure at least 1 turn to tick
+        }));
+      }
+      if (rider.addDotTurns) {
+        updateDot(d => ({ ...d, turnsRemaining: d.turnsRemaining + rider.addDotTurns }));
+      }
+      if (rider.setDotMinDamage) {
+        updateDot(d => ({
+          ...d,
+          damage: Math.max(d.damage, rider.setDotMinDamage),
+          turnsRemaining: Math.max(d.turnsRemaining, 1),
+        }));
+      }
+      if (rider.setDotMinTurns) {
+        updateDot(d => ({ ...d, turnsRemaining: Math.max(d.turnsRemaining, rider.setDotMinTurns) }));
+      }
+      if (rider.dotMultiply) {
+        updateDot(d => ({ ...d, damage: Math.round(d.damage * rider.dotMultiply) }));
+      }
+      if (rider.dotConsumeBig) {
+        // Detonate the entire remaining DoT now: damage × turns to comp.
+        const cur = enemy?.dot;
+        if (cur && cur.damage > 0 && cur.turnsRemaining > 0) {
+          const total = cur.damage * cur.turnsRemaining;
+          setEnemyComposure(c => {
+            const after = Math.max(0, c - total);
+            if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+            return after;
+          });
+          showDamageFloater(total, 'composure');
+          pushLog(`💥 Slow Burn detonates: ${cur.damage} × ${cur.turnsRemaining} = ${total} composure damage.`);
+          setEnemy(e => e ? { ...e, dot: null } : e);
+        }
       }
       // Thorns: extended rider shape now { amount, count, weakOnReflect }.
       if (rider.thorns) {
@@ -7427,31 +7508,28 @@ export default function App() {
     if (enemyIntent) applyEnemyIntent(enemyIntent);
     if (hp <= 0 || composure <= 0) return;
 
-    // v2.7: Bleed/DOT tick — happens AFTER the enemy's main action so the
-    // bleed is a free chip on top of whatever the player set up. Decrements
-    // remaining turns; expires at 0. Damages the enemy's composure pool.
+    // v2.7 / v3.4 — Poison-style DoT tick. Bypasses enemy block
+    // (matches STS Poison semantic AND avoids the stale-closure
+    // double-write that was restoring faded block). DoT goes
+    // straight to composure. Decrements turnsRemaining; expires at 0.
     if (enemy?.dot?.turnsRemaining > 0) {
       const dot = enemy.dot;
       const dmg = dot.damage;
       const remaining = dot.turnsRemaining - 1;
-      // Apply through enemyBlock first (it just got reset above to 0, but
-      // a power could grant block on turn-start). Bleed → composure.
-      let absorbed = 0;
-      if (enemyBlock > 0) {
-        absorbed = Math.min(enemyBlock, dmg);
-        setEnemyBlock(b => Math.max(0, b - absorbed));
-      }
-      const toComp = dmg - absorbed;
-      if (toComp > 0) {
+      if (dmg > 0) {
         setEnemy(e => {
           if (!e) return e;
-          const nextDot = remaining > 0 ? { ...dot, turnsRemaining: remaining } : null;
-          return { ...e, composure: Math.max(0, (e.composure || 0) - toComp), dot: nextDot };
+          const nextDot = remaining > 0 && dmg > 0 ? { ...dot, turnsRemaining: remaining } : null;
+          return { ...e, composure: Math.max(0, (e.composure || 0) - dmg), dot: nextDot };
         });
+        setEnemyComposure(c => Math.max(0, c - dmg));
+        showDamageFloater(dmg, 'composure');
+      } else if (remaining > 0) {
+        setEnemy(e => e ? { ...e, dot: { ...dot, turnsRemaining: remaining } } : e);
       } else {
-        setEnemy(e => e ? { ...e, dot: remaining > 0 ? { ...dot, turnsRemaining: remaining } : null } : e);
+        setEnemy(e => e ? { ...e, dot: null } : e);
       }
-      pushLog(`🩸 Bleed: ${dmg} (${remaining} turn${remaining === 1 ? '' : 's'} left)`);
+      pushLog(`🩸 DoT: ${dmg} composure (${remaining} turn${remaining === 1 ? '' : 's'} left).`);
     }
 
     // v2.34: LONG THREAD bookkeeping. Runs AFTER the enemy intent resolves
@@ -7767,12 +7845,14 @@ export default function App() {
     const e = enemy;
     if (!e) return;
     // v3.3 unified scheduled-effects tick (enemy-turn-start trigger).
-    // Handles: DoT damage, debuff-over-time (Weak/Vuln), dormant delayed
-    // payloads, and Crescendo's bankDouble. Self-boons (selfBlock/selfDraw)
-    // are not in this batch — they trigger at player-turn-start.
+    // Handles: debuff-over-time (Weak/Vuln), dormant delayed payloads,
+    // and Crescendo's bankDouble. DoT damage moved to the
+    // enemy.dot Poison-style counter (v3.4) — see legacy enemy.dot
+    // tick further down which now serves both chutzpah's applyDot
+    // and Slow Burn's addDotDamage etc. Self-boons (selfBlock /
+    // selfDraw) trigger at player-turn-start (separate tick).
     if (scheduledEffects.length > 0) {
       const remaining = [];
-      let totalDot = 0;
       let weakStacks = 0;
       let vulnStacks = 0;
       let dormantBurst = 0;
@@ -7782,8 +7862,7 @@ export default function App() {
           remaining.push(eff);
           continue;
         }
-        if (eff.kind === 'damage')        totalDot += eff.amount;
-        else if (eff.kind === 'weak')     weakStacks += eff.amount;
+        if      (eff.kind === 'weak')     weakStacks += eff.amount;
         else if (eff.kind === 'vuln')     vulnStacks += eff.amount;
         else if (eff.kind === 'bankDouble') bankDoubled = true;
         else if (eff.kind === 'dormantDamage' && eff.turnsRemaining <= 1) {
@@ -7792,25 +7871,6 @@ export default function App() {
         if (eff.turnsRemaining > 1) {
           remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
         }
-      }
-      if (totalDot > 0) {
-        // v3.3 bugfix (Alan: "Silent Spinner's block reduces by 2 each
-        // turn rather than disappearing"): DoT ticks BYPASS enemy block.
-        // The block from last turn's intent has logically just faded
-        // via setEnemyBlock(0) at endTurn:7407 — but that setState is
-        // queued, not applied. Using applyDamageToEnemyComposure here
-        // reads enemyBlock from STALE CLOSURE (pre-fade), absorbs the
-        // DoT through it, and writes back the leftover block value AFTER
-        // the queued (0)-write — last-wins direct setter restores the
-        // "faded" block. Direct setEnemyComposure bypasses the bug AND
-        // matches the intended semantic (DoT chips composure, not block).
-        setEnemyComposure(c => {
-          const after = Math.max(0, c - totalDot);
-          if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
-          return after;
-        });
-        showDamageFloater(totalDot, 'composure');
-        pushLog(`🔥 Slow Burn: ${totalDot} composure damage from DoT stacks.`);
       }
       if (weakStacks > 0) {
         adjustEnemyDmg(-0.25 * weakStacks);

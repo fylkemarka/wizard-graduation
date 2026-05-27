@@ -18,7 +18,7 @@
 export const WIT_TIER_SUB_BONUSES = {
   slowburn: {
     name: 'Slow Burn',
-    dot: { amount: 2, turns: 2 },
+    setDotMinDamage: 2, setDotMinTurns: 2,
     flavor: 'The argument keeps working long after the moment ends.',
   },
   thorns: {
@@ -40,7 +40,7 @@ export const WIT_TIER_SUB_BONUSES = {
 export const WIT_PARTIAL_ROW_BONUSES = {
   slowburn: {
     name: 'Slow Burn (half-formed)',
-    dot: { amount: 3, turns: 2 },
+    addDotDamage: 1, addDotTurns: 2,
     flavor: 'The seam is already pulling tight.',
   },
   thorns: {
@@ -68,42 +68,45 @@ export const WIT_PARTIAL_ROW_BONUSES = {
 //   consumeBank: N       — consume wordsBank, +bank×N bonus damage to cast
 export const WIT_ROWS = [
   // ---- Slow Burn (DoT) ----
-  // SLOW BURN — each row exhibits a distinct DoT-school mechanic so the
-  // five cards feel mechanically distinct, not five flavors of "tick dmg."
+  // SLOW BURN — Poison-style DoT school (v3.4). Enemies carry a single
+  // DoT counter (enemy.dot.{damage, turnsRemaining}). Cards stack the
+  // counter rather than each casting an independent stack. The goal:
+  // small upfront cast, big DoT payoff over multiple turns. Play setup
+  // → stack DoT → finish with multiply or consume burst.
   {
     id: 'slowburn-1', tierId: 'slowburn', name: 'Slow Unraveling',
     canonical: 'Over time, your argument will slowly unravel.',
     introId: 'wv2-i-fabric-merchant', subjectId: 'wv2-s-your-taste', targetId: 'wv2-t-not-tolerated-after-8',
-    rider: { dot: { amount: 4, turns: 3 } },
-    riderDesc: 'Apply DoT 4/turn for 3 turns (12 total).',
+    rider: { setDotMinDamage: 3, setDotMinTurns: 3 },
+    riderDesc: 'Establish DoT — set the enemy to at least 3/turn for 3 turns. The school\'s opener.',
   },
   {
     id: 'slowburn-2', tierId: 'slowburn', name: 'Slow Decay',
     canonical: 'Permit me to observe that your reasoning will slowly decay.',
     introId: 'wv2-i-permit-me-observe', subjectId: 'wv2-s-linen-october', targetId: 'wv2-t-precisely-what-one-does-not-do',
-    rider: { dot: { amount: 2, turns: 3 }, enemyWeakPerTurn: { amount: 1, turns: 3 } },
-    riderDesc: 'DoT 2/turn for 3 turns AND Weak the enemy by 1 each turn — their attacks soften as the decay sets in.',
+    rider: { addDotDamage: 2, addDotTurns: 2, enemyWeakPerTurn: { amount: 1, turns: 3 } },
+    riderDesc: '+2 DoT damage/turn AND +2 turns AND Weak the enemy 1× each turn. Stacker.',
   },
   {
     id: 'slowburn-4', tierId: 'slowburn', name: 'Lingering Point',
     canonical: 'Frankly, your point lingers, badly.',
     introId: 'wv2-i-frankly', subjectId: 'wv2-s-boucle-suggestion', targetId: 'wv2-t-fabric-stops-asking',
-    rider: { dot: { amount: 2, turns: 3 }, draw: 1 },
-    riderDesc: 'DoT 2/turn for 3 turns AND draw 1. Gentle intro to the school.',
+    rider: { setDotMinDamage: 2, setDotMinTurns: 2, draw: 1 },
+    riderDesc: 'Establish DoT 2/turn × 2, AND draw 1. Gentle starter intro.',
   },
   {
     id: 'slowburn-5', tierId: 'slowburn', name: 'Steady Erosion',
     canonical: 'Speaking plainly, your premise will erode steadily.',
     introId: 'wv2-i-speaking-plainly', subjectId: 'wv2-s-evening-wear', targetId: 'wv2-t-8-has-been-and-gone',
-    rider: { dot: { amount: 4, turns: 2 }, enemyVulnPerTurn: { amount: 1, turns: 2 } },
-    riderDesc: 'DoT 4/turn for 2 turns AND Vulnerable each turn — every cast you land during the burn hits harder.',
+    rider: { dotMultiply: 2, enemyVulnPerTurn: { amount: 1, turns: 2 } },
+    riderDesc: 'DOUBLE the enemy\'s current DoT damage AND Vulnerable each turn. The payoff cast — bigger the more you stacked first.',
   },
   {
     id: 'slowburn-8', tierId: 'slowburn', name: 'The Festering Wound',
     canonical: 'If memory serves, your conclusion will fester.',
     introId: 'wv2-i-memory-serves', subjectId: 'wv2-s-silk-before-8', targetId: 'wv2-t-not-what-one-wears-after',
-    rider: { dormantDamage: { amount: 22, delay: 3 }, selfBlockPerTurn: { amount: 2, turns: 3 } },
-    riderDesc: 'DORMANT — 3 turns of nothing, then 22 composure damage. While you wait, +2 Block at the start of each of your turns.',
+    rider: { dotConsumeBig: true, selfBlockPerTurn: { amount: 2, turns: 3 } },
+    riderDesc: 'DETONATE all remaining DoT damage at once (damage × turns), then +2 Block at each of your next 3 turns. The finisher.',
   },
 
   // ---- Thorns (Reflect) ----
@@ -186,8 +189,11 @@ export const WIT_ROWS = [
 export const WIT_RIDER_KEYS = [
   'damageMult', 'bonus', 'longThreadPerm', 'composure',
   'block', 'energy', 'draw', 'poise',
-  // v3.3 scheduled-effect riders (each pushes onto state.scheduledEffects):
-  'dot', 'enemyWeakPerTurn', 'enemyVulnPerTurn', 'dormantDamage',
+  // v3.4 — Poison-style DoT counter (enemy.dot). Replaces v3.3 `dot:`.
+  'addDotDamage', 'addDotTurns', 'setDotMinDamage', 'setDotMinTurns',
+  'dotMultiply', 'dotConsumeBig',
+  // v3.3 scheduled-effect riders (non-DoT over-time):
+  'enemyWeakPerTurn', 'enemyVulnPerTurn', 'dormantDamage',
   'selfBlockPerTurn', 'selfDrawPerTurn', 'bankDoublePerTurn',
   // Thorns extended: thorns now accepts { amount, count, weakOnReflect }.
   'thorns', 'stripEnemyBlock', 'forceSkipNextAttack',

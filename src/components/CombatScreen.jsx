@@ -133,6 +133,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               </div>
             )}
             <div className="text-base">🛡 {enemyBlock}</div>
+            {/* v3.4: enemy DoT counter (Poison-style). Shows current
+                damage-per-turn AND turns remaining. Drains to 0 → expires. */}
+            {enemy?.dot?.turnsRemaining > 0 && enemy?.dot?.damage > 0 && (
+              <div className="text-base text-ember-300"
+                   title={`Damage-over-time: each enemy turn, they take ${enemy.dot.damage} composure damage. ${enemy.dot.turnsRemaining} turns left. Bypasses block.`}>
+                🩸 DoT {enemy.dot.damage}/turn × {enemy.dot.turnsRemaining}
+              </div>
+            )}
             {/* v2.65: removed duplicate Atk ×N chip — the STATUS row
                 below now surfaces enemyDmgMult / playerDmgMult shifts
                 more prominently. */}
