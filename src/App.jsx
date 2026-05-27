@@ -8343,10 +8343,64 @@ export default function App() {
     // duplicate of what you opened with.
     const starterIds = lane ? buildStarterDeckForLane(lane) : [];
     const used = [...starterIds];
-    while (choices.length < 3) {
-      const pick = pickCardByRarity(weights, used, lane);
-      if (!pick) break;
-      choices.push(pick); used.push(pick.id);
+
+    // v3.3 SCHOOL SAMPLER (Alan: "card categories feeling like extra
+    // baggage … felt like I didn't need more cards"). Wit-only: roll
+    // a chance to offer a SAMPLER of 3 cards from a single FFT row,
+    // forcing a school-commitment decision instead of a stat number.
+    // Bias toward rows the player has partial progress on (1-2 cards
+    // owned already) so the sampler completes a row in progress.
+    let samplerRow = null;
+    if (lane === 'wit' && WIT_ROWS.length > 0 && Math.random() < 0.35) {
+      // Score each row by how many slots the player needs (3 - owned).
+      // A row with 2/3 needs 1 — perfect sampler target.
+      const allOwned = [...hand, ...deck, ...discard, ...exiled];
+      const rowProgress = {};
+      for (const c of allOwned) {
+        if (!c.setId) continue;
+        if (!rowProgress[c.setId]) rowProgress[c.setId] = new Set();
+        rowProgress[c.setId].add(c.setSlot);
+      }
+      const candidates = WIT_ROWS.map(r => {
+        const owned = (rowProgress[r.id] && rowProgress[r.id].size) || 0;
+        return { row: r, owned, needs: 3 - owned };
+      }).filter(p => p.needs > 0);
+      // Weight: prefer partial rows (owned >= 1) but allow fresh rows
+      // ~30% of the time so a player can pick up a new school.
+      const partials = candidates.filter(c => c.owned >= 1);
+      const fresh = candidates.filter(c => c.owned === 0);
+      const pool = partials.length > 0 && Math.random() < 0.7 ? partials : (fresh.length > 0 ? fresh : candidates);
+      if (pool.length > 0) {
+        samplerRow = pool[Math.floor(Math.random() * pool.length)].row;
+      }
+    }
+    if (samplerRow) {
+      // Build 3 cards from the row: intro, subject, target. Skip any
+      // the player already owns. If they own all 3, fall back to
+      // random offers (shouldn't happen given the filter above).
+      const ownedIds = new Set([...hand, ...deck, ...discard, ...exiled].map(c => c.id));
+      const slotIds = [samplerRow.introId, samplerRow.subjectId, samplerRow.targetId];
+      for (const id of slotIds) {
+        if (ownedIds.has(id)) continue;
+        const card = CARDS.find(c => c.id === id);
+        if (card && !choices.find(c => c.id === card.id)) {
+          choices.push(card);
+          used.push(card.id);
+        }
+      }
+      // If the player already had some of the row's cards, top up with
+      // random picks so the reward screen always shows 3.
+      while (choices.length < 3) {
+        const pick = pickCardByRarity(weights, used, lane);
+        if (!pick) break;
+        choices.push(pick); used.push(pick.id);
+      }
+    } else {
+      while (choices.length < 3) {
+        const pick = pickCardByRarity(weights, used, lane);
+        if (!pick) break;
+        choices.push(pick); used.push(pick.id);
+      }
     }
     // v2.99.3: telemetry — record offered card lanes alongside player's
     // lane. Lets us detect bleed in real time (any offered.lane that
@@ -9745,17 +9799,63 @@ function Legend({ glyph, label }) {
 
 function RewardScreen({ choices, onPick, onOpenDeck, deckViewOpen, onCloseDeck,
                        deck = [], hand = [], discard = [], exiled = [], tray = null }) {
+  // v3.3 row-aware draft chips: for each offered card with setId,
+  // compute how much of that row the player already owns. If
+  // picking this card would complete (3/3) or advance (1→2 or
+  // 2→3) the row, surface a prominent highlight + rider description
+  // — so the player can read "+1 wit stat" vs "completes Slow Decay
+  // → DoT 2/turn × 3 + Weak each turn" as comparable values at the
+  // draft decision point.
+  const allOwned = [...hand, ...deck, ...discard, ...exiled,
+                    ...(tray ? [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean) : [])];
+  const ownedSlotsByRow = {};
+  for (const c of allOwned) {
+    if (!c.setId) continue;
+    if (!ownedSlotsByRow[c.setId]) ownedSlotsByRow[c.setId] = new Set();
+    ownedSlotsByRow[c.setId].add(c.setSlot);
+  }
+  const synergyForCard = (card) => {
+    if (!card.setId) return null;
+    const row = WIT_ROW_BY_ID[card.setId];
+    if (!row) return null;
+    const owned = (ownedSlotsByRow[card.setId] && ownedSlotsByRow[card.setId].size) || 0;
+    const alreadyHaveSlot = ownedSlotsByRow[card.setId] && ownedSlotsByRow[card.setId].has(card.setSlot);
+    if (alreadyHaveSlot) return null;
+    const afterPick = owned + 1;
+    const completes = afterPick === 3;
+    const partial = afterPick === 2;
+    return { row, owned, afterPick, completes, partial };
+  };
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-3xl mx-auto">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 max-w-5xl mx-auto">
       <h2 className="font-display text-3xl text-gold-300">Card Reward</h2>
       <p className="text-sm text-parchment-300 italic">Choose one to add to your deck — or skip.</p>
       <div className="flex gap-4 flex-wrap justify-center">
-        {choices.map((card, i) => (
-          <button key={i} onClick={() => onPick(card)}
-            className="w-48 min-h-[260px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition">
-            <CardFullBody card={card} />
-          </button>
-        ))}
+        {choices.map((card, i) => {
+          const syn = synergyForCard(card);
+          const borderClass = syn?.completes ? 'border-gold-400 ring-2 ring-gold-300 shadow-gold-300/40'
+                            : syn?.partial   ? 'border-iris-400 ring-2 ring-iris-300'
+                            :                  'border-gold-500';
+          return (
+            <button key={i} onClick={() => onPick(card)}
+              className={`w-52 min-h-[300px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 hover:scale-105 hover:shadow-2xl transition ${borderClass}`}>
+              {syn && (
+                <div className={`text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded text-center leading-tight ${
+                  syn.completes ? 'bg-gold-200 text-gold-900 border border-gold-500'
+                                : 'bg-iris-100 text-iris-900 border border-iris-400'
+                }`}>
+                  {syn.completes
+                    ? `★ Completes ${syn.row.name} (3/3)`
+                    : `${syn.afterPick}/3 — ${syn.row.name}`}
+                  <div className="text-[10px] font-normal normal-case mt-0.5 text-ink-700">
+                    {syn.row.riderDesc || '(rider)'}
+                  </div>
+                </div>
+              )}
+              <CardFullBody card={card} />
+            </button>
+          );
+        })}
       </div>
       <div className="flex gap-3 mt-4">
         {onOpenDeck && (
