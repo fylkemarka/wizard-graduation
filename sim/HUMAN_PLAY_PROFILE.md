@@ -259,3 +259,68 @@ Pattern: chutzpah player picked **two heavy-volume cards (gesture + intro)** tha
 - **ALL IN underuse (5% of casts)**: design pass on stake UX — make it feel like the chutzpah identity move, not a hidden nudge button. Consider: stake nudge button persistently surfaced on every chutzpah-cast turn, animation on stake-spend, OR a tooltip that calls out the EV of staking N HP for predicted +damage.
 - **Lane balance vs same boss**: wit lost to tapestry at snap 4 (HP 0), chutzpah won easily at snap 6 (HP 41). Track this — if chutzpah keeps winning act-1 boss at 90%+ and wit at 30%-, balance gap is real.
 - **Rest event payload bug**: `logEvent(TE.REST_CHOICE, { hp, ... })` at App.jsx:7714 captures hp BEFORE setHp fires. Either log post-heal hp explicitly, or document that the field is "hp at click time."
+
+## Observations — 2026-05-27 (snapshot 7 — SIM-DERIVED, v3.3 post-A+B+C)
+
+**⚠️ Caveat — this is SIM data, not human telemetry.** Alan asked to capture snapshot 7 from a playthrough before he plays. Sim ran 50 wit runs through the full v3.3 system (post-damage-nerf, post-Slow-Burn/Thorns/Crescendo refactor, post-school-sampler rewards + row-aware chips + skill-tree Compendium). Sim AI cadence diverges from human cadence by ~3×, so win-rate and cast frequencies are NOT predictive of human outcomes. The FFT-engagement numbers are still informative as a mechanical-engagement floor.
+
+**Outcomes (50 runs):**
+- Wins: 0 (0.0%) — sim AI cannot complete a run post-damage-nerf
+- Losses: 30 · Stalls: 20
+- By acts cleared: 0=25 · 1=18 · 2=7 · 3=0
+- Half the run sample dies in Act 1, half makes it into Act 2; none touch the final boss
+
+**Cast cadence — confirms the 3× gap is now wider:**
+| Metric | Sim (snap 7) | Human (snap 3 wit) |
+|---|---|---|
+| Casts/turn | 0.22 | 0.72 |
+| Holds (turn ended w/o cast) | 77.8% | ~28% |
+| Casts/combat | 1.47 | 5.75 (or 0.72 × 8 turns) |
+| Turns/combat | 6.70 | ~8 |
+| Tier dist | T1=87.8% T2=12.2% T3=0% | (snap 3 had similar T1 dominance) |
+
+**Read:** The damage nerf (wit stats −1, target base −2, enemy comp +25%) widened the cadence gap, not narrowed it. Sim AI's chip-cast skip heuristic (v3.0 cycle 2) sees the smaller damage numbers and decides "not worth casting" more often — chip skips fire 2× per 50 runs but holds-without-cast are 1,732. Real cause: AI isn't ASSEMBLING three-card trays often enough, not that it's choosing to skip. The v3.3 damage curve makes the sim's hoarding pattern more catastrophic, not the heuristic.
+
+**FFT engagement — the system fires reliably:**
+- Full FFT casts: **141 / 493 = 28.6%** of all casts
+- Partial FFT casts: **218 / 493 = 44.2%**
+- ANY FFT layer: **72.8%** of casts hit some bonus
+- Tier-only sub-bonus: 0% (every same-tier cast also happened to share a setId, hitting partial/full instead)
+
+This is the strongest signal: when the AI does cast, it FFT's 73% of the time. The school-sampler rewards (A) + row-aware chips (B) successfully push the deck toward row coherence. The Bouclé starter seed primes Slow Burn so most early FFTs are slowburn-4 fires.
+
+**School-specific damage:**
+- Slow Burn DoT damage: **2,128 total = 42.6/run** — meaningful chip damage layer firing every combat
+- Slow Burn DORMANT damage: **0 total** — sim never lands a Festering Wound burst. Either it doesn't draft slowburn-8, or combats end (loss) before the 3-turn delay completes. Worth confirming via per-row pick logging.
+- Thorns reflect damage: **6 total = 0.1/run** — effectively zero. Sim AI either doesn't draft Thorns rows OR doesn't trigger reflects often because losses come fast. May also be the chip-skip heuristic skipping the cast that arms thorns charges before enemies hit.
+- Thorns Weak applied: **0** — the per-reflect debuff never activated.
+
+**Long Thread:**
+- Mean peak LT/run: **2.68** — comparable to human snap 3 (peak LT=5 in elite). The thread mechanic is engaged but doesn't push to the boss-fight payoff range.
+
+**Familiars (all 0 wins):**
+- Rabbit, Snake, Crow most-rolled (7 each) — no win signal. Damage nerf is too tight for any familiar to break the lose-pattern in sim.
+
+**Top killers:**
+- e2-silk-wraith (7) — Act 1 elite, regen post-phase-shift, wit-resistant. Confirms it's still the act-1 wall it was in snap 4.
+- e2-boss-tapestry (7) — Act 1 boss, applies Weak. Snap 4 also lost here.
+- e3-vein-devourer (6) — Act 2 elite, the runs that made it past Act 1 die here. New kill in v3.3 sim — sample didn't reach this enemy before.
+- e2-hollow-weaver (6), e1-thicket (5) — chip kills.
+
+**v3.3-specific signals:**
+- School-sampler reward rate untracked (need explicit `combat.reward_offer.sampler: true` flag — TODO add to logEvent). Confirm with future telemetry whether the 35% sampler roll fires as designed.
+- Row-aware chip surfacing is UI-only — no telemetry signal possible. Need human read.
+- Skill-tree Compendium engagement — no telemetry. Need to track Compendium opens vs reward-screen opens in future logEvent.
+
+**AI implications for next sim cycle:**
+- Sim cadence gap is now THE limiting factor. Either:
+  (a) Loosen the chip-cast skip threshold further (cast more aggressively, fewer holds)
+  (b) Address the underlying "AI hoards because intro+subject+target rarely all in hand" — likely a draw/deck-cycle issue with the v3.3 reduced-damage curve making early-game casts feel unappealing
+  (c) Acknowledge the sim is a regression-catcher, not a predictor — and lean on human telemetry for player-felt signals
+- The Festering Wound 0-fire data point suggests the dormant payload needs a CHEAPER alternative (currently sim never lives long enough to trigger). Real humans should land it occasionally; track in next human snapshot.
+
+**Open follow-ups:**
+- Real human snapshot 7 capture from Alan's next play session — that's the actual signal.
+- Add `combat.reward_offer.sampler` telemetry flag to track school-sampler fire rate.
+- Add `compendium.open` / `deckview.open` events to measure UI engagement.
+- Investigate sim's cadence collapse separately — it's now blocking the sim's usefulness as a balance proxy.
