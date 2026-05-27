@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText } from '../cards/shared.js';
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
-import { WIT_ROWS, WIT_TIER_SUB_BONUSES } from '../cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
@@ -724,9 +724,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
       </div>
 
-      <div className="parchment-card p-3 max-h-40 overflow-y-auto text-sm font-quill text-parchment-200 space-y-0.5">
-        {log.slice(-10).map((line, i) => <div key={i}>{line}</div>)}
-      </div>
+      {/* v3.3: action log hidden by default (Alan: "doesn't need to be
+          visible on the combat screen"). The log array is still
+          populated for telemetry / replay / future debug overlay. */}
     </div>
   );
 }
@@ -804,6 +804,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       );
     }
     const contrib = cardContribution(card, slotName);
+    // v3.3: surface FFT row affiliation on the staged pill so the
+    // player can SEE which school/row each card belongs to mid-cast.
+    const row = card.setId ? WIT_ROW_BY_ID[card.setId] : null;
+    const tierName = card.tierId ? (WIT_TIER_SUB_BONUSES[card.tierId]?.name || card.tierId) : null;
     return (
       <motion.button key={card.uid}
         layout
@@ -815,6 +819,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         className={`px-3 py-2 rounded ${color.filled} text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px]`}>
         <span className="font-mono text-[10px] opacity-70">{slotName}</span>
         <span className="font-bold text-center">{card.phrase || card.name}</span>
+        {row && (
+          <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight"
+            title={`Play all three cards of "${row.name}" together → ${row.riderDesc || 'Fully Formed Thought'}`}>
+            🎩 {tierName} · {row.name}
+          </span>
+        )}
         {contrib && (
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-ink-900/40 text-parchment-200"
             title={slotName === 'target'

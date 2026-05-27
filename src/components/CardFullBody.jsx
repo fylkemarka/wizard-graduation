@@ -113,10 +113,10 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
 
   return (
     <>
-      {/* Header — slot/tier/rarity + cost */}
+      {/* Header — slot + tier + cost (rarity hidden per Alan v3.3). */}
       <div className="flex justify-between items-start gap-1">
         <div className={`text-[10px] uppercase tracking-wider font-bold ${palette.text}`}>
-          {displayLabel}{card.tier ? ` · T${card.tier}` : ''}{card.rarity ? ` · ${card.rarity}` : ''}
+          {displayLabel}{card.tier ? ` · T${card.tier}` : ''}
         </div>
         <div className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-bold ${pillClass}`}
              title={costTooltip}>
