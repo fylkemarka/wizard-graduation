@@ -18,8 +18,8 @@
 export const WIT_TIER_SUB_BONUSES = {
   slowburn: {
     name: 'Slow Burn',
-    setDotMinDamage: 2, setDotMinTurns: 2,
-    flavor: 'The argument keeps working long after the moment ends.',
+    longThreadPerm: 1, composure: 2,
+    flavor: 'The argument keeps working long after the moment ends. (DoT only from full row casts.)',
   },
   thorns: {
     name: 'Thorns',
@@ -40,8 +40,8 @@ export const WIT_TIER_SUB_BONUSES = {
 export const WIT_PARTIAL_ROW_BONUSES = {
   slowburn: {
     name: 'Slow Burn (half-formed)',
-    addDotDamage: 1, addDotTurns: 2,
-    flavor: 'The seam is already pulling tight.',
+    longThreadPerm: 2, composure: 3,
+    flavor: 'The seam is already pulling tight. (DoT only triggers on full row.)',
   },
   thorns: {
     name: 'Thorns (half-formed)',

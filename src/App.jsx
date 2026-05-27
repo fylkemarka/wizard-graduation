@@ -5895,29 +5895,14 @@ export default function App() {
         });
       }
     }
-    // v3.4.x — Slow Burn targets DEPOSIT DoT instead of dealing direct
-    // damage (Alan: "For DoT, let's try out the effects cards not
-    // having a multiplier, but instead have it be the number of turns
-    // the damage will be inflicted over. Higher tiers = more turns").
-    // Reinterpret the target's effect fields for Slow Burn only:
-    //   effect.base       = base DoT damage per turn (chip value)
-    //   effect.multiplier = TURN COUNT (not damage multiplier anymore)
-    //   statTotal (wit)   = added to per-turn damage (still scales)
-    // The cast does NO upfront damage; all output flows through the
-    // Poison-style counter on enemy.dot.
-    const isSlowBurnTarget = target.tierId === 'slowburn';
-    if (isSlowBurnTarget) {
-      const statWit = (intro?.stats?.wit || 0) + (subject?.stats?.wit || 0);
-      const perTurn = Math.max(1, (target.effect?.base || 0) + statWit);
-      const turns = target.effect?.multiplier || 1;
-      setEnemy(e => {
-        if (!e) return e;
-        const cur = e.dot || { damage: 0, turnsRemaining: 0 };
-        return { ...e, dot: { damage: cur.damage + perTurn, turnsRemaining: cur.turnsRemaining + turns } };
-      });
-      pushLog(`🩸 Slow Burn deposit: +${perTurn} DoT × ${turns} turn${turns === 1 ? '' : 's'} (${perTurn * turns} total over time).`);
-      dmg = 0; // Suppress direct damage application below.
-    }
+    // v3.4.4 — REVERTED the "Slow Burn target always deposits DoT"
+    // behavior. Alan: "We're losing the flavor of the mechanic if any
+    // combination of cards still triggers DoT if the effect is DoT."
+    // Slow Burn targets now deal NORMAL damage on cast (base + WIT ×
+    // multiplier × tierMult, same as any other target). DoT mechanics
+    // are gated behind FULL FFT match only — the row's rider (fired
+    // via applyRider below) is the SOLE path to DoT in the school.
+    // This makes school commitment the unlock, not just card type.
     // v2.93: O-1 support — capture the damage value for the NEXT Precedent
     // cast. Also captures last cast for any future card that wants it.
     setLastCastDamage(dmg);

@@ -324,3 +324,70 @@ This is the strongest signal: when the AI does cast, it FFT's 73% of the time. T
 - Add `combat.reward_offer.sampler` telemetry flag to track school-sampler fire rate.
 - Add `compendium.open` / `deckview.open` events to measure UI engagement.
 - Investigate sim's cadence collapse separately — it's now blocking the sim's usefulness as a balance proxy.
+
+## Observations — 2026-05-27 19:11 (snapshot 8 — REAL human, v3.4 wit)
+
+**First real-play snapshot since v3.3 (school refactor) + v3.4 (DoT redesign).**
+Telemetry: `wg-telemetry-2026-05-27T19-11-25-474Z.json`. Alan playing wit.
+5 combats, 29 turn-ends, 11 casts, 4 picks, 7 wit.fft.cast events,
+1 wit.fft.partial event.
+
+**Cadence:**
+- Casts/combat: **2.2** (vs sim 1.47 in snap 7)
+- Turns/combat: **5.8**
+- Casts/turn: **0.38** (vs sim 0.22 in snap 7)
+- Hold rate: ~62% (vs sim 78%)
+
+Still below human-baseline 0.72/turn from snap 3 — likely because v3.4 DoT
+deposit was triggering on every Slow Burn cast, so Alan didn't NEED to cast
+often to win. He was overpowered → fewer casts needed.
+
+**FFT engagement:**
+- 7 full FFT + 1 partial = **8/11 casts = 72.7%** trigger FFT layer
+- Strong commitment to Slow Burn rows (3 of 4 picks were slowburn-*)
+
+**Reward picks (4 total):**
+- wv2-t-fabric-stops-asking  → slowburn-4 target  (consolidating starter row)
+- wv2-s-linen-october        → slowburn-2 subject (new slowburn row entry)
+- wv2-t-not-what-one-wears-after → slowburn-8 target (new slowburn row entry)
+- wv2-t-essence-public-service → crescendo-4 target (single off-school)
+
+**Draft behavior signal:** Alan committed heavily to Slow Burn (3 of 4
+picks). Sim AI should mirror this — once a school is seeded (via starter),
+heavily favor rows in the same school for ongoing drafts. The current sim's
+"favorite-target bias" is row-agnostic; it should add a SCHOOL-level
+weight too.
+
+**Design pivot triggered by this snapshot:** Alan's feedback —
+"DoT damage is currently too easy to get stacked up… Should the cards
+just do plain wit damage until a full spell is aligned and THAT triggers
+the DoT? We're losing the flavor of the mechanic if any combination of
+cards still triggers DoT if the effect is DoT."
+
+Acted on (v3.4.4):
+- Slow Burn target casts NO LONGER deposit DoT. They deal normal damage
+  (base + WIT × mult × tierMult, same formula as Thorns/Crescendo).
+- DoT mechanics gated to FULL FFT match only — only the row rider
+  triggers DoT manipulation.
+- Tier sub-bonus + half-formed bonuses on Slow Burn changed from
+  setDotMinDamage/turns and addDotDamage/turns to non-DoT keys
+  (longThreadPerm + composure). Removes the "any-combination triggers
+  DoT" leak.
+- Slow Burn target base/multiplier rebalanced to be SLIGHTLY weaker
+  than Thorns/Crescendo (base 3, mult 2 vs 5-6, mult 3). The school's
+  premium is on full-FFT commitment, not raw card damage.
+
+**AI-heuristic deltas (queued — not yet implemented this pass):**
+1. Sim AI should favor school-consistent reward picks (~75% of picks
+   on lane=wit should be the school the starter seeded).
+2. Slow Burn rows should be evaluated for the FFT VALUE (the rider's
+   DoT payoff), not the per-cast value. AI's chip-skip should treat
+   "this cast is half of an FFT chain" as high-value.
+3. Cast cadence should land closer to 0.72/turn (snap 3 baseline)
+   now that v3.4.4 reduces per-cast damage; will measure next session.
+
+**Open follow-ups:**
+- Snapshot 9 to validate v3.4.4 design pivot — does the "FFT-only DoT"
+  feel like commitment rewarded, or like flavor lost?
+- Implement school-consistent draft bias in sim.
+- Tune FFT-chain awareness into sim's tray-staging heuristic.
