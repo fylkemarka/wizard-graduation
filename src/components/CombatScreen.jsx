@@ -28,7 +28,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        isChutzpah, stakeAmount, setStakeAmount,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
                        tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
-                       longThread = 0, isWit = false,
+                       longThread = 0, isWit = false, wordsBank = 0,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
                        holdOnArmed = false, holdOnValue = 0,
@@ -554,6 +554,22 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <div className="text-xs uppercase text-parchment-300">Energy <span className="text-parchment-500">ⓘ</span></div>
             <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
           </div>
+          {/* v3.4.x: surface previously-invisible wit identity stats. Alan:
+              "I still don't know what Thread and the Word Bank are/do." */}
+          {isWit && longThread > 0 && (
+            <div title={`Long Thread — wit's signature defender mechanic. Ticks +1 each turn you cast a wit spell AND don't take unblocked damage. Some wit targets deal +N damage per stack. Decays by 1 on each unblocked hit.`}>
+              <div className="text-xs uppercase text-iris-300">Long Thread <span className="text-parchment-500">ⓘ</span></div>
+              <div className="text-2xl font-mono text-iris-300">🧵 {longThread}</div>
+            </div>
+          )}
+          {/* Word Bank: Crescendo's currency. Every card you play in combat
+              adds +1. Crescendo targets can spend the bank for big damage. */}
+          {isWit && (
+            <div title={`Words Bank — Crescendo's currency. +1 per card played (cap 20). Cast a Crescendo target row to spend the bank: each Crescendo row delivers +N damage per banked word AT cast. The longer you build, the bigger the finisher.`}>
+              <div className="text-xs uppercase text-gold-300">Word Bank <span className="text-parchment-500">ⓘ</span></div>
+              <div className="text-2xl font-mono text-gold-300">📚 {wordsBank || 0}</div>
+            </div>
+          )}
           {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
               meter has anything in it OR rage is active. Color: ember (chutzpah
               palette). */}

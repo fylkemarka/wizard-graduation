@@ -7537,18 +7537,24 @@ export default function App() {
     // (matches STS Poison semantic AND avoids the stale-closure
     // double-write that was restoring faded block). DoT goes
     // straight to composure. Decrements turnsRemaining; expires at 0.
+    // v3.4.3 (Alan): kill check — composure→0 from DoT now ends combat.
     if (enemy?.dot?.turnsRemaining > 0) {
       const dot = enemy.dot;
       const dmg = dot.damage;
       const remaining = dot.turnsRemaining - 1;
       if (dmg > 0) {
+        const compBefore = enemyComposure;
+        const compAfter = Math.max(0, compBefore - dmg);
         setEnemy(e => {
           if (!e) return e;
           const nextDot = remaining > 0 && dmg > 0 ? { ...dot, turnsRemaining: remaining } : null;
-          return { ...e, composure: Math.max(0, (e.composure || 0) - dmg), dot: nextDot };
+          return { ...e, composure: compAfter, dot: nextDot };
         });
-        setEnemyComposure(c => Math.max(0, c - dmg));
+        setEnemyComposure(compAfter);
         showDamageFloater(dmg, 'composure');
+        if (compAfter <= 0 && compBefore > 0) {
+          setTimeout(() => onEnemyDefeated(), 200);
+        }
       } else if (remaining > 0) {
         setEnemy(e => e ? { ...e, dot: { ...dot, turnsRemaining: remaining } } : e);
       } else {
@@ -8976,6 +8982,7 @@ export default function App() {
       cornerTokens={cornerTokens} intentHidden={intentHidden}
       loudCount={loudCount}
       longThread={longThread}
+      wordsBank={wordsBank}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}
       onApplyFootnote={applyFootnote}
