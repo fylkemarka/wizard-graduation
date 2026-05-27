@@ -113,6 +113,23 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
 
   return (
     <>
+      {/* v3.3.x: FFT row chip + rider description as the visual TOP of the
+          card when set-tagged. Matches the reward-screen format Alan
+          flagged ("the way the phrase bonus is clearly shown at the top
+          of the card here is exactly what's needed"). Always shows the
+          row name + rider so the player can read what the synergy
+          actually DOES at a glance, not just a tier label. */}
+      {row && (
+        <div className={`-mx-2.5 -mt-2.5 mb-1 px-2 py-1.5 rounded-t ${palette.bannerBg}`}>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-center leading-tight">
+            🎩 {row.name}
+          </div>
+          <div className="text-[10px] text-center leading-tight mt-0.5">
+            {row.riderDesc || ''}
+          </div>
+        </div>
+      )}
+
       {/* Header — slot + tier + cost (rarity hidden per Alan v3.3). */}
       <div className="flex justify-between items-start gap-1">
         <div className={`text-[10px] uppercase tracking-wider font-bold ${palette.text}`}>
@@ -126,18 +143,13 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
 
       {/* Art region — placeholder gradient with slot icon. When card.art is
           set (future field for per-card image assets), the image replaces
-          the placeholder. FFT row chip overlays the bottom as a banner. */}
+          the placeholder. FFT chip moved to top-banner per Alan v3.3.x;
+          art region is now image-only. */}
       <div className={`relative w-full h-[100px] rounded overflow-hidden ${palette.artBg} flex items-center justify-center`}>
         {card.art ? (
           <img src={card.art} alt="" className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <span className={`text-5xl ${palette.artText} opacity-30 select-none`}>{palette.icon}</span>
-        )}
-        {row && (
-          <div className={`absolute bottom-0 left-0 right-0 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${palette.bannerBg}`}
-               title={`Play all three cards of "${row.name}" together for Fully Formed Thought: ${row.riderDesc || 'special bonus'}`}>
-            🎩 {tierName} · {row.name}
-          </div>
         )}
       </div>
 
