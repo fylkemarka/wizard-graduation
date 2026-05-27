@@ -415,13 +415,13 @@ const FAMILIARS = [
     // + added 1 draw, which is lane-agnostic (helps wit tray-completion
     // as much as jnsq survival).
     bonus: { onCombatStart: { block: 4, draw: 1 } },
-    card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure',
-                rider: { weak: 1 }, resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } },
-      phrase: '(the cat refuses to be impressed)',
-      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 2, damageType: 'composure',
-                rider: { weak: 2 }, resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
-      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Weak. Resonates: dismissive, petty.',
+    // v3.3: familiar cards are lane-AGNOSTIC. Was a chutzpah-scaling
+    // effect tied to dismissive/petty tags; now a skill that fires
+    // immediately for any wizard.
+    card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'skill', rarity: 'basic',
+      effects: { compDmg: 5, weak: 1 },
+      upgrade: { effects: { compDmg: 7, weak: 2 } },
+      desc: '5 Composure damage. Apply 1 Weak.',
       flavor: 'It is unimpressed.' },
   },
   {
@@ -469,13 +469,11 @@ const FAMILIARS = [
     // strong opening-hit absorb so the flavor stays ("survival pet") but
     // the math sits with other familiars.
     bonus: { maxHp: 6, firstHitReduction: 3 },
-    card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'jnsq', base: 3, multiplier: 1, damageType: 'composure',
-                rider: { block: 3 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } },
-      phrase: '(the beetle, briefly, expresses itself)',
-      upgrade: { effect: { scaleBy: 'jnsq', base: 5, multiplier: 1, damageType: 'composure',
-                rider: { block: 4 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
-      desc: 'Cast: 3 + Jnsq Composure. Gain 3 Block. Resonates: chaotic, absurd.',
+    // v3.3: lane-agnostic conversion (was jnsq-scaling effect).
+    card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'skill', rarity: 'basic',
+      effects: { compDmg: 3, block: 3 },
+      upgrade: { effects: { compDmg: 5, block: 4 } },
+      desc: '3 Composure damage. Gain 3 Block.',
       flavor: 'The beetle is angry. In its way.' },
   },
   {
@@ -496,13 +494,11 @@ const FAMILIARS = [
     desc: 'Whenever you defeat an enemy, heal 2 HP.',
     flavor: 'It has a collection. The collection has a collection.',
     bonus: { onEnemyDefeated: { heal: 2 } },
-    card: { id: 'f-pilfer', name: 'Pilfer', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'jnsq', base: 4, multiplier: 1, damageType: 'composure',
-                rider: { draw: 1 }, resonatesWith: ['petty', 'chaotic'], resonanceBonus: { perTag: 2 } },
-      phrase: '(the crow takes something while you talk)',
-      upgrade: { effect: { scaleBy: 'jnsq', base: 6, multiplier: 1, damageType: 'composure',
-                rider: { draw: 1 }, resonatesWith: ['petty', 'chaotic'], resonanceBonus: { perTag: 2 } } },
-      desc: 'Cast: 4 + Jnsq Composure. Draw 1. Resonates: petty, chaotic.',
+    // v3.3: lane-agnostic conversion (was jnsq-scaling effect).
+    card: { id: 'f-pilfer', name: 'Pilfer', cost: 1, type: 'skill', rarity: 'basic',
+      effects: { compDmg: 4, draw: 1 },
+      upgrade: { effects: { compDmg: 6, draw: 1 } },
+      desc: '4 Composure damage. Draw 1.',
       flavor: 'It brought you something. You did not ask.' },
   },
   {
@@ -513,13 +509,11 @@ const FAMILIARS = [
     // fast to matter past turn 1-2). Added +5 maxHp baseline so the
     // familiar earns its slot even on short fights.
     bonus: { maxHp: 5, startCombatVulnerable: 2 },
-    card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'chutzpah', base: 5, multiplier: 1, damageType: 'composure',
-                rider: { vulnerable: 1 }, resonatesWith: ['threatening'], resonanceBonus: { perTag: 2 } },
-      phrase: '(a small green warning slides into view)',
-      upgrade: { effect: { scaleBy: 'chutzpah', base: 7, multiplier: 1, damageType: 'composure',
-                rider: { vulnerable: 2 }, resonatesWith: ['threatening'], resonanceBonus: { perTag: 2 } } },
-      desc: 'Cast: 5 + Chutzpah Composure. Apply 1 Vulnerable. Resonates: threatening.',
+    // v3.3: lane-agnostic conversion (was chutzpah-scaling effect).
+    card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'skill', rarity: 'basic',
+      effects: { compDmg: 5, vulnerable: 1 },
+      upgrade: { effects: { compDmg: 7, vulnerable: 2 } },
+      desc: '5 Composure damage. Apply 1 Vulnerable.',
       flavor: 'A small green warning.' },
   },
   {
@@ -529,13 +523,11 @@ const FAMILIARS = [
     // v2.14: poise 3 → 2 (was top-of-meta across all lanes at ~30% avg
     // win rate; trimmed to bring closer to ~22% mid-pack).
     bonus: { startCombatPoise: 2 },
-    card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'effect', rarity: 'basic',
-      effect: { scaleBy: 'chutzpah', base: 4, multiplier: 1, damageType: 'composure', exhaust: true,
-                resonatesWith: ['petty'], resonanceBonus: { perTag: 2 } },
-      phrase: '(it is gone — so is the apple)',
-      upgrade: { effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure', exhaust: true,
-                resonatesWith: ['petty'], resonanceBonus: { perTag: 2 } } },
-      desc: 'Cast: 4 + Chutzpah Composure. Exhaust. Resonates: petty.',
+    // v3.3: lane-agnostic conversion (was chutzpah-scaling effect).
+    card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'skill', rarity: 'basic',
+      effects: { compDmg: 4, exhaust: true },
+      upgrade: { effects: { compDmg: 6, exhaust: true } },
+      desc: '4 Composure damage. Exhaust.',
       flavor: 'It was gone. So was the apple.' },
   },
 ];
