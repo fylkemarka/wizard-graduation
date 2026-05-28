@@ -569,3 +569,76 @@ sim's defense-first play order.
 convergence loop is operational (telemetry-in → heuristic deltas →
 snapshot record → measure). Cadence-gap pattern needs deeper structural
 fix in the next cycle.
+
+## Observations — 2026-05-27 (snapshot 12 — SIM AI play-loop reorder, v3.4.9)
+
+**Another SIM-side calibration entry.** Implements the structural reorder
+queued at end of snap 11: stage BEFORE play-utility, with an emergency
+defense bypass.
+
+**Implemented delta:**
+
+**Play-loop reorder** (`playSimV2.js` per-turn `passCount` loop). Before
+the change, each pass ran defense → utility → staging. Defense and
+utility plays ate the energy budget before tray cards could stage, so
+even when intro/subject/target were all in hand, the AI would burn
+energy on `c-defend` and never assemble the cast.
+
+  New order per pass:
+    1. **Emergency defense** (only when HP < 30% AND incoming swing
+       would put us in KO range). Cheap defend or two if affordable.
+    2. **STAGE** intro → subject → target → modifier(s). Same selectors
+       as before; only the position in the pass loop moved.
+    3. Defense / utility / chip-skip / cast (unchanged).
+
+  Helpers `applyStageEffects` and `bumpTunnelOnStage` hoisted to top of
+  the play-turn function so the staging block doesn't have to
+  re-declare them on every pass.
+
+**Measured impact (100 sim wit runs):**
+
+| Metric | Snap 11 (v3.4.8) | Snap 12 (v3.4.9) | Alan target (snap 10) |
+|---|---|---|---|
+| Win rate | 1% | 1% | won-7-of-7 |
+| Casts/turn | 0.21 | **0.29** | 0.62 |
+| Hold rate | 78.6% | **71.0%** | ~38% |
+| Casts/combat | — | 2.32 | — |
+| Full FFT % of casts | 39.7% | 36.0% | 71.4% |
+| Partial FFT % | 44.6% | 45.2% | 28.6% |
+| ANY FFT-layer hit | 84.3% | 81.2% | 100% |
+| Turns/combat | 11.3 | 8.09 | 4.9 |
+| Stalls | — | 58 | — |
+| Mean peak Long Thread | — | 6.58 | — |
+
+**Read:** Reorder closed about a third of the remaining cadence gap.
+**Casts/turn up 38% (0.21 → 0.29)**, holds down 7.6pts, turns/combat
+shortened by 3.2. The sim is staging tray cards earlier and casting more
+often. Stalls still high (58/100) — losses converted to faster combats,
+but the AI isn't dealing enough damage per cast to actually clear act 2
+boss encounters (loom-familiar, silk-wraith, hollow-weaver, boss-tapestry
+account for 54 of 99 deaths).
+
+Full FFT % dipped slightly (39.7 → 36.0) — sim is now casting incomplete
+trays as soon as a target is available, which trades school-rider hits
+for raw frequency. That actually mirrors Alan better (he casts even with
+no FFT match when the chip damage matters). Partial FFT % rose
+correspondingly.
+
+**Gap remaining: 0.29 vs 0.62 = 47% of Alan's cadence still missing.**
+
+**What WOULD close more of the gap (queued for next cycle):**
+- **Reduce defense play threshold.** Current emergency-defense bypass
+  fires below 30% HP, but the v3.4.6 defense block (lines ~1820+) still
+  defends reflexively against any incoming swing > current block. Tune
+  it to defend only when (incoming - block) > X% maxHp.
+- **Drop the dormant `defenseTight` gate on chip-skip.** Currently
+  basically off; should be removed entirely so chip-skips never fire.
+- **Multi-stage in a single pass.** Pass loop stages one card per pass;
+  if energy + hand permit, stage intro+subject in the same pass to
+  reach target-eligible state in one iteration.
+
+**Status:** Convergence loop is working. Three deltas (snap 11) + one
+structural reorder (snap 12) lifted cadence from 0.17 → 0.29 over two
+cycles. Halfway to Alan's 0.62. Next cycle's defense-threshold tune
+should close another chunk; the stalls signal the AI needs to spend
+more energy on offense in general.

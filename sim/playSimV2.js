@@ -1451,9 +1451,151 @@ function runCombat(state, enemyId, telemetry) {
     // case a future cycle wants to try a softer reservation (e.g. only
     // partial cost, or only when HP > 60%).
     const budgetForOther = () => state.energy;
+
+    // v3.4.9 — Hoist staging helpers outside the pass loop (used to be
+    // re-defined every pass; semantically identical). Lets the staging
+    // blocks move ABOVE the defense/utility blocks for cadence — see
+    // snapshot 11 follow-up.
+    const applyStageEffects = (card) => {
+      const fx = card.effects || {};
+      if (fx.block)      state.block += fx.block;
+      if (fx.poise)      state.poise += fx.poise;
+      if (fx.draw)       drawCards(state, fx.draw);
+      if (fx.weak)       state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * fx.weak);
+      if (fx.vulnerable) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fx.vulnerable);
+      if (fx.energy)     state.energy += fx.energy;
+      if (fx.hp)         state.hp = Math.min(state.maxHp, state.hp + fx.hp);
+      if (fx.loseHp)     state.hp = Math.max(0, state.hp - fx.loseHp);
+      if (fx.tunnelVision) state.tunnelVision = (state.tunnelVision || 0) + fx.tunnelVision;
+      if (fx.removeWeak && (state.playerDmgMult || 1) < 1.0) {
+        state.playerDmgMult = Math.min(1.0, (state.playerDmgMult || 1) + 0.25 * fx.removeWeak);
+      }
+      if (fx.removeVulnerable && (state.enemyDmgMult || 1) > 1.0) {
+        state.enemyDmgMult = Math.max(1.0, (state.enemyDmgMult || 1) - 0.25 * fx.removeVulnerable);
+      }
+      if (fx.discardOnPlay && state.hand.length > 0) {
+        const idx = Math.floor(rnd() * state.hand.length);
+        const lost = state.hand[idx];
+        state.hand.splice(idx, 1);
+        state.discard.push(lost);
+      }
+      if (fx.ignoreNextDebuff) {
+        state.notListeningCharges = (state.notListeningCharges || 0) + fx.ignoreNextDebuff;
+      }
+    };
+    const bumpTunnelOnStage = (card) => {
+      if (card?.lane === 'chutzpah') state.tunnelVision = (state.tunnelVision || 0) + 1;
+      if (card?.lane === 'chutzpah'
+          && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
+          && (card.tags || []).includes('demanding')) {
+        state.loudCount = (state.loudCount || 0) + 1;
+      }
+    };
+
     let passCount = 0;
     while (passCount++ < 8) {
       let progressed = false;
+
+      // v3.4.9 — Per-turn play order reordered. STAGING happens BEFORE
+      // defense and utility, so spell tray gets the energy first.
+      // Previous order was defense-first → energy consumed → tray
+      // assembles slowly → hold rate 78-83% in sim vs ~38% in human play.
+      // Emergency defense (HP <30% AND big hit incoming) still fires
+      // before staging, so the sim doesn't suicide-stage when in danger.
+      const incomingMultPre = state.enemyDmgMult || 1;
+      const expectedHitPre = enemy.atk * incomingMultPre;
+      const emergencyHpHit = Math.ceil(expectedHitPre / 2);
+      const hpFracForEmergency = state.hp / Math.max(1, state.maxHp);
+      const emergencyDefenseNeeded = !state.enemySkipNextAttack
+        && hpFracForEmergency < 0.3
+        && state.block < emergencyHpHit;
+      if (emergencyDefenseNeeded) {
+        for (let i = 0; i < state.hand.length; i++) {
+          const c = state.hand[i];
+          if (c.type !== 'skill') continue;
+          const fx = c.effects || {};
+          if (!fx.block) continue;
+          if ((c.cost || 0) > state.energy) continue;
+          const hpCost = fx.loseHp || 0;
+          if (hpCost > 0 && state.hp <= hpCost + 2) continue;
+          state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
+          state.block += fx.block || 0;
+          if (fx.poise) state.poise += fx.poise;
+          if (fx.draw) drawCards(state, fx.draw);
+          if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
+          if (fx.exhaust) state.exiled.push(c);
+          else            state.discard.push(c);
+          state.hand.splice(i, 1);
+          progressed = true;
+          break;
+        }
+        if (progressed) continue;
+      }
+
+      // STAGING — first priority. Stage intro/subject/target if hand
+      // has them AND a slot is open. Tray persists across turns; even
+      // staging 1-2 cards per pass builds toward an FFT cast within
+      // 2-3 turns.
+      if (!tray.intro) {
+        const idx = pickBestForSlot(state, 'intro', state.energy, enemy, tray);
+        if (idx >= 0) {
+          tray.intro = state.hand[idx];
+          state.energy -= tray.intro.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
+          state.hand.splice(idx, 1);
+          applyStageEffects(tray.intro);
+          bumpTunnelOnStage(tray.intro);
+          progressed = true;
+          continue;
+        }
+      }
+      if (!tray.subject) {
+        const idx = pickBestForSlot(state, 'subject', state.energy, enemy, tray);
+        if (idx >= 0) {
+          tray.subject = state.hand[idx];
+          state.energy -= tray.subject.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
+          state.hand.splice(idx, 1);
+          applyStageEffects(tray.subject);
+          bumpTunnelOnStage(tray.subject);
+          progressed = true;
+          continue;
+        }
+      }
+      // Will compute these defense need vars below; stub them here so
+      // the target gate can read skipChipCast (which was computed
+      // earlier in the function, before the pass loop).
+      if (!tray.target && !skipCastForThread && !skipChipCast) {
+        const idx = pickBestForSlotRageAware(state, 'target', state.energy, state.rageActive, tray, enemy);
+        if (idx >= 0) {
+          tray.target = state.hand[idx];
+          state.energy -= tray.target.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
+          state.hand.splice(idx, 1);
+          bumpTunnelOnStage(tray.target);
+          progressed = true;
+          continue;
+        }
+      }
+      if (tray.intro && tray.subject && tray.target && tray.modifiers.length < 2) {
+        const tier = computeSpellTier(tray.intro, tray.subject, tray.target);
+        const bossFight = enemy.tier === 'boss';
+        const idx = pickBestModifier(state, state.energy, tier, bossFight, !!tray.target?.effect?.loudScaling);
+        if (idx >= 0) {
+          const m = state.hand[idx];
+          const stagedM = m.effects?.footnoteSelfOnStage
+            ? { ...m, footnotes: (m.footnotes || 0) + 1 }
+            : m;
+          tray.modifiers.push(stagedM);
+          state.energy -= m.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
+          state.hand.splice(idx, 1);
+          bumpTunnelOnStage(m);
+          progressed = true;
+          continue;
+        }
+      }
 
       // v2.9: Defenders react to anticipated damage. The dual-shield system
       // forces the AI to keep BOTH pools covered, not just HP. Thresholds
@@ -1713,124 +1855,9 @@ function runCombat(state, enemyId, telemetry) {
         }
       }
 
-      // Apply on-stage side effects from word cards (draw/block/weak/vulnerable).
-      // Mirrors applySideEffects in App.jsx.
-      const applyStageEffects = (card) => {
-        const fx = card.effects || {};
-        if (fx.block)      state.block += fx.block;
-        if (fx.poise)      state.poise += fx.poise;
-        if (fx.draw)       drawCards(state, fx.draw);
-        if (fx.weak)       state.enemyDmgMult = Math.max(0.5, (state.enemyDmgMult || 1) - 0.25 * fx.weak);
-        if (fx.vulnerable) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fx.vulnerable);
-        if (fx.energy)     state.energy += fx.energy;
-        if (fx.hp)         state.hp = Math.min(state.maxHp, state.hp + fx.hp);
-        if (fx.loseHp)     state.hp = Math.max(0, state.hp - fx.loseHp);
-        // v2.24: tunnel-vision pump (Foaming at the mouth, and any future card).
-        if (fx.tunnelVision) state.tunnelVision = (state.tunnelVision || 0) + fx.tunnelVision;
-        // v2.32: NOT LISTENING — removeWeak/removeVulnerable scrub stacks
-        // back toward neutral. The sim models Weak via state.playerDmgMult
-        // (below 1.0 means weakened); Vuln via state.enemyDmgMult applied to
-        // the player (above 1.0 means more incoming dmg). Each removed stack
-        // adjusts by 0.25 toward 1.0. Stays at 1.0 if already neutral.
-        if (fx.removeWeak && (state.playerDmgMult || 1) < 1.0) {
-          state.playerDmgMult = Math.min(1.0, (state.playerDmgMult || 1) + 0.25 * fx.removeWeak);
-        }
-        if (fx.removeVulnerable && (state.enemyDmgMult || 1) > 1.0) {
-          state.enemyDmgMult = Math.max(1.0, (state.enemyDmgMult || 1) - 0.25 * fx.removeVulnerable);
-        }
-        // v2.44: SPEAKING OF WHICH — staging discards an extra random hand card
-        // to deepen the Tangent pool. No-op if hand is empty.
-        if (fx.discardOnPlay && state.hand.length > 0) {
-          const idx = Math.floor(rnd() * state.hand.length);
-          const lost = state.hand[idx];
-          state.hand.splice(idx, 1);
-          state.discard.push(lost);
-        }
-        // v2.45: oh — wait — no, sorry, intro — staging arms one absorb of
-        // the next enemy debuff. Aliases onto notListeningCharges.
-        if (fx.ignoreNextDebuff) {
-          state.notListeningCharges = (state.notListeningCharges || 0) + fx.ignoreNextDebuff;
-        }
-      };
-      // v2.24: bumps the chutzpah RAGE meter when a chutzpah-lane card
-      // commits to a slot. Mirrors bumpTunnelVisionIfChutzpah() in App.jsx.
-      // v2.29: also bumps the saying-it-louder counter when a chutzpah
-      // word card (intro/subject/modifier) with the 'demanding' tag stages.
-      const bumpTunnelOnStage = (card) => {
-        if (card?.lane === 'chutzpah') state.tunnelVision = (state.tunnelVision || 0) + 1;
-        if (card?.lane === 'chutzpah'
-            && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
-            && (card.tags || []).includes('demanding')) {
-          state.loudCount = (state.loudCount || 0) + 1;
-        }
-      };
-      if (!tray.intro) {
-        const idx = pickBestForSlot(state, 'intro', state.energy, enemy, tray);
-        if (idx >= 0) {
-          tray.intro = state.hand[idx];
-          state.energy -= tray.intro.cost || 0;
-          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
-          state.hand.splice(idx, 1);
-          applyStageEffects(tray.intro);
-          bumpTunnelOnStage(tray.intro);
-          progressed = true;
-          continue;
-        }
-      }
-      if (!tray.subject) {
-        const idx = pickBestForSlot(state, 'subject', state.energy, enemy, tray);
-        if (idx >= 0) {
-          tray.subject = state.hand[idx];
-          state.energy -= tray.subject.cost || 0;
-          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
-          state.hand.splice(idx, 1);
-          applyStageEffects(tray.subject);
-          bumpTunnelOnStage(tray.subject);
-          progressed = true;
-          continue;
-        }
-      }
-      if (!tray.target && !skipCastForThread && !skipChipCast) {
-        // v2.24: prefer Bare Knuckles (requiresRage) when RAGE is active.
-        // Otherwise block it from staging entirely (mirrors App.jsx gate).
-        // v2.25: also gates doubleDown targets — only pick if the cast
-        // would kill (tray + enemy passed for damage prediction).
-        // v2.43: skipCastForThread suppresses target staging to PRESERVE
-        // Long Thread for a stacked cast next turn (see pre-loop block).
-        const idx = pickBestForSlotRageAware(state, 'target', state.energy, state.rageActive, tray, enemy);
-        if (idx >= 0) {
-          tray.target = state.hand[idx];
-          state.energy -= tray.target.cost || 0;
-          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
-          state.hand.splice(idx, 1);
-          bumpTunnelOnStage(tray.target);
-          progressed = true;
-          continue;
-        }
-      }
-      // After all three primary slots filled, optionally play modifier(s).
-      if (tray.intro && tray.subject && tray.target && tray.modifiers.length < 2) {
-        const tier = computeSpellTier(tray.intro, tray.subject, tray.target);
-        const bossFight = enemy.tier === 'boss';
-        const idx = pickBestModifier(state, state.energy, tier, bossFight, !!tray.target?.effect?.loudScaling);
-        if (idx >= 0) {
-          const m = state.hand[idx];
-          // v2.41: footnoteSelfOnStage — the staged copy gains +1 footnote
-          // before it enters the tray. Mirrors App.jsx modifier branch.
-          const stagedM = m.effects?.footnoteSelfOnStage
-            ? { ...m, footnotes: (m.footnotes || 0) + 1 }
-            : m;
-          tray.modifiers.push(stagedM);
-          state.energy -= m.cost || 0;
-          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
-          state.hand.splice(idx, 1);
-          // v2.29: modifier staging also bumps loud-count + tunnel-vision.
-          // (Was missing — only intro/subject/target called bumpTunnelOnStage.)
-          bumpTunnelOnStage(m);
-          progressed = true;
-          continue;
-        }
-      }
+      // v3.4.9 — staging block moved ABOVE defense/utility (see top of
+      // this pass loop). All staging logic now fires first; defense and
+      // utility blocks run on whatever energy remains.
       if (!progressed) break;
     }
 
