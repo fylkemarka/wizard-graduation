@@ -607,7 +607,7 @@ const MISSTEP_TOKEN = {
 // skills (defend + channel) for a 10-card opening hand pool. The basic
 // rarity cards lock the player into Tier 1 spells until rewards bring in
 // higher-tier intros / subjects / targets.
-function buildStarterDeckForLane(lane) {
+function buildStarterDeckForLane(lane, startingRow = null) {
   const pool = LANE_POOL_BY_SLOT[lane];
   if (!pool) return [];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
@@ -644,12 +644,22 @@ function buildStarterDeckForLane(lane) {
   // the first combat.
   let introIds, subjectId, targetId;
   if (lane === 'wit') {
-    // v3.2 damage tune: use basic-tier STARTER variants of Bouclé/Fabric.
-    // Same setId='slowburn-4' so FFT still fires in combat 1; basic stats
-    // keep the cast at ~10 dmg vs the uncommon variants' ~27 dmg one-shot.
-    introIds = ['wv2-i-frankly', 'wv2-i-actually'];
-    subjectId = 'wv2-s-boucle-starter';
-    targetId  = 'wv2-t-fabric-starter';
+    if (startingRow) {
+      // v3.4.7 — wit player chose a starting row at character select.
+      // Use the chosen row's intro/subject/target as the seed. T1 stat
+      // override (in buildStartingDeck) makes these cards starter-power
+      // regardless of the row's natural tier. Second intro stays as
+      // 'Actually,' for slot variety (paired with the chosen intro).
+      introIds = [startingRow.introId, startingRow.introId === 'wv2-i-actually' ? 'wv2-i-frankly' : 'wv2-i-actually'];
+      subjectId = startingRow.subjectId;
+      targetId  = startingRow.targetId;
+    } else {
+      // Default: slowburn-4 (Lingering Point) with dedicated basic-tier
+      // starter variants (boucle-starter, fabric-starter).
+      introIds = ['wv2-i-frankly', 'wv2-i-actually'];
+      subjectId = 'wv2-s-boucle-starter';
+      targetId  = 'wv2-t-fabric-starter';
+    }
   } else {
     introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
     subjectId = basics(pool.subject)[0]?.id;
@@ -2665,9 +2675,30 @@ function rollIntent(enemy, excludeKinds = []) {
   return { ...pool[0] };
 }
 
-function buildStartingDeck(lane = 'wit') {
-  const ids = buildStarterDeckForLane(lane);
-  return shuffle(ids.map(id => ({ ...CARDS_BY_ID[id], uid: uid() })));
+// v3.4.7: optional `startingRow` (a WIT_ROWS entry) lets the wit player
+// pick their starter row from any of the 15 available. Picked rows
+// substitute for the default slowburn-4 starter; the row's intro/subject/
+// target replace the basic starter cards. T1 power level is enforced at
+// instance time by stamping stats: wit=1 + effect.base=2 + multiplier=2,
+// matching the original Bouclé starter values.
+function buildStartingDeck(lane = 'wit', opts = {}) {
+  const startingRow = opts.startingRow || null;
+  const ids = buildStarterDeckForLane(lane, startingRow);
+  const cards = ids.map(id => ({ ...CARDS_BY_ID[id], uid: uid() }));
+  if (lane === 'wit' && startingRow) {
+    const rowIds = new Set([startingRow.introId, startingRow.subjectId, startingRow.targetId]);
+    for (const card of cards) {
+      if (!rowIds.has(card.id)) continue;
+      // T1 stat override for the chosen row's cards. Deep-clones stats /
+      // effect via spread so the source CARDS_BY_ID entries aren't mutated.
+      if (card.slot === 'intro' || card.slot === 'subject') {
+        card.stats = { ...(card.stats || {}), wit: 1 };
+      } else if (card.slot === 'target' && card.effect) {
+        card.effect = { ...card.effect, base: 2, multiplier: 2 };
+      }
+    }
+  }
+  return shuffle(cards);
 }
 
 // Return a new card object representing the upgraded version of `card`.
@@ -3746,6 +3777,10 @@ export default function App() {
   const [cardGrantPrompt, setCardGrantPrompt] = useState(null);
   const [cardLossNotice, setCardLossNotice] = useState(null);
   const [materialGainNotice, setMaterialGainNotice] = useState(null);
+  // v3.4.7: wit player's chosen starting row (WIT_ROWS entry). Survives
+  // for the whole run so the Compendium / DeckView can highlight the
+  // seeded school. null = non-wit run OR default-row (slowburn-4) wit.
+  const [startingRow, setStartingRow] = useState(null);
 
   // ---- Crafting state (Commit 2: gather; Commit 3: craft) ----
   // Inventory of raw materials gathered per slot during this act and
@@ -4131,7 +4166,13 @@ export default function App() {
     setSelectedCharacter(c);
     logEvent('character.select', { characterId: c.id, lane: c.lane, name: c.name });
     pushLog(`🧙 You are ${c.name}, ${c.title}.`);
-    // Build the character's v2 starter deck (basics from this lane + utility skills).
+    // v3.4.7 — wit gets a starting-row choice screen before the supply
+    // shop. Defer starter-deck build until the row is picked.
+    if (c.lane === 'wit') {
+      setStage('wit-row-select');
+      return;
+    }
+    // Non-wit characters: build starter immediately and continue.
     const starterDeck = buildStartingDeck(c.lane);
     setDeck(starterDeck);
     // v2.8: STS-style 1-of-3. Build three offers from three different
@@ -4156,6 +4197,40 @@ export default function App() {
       ? commonRelics[Math.floor(Math.random() * commonRelics.length)]
       : null;
     // Boon: a permanent stat tweak.
+    const boonOffer = SHOP_BOONS[Math.floor(Math.random() * SHOP_BOONS.length)];
+    setSupplyOffers({ card: cardOffer, relic: relicOffer, boon: boonOffer });
+    setStage('supply-shop');
+    pushLog(`🏘 You set out from the school. Town first.`);
+  }
+
+  // v3.4.7 — Wit-only: after character select, the player picks one of
+  // the 15 FFT rows as their starter spell. The row's intro/subject/
+  // target enter the deck at T1 power (stamped in buildStartingDeck).
+  // After the pick, we continue with the same supply-shop offer flow
+  // that pickCharacter would have triggered for non-wit lanes.
+  function pickStartingRow(rowId) {
+    const row = WIT_ROW_BY_ID[rowId];
+    if (!row || !selectedCharacter) return;
+    setStartingRow(row);
+    logEvent('character.starting_row', { rowId: row.id, name: row.name, tierId: row.tierId });
+    pushLog(`📜 Starter spell chosen: ${row.name} — "${row.canonical}"`);
+    const starterDeck = buildStartingDeck('wit', { startingRow: row });
+    setDeck(starterDeck);
+    // Same supply-shop offer logic as pickCharacter's non-wit branch.
+    const lanePool = LANE_POOL['wit'] || [];
+    const starterIds = buildStarterDeckForLane('wit', row);
+    const uncommons = lanePool.filter(card =>
+      card.rarity === 'uncommon' &&
+      !starterIds.includes(card.id) &&
+      isInterestingReward(card)
+    );
+    const cardOffer = uncommons.length > 0
+      ? uncommons[Math.floor(Math.random() * uncommons.length)]
+      : null;
+    const commonRelics = RELICS.filter(r => r.rarity === 'common');
+    const relicOffer = commonRelics.length > 0
+      ? commonRelics[Math.floor(Math.random() * commonRelics.length)]
+      : null;
     const boonOffer = SHOP_BOONS[Math.floor(Math.random() * SHOP_BOONS.length)];
     setSupplyOffers({ card: cardOffer, relic: relicOffer, boon: boonOffer });
     setStage('supply-shop');
@@ -8826,6 +8901,7 @@ export default function App() {
   // the modal as an overlay below.
 
   if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} onPractice={startTutorial} />;
+  if (stage === 'wit-row-select') return <WitRowSelectScreen onPick={pickStartingRow} />;
   if (stage === 'supply-shop')   return <SupplyShopScreen offers={supplyOffers} onPick={pickSupplyOffer} character={selectedCharacter} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
   if (stage === 'familiar-name') return <FamiliarNameScreen familiar={familiar} onConfirm={confirmFamiliarName} />;
@@ -9428,6 +9504,53 @@ const WIZARD_TUTORIALS = {
     ],
   },
 };
+
+// v3.4.7 — Wit-only starter row picker. Shown after character select
+// when the player chose The Scholar. Lists all 15 FFT rows grouped by
+// school. Picking a row seeds the starter deck with that row's three
+// cards at T1 power (stamped in buildStartingDeck).
+function WitRowSelectScreen({ onPick }) {
+  const TIER_ORDER = ['slowburn', 'thorns', 'crescendo'];
+  const TIER_NAMES = { slowburn: 'Slow Burn', thorns: 'Thorns', crescendo: 'Crescendo' };
+  const TIER_ICONS = { slowburn: '🔥', thorns: '🌹', crescendo: '📚' };
+  const TIER_FLAVOR = {
+    slowburn: 'DoT-school. Stack composure damage over many turns; finish with a multiply or detonate.',
+    thorns: 'Reflect-school. Each enemy hit answers itself; arm charges to redirect their attacks.',
+    crescendo: 'Buildup-school. Every card you play banks a word. Finishers spend the bank for big payoff.',
+  };
+  const rowsByTier = {};
+  for (const t of TIER_ORDER) rowsByTier[t] = WIT_ROWS.filter(r => r.tierId === t);
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-4 max-w-6xl mx-auto">
+      <h2 className="font-display text-4xl text-iris-300 tracking-widest text-center">Choose Your Starter Spell</h2>
+      <p className="font-quill italic text-parchment-300 text-center max-w-3xl">
+        Pick one Fully Formed Thought to start the run with. All three of its cards enter your deck at Tier 1
+        power. You'll cast this row from combat 1; new rows drop at elites and special events. The school you
+        choose here is the one you'll naturally build around.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
+        {TIER_ORDER.map(tierId => (
+          <div key={tierId} className="flex flex-col gap-2">
+            <div className="text-center">
+              <div className="font-display text-2xl text-parchment-100">{TIER_ICONS[tierId]} {TIER_NAMES[tierId]}</div>
+              <div className="text-[11px] italic text-parchment-300 leading-snug mt-1 px-2">{TIER_FLAVOR[tierId]}</div>
+            </div>
+            <div className="flex flex-col gap-2">
+              {rowsByTier[tierId].map(row => (
+                <button key={row.id} onClick={() => onPick(row.id)}
+                        className="parchment-card p-3 text-left hover:scale-[1.02] hover:shadow-2xl transition cursor-pointer">
+                  <div className="font-display text-base text-iris-200">{row.name}</div>
+                  <div className="text-[12px] italic text-parchment-100 leading-snug mt-1">"{row.canonical}"</div>
+                  <div className="text-[11px] text-gold-300 mt-1.5 font-bold">★ {row.riderDesc || '(rider)'}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function CharacterSelectScreen({ characters, onSelect, onPractice }) {
   const [tutorialLane, setTutorialLane] = useState(null);

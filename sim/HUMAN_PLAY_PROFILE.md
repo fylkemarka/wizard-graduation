@@ -441,3 +441,64 @@ sufficient to one-shot mid-tier enemies.
 - Snapshot 10 to confirm Thorns/Crescendo cast no longer one-shots.
 - Validate that FFT casts still feel rewarding (reflect armings,
   bank consumes) now that baseline is weaker.
+
+## Observations — 2026-05-28 01:40 (snapshot 10 — REAL human, v3.4.6 wit)
+
+**Telemetry:** `wg-telemetry-2026-05-28T01-40-50-181Z.json`.
+7 combats, 34 turn-ends, 21 casts, 6 picks, 7-0 record (all act-1 enemies
+including Spinner + Pattern-Maker + Hollow Weaver + Loom Familiar).
+
+**Cadence (continued improvement):**
+- Casts/combat: **3.0** (snap 9 = 2.5)
+- Turns/combat: **4.86** (snap 9 = 4.0 — kills slowed slightly with v3.4.5 cast nerf)
+- Casts/turn: **0.62** (snap 9 = 0.625; snap 3 wit baseline 0.72)
+- Card plays/combat: **19.9** (high card cycling)
+
+**FFT engagement: 100%** — 15 full FFT + 6 partial = 21/21 casts triggered
+some bonus layer. The dropping of untagged spell pieces from rewards
+(v3.3 reward filter) IS converging the player on row-only casts.
+
+**Per-row data — 13 of 15 wit.fft.cast events were slowburn-4 (Lingering
+Point)** — Alan locked into the starter row and ran it as his primary
+spell. Damages-after-rider were modest (6-8 per cast), consistent with
+the v3.4.5 cast power tuning.
+
+**Picks (6 total):**
+- wv2-t-fabric-stops-asking  → slowburn-4 target (consolidating row, **SAMPLER**)
+- c-cutting-remark           → colorless one-shot (utility)
+- wv2-i-frankly              → slowburn-4 intro (duplicate-row reinforcement)
+- c-amplify                  → modifier skill (utility)
+- wv2-t-8-has-been-and-gone  → slowburn-5 target (new slowburn row)
+- wv2-t-essence-public-service → crescendo-4 target (off-school splash, **SAMPLER**)
+
+Pattern: 4 wit cards (3 slowburn, 1 crescendo) + 2 utility = 67% school
+commitment + 33% utility. School-sampler fired twice (3 total samplers
+offered, 2 picked — high conversion when sampler matches school).
+
+**Validation of v3.4.4-v3.4.6 pivots:**
+- "DoT only on full FFT" feels right (snap 9 confirmed by Alan; snap 10
+  data shows consistent slowburn FFT firing without one-shot bursts).
+- "Thorns/Crescendo cast power matches Slow Burn" landed without breaking
+  the schools' identity (15 FFT casts dealt 6-8 dmg each → enemy comp
+  draining at ~11-15/turn including DoT ticks).
+- "3× c-defend → 1× c-defend starter" landed without survivability
+  collapse — Alan still won 7-0 with the slimmer defense base.
+
+**AI-heuristic deltas (queued — STILL pending implementation):**
+1. **School-consistent draft bias** — Alan's pick pattern: 4/4 wit picks
+   were Slow Burn or Crescendo (no Thorns at all this run). Sim's
+   reward-pick weighting should add a school-affinity bonus for cards
+   matching schools already represented in the deck.
+2. **FFT-chain awareness in chip-skip** — Alan cast every turn he could
+   even when damage was small. Sim's chip-skip threshold should drop
+   from 15% pool to ~5-8% AND should never fire when the cast would
+   trigger an FFT layer.
+3. **Cast cadence target** — sim is at ~0.22/turn vs Alan's 0.62. The
+   tray-assembly heuristic should be more aggressive — stage partial
+   trays + cast incomplete-but-FFT-tagged combos.
+
+**Open follow-ups:**
+- Implement the three AI heuristic deltas above (queued from snaps 8-10).
+- Snapshot 11 to validate AI convergence after heuristic tune.
+- New ask (this session): wit character pick → choose one starter row
+  from the 15 available, at T1 power level. Implementation in v3.4.7.
