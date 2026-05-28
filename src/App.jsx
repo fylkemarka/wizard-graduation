@@ -10375,75 +10375,186 @@ function CardLossOverlay({ notice, onDismiss }) {
   );
 }
 
-// v3.4.13 — Lab Mode deck builder. Shows the lane pool grouped by slot
-// (intro/subject/target/modifier/skill/gesture/annotation) and lets the
-// player add any card any number of times. Right column = current deck.
+// v3.4.13 — Lab Mode deck builder.
+// v3.4.14 — Rebuilt with filter chips + FFT-row quick-add.
+// Wit pool is 164 cards; flat list is unusable. Now:
+//   • "By FFT Row" tab — 15 rows × 3 schools, +Row adds all 3 cards
+//     at once. Each card in a row is individually clickable too.
+//   • "All Cards" tab — chip filters for slot / rarity / school +
+//     text search. Compact one-line entries with hover details.
 function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCancel }) {
+  const [view, setView] = useState(character?.lane === 'wit' ? 'rows' : 'all');
+  const [slotFilter, setSlotFilter] = useState('all');
+  const [rarityFilter, setRarityFilter] = useState('all');
+  const [schoolFilter, setSchoolFilter] = useState('all');
   const [filter, setFilter] = useState('');
   if (!character) return null;
   const lane = character.lane;
   const pool = LANE_POOL[lane] || [];
-  const slotOrder = ['intro', 'subject', 'target', 'modifier', 'skill', 'gesture', 'annotation'];
-  const slotLabel = { intro: 'Intros', subject: 'Subjects', target: 'Targets', modifier: 'Modifiers', skill: 'Skills', gesture: 'Gestures', annotation: 'Annotations' };
-  const f = filter.trim().toLowerCase();
-  const matches = (c) => !f || (c.name || '').toLowerCase().includes(f)
-    || (c.phrase || '').toLowerCase().includes(f) || (c.id || '').toLowerCase().includes(f);
-  const grouped = {};
-  for (const slot of slotOrder) grouped[slot] = [];
-  for (const c of pool) {
-    const slot = c.slot || c.type || 'other';
-    if (!grouped[slot]) grouped[slot] = [];
-    if (matches(c)) grouped[slot].push(c);
-  }
   // Static lane color class strings for Tailwind purge safety.
   const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'chutzpah' ? 'text-ember-300' : 'text-moss-300';
-  const rarityColor = (r) => r === 'basic' ? 'text-parchment-300'
+  const rarityColor = (r) => r === 'basic' ? 'text-parchment-400'
     : r === 'common' ? 'text-parchment-100'
     : r === 'uncommon' ? 'text-iris-200'
     : r === 'rare' ? 'text-gold-300' : 'text-parchment-200';
+  const schoolColor = (s) => s === 'slowburn' ? 'text-emerald-300'
+    : s === 'thorns' ? 'text-rose-300'
+    : s === 'crescendo' ? 'text-amber-300' : 'text-parchment-400';
+  const slotIcon = { intro: '«', subject: '◆', target: '»', modifier: '✦', skill: '⚙', gesture: '✊', annotation: '📝' };
+
+  const f = filter.trim().toLowerCase();
+  const matchesText = (c) => !f || (c.name || '').toLowerCase().includes(f)
+    || (c.phrase || '').toLowerCase().includes(f) || (c.id || '').toLowerCase().includes(f)
+    || (c.desc || '').toLowerCase().includes(f);
+  const matchesSlot = (c) => slotFilter === 'all' || (c.slot || c.type) === slotFilter;
+  const matchesRarity = (c) => rarityFilter === 'all' || c.rarity === rarityFilter;
+  const matchesSchool = (c) => {
+    if (schoolFilter === 'all') return true;
+    if (schoolFilter === 'none') return !c.tierId;
+    return c.tierId === schoolFilter;
+  };
+  const filtered = pool.filter(c => matchesText(c) && matchesSlot(c) && matchesRarity(c) && matchesSchool(c));
+
+  // FFT rows view (wit only).
+  const rowsBySchool = useMemo(() => {
+    const out = { slowburn: [], thorns: [], crescendo: [] };
+    if (lane !== 'wit') return out;
+    for (const r of WIT_ROWS) {
+      if (out[r.tierId]) out[r.tierId].push(r);
+    }
+    return out;
+  }, [lane]);
+
+  // For each row, look up the actual card objects so we can show them.
+  const cardsForRow = (row) => {
+    const ids = [row.introId, row.subjectId, row.targetId];
+    return ids.map(id => pool.find(c => c.id === id)).filter(Boolean);
+  };
+
+  const addRow = (row) => {
+    for (const id of [row.introId, row.subjectId, row.targetId]) {
+      if (CARDS_BY_ID[id]) onAdd(id);
+    }
+  };
+
+  const Chip = ({ active, onClick, children, color = 'text-parchment-200' }) => (
+    <button onClick={onClick}
+            className={`text-[11px] uppercase tracking-wide border rounded px-2 py-0.5 transition
+              ${active ? 'border-gold-500 bg-ink-700 ' + color : 'border-ink-500 bg-ink-800 text-parchment-400 hover:border-parchment-400'}`}>
+      {children}
+    </button>
+  );
+
+  const CardEntry = ({ c }) => (
+    <button onClick={() => onAdd(c.id)}
+            className="text-left bg-ink-700 hover:bg-ink-600 border border-ink-500 rounded px-2 py-1
+                       flex items-center gap-2 w-full"
+            title={`${c.desc || c.flavor || ''}${c.phrase ? `\n"${c.phrase}"` : ''}`}>
+      <span className="text-parchment-400 text-[11px]" title={c.slot || c.type}>{slotIcon[c.slot || c.type] || '·'}</span>
+      <span className={`flex-1 truncate text-xs font-semibold ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
+      {c.tierId && <span className={`text-[10px] ${schoolColor(c.tierId)}`}>{c.tierId}</span>}
+      <span className="text-parchment-400 text-[10px]">{c.cost ?? '?'}⚡</span>
+      <span className="text-gold-400 text-sm leading-none">+</span>
+    </button>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col items-center p-6 gap-4 max-w-7xl mx-auto">
+    <div className="min-h-screen flex flex-col items-center p-4 gap-3 max-w-7xl mx-auto">
       <div className="flex items-center justify-between w-full gap-4">
         <h2 className={`font-display text-3xl ${laneAccent} tracking-widest`}>🧪 Lab — {character.name}</h2>
-        <button onClick={onCancel} className="btn bg-ink-700 text-parchment-200 text-sm px-3 py-1">← Menu</button>
+        <div className="flex items-center gap-2">
+          <button onClick={onStart} className="btn btn-gold px-5 py-2 text-sm">⚔ Enter Combat ({deck.length})</button>
+          <button onClick={onCancel} className="btn bg-ink-700 text-parchment-200 text-sm px-3 py-1">← Menu</button>
+        </div>
       </div>
-      <p className="font-quill italic text-parchment-300 text-sm text-center max-w-3xl">
-        Standard starter deck loaded. Add as many cards from the {lane} pool as you want, then enter combat against any enemy. Repeat as long as you like.
+      <p className="font-quill italic text-parchment-300 text-xs text-center max-w-3xl">
+        Standard starter loaded. Add cards from the {lane} pool, then fight any enemy. Cards stack — add the same one twice for 2 copies.
       </p>
-      <div className="flex gap-2 items-center w-full">
-        <input type="text" value={filter} onChange={e => setFilter(e.target.value)}
-               placeholder="Filter by name, phrase, or id…"
-               className="flex-1 bg-ink-800 border border-ink-500 text-parchment-100 px-3 py-1 rounded text-sm" />
-        <button onClick={onStart} className="btn btn-gold px-6 py-2">⚔ Enter Combat ({deck.length} cards)</button>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
-        <div className="lg:col-span-2 flex flex-col gap-3">
-          <h3 className="font-display text-xl text-parchment-100">Card Pool ({lane})</h3>
-          {slotOrder.map(slot => grouped[slot] && grouped[slot].length > 0 && (
-            <div key={slot} className="flex flex-col gap-1">
-              <div className="text-xs uppercase tracking-widest text-gold-500">{slotLabel[slot] || slot}</div>
-              <div className="flex flex-wrap gap-1">
-                {grouped[slot].map(c => (
-                  <button key={c.id} onClick={() => onAdd(c.id)}
-                          className="text-left text-xs bg-ink-700 hover:bg-ink-600 border border-ink-500 rounded px-2 py-1 max-w-xs"
-                          title={c.desc || c.flavor || ''}>
-                    <span className={`font-bold ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
-                    <span className="text-parchment-400 ml-1">[{c.cost ?? '?'}⚡]</span>
-                  </button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 w-full">
+        <div className="flex flex-col gap-2 min-w-0">
+          {lane === 'wit' && (
+            <div className="flex gap-1">
+              <Chip active={view === 'rows'} onClick={() => setView('rows')} color="text-iris-300">📜 By FFT Row</Chip>
+              <Chip active={view === 'all'} onClick={() => setView('all')} color="text-iris-300">🗂 All Cards</Chip>
+            </div>
+          )}
+
+          {view === 'rows' && lane === 'wit' && (
+            <div className="flex flex-col gap-3">
+              {['slowburn', 'thorns', 'crescendo'].map(school => (
+                <div key={school} className="flex flex-col gap-1">
+                  <div className={`text-xs uppercase tracking-widest font-bold ${schoolColor(school)}`}>
+                    {school === 'slowburn' ? '🔥 Slow Burn' : school === 'thorns' ? '🌹 Thorns' : '🔔 Crescendo'}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                    {rowsBySchool[school].map(row => {
+                      const cards = cardsForRow(row);
+                      return (
+                        <div key={row.id} className="border border-ink-500 bg-ink-800 rounded p-2 flex flex-col gap-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="font-display text-sm text-parchment-100 truncate">{row.name}</div>
+                            <button onClick={() => addRow(row)}
+                                    className="text-[10px] uppercase tracking-wide border border-gold-500 bg-ink-700 text-gold-300 hover:bg-ink-600 rounded px-2 py-0.5">
+                              +Row
+                            </button>
+                          </div>
+                          <div className="text-[10px] italic text-parchment-400 truncate" title={row.canonical}>"{row.canonical}"</div>
+                          {cards.map(c => <CardEntry key={c.id} c={c} />)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {view === 'all' && (
+            <>
+              <div className="flex flex-wrap gap-1 items-center">
+                <span className="text-[10px] text-parchment-400 mr-1">Slot:</span>
+                {['all', 'intro', 'subject', 'target', 'modifier', 'skill', 'gesture', 'annotation'].map(s => (
+                  <Chip key={s} active={slotFilter === s} onClick={() => setSlotFilter(s)}>{s}</Chip>
                 ))}
               </div>
-            </div>
-          ))}
+              <div className="flex flex-wrap gap-1 items-center">
+                <span className="text-[10px] text-parchment-400 mr-1">Rarity:</span>
+                {['all', 'basic', 'common', 'uncommon', 'rare'].map(r => (
+                  <Chip key={r} active={rarityFilter === r} onClick={() => setRarityFilter(r)}
+                        color={rarityColor(r)}>{r}</Chip>
+                ))}
+              </div>
+              {lane === 'wit' && (
+                <div className="flex flex-wrap gap-1 items-center">
+                  <span className="text-[10px] text-parchment-400 mr-1">School:</span>
+                  {['all', 'slowburn', 'thorns', 'crescendo', 'none'].map(s => (
+                    <Chip key={s} active={schoolFilter === s} onClick={() => setSchoolFilter(s)}
+                          color={schoolColor(s)}>{s}</Chip>
+                  ))}
+                </div>
+              )}
+              <input type="text" value={filter} onChange={e => setFilter(e.target.value)}
+                     placeholder="Search name, phrase, id, description…"
+                     className="bg-ink-800 border border-ink-500 text-parchment-100 px-2 py-1 rounded text-xs w-full" />
+              <div className="text-[10px] text-parchment-400">{filtered.length} of {pool.length} cards</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1 max-h-[65vh] overflow-y-auto pr-1">
+                {filtered.map(c => <CardEntry key={c.id} c={c} />)}
+              </div>
+            </>
+          )}
         </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="font-display text-xl text-parchment-100">Current Deck ({deck.length})</h3>
-          <div className="flex flex-col gap-1 max-h-[70vh] overflow-y-auto pr-2">
+
+        <div className="flex flex-col gap-2 min-w-0">
+          <h3 className="font-display text-lg text-parchment-100">Deck ({deck.length})</h3>
+          <div className="flex flex-col gap-1 max-h-[75vh] overflow-y-auto pr-1">
             {deck.map(c => (
-              <div key={c.uid} className="flex items-center gap-2 text-xs bg-ink-800 border border-ink-600 rounded px-2 py-1">
+              <div key={c.uid} className="flex items-center gap-2 text-[11px] bg-ink-800 border border-ink-600 rounded px-2 py-1">
+                <span className="text-parchment-500 text-[10px]">{slotIcon[c.slot || c.type] || '·'}</span>
                 <span className={`flex-1 truncate ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
-                <span className="text-parchment-400">{c.cost ?? '?'}⚡</span>
-                <button onClick={() => onRemove(c.uid)} className="text-ember-300 hover:text-ember-200 text-xs px-1"
-                        title="Remove from deck">×</button>
+                <span className="text-parchment-400 text-[10px]">{c.cost ?? '?'}⚡</span>
+                <button onClick={() => onRemove(c.uid)} className="text-ember-300 hover:text-ember-200 text-sm leading-none px-1"
+                        title="Remove">×</button>
               </div>
             ))}
           </div>
