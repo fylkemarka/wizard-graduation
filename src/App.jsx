@@ -77,6 +77,14 @@ const CARDS = [
     effects: { poise: 5, removeWeak: 1 }, upgrade: { effects: { poise: 8, removeWeak: 2 } },
     desc: 'Gain 5 Poise (vs composure attacks). Remove 1 Weak from yourself.',
     flavor: 'The first thing they took from you is the first thing you take back.' },
+  // v3.4.10 (Alan): replaces the cross-row second intro that used to ride
+  // along in the wit starter. One-shot, non-exhausting damage so the
+  // starter has a reliable chip-cast option that doesn't depend on
+  // assembling the tray. Goes back to deck (cycles) — not a gesture.
+  { id: 'c-rebut', name: 'Rebut', cost: 1, type: 'skill', rarity: 'basic',
+    effects: { compDmg: 4 }, upgrade: { effects: { compDmg: 6 } },
+    desc: 'Deal 4 composure damage.',
+    flavor: 'Not the cleverest reply. Lands anyway.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -648,15 +656,23 @@ function buildStarterDeckForLane(lane, startingRow = null) {
       // v3.4.7 — wit player chose a starting row at character select.
       // Use the chosen row's intro/subject/target as the seed. T1 stat
       // override (in buildStartingDeck) makes these cards starter-power
-      // regardless of the row's natural tier. Second intro stays as
-      // 'Actually,' for slot variety (paired with the chosen intro).
-      introIds = [startingRow.introId, startingRow.introId === 'wv2-i-actually' ? 'wv2-i-frankly' : 'wv2-i-actually'];
+      // regardless of the row's natural tier.
+      // v3.4.10 (Alan): dropped the cross-row second intro. Used to add
+      // 'wv2-i-actually' (from crescendo-4 "It All Adds Up") OR
+      // 'wv2-i-frankly' (from slowburn-4 "Lingering Point") as a slot-
+      // variety pad — but that polluted the starter with a foreign-row
+      // card and "threw off planning." The second intro slot is now
+      // filled by c-rebut (one-shot, non-exhausting damage skill, added
+      // alongside the c-* skills below).
+      introIds = [startingRow.introId];
       subjectId = startingRow.subjectId;
       targetId  = startingRow.targetId;
     } else {
       // Default: slowburn-4 (Lingering Point) with dedicated basic-tier
       // starter variants (boucle-starter, fabric-starter).
-      introIds = ['wv2-i-frankly', 'wv2-i-actually'];
+      // v3.4.10: same drop as above — single intro only, c-rebut fills
+      // the second damage slot via the c-* list below.
+      introIds = ['wv2-i-frankly'];
       subjectId = 'wv2-s-boucle-starter';
       targetId  = 'wv2-t-fabric-starter';
     }
@@ -676,6 +692,9 @@ function buildStarterDeckForLane(lane, startingRow = null) {
   ].filter(Boolean);
   if (lane === 'wit') {
     ids.push('wv2-ann-footnote-credibility');
+    // v3.4.10 (Alan): one-shot, non-exhausting damage card replaces the
+    // cross-row second intro that used to live in the wit starter.
+    ids.push('c-rebut');
   }
   return ids;
 }

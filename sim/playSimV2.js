@@ -118,7 +118,8 @@ function buildStarterDeck(lane) {
   // Fully Formed Thought in their first combat. Mirrors App.jsx.
   let introIds, subjectId, targetId;
   if (lane === 'wit') {
-    introIds = ['wv2-i-frankly', 'wv2-i-actually'];
+    // v3.4.10 (Alan): dropped the cross-row second intro. Sim mirror.
+    introIds = ['wv2-i-frankly'];
     subjectId = 'wv2-s-boucle-starter';
     targetId  = 'wv2-t-fabric-starter';
   } else {
@@ -139,6 +140,11 @@ function buildStarterDeck(lane) {
   }).filter(Boolean);
   cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
   cards.push({ id: 'c-compose', type: 'skill', cost: 1, effects: { poise: 5 }, name: 'Compose Yourself', uid: uid() });
+  // v3.4.10: c-rebut — one-shot, non-exhausting damage card for wit only.
+  // Mirrors App.jsx; replaces the cross-row second intro.
+  if (lane === 'wit') {
+    cards.push({ id: 'c-rebut', type: 'skill', cost: 1, effects: { compDmg: 4 }, name: 'Rebut', uid: uid() });
+  }
   // NOTE: Wit's starter annotation is NOT modeled in the sim. The sim's
   // greedy AI doesn't use annotations effectively (it can't reason about
   // the 3-turn payback window vs spending energy on cast NOW). Live play
