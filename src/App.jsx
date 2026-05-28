@@ -6181,50 +6181,83 @@ export default function App() {
           return { ...e, dot: next };
         });
       };
+      // v3.4.18 (Alan): DoT spells STACK onto existing DoT instead of
+      // replacing. Each DoT contribution is treated as a "wave" — an
+      // array of per-turn damage — and summed element-wise onto the
+      // enemy's schedule. The dot is internally schedule-driven now;
+      // dot.damage is always schedule[0] for display compat.
+      const addDotWave = (wave) => {
+        if (!wave || wave.length === 0) return;
+        setEnemy(e => {
+          if (!e) return e;
+          const cur = e.dot;
+          const existing = (cur && Array.isArray(cur.schedule))
+            ? cur.schedule.slice()
+            : (cur && (cur.damage || 0) > 0 && (cur.turnsRemaining || 0) > 0)
+              ? Array(cur.turnsRemaining).fill(cur.damage)
+              : [];
+          const len = Math.max(existing.length, wave.length);
+          const merged = new Array(len);
+          for (let i = 0; i < len; i++) merged[i] = (existing[i] || 0) + (wave[i] || 0);
+          // Trim trailing zeros — no ghost turns.
+          while (merged.length > 0 && (merged[merged.length - 1] || 0) <= 0) merged.pop();
+          if (merged.length === 0) return { ...e, dot: null };
+          return { ...e, dot: { damage: merged[0], turnsRemaining: merged.length, schedule: merged } };
+        });
+      };
+      // Flat constant DoT: { setDotMinDamage: N, setDotMinTurns: M } →
+      // wave [N, N, ..., N] (M times). Key names kept for data-compat;
+      // the "Min" semantic was replaced by additive stacking.
+      if (rider.setDotMinDamage && rider.setDotMinTurns) {
+        addDotWave(new Array(rider.setDotMinTurns).fill(rider.setDotMinDamage));
+      } else if (rider.setDotMinDamage) {
+        addDotWave([rider.setDotMinDamage]);
+      }
+      // Explicit per-turn curve: { setDotSchedule: [5,4,3,2,1] } → same
+      // wave, summed onto existing schedule.
+      if (Array.isArray(rider.setDotSchedule) && rider.setDotSchedule.length > 0) {
+        addDotWave(rider.setDotSchedule.slice());
+      }
+      // Legacy stacking helpers — keep schedule-aware so they don't
+      // silently no-op when a schedule-based dot is active.
       if (rider.addDotDamage) {
         updateDot(d => ({
           ...d,
-          damage: d.damage + rider.addDotDamage,
-          turnsRemaining: Math.max(d.turnsRemaining, 1),  // ensure at least 1 turn to tick
+          damage: (d.damage || 0) + rider.addDotDamage,
+          schedule: Array.isArray(d.schedule)
+            ? d.schedule.map(v => (v || 0) + rider.addDotDamage)
+            : d.schedule,
+          turnsRemaining: Math.max(d.turnsRemaining, 1),
         }));
       }
       if (rider.addDotTurns) {
-        updateDot(d => ({ ...d, turnsRemaining: d.turnsRemaining + rider.addDotTurns }));
-      }
-      if (rider.setDotMinDamage) {
-        updateDot(d => ({
-          ...d,
-          damage: Math.max(d.damage, rider.setDotMinDamage),
-          turnsRemaining: Math.max(d.turnsRemaining, 1),
-          schedule: undefined,  // flat-rate floor overrides any schedule
-        }));
-      }
-      if (rider.setDotMinTurns) {
-        updateDot(d => ({
-          ...d,
-          turnsRemaining: Math.max(d.turnsRemaining, rider.setDotMinTurns),
-          schedule: undefined,
-        }));
+        updateDot(d => {
+          let schedule = d.schedule;
+          if (Array.isArray(schedule)) {
+            const fill = schedule[schedule.length - 1] || d.damage || 0;
+            schedule = [...schedule, ...new Array(rider.addDotTurns).fill(fill)];
+          }
+          return { ...d, schedule, turnsRemaining: d.turnsRemaining + rider.addDotTurns };
+        });
       }
       if (rider.dotMultiply) {
-        updateDot(d => ({ ...d, damage: Math.round(d.damage * rider.dotMultiply) }));
-      }
-      // v3.4.17 — explicit per-turn DoT curve. Replaces the existing dot
-      // entirely. Each tick consumes schedule[0] and shifts the array;
-      // turnsRemaining counts down independently. Used by Slow Decay
-      // (front-loaded) and Steady Erosion (ramping).
-      if (Array.isArray(rider.setDotSchedule) && rider.setDotSchedule.length > 0) {
-        const sched = rider.setDotSchedule.slice();
-        setEnemy(e => e ? {
-          ...e,
-          dot: { damage: sched[0], turnsRemaining: sched.length, schedule: sched },
-        } : e);
+        updateDot(d => ({
+          ...d,
+          damage: Math.round((d.damage || 0) * rider.dotMultiply),
+          schedule: Array.isArray(d.schedule)
+            ? d.schedule.map(v => Math.round((v || 0) * rider.dotMultiply))
+            : d.schedule,
+        }));
       }
       if (rider.dotConsumeBig) {
-        // Detonate the entire remaining DoT now: damage × turns to comp.
+        // Detonate the entire remaining DoT now: sum of schedule (or
+        // damage × turns if no schedule). v3.4.18 — schedule-aware so
+        // detonating a variable curve actually pays out the right total.
         const cur = enemy?.dot;
-        if (cur && cur.damage > 0 && cur.turnsRemaining > 0) {
-          const total = cur.damage * cur.turnsRemaining;
+        if (cur && cur.turnsRemaining > 0) {
+          const total = Array.isArray(cur.schedule)
+            ? cur.schedule.reduce((s, v) => s + (v || 0), 0)
+            : cur.damage * cur.turnsRemaining;
           setEnemyComposure(c => {
             const after = Math.max(0, c - total);
             if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);

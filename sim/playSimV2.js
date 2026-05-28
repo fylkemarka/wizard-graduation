@@ -2270,37 +2270,55 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.draw)           drawCards(state, rider.draw);
         if (rider.poise)          state.poise = (state.poise || 0) + rider.poise;
         if (!state.scheduledEffects) state.scheduledEffects = [];
-        // v3.4 Poison-style DoT helpers — operate on enemy.dot directly.
-        if (rider.addDotDamage) {
-          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
-          enemy.dot.damage += rider.addDotDamage;
+        // v3.4.18 (Alan): DoT spells STACK additively onto existing DoT.
+        // Wave-and-sum onto enemy.dot.schedule; dot.damage = schedule[0].
+        const addDotWaveSim = (wave) => {
+          if (!wave || wave.length === 0) return;
+          const cur = enemy.dot;
+          const existing = (cur && Array.isArray(cur.schedule))
+            ? cur.schedule.slice()
+            : (cur && (cur.damage || 0) > 0 && (cur.turnsRemaining || 0) > 0)
+              ? new Array(cur.turnsRemaining).fill(cur.damage)
+              : [];
+          const len = Math.max(existing.length, wave.length);
+          const merged = new Array(len);
+          for (let i = 0; i < len; i++) merged[i] = (existing[i] || 0) + (wave[i] || 0);
+          while (merged.length > 0 && (merged[merged.length - 1] || 0) <= 0) merged.pop();
+          if (merged.length === 0) { enemy.dot = null; return; }
+          enemy.dot = { damage: merged[0], turnsRemaining: merged.length, schedule: merged };
+        };
+        if (rider.setDotMinDamage && rider.setDotMinTurns) {
+          addDotWaveSim(new Array(rider.setDotMinTurns).fill(rider.setDotMinDamage));
+        } else if (rider.setDotMinDamage) {
+          addDotWaveSim([rider.setDotMinDamage]);
+        }
+        if (Array.isArray(rider.setDotSchedule) && rider.setDotSchedule.length > 0) {
+          addDotWaveSim(rider.setDotSchedule.slice());
+        }
+        if (rider.addDotDamage && enemy.dot) {
+          enemy.dot.damage = (enemy.dot.damage || 0) + rider.addDotDamage;
+          if (Array.isArray(enemy.dot.schedule)) {
+            enemy.dot.schedule = enemy.dot.schedule.map(v => (v || 0) + rider.addDotDamage);
+          }
           if (enemy.dot.turnsRemaining < 1) enemy.dot.turnsRemaining = 1;
         }
-        if (rider.addDotTurns) {
-          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
+        if (rider.addDotTurns && enemy.dot) {
+          if (Array.isArray(enemy.dot.schedule)) {
+            const fill = enemy.dot.schedule[enemy.dot.schedule.length - 1] || enemy.dot.damage || 0;
+            enemy.dot.schedule = [...enemy.dot.schedule, ...new Array(rider.addDotTurns).fill(fill)];
+          }
           enemy.dot.turnsRemaining += rider.addDotTurns;
         }
-        if (rider.setDotMinDamage) {
-          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
-          enemy.dot.damage = Math.max(enemy.dot.damage, rider.setDotMinDamage);
-          if (enemy.dot.turnsRemaining < 1) enemy.dot.turnsRemaining = 1;
-          enemy.dot.schedule = undefined;
-        }
-        if (rider.setDotMinTurns) {
-          if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
-          enemy.dot.turnsRemaining = Math.max(enemy.dot.turnsRemaining, rider.setDotMinTurns);
-          enemy.dot.schedule = undefined;
-        }
         if (rider.dotMultiply && enemy.dot) {
-          enemy.dot.damage = Math.round(enemy.dot.damage * rider.dotMultiply);
+          enemy.dot.damage = Math.round((enemy.dot.damage || 0) * rider.dotMultiply);
+          if (Array.isArray(enemy.dot.schedule)) {
+            enemy.dot.schedule = enemy.dot.schedule.map(v => Math.round((v || 0) * rider.dotMultiply));
+          }
         }
-        // v3.4.17 — variable-curve DoT (Slow Decay / Steady Erosion).
-        if (Array.isArray(rider.setDotSchedule) && rider.setDotSchedule.length > 0) {
-          const sched = rider.setDotSchedule.slice();
-          enemy.dot = { damage: sched[0], turnsRemaining: sched.length, schedule: sched };
-        }
-        if (rider.dotConsumeBig && enemy.dot && enemy.dot.damage > 0 && enemy.dot.turnsRemaining > 0) {
-          const total = enemy.dot.damage * enemy.dot.turnsRemaining;
+        if (rider.dotConsumeBig && enemy.dot && enemy.dot.turnsRemaining > 0) {
+          const total = Array.isArray(enemy.dot.schedule)
+            ? enemy.dot.schedule.reduce((s, v) => s + (v || 0), 0)
+            : (enemy.dot.damage || 0) * enemy.dot.turnsRemaining;
           enemy.currentComp = Math.max(0, enemy.currentComp - total);
           enemy.dot = null;
           telemetry.fftDotConsumeBigDamage = (telemetry.fftDotConsumeBigDamage || 0) + total;
