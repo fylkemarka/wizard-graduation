@@ -3801,6 +3801,14 @@ export default function App() {
   // seeded school. null = non-wit run OR default-row (slowburn-4) wit.
   const [startingRow, setStartingRow] = useState(null);
 
+  // v3.4.13 — Lab Mode: a sandbox for combat testing. Lets Alan pick any
+  // wizard, customize the deck with any lane cards, then face any enemy
+  // on repeat. Bypasses supply-shop, familiar-shop, map, and rewards.
+  // `labMode` gates the post-combat short-circuit in onEnemyDefeated.
+  // `labRepeatPrompt` holds {enemyName} when the post-fight modal is up.
+  const [labMode, setLabMode] = useState(false);
+  const [labRepeatPrompt, setLabRepeatPrompt] = useState(null);
+
   // ---- Crafting state (Commit 2: gather; Commit 3: craft) ----
   // Inventory of raw materials gathered per slot during this act and
   // carried forward. Each entry is a full material template (id, name,
@@ -4142,6 +4150,89 @@ export default function App() {
       setClearedNodes([]);
       setStage('map');
     }
+  }
+
+  // v3.4.13 — Lab Mode entry: instant wizard select → custom deck build
+  // → pick enemy → fight → repeat. Bypasses the normal run progression.
+  // Triggered from the Lab button on CharacterSelectScreen.
+  function pickCharacterLab(characterId) {
+    const c = CHARACTERS_BY_ID[characterId];
+    if (!c) return;
+    clearSavedRun();
+    const fam = FAMILIARS_BY_ID['fam-toad'] || FAMILIARS[0];
+    const baseMaxHp = STARTING_MAX_HP + (fam?.bonus?.maxHp || 0);
+    setMaxHp(baseMaxHp);
+    setHp(baseMaxHp);
+    setComposureMax(STARTING_MAX_COMPOSURE);
+    setComposure(STARTING_MAX_COMPOSURE);
+    setBlock(0);
+    setEnergy(ENERGY_PER_TURN);
+    const starter = buildStartingDeck(c.lane);
+    const famCard = { ...fam.card, uid: uid() };
+    setDeck([...starter, famCard]);
+    setHand([]); setDiscard([]); setExiled([]);
+    setEquipment([]); setPowers([]); setRelics([]);
+    setFamiliar(fam); setFamiliarName(fam?.species || '');
+    setSelectedCharacter(c);
+    setEffectCount(0);
+    setTray(initialV2Tray());
+    setInventory({ staff: [], robes: [], ring: [], hat: [] });
+    setSkills({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
+    setClearedNodes([]);
+    setLog([`🧪 Lab Mode — ${c.name}.`]);
+    setCurrentActIdx(0);
+    setSupplyOffers(null);
+    setMap(null);
+    setCurrentNodeId(null);
+    setLabMode(true);
+    setStage('lab-deck-build');
+  }
+
+  // Add a card to the current lab deck (by template id). The card gets a
+  // fresh uid so each addition is a distinct instance.
+  function labAddCard(cardId) {
+    const tmpl = CARDS_BY_ID[cardId];
+    if (!tmpl) return;
+    setDeck(d => [...d, { ...tmpl, uid: uid() }]);
+  }
+
+  // Remove a specific card instance (by uid) from the lab deck.
+  function labRemoveCard(cardUid) {
+    setDeck(d => d.filter(c => c.uid !== cardUid));
+  }
+
+  // Move from lab-deck-build → lab-enemy-select.
+  function labGoToEnemySelect() {
+    // Reset combat-state fields between fights so HP/composure/energy
+    // start fresh each time (enterFight handles pile shuffling, but not
+    // these pools — they normally carry across map combats).
+    const baseMaxHp = STARTING_MAX_HP + (familiar?.bonus?.maxHp || 0);
+    setMaxHp(baseMaxHp);
+    setHp(baseMaxHp);
+    setComposureMax(STARTING_MAX_COMPOSURE);
+    setComposure(STARTING_MAX_COMPOSURE);
+    setBlock(0);
+    setEnergy(ENERGY_PER_TURN);
+    setStage('lab-enemy-select');
+  }
+
+  // Player picked an enemy from the lab list. Drop straight into combat.
+  function labFightEnemy(enemyId) {
+    enterFight(enemyId);
+  }
+
+  // Repeat? Yes — back to the enemy selector with fresh HP.
+  function labRepeatYes() {
+    setLabRepeatPrompt(null);
+    labGoToEnemySelect();
+  }
+
+  // Repeat? No — back to the main menu, exit lab mode.
+  function labRepeatNo() {
+    setLabRepeatPrompt(null);
+    setLabMode(false);
+    setSelectedCharacter(null);
+    setStage('menu');
   }
 
   function startRun() {
@@ -8486,6 +8577,15 @@ export default function App() {
       setStage('tutorial-complete');
       return;
     }
+    // v3.4.13 Lab Mode short-circuit: no rewards, no map. Show the
+    // repeat prompt; the player decides whether to fight another or
+    // return to the main menu. Keep stage on 'combat' under the modal
+    // — labRepeatYes / labRepeatNo do the actual routing.
+    if (labMode) {
+      pushLog(`✓ ${enemy.name} defeated.`);
+      setLabRepeatPrompt({ enemyName: enemy.name });
+      return;
+    }
     // Sidequest combat short-circuit: skip the reward draw and return
     // the player to the map. The current node is the spur combat node;
     // the next click walks forward to the next spur node.
@@ -8959,7 +9059,15 @@ export default function App() {
   // Card-grant modal sits on top of whatever stage triggered it — render
   // the modal as an overlay below.
 
-  if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} onPractice={startTutorial} />;
+  if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} onPractice={startTutorial} onLab={pickCharacterLab} />;
+  if (stage === 'lab-deck-build')   return <LabDeckBuildScreen
+    character={selectedCharacter} deck={deck}
+    onAdd={labAddCard} onRemove={labRemoveCard}
+    onStart={labGoToEnemySelect}
+    onCancel={() => { setLabMode(false); setSelectedCharacter(null); setStage('menu'); }} />;
+  if (stage === 'lab-enemy-select') return <LabEnemySelectScreen
+    enemies={ENEMIES} onPick={labFightEnemy}
+    onCancel={() => { setLabMode(false); setSelectedCharacter(null); setStage('menu'); }} />;
   if (stage === 'wit-row-select') return <WitRowSelectScreen onPick={pickStartingRow} />;
   if (stage === 'supply-shop')   return <SupplyShopScreen offers={supplyOffers} onPick={pickSupplyOffer} character={selectedCharacter} />;
   if (stage === 'familiar-shop') return <FamiliarShopScreen onPick={pickFamiliar} />;
@@ -9134,6 +9242,9 @@ export default function App() {
     <DeckView open={deckViewOpen} onClose={() => setDeckViewOpen(false)}
               hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
     <CardLossOverlay notice={cardLossNotice} onDismiss={() => setCardLossNotice(null)} />
+    {labRepeatPrompt && <LabRepeatPromptModal
+      enemyName={labRepeatPrompt.enemyName}
+      onYes={labRepeatYes} onNo={labRepeatNo} />}
     {tutorialActive && <TutorialOverlay
       step={tutorialStep}
       lane={tutorialLane}
@@ -9611,7 +9722,7 @@ function WitRowSelectScreen({ onPick }) {
   );
 }
 
-function CharacterSelectScreen({ characters, onSelect, onPractice }) {
+function CharacterSelectScreen({ characters, onSelect, onPractice, onLab }) {
   const [tutorialLane, setTutorialLane] = useState(null);
   return (
     <div className="min-h-screen flex flex-col items-center p-6 gap-6 max-w-6xl mx-auto">
@@ -9657,6 +9768,13 @@ function CharacterSelectScreen({ characters, onSelect, onPractice }) {
                     className={`text-xs py-2 px-2 border-2 rounded ${tutBtnClass}`}
                     title={`Read a summary of the ${c.lane} playstyle.`}>
                     📖 Read
+                  </button>
+                )}
+                {onLab && (
+                  <button onClick={() => onLab(c.id)}
+                    className="text-xs py-2 px-2 border-2 rounded border-gold-500 bg-ink-800 text-gold-300 hover:bg-ink-700"
+                    title="Lab Mode: standard starter + custom additions, pick any enemy, repeat until you say stop.">
+                    🧪 Lab
                   </button>
                 )}
               </div>
@@ -10251,6 +10369,149 @@ function CardLossOverlay({ notice, onDismiss }) {
         </div>
         <div className="text-center">
           <button onClick={onDismiss} className="btn btn-iris">Acknowledged</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// v3.4.13 — Lab Mode deck builder. Shows the lane pool grouped by slot
+// (intro/subject/target/modifier/skill/gesture/annotation) and lets the
+// player add any card any number of times. Right column = current deck.
+function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCancel }) {
+  const [filter, setFilter] = useState('');
+  if (!character) return null;
+  const lane = character.lane;
+  const pool = LANE_POOL[lane] || [];
+  const slotOrder = ['intro', 'subject', 'target', 'modifier', 'skill', 'gesture', 'annotation'];
+  const slotLabel = { intro: 'Intros', subject: 'Subjects', target: 'Targets', modifier: 'Modifiers', skill: 'Skills', gesture: 'Gestures', annotation: 'Annotations' };
+  const f = filter.trim().toLowerCase();
+  const matches = (c) => !f || (c.name || '').toLowerCase().includes(f)
+    || (c.phrase || '').toLowerCase().includes(f) || (c.id || '').toLowerCase().includes(f);
+  const grouped = {};
+  for (const slot of slotOrder) grouped[slot] = [];
+  for (const c of pool) {
+    const slot = c.slot || c.type || 'other';
+    if (!grouped[slot]) grouped[slot] = [];
+    if (matches(c)) grouped[slot].push(c);
+  }
+  // Static lane color class strings for Tailwind purge safety.
+  const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'chutzpah' ? 'text-ember-300' : 'text-moss-300';
+  const rarityColor = (r) => r === 'basic' ? 'text-parchment-300'
+    : r === 'common' ? 'text-parchment-100'
+    : r === 'uncommon' ? 'text-iris-200'
+    : r === 'rare' ? 'text-gold-300' : 'text-parchment-200';
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-4 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between w-full gap-4">
+        <h2 className={`font-display text-3xl ${laneAccent} tracking-widest`}>🧪 Lab — {character.name}</h2>
+        <button onClick={onCancel} className="btn bg-ink-700 text-parchment-200 text-sm px-3 py-1">← Menu</button>
+      </div>
+      <p className="font-quill italic text-parchment-300 text-sm text-center max-w-3xl">
+        Standard starter deck loaded. Add as many cards from the {lane} pool as you want, then enter combat against any enemy. Repeat as long as you like.
+      </p>
+      <div className="flex gap-2 items-center w-full">
+        <input type="text" value={filter} onChange={e => setFilter(e.target.value)}
+               placeholder="Filter by name, phrase, or id…"
+               className="flex-1 bg-ink-800 border border-ink-500 text-parchment-100 px-3 py-1 rounded text-sm" />
+        <button onClick={onStart} className="btn btn-gold px-6 py-2">⚔ Enter Combat ({deck.length} cards)</button>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
+        <div className="lg:col-span-2 flex flex-col gap-3">
+          <h3 className="font-display text-xl text-parchment-100">Card Pool ({lane})</h3>
+          {slotOrder.map(slot => grouped[slot] && grouped[slot].length > 0 && (
+            <div key={slot} className="flex flex-col gap-1">
+              <div className="text-xs uppercase tracking-widest text-gold-500">{slotLabel[slot] || slot}</div>
+              <div className="flex flex-wrap gap-1">
+                {grouped[slot].map(c => (
+                  <button key={c.id} onClick={() => onAdd(c.id)}
+                          className="text-left text-xs bg-ink-700 hover:bg-ink-600 border border-ink-500 rounded px-2 py-1 max-w-xs"
+                          title={c.desc || c.flavor || ''}>
+                    <span className={`font-bold ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
+                    <span className="text-parchment-400 ml-1">[{c.cost ?? '?'}⚡]</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2">
+          <h3 className="font-display text-xl text-parchment-100">Current Deck ({deck.length})</h3>
+          <div className="flex flex-col gap-1 max-h-[70vh] overflow-y-auto pr-2">
+            {deck.map(c => (
+              <div key={c.uid} className="flex items-center gap-2 text-xs bg-ink-800 border border-ink-600 rounded px-2 py-1">
+                <span className={`flex-1 truncate ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
+                <span className="text-parchment-400">{c.cost ?? '?'}⚡</span>
+                <button onClick={() => onRemove(c.uid)} className="text-ember-300 hover:text-ember-200 text-xs px-1"
+                        title="Remove from deck">×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// v3.4.13 — Lab Mode enemy picker. Lists every enemy in the game grouped
+// by act and tier (normal / elite / boss). One click → enterFight.
+function LabEnemySelectScreen({ enemies, onPick, onCancel }) {
+  const byAct = {};
+  for (const e of enemies) {
+    const act = e.act ?? 0;
+    if (!byAct[act]) byAct[act] = { normal: [], elite: [], boss: [] };
+    const tier = e.tier || 'normal';
+    if (!byAct[act][tier]) byAct[act][tier] = [];
+    byAct[act][tier].push(e);
+  }
+  const actIds = Object.keys(byAct).sort();
+  const tierColor = (t) => t === 'boss' ? 'border-ember-500 bg-ember-900 text-ember-200'
+    : t === 'elite' ? 'border-gold-500 bg-ink-700 text-gold-200'
+    : 'border-ink-500 bg-ink-700 text-parchment-200';
+  return (
+    <div className="min-h-screen flex flex-col items-center p-6 gap-4 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between w-full gap-4">
+        <h2 className="font-display text-3xl text-gold-300 tracking-widest">🧪 Lab — Pick an Enemy</h2>
+        <button onClick={onCancel} className="btn bg-ink-700 text-parchment-200 text-sm px-3 py-1">← Menu</button>
+      </div>
+      <div className="flex flex-col gap-5 w-full">
+        {actIds.map(actId => (
+          <div key={actId} className="flex flex-col gap-2">
+            <div className="text-xs uppercase tracking-widest text-gold-500">Act {actId}</div>
+            {['normal', 'elite', 'boss'].map(tier => byAct[actId][tier].length > 0 && (
+              <div key={tier} className="flex flex-col gap-1">
+                <div className="text-[11px] uppercase tracking-wide text-parchment-400">{tier}</div>
+                <div className="flex flex-wrap gap-2">
+                  {byAct[actId][tier].map(e => (
+                    <button key={e.id} onClick={() => onPick(e.id)}
+                            className={`text-left text-sm border-2 rounded px-3 py-2 hover:scale-[1.02] transition ${tierColor(tier)}`}
+                            title={`Composure ${e.composureMax}${e.hpMax < 999 ? ` · HP ${e.hpMax}` : ''}`}>
+                      <div className="font-display">{e.name}</div>
+                      <div className="text-xs opacity-80">🎭 {e.composureMax}{e.hpMax < 999 ? ` · ❤ ${e.hpMax}` : ''}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// v3.4.13 — Lab Mode post-fight modal. Shown when an enemy is defeated
+// while labMode is on. Yes → back to enemy select with fresh HP, No →
+// back to the main menu.
+function LabRepeatPromptModal({ enemyName, onYes, onNo }) {
+  return (
+    <div className="fixed inset-0 bg-ink-900 bg-opacity-85 z-50 flex items-center justify-center p-4">
+      <div className="parchment-card-strong max-w-md p-6 flex flex-col gap-4 items-center text-center">
+        <h2 className="font-display text-2xl text-gold-300">✓ {enemyName} defeated</h2>
+        <p className="font-quill italic text-parchment-200">Fight another?</p>
+        <div className="flex gap-3">
+          <button onClick={onYes} className="btn btn-gold px-6 py-2">Yes — pick again</button>
+          <button onClick={onNo} className="btn bg-ink-700 text-parchment-200 px-6 py-2">No — back to menu</button>
         </div>
       </div>
     </div>
