@@ -77,36 +77,36 @@ export const WIT_ROWS = [
     id: 'slowburn-1', tierId: 'slowburn', name: 'Slow Unraveling',
     canonical: 'Over time, your argument will slowly unravel.',
     introId: 'wv2-i-fabric-merchant', subjectId: 'wv2-s-your-taste', targetId: 'wv2-t-not-tolerated-after-8',
-    rider: { setDotMinDamage: 3, setDotMinTurns: 3 },
-    riderDesc: 'Establish DoT — set the enemy to at least 3/turn for 3 turns. The school\'s opener.',
+    rider: { setDotMinDamage: 2, setDotMinTurns: 8 },
+    riderDesc: 'DoT 2 composure/turn × 8 turns. The long, thin burn.',
   },
   {
     id: 'slowburn-2', tierId: 'slowburn', name: 'Slow Decay',
     canonical: 'Permit me to observe that your reasoning will slowly decay.',
     introId: 'wv2-i-permit-me-observe', subjectId: 'wv2-s-linen-october', targetId: 'wv2-t-precisely-what-one-does-not-do',
-    rider: { addDotDamage: 2, addDotTurns: 2, enemyWeakPerTurn: { amount: 1, turns: 3 } },
-    riderDesc: '+2 DoT damage/turn AND +2 turns AND Weak the enemy 1× each turn. Stacker.',
+    rider: { setDotSchedule: [5, 4, 3, 2, 1] },
+    riderDesc: 'DoT 5, 4, 3, 2, 1 composure across 5 turns. Front-loaded.',
   },
   {
     id: 'slowburn-4', tierId: 'slowburn', name: 'Lingering Point',
     canonical: 'Frankly, your point lingers, badly.',
     introId: 'wv2-i-frankly', subjectId: 'wv2-s-boucle-suggestion', targetId: 'wv2-t-fabric-stops-asking',
-    rider: { setDotMinDamage: 2, setDotMinTurns: 2, draw: 1 },
-    riderDesc: 'Establish DoT 2/turn × 2, AND draw 1. Gentle starter intro.',
+    rider: { setDotMinDamage: 3, setDotMinTurns: 3 },
+    riderDesc: 'DoT 3 composure/turn × 3 turns. The school\'s clean opener.',
   },
   {
     id: 'slowburn-5', tierId: 'slowburn', name: 'Steady Erosion',
     canonical: 'Speaking plainly, your premise will erode steadily.',
     introId: 'wv2-i-speaking-plainly', subjectId: 'wv2-s-evening-wear', targetId: 'wv2-t-8-has-been-and-gone',
-    rider: { dotMultiply: 2, enemyVulnPerTurn: { amount: 1, turns: 2 } },
-    riderDesc: 'DOUBLE the enemy\'s current DoT damage AND Vulnerable each turn. The payoff cast — bigger the more you stacked first.',
+    rider: { setDotSchedule: [1, 3, 6, 8] },
+    riderDesc: 'DoT 1, 3, 6, 8 composure across 4 turns. Ramping payoff.',
   },
   {
     id: 'slowburn-8', tierId: 'slowburn', name: 'The Festering Wound',
     canonical: 'If memory serves, your conclusion will fester.',
     introId: 'wv2-i-memory-serves', subjectId: 'wv2-s-silk-before-8', targetId: 'wv2-t-not-what-one-wears-after',
-    rider: { dotConsumeBig: true, selfBlockPerTurn: { amount: 2, turns: 3 } },
-    riderDesc: 'DETONATE all remaining DoT damage at once (damage × turns), then +2 Block at each of your next 3 turns. The finisher.',
+    rider: { setDotMinDamage: 3, setDotMinTurns: 4, enemyVulnPerTurn: { amount: 1, turns: 4 } },
+    riderDesc: 'DoT 3 composure/turn × 4 turns AND Vulnerable 1× each turn.',
   },
 
   // ---- Thorns (Reflect) ----
@@ -192,6 +192,8 @@ export const WIT_RIDER_KEYS = [
   // v3.4 — Poison-style DoT counter (enemy.dot). Replaces v3.3 `dot:`.
   'addDotDamage', 'addDotTurns', 'setDotMinDamage', 'setDotMinTurns',
   'dotMultiply', 'dotConsumeBig',
+  // v3.4.17 — explicit per-turn DoT curve (Slow Decay, Steady Erosion).
+  'setDotSchedule',
   // v3.3 scheduled-effect riders (non-DoT over-time):
   'enemyWeakPerTurn', 'enemyVulnPerTurn', 'dormantDamage',
   'selfBlockPerTurn', 'selfDrawPerTurn', 'bankDoublePerTurn',

@@ -6196,13 +6196,29 @@ export default function App() {
           ...d,
           damage: Math.max(d.damage, rider.setDotMinDamage),
           turnsRemaining: Math.max(d.turnsRemaining, 1),
+          schedule: undefined,  // flat-rate floor overrides any schedule
         }));
       }
       if (rider.setDotMinTurns) {
-        updateDot(d => ({ ...d, turnsRemaining: Math.max(d.turnsRemaining, rider.setDotMinTurns) }));
+        updateDot(d => ({
+          ...d,
+          turnsRemaining: Math.max(d.turnsRemaining, rider.setDotMinTurns),
+          schedule: undefined,
+        }));
       }
       if (rider.dotMultiply) {
         updateDot(d => ({ ...d, damage: Math.round(d.damage * rider.dotMultiply) }));
+      }
+      // v3.4.17 — explicit per-turn DoT curve. Replaces the existing dot
+      // entirely. Each tick consumes schedule[0] and shifts the array;
+      // turnsRemaining counts down independently. Used by Slow Decay
+      // (front-loaded) and Steady Erosion (ramping).
+      if (Array.isArray(rider.setDotSchedule) && rider.setDotSchedule.length > 0) {
+        const sched = rider.setDotSchedule.slice();
+        setEnemy(e => e ? {
+          ...e,
+          dot: { damage: sched[0], turnsRemaining: sched.length, schedule: sched },
+        } : e);
       }
       if (rider.dotConsumeBig) {
         // Detonate the entire remaining DoT now: damage × turns to comp.
@@ -7734,14 +7750,23 @@ export default function App() {
     let dotKilled = false;
     if (enemy?.dot?.turnsRemaining > 0) {
       const dot = enemy.dot;
-      const dmg = dot.damage;
+      // v3.4.17 — schedule-driven DoT (Slow Decay / Steady Erosion).
+      // When dot.schedule exists, the first entry is THIS turn's damage
+      // and the rest shifts down for future turns. Flat-rate dot has
+      // no schedule and uses dot.damage every turn.
+      const sched = Array.isArray(dot.schedule) ? dot.schedule : null;
+      const dmg = sched && sched.length > 0 ? sched[0] : dot.damage;
       const remaining = dot.turnsRemaining - 1;
+      const nextSched = sched ? sched.slice(1) : undefined;
+      const nextDamage = nextSched && nextSched.length > 0 ? nextSched[0] : dot.damage;
       if (dmg > 0) {
         const compBefore = enemyComposure;
         const compAfter = Math.max(0, compBefore - dmg);
         setEnemy(e => {
           if (!e) return e;
-          const nextDot = remaining > 0 && dmg > 0 ? { ...dot, turnsRemaining: remaining } : null;
+          const nextDot = remaining > 0 && (nextDamage > 0 || dot.damage > 0)
+            ? { ...dot, damage: nextDamage, schedule: nextSched, turnsRemaining: remaining }
+            : null;
           return { ...e, composure: compAfter, dot: nextDot };
         });
         setEnemyComposure(compAfter);
@@ -7751,7 +7776,7 @@ export default function App() {
           setTimeout(() => onEnemyDefeated(), 200);
         }
       } else if (remaining > 0) {
-        setEnemy(e => e ? { ...e, dot: { ...dot, turnsRemaining: remaining } } : e);
+        setEnemy(e => e ? { ...e, dot: { ...dot, damage: nextDamage, schedule: nextSched, turnsRemaining: remaining } } : e);
       } else {
         setEnemy(e => e ? { ...e, dot: null } : e);
       }

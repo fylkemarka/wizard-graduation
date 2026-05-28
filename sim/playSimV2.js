@@ -2284,13 +2284,20 @@ function runCombat(state, enemyId, telemetry) {
           if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
           enemy.dot.damage = Math.max(enemy.dot.damage, rider.setDotMinDamage);
           if (enemy.dot.turnsRemaining < 1) enemy.dot.turnsRemaining = 1;
+          enemy.dot.schedule = undefined;
         }
         if (rider.setDotMinTurns) {
           if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
           enemy.dot.turnsRemaining = Math.max(enemy.dot.turnsRemaining, rider.setDotMinTurns);
+          enemy.dot.schedule = undefined;
         }
         if (rider.dotMultiply && enemy.dot) {
           enemy.dot.damage = Math.round(enemy.dot.damage * rider.dotMultiply);
+        }
+        // v3.4.17 — variable-curve DoT (Slow Decay / Steady Erosion).
+        if (Array.isArray(rider.setDotSchedule) && rider.setDotSchedule.length > 0) {
+          const sched = rider.setDotSchedule.slice();
+          enemy.dot = { damage: sched[0], turnsRemaining: sched.length, schedule: sched };
         }
         if (rider.dotConsumeBig && enemy.dot && enemy.dot.damage > 0 && enemy.dot.turnsRemaining > 0) {
           const total = enemy.dot.damage * enemy.dot.turnsRemaining;
@@ -2931,10 +2938,19 @@ function runCombat(state, enemyId, telemetry) {
 
     // Enemy turn
     // v3.4 Poison-style DoT tick (single counter on enemy.dot).
-    if (enemy.dot && enemy.dot.turnsRemaining > 0 && enemy.dot.damage > 0) {
-      enemy.currentComp = Math.max(0, enemy.currentComp - enemy.dot.damage);
-      telemetry.fftDotTickDamage = (telemetry.fftDotTickDamage || 0) + enemy.dot.damage;
+    // v3.4.17 — schedule-driven tick consumes schedule[0] then shifts.
+    if (enemy.dot && enemy.dot.turnsRemaining > 0) {
+      const sched = Array.isArray(enemy.dot.schedule) ? enemy.dot.schedule : null;
+      const tickDmg = sched && sched.length > 0 ? sched[0] : enemy.dot.damage;
+      if (tickDmg > 0) {
+        enemy.currentComp = Math.max(0, enemy.currentComp - tickDmg);
+        telemetry.fftDotTickDamage = (telemetry.fftDotTickDamage || 0) + tickDmg;
+      }
       enemy.dot.turnsRemaining -= 1;
+      if (sched) {
+        enemy.dot.schedule = sched.slice(1);
+        enemy.dot.damage = enemy.dot.schedule.length > 0 ? enemy.dot.schedule[0] : enemy.dot.damage;
+      }
       if (enemy.dot.turnsRemaining <= 0) enemy.dot = null;
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
