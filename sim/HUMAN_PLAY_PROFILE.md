@@ -502,3 +502,70 @@ offered, 2 picked — high conversion when sampler matches school).
 - Snapshot 11 to validate AI convergence after heuristic tune.
 - New ask (this session): wit character pick → choose one starter row
   from the 15 available, at T1 power level. Implementation in v3.4.7.
+
+## Observations — 2026-05-28 (snapshot 11 — SIM AI delta tune, v3.4.8)
+
+**This is a SIM-side calibration entry, not a human-play telemetry
+session.** Three AI deltas queued from snaps 8-10 implemented + measured.
+
+**Implemented deltas:**
+
+(1) **School-consistent draft bias** (`awardReward` in playSimV2.js).
+    Wit-only: reward-bucket pick now weights cards by tierId-affinity to
+    the deck's existing school commitment. Weight multiplier:
+      schoolMult = 1 + (cardsOwnedInSchool × 0.5)
+    A 4-card school produces 3× weight bonus for cards from that school.
+    Untagged cards keep base weight.
+
+(2) **FFT-chain awareness in chip-skip** (the chip-skip block before
+    target staging in playSimV2.js). Two changes:
+      - Threshold tightened 15% → 7% of remaining pool.
+      - NEW: chip-skip suppressed when the prospective cast (intro+
+        subject+target in hand) would trigger an FFT layer (full row /
+        partial row / tier match). Those casts have school-rider value
+        beyond raw composure damage.
+
+(3) **FFT-chain staging bias** (pickBestForSlot + pickBestForSlotRageAware).
+    When the tray already has cards with a setId, strongly prefer the
+    next-slot card that completes the row (+20 to effectiveStat). Tier
+    match gets a smaller bias (+4-5). Lets the AI build toward an FFT
+    layer across turns instead of staging whichever card scores highest
+    by tier/stat alone.
+
+**Measured impact (100 sim wit runs):**
+
+| Metric | Pre-deltas (snap 7) | Post-deltas (snap 11) | Alan target (snap 10) |
+|---|---|---|---|
+| Win rate | 0% | 1% | won-7-of-7 |
+| Casts/turn | 0.17 | 0.21 | 0.62 |
+| Hold rate | 83.1% | 78.6% | ~38% |
+| Full FFT % of casts | 38.1% | 39.7% | 71.4% |
+| Partial FFT % | 53.5% | 44.6% | 28.6% |
+| ANY FFT-layer hit | 91.7% | 84.3% | 100% |
+| Turns/combat | 9.4 | 11.3 | 4.9 |
+
+**Read:** Deltas are working but movement is incremental. School-bias
+working (full FFT % up). Chain-staging working (less partial, more full).
+Chip-skip → 0 fires, as intended.
+
+The remaining cadence gap (0.21 vs 0.62) is NOT chip-skip — that's
+already off. It's structural: sim AI's tray-assembly is bottlenecked
+on hand-draw probabilities. With the 8-card starter and a 5-card hand,
+the probability that all 3 spell slots arrive in the same turn is ~26%.
+Even with multi-turn tray persistence, the deck cycles slowly under the
+sim's defense-first play order.
+
+**What WOULD close the gap (queued for next AI cycle):**
+- Reduce defense play threshold (sim plays defense more eagerly than
+  Alan's data shows).
+- Prioritize spell staging over passive utility plays (Amplify, Channel
+  fire before staging in sim — humans typically stage first).
+- Drop the `defenseTight` requirement on chip-skip entirely (it's
+  currently gated and basically dormant).
+- Bigger restructure: re-prioritize the per-turn play loop to STAGE
+  before PLAY-UTILITY.
+
+**Status:** Sim is closer to "play like Alan" but still hoarding. The
+convergence loop is operational (telemetry-in → heuristic deltas →
+snapshot record → measure). Cadence-gap pattern needs deeper structural
+fix in the next cycle.

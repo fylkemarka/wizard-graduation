@@ -222,8 +222,23 @@ function drawCards(state, n) {
 
 // Greedy AI pick: from a slot pool in hand, prefer the highest-tier card
 // the player can afford this turn. Returns hand index or -1.
-function pickBestForSlot(state, slot, energyLeft, enemy = null) {
+function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
   let bestIdx = -1, bestTier = -1, bestStat = -1;
+  // v3.4.8 Delta 3 — FFT-CHAIN STAGING. When the tray has already
+  // committed to a setId (intro/subject has setId), bias the next-slot
+  // pick toward a card that completes that row. Same effect for tierId
+  // (a same-tier cast triggers the tier sub-bonus). Lets the AI build
+  // toward an FFT layer across turns instead of staging whichever card
+  // happens to score highest by tier/stat.
+  let trayCommitSetId = null;
+  let trayCommitTierId = null;
+  if (tray) {
+    const slots = [tray.intro, tray.subject, tray.target].filter(Boolean);
+    for (const c of slots) {
+      if (c.setId && !trayCommitSetId) trayCommitSetId = c.setId;
+      if (c.tierId && !trayCommitTierId) trayCommitTierId = c.tierId;
+    }
+  }
   // v2.29: detect if a loudScaling target ("I SAID.") is in hand. If so,
   // bias toward chutzpah cards carrying the 'demanding' tag in same-tier
   // slot picks — each demanding word adds +3 to the eventual cast for free.
@@ -295,6 +310,16 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null) {
       if (matched > 0) {
         effectiveStat = effectiveStat + Math.min(matched * Math.ceil(pierceVal / 2), 6);
       }
+    }
+    // v3.4.8 Delta 3 — FFT-chain staging bias. If tray has committed to
+    // an FFT row, strongly prefer the card that completes it; otherwise
+    // mildly prefer same-tier (tier bonus). Magnitudes:
+    //   Row match (full FFT path):  +20 to effectiveStat
+    //   Tier match (tier sub path): +4
+    if (trayCommitSetId && c.setId === trayCommitSetId) {
+      effectiveStat = effectiveStat + 20;
+    } else if (trayCommitTierId && c.tierId === trayCommitTierId) {
+      effectiveStat = effectiveStat + 4;
     }
     if (tier * 10 + effectiveStat > bestTier * 10 + bestStat) {
       bestIdx = i; bestTier = tier; bestStat = effectiveStat;
@@ -428,6 +453,20 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
     // in the build-time starter set), bump its score so it's preferred
     // over starter-tier basics + commons. Magnitude tuned to lift
     // uncommon scoring above a baseline common by ~6 points.
+    // v3.4.8 Delta 3 — FFT-chain staging bias for targets. Same as
+    // pickBestForSlot: if the tray's intro/subject committed to a setId,
+    // strongly prefer the target that completes it.
+    let trayCommitSetId = null;
+    let trayCommitTierId = null;
+    if (tray) {
+      const slots = [tray.intro, tray.subject].filter(Boolean);
+      for (const sc of slots) {
+        if (sc.setId && !trayCommitSetId) trayCommitSetId = sc.setId;
+        if (sc.tierId && !trayCommitTierId) trayCommitTierId = sc.tierId;
+      }
+    }
+    if (trayCommitSetId && c.setId === trayCommitSetId) score += 25;
+    else if (trayCommitTierId && c.tierId === trayCommitTierId) score += 5;
     if (slot === 'target' && (c.rarity === 'uncommon' || c.rarity === 'rare')) {
       score += 6;
     }
@@ -1152,12 +1191,38 @@ function runCombat(state, enemyId, telemetry) {
         const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
         const wouldKill = predicted >= remaining;
         // v3.0 (cycle 2): chip threshold 25% → 15% of remaining pool.
-        // Human-divergence agent found sim casts 0.33-0.42/turn vs human
-        // 0.72-1.00 — the chip-skip heuristic was firing too aggressively,
-        // sim was hoarding tray instead of pressuring enemy. Tightening
-        // the chip definition (cast more often when damage is sub-15%
-        // pool, not sub-25%) brings sim cast cadence closer to human.
-        const isChip = predicted < remaining * 0.15;
+        // v3.4.8 Delta 2 (HUMAN_PLAY_PROFILE snap 10): real cadence is
+        // 0.62 casts/turn vs sim 0.22-0.34. Chip-skip was still too
+        // aggressive — Alan casts every turn even on small chip damage.
+        // Tightened further: 15% → 7%. AND override the skip when the
+        // staged cards form an FFT layer match (full or partial row, or
+        // same-tier across all three slots) — those casts are worth
+        // taking even at chip damage because they fire school riders.
+        const isChip = predicted < remaining * 0.07;
+        // FFT-chain check: if the three staged-or-in-hand cards would
+        // trigger an FFT layer (full row, partial row, or tier match),
+        // we don't skip — that cast has school-rider value beyond the
+        // raw composure damage.
+        let triggersFftLayer = false;
+        if (introCard && subjectCard && targetCard) {
+          const sId = introCard.setId;
+          const tId = introCard.tierId;
+          // Full row match.
+          if (sId && subjectCard.setId === sId && targetCard.setId === sId) {
+            triggersFftLayer = true;
+          }
+          // Partial row (any 2 share setId).
+          else if (sId && (sId === subjectCard.setId || sId === targetCard.setId)) {
+            triggersFftLayer = true;
+          }
+          else if (subjectCard.setId && subjectCard.setId === targetCard.setId) {
+            triggersFftLayer = true;
+          }
+          // All-tier match.
+          else if (tId && subjectCard.tierId === tId && targetCard.tierId === tId) {
+            triggersFftLayer = true;
+          }
+        }
         const hpRatio = state.maxHp > 0 ? state.hp / state.maxHp : 1;
         const expectedSwing = enemy.atk;
         const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
@@ -1169,7 +1234,7 @@ function runCombat(state, enemyId, telemetry) {
         const wouldSurvive = state.hp - unblockedExpected > 5;
         // Don't skip on the LAST act's boss (commit to the kill).
         const isFinalActBoss = enemy.tier === 'boss' && (state.actIdx || 0) >= 2;
-        if (isChip && !wouldKill && hpRatio > 0.4 && wouldSurvive && defenseTight && !isFinalActBoss) {
+        if (isChip && !wouldKill && hpRatio > 0.4 && wouldSurvive && defenseTight && !isFinalActBoss && !triggersFftLayer) {
           skipChipCast = true;
           telemetry.chipCastSkips = (telemetry.chipCastSkips || 0) + 1;
         }
@@ -1700,7 +1765,7 @@ function runCombat(state, enemyId, telemetry) {
         }
       };
       if (!tray.intro) {
-        const idx = pickBestForSlot(state, 'intro', state.energy, enemy);
+        const idx = pickBestForSlot(state, 'intro', state.energy, enemy, tray);
         if (idx >= 0) {
           tray.intro = state.hand[idx];
           state.energy -= tray.intro.cost || 0;
@@ -1713,7 +1778,7 @@ function runCombat(state, enemyId, telemetry) {
         }
       }
       if (!tray.subject) {
-        const idx = pickBestForSlot(state, 'subject', state.energy, enemy);
+        const idx = pickBestForSlot(state, 'subject', state.energy, enemy, tray);
         if (idx >= 0) {
           tray.subject = state.hand[idx];
           state.energy -= tray.subject.cost || 0;
@@ -3706,7 +3771,42 @@ function awardReward(state) {
   if (roll < 0.15 && rares.length) bucket = rares;
   else if (roll < 0.75 && uncommons.length) bucket = uncommons;
   else bucket = commons;
-  const card = pickSlotWeighted(bucket);
+  // v3.4.8 Delta 1 — SCHOOL-CONSISTENT DRAFT BIAS (per HUMAN_PLAY_PROFILE
+  // snapshot 10). Real-play data: Alan's 4 wit picks were all
+  // slowburn/crescendo (matching the school his starter row seeded).
+  // Sim was picking lane-pure-random with no school affinity. Now:
+  // for wit-lane, count which FFT schools the player's existing deck
+  // commits to (cards with that tierId) and weight bucket picks
+  // toward the dominant school. School-tagged cards get a +N weight
+  // proportional to how many cards of that school are already owned;
+  // untagged cards keep base weight.
+  let card;
+  if (state.lane === 'wit') {
+    const schoolCounts = {};
+    for (const c of allCards) {
+      if (c.tierId) schoolCounts[c.tierId] = (schoolCounts[c.tierId] || 0) + 1;
+    }
+    // Weight: base slot weight × (1 + schoolCount × 0.5).
+    // A 4-card school owned → 3× weight bonus. A 0-card school → no bonus.
+    const weightedPick = (cards) => {
+      if (cards.length === 0) return null;
+      const baseWeights = cards.map(c => {
+        const slotW = SLOT_WEIGHTS[c.slot] || 10;
+        const schoolMult = c.tierId ? (1 + (schoolCounts[c.tierId] || 0) * 0.5) : 1;
+        return slotW * schoolMult;
+      });
+      const total = baseWeights.reduce((s, w) => s + w, 0);
+      let r = rnd() * total;
+      for (let i = 0; i < cards.length; i++) {
+        r -= baseWeights[i];
+        if (r <= 0) return cards[i];
+      }
+      return cards[cards.length - 1];
+    };
+    card = weightedPick(bucket);
+  } else {
+    card = pickSlotWeighted(bucket);
+  }
   if (!card) return;
   state.discard.push({ ...card, uid: uid() });
   state.rewardsTaken.push(card.id);
