@@ -5023,6 +5023,11 @@ export default function App() {
     setHpLossThisTurn(0);
     setNextAttackSwingReduction(0);
     setEscalatingSwingReduction(false);
+    // v3.4.12: clear any leftover card-loss modal from the previous
+    // combat. Belt-and-suspenders for the DoT-kills-before-steal fix —
+    // even if some other path leaves the notice set, a fresh combat
+    // should never start with a stale modal.
+    setCardLossNotice(null);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -7621,28 +7626,19 @@ export default function App() {
       pushLog(`📝 Margin notes: -${annTurnEnd} comp.`);
     }
 
-    // 2. Enemy turn begins. Enemy block expires here, before the intent
-    // fires — so an enemy that blocks on consecutive turns gets a fresh
-    // pool each time, and player attacks during the previous turn can't
-    // free-rider through stale block.
-    if (enemyBlock > 0) {
-      pushLog(`👹 ${enemy?.name || 'Enemy'}: 🛡 fades.`);
-      logEvent(TE.ENEMY_BLOCK_CHANGE, {
-        before: enemyBlock, after: 0, reason: 'turn-start-fade',
-        enemyId: enemy?.id, intentKind: enemyIntent?.kind,
-      });
-    }
-    setEnemyBlock(0);
-
-    // 3. Enemy intent.
-    if (enemyIntent) applyEnemyIntent(enemyIntent);
-    if (hp <= 0 || composure <= 0) return;
-
+    // v3.4.12 (Alan bug): DoT tick MOVED ABOVE the enemy intent. Previously
+    // the enemy intent fired first, then DoT killed the enemy — but the
+    // intent's side effects (e.g. Loom Familiar's steal-card modal) had
+    // already triggered, leaving a stale CardLossOverlay that re-popped
+    // on the next combat. DoT killing on enemy turn-start should pre-empt
+    // the intent entirely. Local `dotKilled` flag short-circuits the
+    // intent block below.
     // v2.7 / v3.4 — Poison-style DoT tick. Bypasses enemy block
     // (matches STS Poison semantic AND avoids the stale-closure
     // double-write that was restoring faded block). DoT goes
     // straight to composure. Decrements turnsRemaining; expires at 0.
     // v3.4.3 (Alan): kill check — composure→0 from DoT now ends combat.
+    let dotKilled = false;
     if (enemy?.dot?.turnsRemaining > 0) {
       const dot = enemy.dot;
       const dmg = dot.damage;
@@ -7658,6 +7654,7 @@ export default function App() {
         setEnemyComposure(compAfter);
         showDamageFloater(dmg, 'composure');
         if (compAfter <= 0 && compBefore > 0) {
+          dotKilled = true;
           setTimeout(() => onEnemyDefeated(), 200);
         }
       } else if (remaining > 0) {
@@ -7667,6 +7664,23 @@ export default function App() {
       }
       pushLog(`🩸 DoT: ${dmg} composure (${remaining} turn${remaining === 1 ? '' : 's'} left).`);
     }
+
+    // 2. Enemy turn begins. Enemy block expires here, before the intent
+    // fires — so an enemy that blocks on consecutive turns gets a fresh
+    // pool each time, and player attacks during the previous turn can't
+    // free-rider through stale block.
+    if (enemyBlock > 0) {
+      pushLog(`👹 ${enemy?.name || 'Enemy'}: 🛡 fades.`);
+      logEvent(TE.ENEMY_BLOCK_CHANGE, {
+        before: enemyBlock, after: 0, reason: 'turn-start-fade',
+        enemyId: enemy?.id, intentKind: enemyIntent?.kind,
+      });
+    }
+    setEnemyBlock(0);
+
+    // 3. Enemy intent — skipped if DoT just killed the enemy this turn.
+    if (enemyIntent && !dotKilled) applyEnemyIntent(enemyIntent);
+    if (hp <= 0 || composure <= 0) return;
 
     // v2.34: LONG THREAD bookkeeping. Runs AFTER the enemy intent resolves
     // so `unblockedThisTurn` is final. Rules:
