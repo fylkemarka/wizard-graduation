@@ -4882,6 +4882,30 @@ export default function App() {
     return pool[Math.floor(Math.random() * pool.length)].id;
   }
 
+  // v3.4.11 — pile telemetry. Snapshot card-id contents of every pile
+  // (deck/hand/discard/exiled/tray) at combat.start, combat.end, and
+  // turn_end. Used to diagnose card-loss reports: if a card vanishes
+  // between snapshots, the gap tells us which transition dropped it.
+  // Closure reads current state — call inline in the same render pass
+  // as the logEvent.
+  function pilesSnapshot() {
+    const trayMods = (tray?.modifiers || []).map(m => m.id);
+    const trayCount = (tray?.intro ? 1 : 0) + (tray?.subject ? 1 : 0) + (tray?.target ? 1 : 0) + trayMods.length;
+    return {
+      deck:    deck.map(c => c.id),
+      hand:    hand.map(c => c.id),
+      discard: discard.map(c => c.id),
+      exiled:  exiled.map(c => c.id),
+      tray: {
+        intro:     tray?.intro?.id || null,
+        subject:   tray?.subject?.id || null,
+        target:    tray?.target?.id || null,
+        modifiers: trayMods,
+      },
+      total: deck.length + hand.length + discard.length + exiled.length + trayCount,
+    };
+  }
+
   function markCurrentNodeCleared() {
     if (currentNodeId && !clearedNodes.includes(currentNodeId)) {
       setClearedNodes(prev => [...prev, currentNodeId]);
@@ -4902,7 +4926,7 @@ export default function App() {
     const tmpl = ENEMIES_BY_ID[enemyId];
     if (!tmpl) return;
     const e = { ...tmpl, annotation: null }; // v2.10: fresh annotation slot per combat
-    logEvent(TE.COMBAT_START, { enemyId: e.id, enemyName: e.name, tier: e.tier, act: e.act, hp, composure, deckSize: deck.length + hand.length + discard.length, equipment: equipment.map(eq => eq.id) });
+    logEvent(TE.COMBAT_START, { enemyId: e.id, enemyName: e.name, tier: e.tier, act: e.act, hp, composure, deckSize: deck.length + hand.length + discard.length, equipment: equipment.map(eq => eq.id), piles: pilesSnapshot() });
     setEnemy(e);
     setEnemyComposure(e.composureMax);
     setEnemyHp(e.hpMax);
@@ -7467,6 +7491,8 @@ export default function App() {
       // attacks. Same fields for the post-drift snapshot.
       playerDmgMult: Number(playerDmgMult?.toFixed?.(2) ?? 1),
       enemyDmgMult:  Number(enemyDmgMult?.toFixed?.(2) ?? 1),
+      // v3.4.11: full pile snapshot — diagnose card-loss across turns.
+      piles: pilesSnapshot(),
     });
 
     // v2.24: RAGE turn ending — reset meter + undo the +0.5 potency bump.
@@ -7542,7 +7568,7 @@ export default function App() {
       // (same path as enemy KO) and short-circuit the rest of endTurn so
       // we don't run the enemy intent / hand reshuffle on a corpse.
       if (postMisstepHp <= 0) {
-        logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: 0, composureAfter: composure });
+        logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: 0, composureAfter: composure, piles: pilesSnapshot() });
         logEvent(TE.RUN_END, { outcome: 'lost', killedBy: 'misstep', actIdx: currentActIdx, finalDeckSize: deck.length + hand.length + discard.length + exiled.length });
         setTimeout(() => setStage('defeat'), 200);
         return;
@@ -8429,7 +8455,7 @@ export default function App() {
     }
     if (playerDied) {
       if (tutorialActive) { setHp(maxHp); setComposure(composureMax); return; }
-      logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: 0, composureAfter: composure });
+      logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: 0, composureAfter: composure, piles: pilesSnapshot() });
       logEvent(TE.RUN_END, { outcome: 'lost', killedBy: enemy?.id, actIdx: currentActIdx, finalDeckSize: deck.length + hand.length + discard.length + exiled.length });
       setTimeout(() => setStage('defeat'), 200);
     }
@@ -8438,7 +8464,7 @@ export default function App() {
 
   function onEnemyDefeated() {
     if (!enemy) return;
-    logEvent(TE.COMBAT_END, { enemyId: enemy.id, outcome: 'won', tier: enemy.tier, hpAfter: hp, composureAfter: composure });
+    logEvent(TE.COMBAT_END, { enemyId: enemy.id, outcome: 'won', tier: enemy.tier, hpAfter: hp, composureAfter: composure, piles: pilesSnapshot() });
     // Tutorial short-circuit: skip rewards, route to the wrap-up screen.
     if (tutorialActive) {
       pushLog(`✓ The Bursar concedes the match. "Well argued."`);
