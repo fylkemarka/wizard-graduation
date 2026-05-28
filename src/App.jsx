@@ -10732,6 +10732,30 @@ function CompendiumScreen({ onBack }) {
   const [schoolFilter, setSchoolFilter] = useState('all');
   const [filter, setFilter] = useState('');
   const [selectedCardId, setSelectedCardId] = useState(null);
+  // v3.4.16 — Tier preview toggle. T1 = base; T2 = upgradeCard once;
+  // T3 = upgradeCard twice. upgradeCard early-returns on upgraded
+  // cards, so we clear the flag between hops to let the v2 sentence-
+  // engine auto-upgrade run again.
+  // Per Alan: only FFT spell-piece cards (those with setId — intro/
+  // subject/target that belong to a row) reach T3. Everything else
+  // caps at T2; selecting T3 on a non-spell card shows the T2 form.
+  const [tierView, setTierView] = useState('t1');
+  const upgradeN = (c, n) => {
+    let cur = c;
+    for (let i = 0; i < n; i++) cur = upgradeCard({ ...cur, upgraded: false });
+    return cur;
+  };
+  const tierStepsRequested = tierView === 't3' ? 2 : tierView === 't2' ? 1 : 0;
+  const supportsT3 = (c) => !!c?.setId;
+  const effectiveSteps = (c) => {
+    if (!c || tierStepsRequested === 0) return 0;
+    const cap = supportsT3(c) ? 2 : 1;
+    return Math.min(tierStepsRequested, cap);
+  };
+  const displayCard = (c) => {
+    const steps = effectiveSteps(c);
+    return steps > 0 ? upgradeN(c, steps) : c;
+  };
   const pool = LANE_POOL[lane] || [];
   const selectedCard = selectedCardId ? pool.find(c => c.id === selectedCardId) : null;
 
@@ -10772,16 +10796,22 @@ function CompendiumScreen({ onBack }) {
     </button>
   );
 
-  const CardEntry = ({ c }) => (
-    <button onClick={() => setSelectedCardId(c.id)}
-            className={`text-left bg-ink-700 hover:bg-ink-600 border rounded px-2 py-1 flex items-center gap-2 w-full
-                       ${selectedCardId === c.id ? 'border-gold-400 ring-1 ring-gold-300' : 'border-ink-500'}`}>
-      <span className="text-parchment-400 text-[11px]">{slotIcon[c.slot || c.type] || '·'}</span>
-      <span className={`flex-1 truncate text-xs font-semibold ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
-      {c.tierId && <span className={`text-[10px] ${schoolColor(c.tierId)}`}>{c.tierId}</span>}
-      <span className="text-parchment-400 text-[10px]">{c.cost ?? '?'}⚡</span>
-    </button>
-  );
+  // Card entries display the tier-shifted card so name/cost reflect the
+  // T2/T3 form when the toggle is active. Selection key still uses the
+  // base card.id (which doesn't change across tiers).
+  const CardEntry = ({ c }) => {
+    const d = displayCard(c);
+    return (
+      <button onClick={() => setSelectedCardId(c.id)}
+              className={`text-left bg-ink-700 hover:bg-ink-600 border rounded px-2 py-1 flex items-center gap-2 w-full
+                         ${selectedCardId === c.id ? 'border-gold-400 ring-1 ring-gold-300' : 'border-ink-500'}`}>
+        <span className="text-parchment-400 text-[11px]">{slotIcon[c.slot || c.type] || '·'}</span>
+        <span className={`flex-1 truncate text-xs font-semibold ${rarityColor(c.rarity)}`}>{d.name || d.phrase || c.id}</span>
+        {c.tierId && <span className={`text-[10px] ${schoolColor(c.tierId)}`}>{c.tierId}</span>}
+        <span className="text-parchment-400 text-[10px]">{d.cost ?? '?'}⚡</span>
+      </button>
+    );
+  };
 
   const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'chutzpah' ? 'text-ember-300' : 'text-moss-300';
 
@@ -10791,14 +10821,30 @@ function CompendiumScreen({ onBack }) {
         <h2 className={`font-display text-3xl ${laneAccent} tracking-widest`}>📖 Compendium</h2>
         <button onClick={onBack} className="btn bg-ink-700 text-parchment-200 text-sm px-3 py-1">← Menu</button>
       </div>
-      <div className="flex gap-1">
-        {[{ id: 'wit', label: 'Wit' }, { id: 'chutzpah', label: 'Chutzpah' }, { id: 'jnsq', label: 'Jnsq' }].map(l => (
-          <button key={l.id} onClick={() => { setLane(l.id); setSelectedCardId(null); setView(l.id === 'wit' ? 'rows' : 'all'); }}
-                  className={`text-sm uppercase tracking-wide border-2 rounded px-3 py-1 transition
-                    ${lane === l.id ? 'border-gold-500 bg-ink-700 text-gold-200' : 'border-ink-500 bg-ink-800 text-parchment-400 hover:border-parchment-300'}`}>
-            {l.label}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-1">
+          {[{ id: 'wit', label: 'Wit' }, { id: 'chutzpah', label: 'Chutzpah' }, { id: 'jnsq', label: 'Jnsq' }].map(l => (
+            <button key={l.id} onClick={() => { setLane(l.id); setSelectedCardId(null); setView(l.id === 'wit' ? 'rows' : 'all'); }}
+                    className={`text-sm uppercase tracking-wide border-2 rounded px-3 py-1 transition
+                      ${lane === l.id ? 'border-gold-500 bg-ink-700 text-gold-200' : 'border-ink-500 bg-ink-800 text-parchment-400 hover:border-parchment-300'}`}>
+              {l.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 items-center">
+          <span className="text-[10px] uppercase text-parchment-400 mr-1">Show at tier:</span>
+          {[
+            { id: 't1', label: 'T1' },
+            { id: 't2', label: 'T2' },
+            { id: 't3', label: 'T3 (spells only)' },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTierView(t.id)}
+                    className={`text-xs uppercase tracking-wide border-2 rounded px-2 py-1 transition
+                      ${tierView === t.id ? 'border-gold-500 bg-ink-700 text-gold-200' : 'border-ink-500 bg-ink-800 text-parchment-400 hover:border-parchment-300'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 w-full">
@@ -10871,29 +10917,38 @@ function CompendiumScreen({ onBack }) {
         </div>
 
         <div className="flex flex-col gap-2 min-w-0">
-          {selectedCard ? (
-            <div className="parchment-card p-3 flex flex-col gap-2">
-              <div className="bg-parchment-50 text-ink-800 rounded p-2">
-                <CardFullBody card={selectedCard} />
+          {selectedCard ? (() => {
+            const shown = displayCard(selectedCard);
+            const cappedAtT2 = tierView === 't3' && !supportsT3(selectedCard);
+            const tierBadge = tierView === 't1' ? 'T1' : (cappedAtT2 ? 'T2 (max)' : tierView === 't2' ? 'T2' : 'T3');
+            return (
+              <div className="parchment-card p-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] uppercase tracking-widest text-gold-500">Showing {tierBadge}</div>
+                  {cappedAtT2 && <div className="text-[10px] italic text-parchment-400">(non-spell card — caps at T2)</div>}
+                </div>
+                <div className="bg-parchment-50 text-ink-800 rounded p-2">
+                  <CardFullBody card={shown} />
+                </div>
+                <div className="text-[11px] text-parchment-300 italic">"{selectedCard.flavor || ''}"</div>
+                {selectedCard.setId && (() => {
+                  const row = WIT_ROW_BY_ID[selectedCard.setId];
+                  if (!row) return null;
+                  return (
+                    <div className="border-t border-ink-600 pt-2 flex flex-col gap-1">
+                      <div className="text-[10px] uppercase tracking-widest text-gold-500">Belongs to spell</div>
+                      <div className="font-display text-base text-iris-200">{row.name}</div>
+                      <div className="text-[11px] italic text-parchment-200">"{row.canonical}"</div>
+                      <div className="text-[11px] text-gold-300">★ {row.riderDesc || '(rider)'}</div>
+                    </div>
+                  );
+                })()}
+                <button onClick={() => setSelectedCardId(null)} className="text-[10px] text-parchment-400 hover:text-parchment-200 self-end">close ×</button>
               </div>
-              <div className="text-[11px] text-parchment-300 italic">"{selectedCard.flavor || ''}"</div>
-              {selectedCard.setId && (() => {
-                const row = WIT_ROW_BY_ID[selectedCard.setId];
-                if (!row) return null;
-                return (
-                  <div className="border-t border-ink-600 pt-2 flex flex-col gap-1">
-                    <div className="text-[10px] uppercase tracking-widest text-gold-500">Belongs to spell</div>
-                    <div className="font-display text-base text-iris-200">{row.name}</div>
-                    <div className="text-[11px] italic text-parchment-200">"{row.canonical}"</div>
-                    <div className="text-[11px] text-gold-300">★ {row.riderDesc || '(rider)'}</div>
-                  </div>
-                );
-              })()}
-              <button onClick={() => setSelectedCardId(null)} className="text-[10px] text-parchment-400 hover:text-parchment-200 self-end">close ×</button>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="parchment-card p-4 text-sm italic text-parchment-300">
-              Click any card to see its full effect and which spell it belongs to.
+              Click any card to see its full effect and which spell it belongs to. Use the tier toggle to preview upgraded versions.
             </div>
           )}
         </div>
