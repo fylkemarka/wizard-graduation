@@ -9058,20 +9058,44 @@ export default function App() {
     }
     const row = WIT_ROW_BY_ID[rowId];
     if (!row) return;
-    const bumpPile = (pile) => pile.map(c => (c.setId === rowId ? upgradeCard(c) : c));
-    setDeck(bumpPile);
-    setHand(bumpPile);
-    setDiscard(bumpPile);
-    setExiled(bumpPile);
-    setTray(t => ({
-      ...t,
-      intro:    t?.intro    && t.intro.setId    === rowId ? upgradeCard(t.intro)    : t?.intro,
-      subject:  t?.subject  && t.subject.setId  === rowId ? upgradeCard(t.subject)  : t?.subject,
-      target:   t?.target   && t.target.setId   === rowId ? upgradeCard(t.target)   : t?.target,
-      modifiers: (t?.modifiers || []).map(m => (m.setId === rowId ? upgradeCard(m) : m)),
-    }));
-    pushLog(`🎓 Rehearsed ${row.name} — every card of the row is now upgraded.`);
-    logEvent('upgrade_spell.pick', { rowId, rowName: row.name });
+    // Count bumps via a side-effecting helper, but run it OUTSIDE the
+    // setState updaters (closure-snapshot pattern). Per the React
+    // purity rule: setState callbacks must be pure — StrictMode double-
+    // invokes them which would double-count. So we compute the next
+    // piles + counter eagerly here, then set state once with the
+    // pre-computed value.
+    let bumped = 0;
+    const bumpedNames = [];
+    const bumpOne = (c) => {
+      if (!c || c.setId !== rowId) return c;
+      const next = upgradeCard(c);
+      if (next !== c) { bumped++; bumpedNames.push(next.name || next.phrase || next.id); }
+      return next;
+    };
+    const nextDeck    = deck.map(bumpOne);
+    const nextHand    = hand.map(bumpOne);
+    const nextDiscard = discard.map(bumpOne);
+    const nextExiled  = exiled.map(bumpOne);
+    const nextTray = {
+      ...tray,
+      intro:     bumpOne(tray?.intro),
+      subject:   bumpOne(tray?.subject),
+      target:    bumpOne(tray?.target),
+      modifiers: (tray?.modifiers || []).map(bumpOne),
+    };
+    setDeck(nextDeck);
+    setHand(nextHand);
+    setDiscard(nextDiscard);
+    setExiled(nextExiled);
+    setTray(nextTray);
+    if (bumped > 0) {
+      pushLog(`🎓 Rehearsed ${row.name} — ${bumped} card${bumped === 1 ? '' : 's'} upgraded: ${bumpedNames.join(', ')}.`);
+    } else {
+      // Defensive: eligibility filter should prevent this, but if every
+      // copy was already T2 the player still ends up here on a click.
+      pushLog(`🎓 ${row.name} is already fully rehearsed — nothing changed.`);
+    }
+    logEvent('upgrade_spell.pick', { rowId, rowName: row.name, bumpedCount: bumped, cards: bumpedNames });
     setRestNode(null);
     returnToMap();
   }
