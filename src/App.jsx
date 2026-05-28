@@ -3010,7 +3010,7 @@ function isInterestingReward(card) {
   return false;
 }
 
-function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = [], lane = null) {
+function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = [], lane = null, opts = {}) {
   // Lane filter: only cards matching the player's lane OR lane-agnostic
   // utility cards (no `lane` field) qualify.
   // v2.99.3: DEFENSIVE — if `lane` is null (caller couldn't read the
@@ -3024,20 +3024,18 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
     if (!lane)   return false;      // No active lane → reject lane-specific
     return c.lane === lane;
   };
-  // v3.3 (Alan: "intro/subject/effect cards that don't belong to a
-  // specific category … are mostly just clutter"). Wit-only: spell-piece
-  // cards (intro/subject/target) MUST be set-tagged to appear in the
-  // reward pool. Untagged spell-pieces still exist as flavor (in the
-  // starter, in random stitching) but are never offered as draft choices.
-  // Skills, gestures, modifiers, annotations, powers are unaffected —
-  // they're still drafted regardless of setId.
+  // v3.4.15 (Alan): spell pieces (intro/subject/target) are NEVER offered
+  // as standalone rewards anywhere. They only enter the deck as FFT row
+  // bundles from elite/boss combat. `opts.excludeSpellPieces` is true on
+  // every combat-reward call.
   const isSpellPieceSlot = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
   const setTaggedOnly = (c) => {
     if (lane !== 'wit') return true;
     if (!isSpellPieceSlot(c)) return true;
     return !!c.setId;
   };
-  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c));
+  const supportOnly = (c) => !opts.excludeSpellPieces || !isSpellPieceSlot(c);
+  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c) && supportOnly(c));
   if (pool.length === 0) return null;
   // Weight by rarity AND slot together.
   const weightOf = (c) => (rarityWeights[c.rarity] || 0) * (REWARD_SLOT_WEIGHTS[c.slot] || 10);
@@ -3788,6 +3786,10 @@ export default function App() {
 
   // Reward / event / rest state
   const [rewardChoices, setRewardChoices] = useState([]);
+  // v3.4.15 — when an elite/boss grants FFT rows, each entry is
+  // { row: WIT_ROWS_ENTRY, cards: [card, card, card], tierBumped: bool }.
+  // The reward screen renders rows when this is non-empty.
+  const [rewardRowChoices, setRewardRowChoices] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
   const [restNode, setRestNode] = useState(null);
   // When set, shows the "you received this card" modal. Used after
@@ -8706,78 +8708,67 @@ export default function App() {
     const starterIds = lane ? buildStarterDeckForLane(lane) : [];
     const used = [...starterIds];
 
-    // v3.3 SCHOOL SAMPLER (Alan: "card categories feeling like extra
-    // baggage … felt like I didn't need more cards"). Wit-only: roll
-    // a chance to offer a SAMPLER of 3 cards from a single FFT row,
-    // forcing a school-commitment decision instead of a stat number.
-    // Bias toward rows the player has partial progress on (1-2 cards
-    // owned already) so the sampler completes a row in progress.
-    let samplerRow = null;
-    if (lane === 'wit' && WIT_ROWS.length > 0 && Math.random() < 0.35) {
-      // Score each row by how many slots the player needs (3 - owned).
-      // A row with 2/3 needs 1 — perfect sampler target.
-      const allOwned = [...hand, ...deck, ...discard, ...exiled];
-      const rowProgress = {};
-      for (const c of allOwned) {
+    // v3.4.15 (Alan): FFT spells are now elite/boss rewards only. Normal
+    // enemies grant support cards (modifiers/skills/gestures/annotations).
+    // Elite enemies grant a choice of 3 T1 FFT rows; bosses grant 3 T2
+    // rows. Each row is a bundle — picking adds all 3 cards at once.
+    const isEliteOrBoss = enemy.tier === 'elite' || enemy.tier === 'boss';
+    if (lane === 'wit' && isEliteOrBoss) {
+      // Pick 3 rows the player doesn't already fully own.
+      const ownedRowSlots = {};
+      for (const c of [...hand, ...deck, ...discard, ...exiled]) {
         if (!c.setId) continue;
-        if (!rowProgress[c.setId]) rowProgress[c.setId] = new Set();
-        rowProgress[c.setId].add(c.setSlot);
+        if (!ownedRowSlots[c.setId]) ownedRowSlots[c.setId] = new Set();
+        ownedRowSlots[c.setId].add(c.setSlot);
       }
-      const candidates = WIT_ROWS.map(r => {
-        const owned = (rowProgress[r.id] && rowProgress[r.id].size) || 0;
-        return { row: r, owned, needs: 3 - owned };
-      }).filter(p => p.needs > 0);
-      // Weight: prefer partial rows (owned >= 1) but allow fresh rows
-      // ~30% of the time so a player can pick up a new school.
-      const partials = candidates.filter(c => c.owned >= 1);
-      const fresh = candidates.filter(c => c.owned === 0);
-      const pool = partials.length > 0 && Math.random() < 0.7 ? partials : (fresh.length > 0 ? fresh : candidates);
-      if (pool.length > 0) {
-        samplerRow = pool[Math.floor(Math.random() * pool.length)].row;
-      }
-    }
-    if (samplerRow) {
-      // Build 3 cards from the row: intro, subject, target. Skip any
-      // the player already owns. If they own all 3, fall back to
-      // random offers (shouldn't happen given the filter above).
-      const ownedIds = new Set([...hand, ...deck, ...discard, ...exiled].map(c => c.id));
-      const slotIds = [samplerRow.introId, samplerRow.subjectId, samplerRow.targetId];
-      for (const id of slotIds) {
-        if (ownedIds.has(id)) continue;
-        const card = CARDS.find(c => c.id === id);
-        if (card && !choices.find(c => c.id === card.id)) {
-          choices.push(card);
-          used.push(card.id);
-        }
-      }
-      // If the player already had some of the row's cards, top up with
-      // random picks so the reward screen always shows 3.
-      while (choices.length < 3) {
-        const pick = pickCardByRarity(weights, used, lane);
-        if (!pick) break;
-        choices.push(pick); used.push(pick.id);
-      }
-      logEvent(TE.REWARD_SAMPLER_OFFERED, {
-        rowId: samplerRow.id, rowName: samplerRow.name, tierId: samplerRow.tierId,
-        slotsOffered: choices.filter(c => c.setId === samplerRow.id).length,
+      const isFullyOwned = (r) => ownedRowSlots[r.id]?.size === 3;
+      const eligibleRows = WIT_ROWS.filter(r => !isFullyOwned(r));
+      // Bias toward partial rows (1-2 slots already owned) — finishing a
+      // row a player started feels better than starting fresh on a 4th.
+      const partials = eligibleRows.filter(r => ownedRowSlots[r.id]?.size > 0);
+      const fresh    = eligibleRows.filter(r => !ownedRowSlots[r.id]);
+      const orderedPool = [...shuffle(partials), ...shuffle(fresh)];
+      const rowPicks = orderedPool.slice(0, 3);
+      const bumpTier = enemy.tier === 'boss';
+      const rowChoices = rowPicks.map(row => {
+        let cards = [row.introId, row.subjectId, row.targetId]
+          .map(id => CARDS_BY_ID[id]).filter(Boolean)
+          .map(c => ({ ...c }));
+        if (bumpTier) cards = cards.map(c => upgradeCard(c));
+        return { row, cards, tierBumped: bumpTier };
       });
-    } else {
-      while (choices.length < 3) {
-        const pick = pickCardByRarity(weights, used, lane);
-        if (!pick) break;
-        choices.push(pick); used.push(pick.id);
-      }
+      logEvent('combat.reward_offer', {
+        playerLane: lane,
+        offerKind: 'fft-rows',
+        tierBumped: bumpTier,
+        offered: rowChoices.map(rc => ({ rowId: rc.row.id, rowName: rc.row.name, tierId: rc.row.tierId })),
+        enemyId: enemy.id, enemyTier: enemy.tier,
+      });
+      setRewardRowChoices(rowChoices);
+      setRewardChoices([]);
+      setStage('reward');
+      return;
+    }
+
+    // Normal-enemy + non-wit reward path: 3 individual cards, no spell
+    // pieces. The pickCardByRarity opts gate spell pieces out entirely.
+    while (choices.length < 3) {
+      const pick = pickCardByRarity(weights, used, lane, { excludeSpellPieces: true });
+      if (!pick) break;
+      choices.push(pick); used.push(pick.id);
     }
     // v2.99.3: telemetry — record offered card lanes alongside player's
     // lane. Lets us detect bleed in real time (any offered.lane that
     // doesn't match player.lane and isn't undefined is a bug).
     logEvent('combat.reward_offer', {
       playerLane: lane,
+      offerKind: 'cards',
       offered: choices.map(c => ({ id: c.id, lane: c.lane || null, rarity: c.rarity })),
       enemyId: enemy?.id,
       enemyTier: enemy?.tier,
     });
     setRewardChoices(choices);
+    setRewardRowChoices([]);
     setStage('reward');
   }
 
@@ -8793,6 +8784,27 @@ export default function App() {
     // any card staged at combat end (waiting for the next turn's cast)
     // got obliterated by enterFight's tray reset on the next combat.
     const trayCards = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
+    // v3.4.15 — FFT row pick. cardOrSkip is { row, cards, tierBumped }.
+    // Add all three cards to the deck and bypass the single-card path.
+    if (cardOrSkip && cardOrSkip.row && Array.isArray(cardOrSkip.cards)) {
+      const fresh = cardOrSkip.cards.map(c => ({ ...c, uid: uid() }));
+      logEvent(TE.CARD_PICK, {
+        kind: 'fft-row',
+        rowId: cardOrSkip.row.id,
+        rowName: cardOrSkip.row.name,
+        tierId: cardOrSkip.row.tierId,
+        tierBumped: !!cardOrSkip.tierBumped,
+        cardIds: fresh.map(c => c.id),
+        source: 'combat-reward',
+      });
+      setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, ...fresh]);
+      pushLog(`+ ${cardOrSkip.row.name} (3 cards${cardOrSkip.tierBumped ? ', upgraded' : ''}) added to deck.`);
+      setHand([]); setDiscard([]); setExiled([]);
+      setTray(initialV2Tray());
+      setRewardChoices([]); setRewardRowChoices([]);
+      returnToMap();
+      return;
+    }
     if (cardOrSkip) {
       // v3.3: include FFT row affinity (setId/tierId) + whether the
       // offered set looked like a school sampler. Lets snapshot 7+
@@ -8824,6 +8836,7 @@ export default function App() {
     setHand([]); setDiscard([]); setExiled([]);
     setTray(initialV2Tray());
     setRewardChoices([]);
+    setRewardRowChoices([]);
     returnToMap();
   }
 
@@ -8956,10 +8969,12 @@ export default function App() {
       setStage('card-grant');
       return;
     }
-    if (kind === 'read') {
-      // v3.2 Phase 5c: open the Reading Room. Wit-only — UI gates the button.
-      logEvent('rest.read.open', { hp });
-      setStage('reading-room');
+    if (kind === 'upgrade-spell') {
+      // v3.4.15 — bump a complete FFT row's three cards in one go.
+      // Wit-only; the rest screen gates the button. Picker lists the
+      // rows the player has all 3 slots of, in any pile.
+      logEvent('rest.upgrade_spell.open', {});
+      setStage('upgrade-spell');
       return;
     }
   }
@@ -9032,6 +9047,35 @@ export default function App() {
     returnToMap();
   }
 
+  // v3.4.15 — Upgrade-Spell handler. Walks every pile, upgrades every
+  // card whose setId matches the chosen row. Multiple copies all upgrade.
+  // Already-upgraded cards are no-ops (upgradeCard returns them unchanged).
+  function pickSpellToUpgrade(rowId) {
+    if (rowId === null) {
+      logEvent('upgrade_spell.cancel', { deckSize: deck.length });
+      setStage('rest');
+      return;
+    }
+    const row = WIT_ROW_BY_ID[rowId];
+    if (!row) return;
+    const bumpPile = (pile) => pile.map(c => (c.setId === rowId ? upgradeCard(c) : c));
+    setDeck(bumpPile);
+    setHand(bumpPile);
+    setDiscard(bumpPile);
+    setExiled(bumpPile);
+    setTray(t => ({
+      ...t,
+      intro:    t?.intro    && t.intro.setId    === rowId ? upgradeCard(t.intro)    : t?.intro,
+      subject:  t?.subject  && t.subject.setId  === rowId ? upgradeCard(t.subject)  : t?.subject,
+      target:   t?.target   && t.target.setId   === rowId ? upgradeCard(t.target)   : t?.target,
+      modifiers: (t?.modifiers || []).map(m => (m.setId === rowId ? upgradeCard(m) : m)),
+    }));
+    pushLog(`🎓 Rehearsed ${row.name} — every card of the row is now upgraded.`);
+    logEvent('upgrade_spell.pick', { rowId, rowName: row.name });
+    setRestNode(null);
+    returnToMap();
+  }
+
   // ---------- RENDER ----------
   // v2.99.4: top-level overlays (forget modal, chaos roll flash) rendered
   // AS A SIBLING of whatever stage content is active. Previously these
@@ -9049,7 +9093,9 @@ export default function App() {
     onStart={startRun} onTutorial={startTutorial}
     onContinue={hasSavedRun ? continueRun : null}
     onDiscardSave={hasSavedRun ? () => { clearSavedRun(); } : null}
+    onCompendium={() => setStage('compendium')}
     onDevQuickStart={() => setStage('dev-quick-start')} />;
+  if (stage === 'compendium')         return <CompendiumScreen onBack={() => setStage('menu')} />;
   if (stage === 'dev-quick-start')    return <DevQuickStartScreen
     onStart={startDevRun}
     onBack={() => setStage('menu')} />;
@@ -9083,7 +9129,7 @@ export default function App() {
         } else advanceToNextAct();
       }} />;
   }
-  if (stage === 'reward') return <RewardScreen choices={rewardChoices} onPick={pickReward}
+  if (stage === 'reward') return <RewardScreen choices={rewardChoices} rowChoices={rewardRowChoices} onPick={pickReward}
     onOpenDeck={() => { setDeckViewOpen(true); logEvent(TE.DECKVIEW_OPEN, { source: 'reward' }); }}
     deckViewOpen={deckViewOpen}
     deck={deck} hand={hand} discard={discard} exiled={exiled} tray={tray}
@@ -9113,14 +9159,10 @@ export default function App() {
   />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} isWit={selectedCharacter?.lane === 'wit'} />;
-  if (stage === 'reading-room') return <ReadingRoom
-    open={true}
-    witCards={WIT_V2}
-    currentHp={hp}
-    ownedCards={[...hand, ...deck, ...discard, ...exiled]}
-    onConfirm={resolveReadingRoom}
-    onCancel={cancelReadingRoom} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
+  if (stage === 'upgrade-spell') return <UpgradeSpellScreen
+    hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray}
+    onPick={pickSpellToUpgrade} />;
   if (stage === 'forget')  return <ForgetCardScreen deck={deck} onPick={pickCardToForget} />;
   // Floating menu button (☰) + overlay. Only renders on play stages.
   // Save & Quit only allowed when stage === 'map' (combat / mid-event
@@ -9264,7 +9306,7 @@ export default function App() {
 // 4. SUB-SCREENS
 // =============================================================================
 
-function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave, onDevQuickStart }) {
+function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave, onDevQuickStart, onCompendium }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
       <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Witch Mountain Bridge</h1>
@@ -9278,6 +9320,9 @@ function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave, onDevQuick
           <button onClick={onContinue} className="btn btn-iris text-lg px-8 py-3 animate-pulse">Continue Saved Run</button>
         )}
         <button onClick={onStart}    className="btn btn-gold text-lg px-8 py-3">{onContinue ? 'Begin a New Path (discards save)' : 'Begin the Path'}</button>
+        {onCompendium && (
+          <button onClick={onCompendium} className="btn bg-ink-700 hover:bg-ink-600 text-parchment-200 text-base px-6 py-2">📖 Compendium — browse cards & spells</button>
+        )}
         {onDiscardSave && (
           <button onClick={onDiscardSave} className="text-xs text-parchment-500 italic hover:text-ember-300 mt-2">Discard saved run</button>
         )}
@@ -9675,12 +9720,13 @@ const WIZARD_TUTORIALS = {
   },
 };
 
-// v3.4.7 — Wit-only starter row picker. Shown after character select
-// when the player chose The Scholar. Lists all 15 FFT rows grouped by
-// school. Picking a row seeds the starter deck with that row's three
-// cards at T1 power (stamped in buildStartingDeck).
+// v3.4.7 — Wit-only starter row picker.
+// v3.4.15 (Alan): trimmed from 15 rows to 3 entry rows — one per school.
+// FFT rows are now earned: elites grant a T1 row, bosses grant a T2 row.
+// The starter pick is just "which school do I want to build around?",
+// not a full row-shopping menu.
+const WIT_STARTER_ROW_IDS = ['slowburn-4', 'thorns-1', 'crescendo-1'];
 function WitRowSelectScreen({ onPick }) {
-  const TIER_ORDER = ['slowburn', 'thorns', 'crescendo'];
   const TIER_NAMES = { slowburn: 'Slow Burn', thorns: 'Thorns', crescendo: 'Crescendo' };
   const TIER_ICONS = { slowburn: '🔥', thorns: '🌹', crescendo: '📚' };
   const TIER_FLAVOR = {
@@ -9688,34 +9734,30 @@ function WitRowSelectScreen({ onPick }) {
     thorns: 'Reflect-school. Each enemy hit answers itself; arm charges to redirect their attacks.',
     crescendo: 'Buildup-school. Every card you play banks a word. Finishers spend the bank for big payoff.',
   };
-  const rowsByTier = {};
-  for (const t of TIER_ORDER) rowsByTier[t] = WIT_ROWS.filter(r => r.tierId === t);
+  const entryRows = WIT_STARTER_ROW_IDS
+    .map(id => WIT_ROWS.find(r => r.id === id))
+    .filter(Boolean);
   return (
     <div className="min-h-screen flex flex-col items-center p-6 gap-4 max-w-6xl mx-auto">
       <h2 className="font-display text-4xl text-iris-300 tracking-widest text-center">Choose Your Starter Spell</h2>
       <p className="font-quill italic text-parchment-300 text-center max-w-3xl">
-        Pick one Fully Formed Thought to start the run with. All three of its cards enter your deck at Tier 1
-        power. You'll cast this row from combat 1; new rows drop at elites and special events. The school you
-        choose here is the one you'll naturally build around.
+        Pick the school you want to build around. The row's three cards enter your deck at Tier 1.
+        Elites drop new full rows; bosses drop them upgraded. Inns let you bump a row's tier.
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
-        {TIER_ORDER.map(tierId => (
-          <div key={tierId} className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+        {entryRows.map(row => (
+          <button key={row.id} onClick={() => onPick(row.id)}
+                  className="parchment-card p-4 text-left hover:scale-[1.02] hover:shadow-2xl transition cursor-pointer flex flex-col gap-2">
             <div className="text-center">
-              <div className="font-display text-2xl text-parchment-100">{TIER_ICONS[tierId]} {TIER_NAMES[tierId]}</div>
-              <div className="text-[11px] italic text-parchment-300 leading-snug mt-1 px-2">{TIER_FLAVOR[tierId]}</div>
+              <div className="font-display text-2xl text-parchment-100">{TIER_ICONS[row.tierId]} {TIER_NAMES[row.tierId]}</div>
+              <div className="text-[11px] italic text-parchment-300 leading-snug mt-1">{TIER_FLAVOR[row.tierId]}</div>
             </div>
-            <div className="flex flex-col gap-2">
-              {rowsByTier[tierId].map(row => (
-                <button key={row.id} onClick={() => onPick(row.id)}
-                        className="parchment-card p-3 text-left hover:scale-[1.02] hover:shadow-2xl transition cursor-pointer">
-                  <div className="font-display text-base text-iris-200">{row.name}</div>
-                  <div className="text-[12px] italic text-parchment-100 leading-snug mt-1">"{row.canonical}"</div>
-                  <div className="text-[11px] text-gold-300 mt-1.5 font-bold">★ {row.riderDesc || '(rider)'}</div>
-                </button>
-              ))}
+            <div className="border-t border-ink-400 pt-2">
+              <div className="font-display text-lg text-iris-200">{row.name}</div>
+              <div className="text-[13px] italic text-parchment-100 leading-snug mt-1">"{row.canonical}"</div>
+              <div className="text-[12px] text-gold-300 mt-2 font-bold">★ {row.riderDesc || '(rider)'}</div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -10252,8 +10294,55 @@ function Legend({ glyph, label }) {
 }
 
 
-function RewardScreen({ choices, onPick, onOpenDeck, deckViewOpen, onCloseDeck,
+function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOpen, onCloseDeck,
                        deck = [], hand = [], discard = [], exiled = [], tray = null }) {
+  // v3.4.15 — FFT row reward variant. Bosses bump T2 (already applied
+  // to the cards before they reach this screen). Click a row → grant
+  // all 3 cards.
+  if (rowChoices.length > 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-4 max-w-6xl mx-auto">
+        <h2 className="font-display text-3xl text-gold-300">A Fully Formed Thought</h2>
+        <p className="text-sm text-parchment-300 italic">Choose one spell — its three cards join your deck together.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+          {rowChoices.map((rc, i) => {
+            const row = rc.row;
+            const schoolBorder = row.tierId === 'slowburn' ? 'border-emerald-400'
+              : row.tierId === 'thorns' ? 'border-rose-400' : 'border-amber-400';
+            return (
+              <button key={i} onClick={() => onPick(rc)}
+                      className={`rounded-lg border-2 ${schoolBorder} bg-ink-700 hover:bg-ink-600 hover:scale-[1.02] transition p-4 text-left flex flex-col gap-2`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-display text-xl text-iris-200">{row.name}</div>
+                  {rc.tierBumped && <span className="text-[10px] uppercase bg-gold-700 text-gold-100 px-2 py-0.5 rounded">T2 bonus</span>}
+                </div>
+                <div className="text-[12px] italic text-parchment-200 leading-snug">"{row.canonical}"</div>
+                <div className="text-[11px] text-gold-300 font-bold">★ {row.riderDesc || '(rider)'}</div>
+                <div className="flex flex-col gap-1 mt-1">
+                  {rc.cards.map((c, j) => (
+                    <div key={j} className="text-[11px] bg-ink-800 border border-ink-600 rounded px-2 py-1">
+                      <div className="text-parchment-100">{c.name || c.phrase || c.id}{c.upgraded ? ' (upgraded)' : ''}</div>
+                      <div className="text-[10px] italic text-parchment-400 truncate">"{c.phrase || c.desc || ''}"</div>
+                    </div>
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-3 mt-2">
+          {onOpenDeck && (
+            <button onClick={onOpenDeck} className="btn btn-moss">🗂 View Deck</button>
+          )}
+          <button onClick={() => onPick(null)} className="btn btn-ink">Skip</button>
+        </div>
+        {onOpenDeck && (
+          <DeckView open={deckViewOpen} onClose={onCloseDeck}
+                    hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
+        )}
+      </div>
+    );
+  }
   // v3.3 row-aware draft chips: for each offered card with setId,
   // compute how much of that row the player already owns. If
   // picking this card would complete (3/3) or advance (1→2 or
@@ -10623,6 +10712,190 @@ function LabRepeatPromptModal({ enemyName, onYes, onNo }) {
         <div className="flex gap-3">
           <button onClick={onYes} className="btn btn-gold px-6 py-2">Yes — pick again</button>
           <button onClick={onNo} className="btn bg-ink-700 text-parchment-200 px-6 py-2">No — back to menu</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// v3.4.15 — Compendium. Main-menu accessible browser for every card in
+// the game + the 15 FFT spell rows. Same layout DNA as the Lab deck
+// picker (lane tabs, filter chips, FFT-row sections) but read-only:
+// clicking a card opens an inline detail pane with the full body /
+// effect text. Each FFT row in the row view lists the full rider
+// description for the spell as a whole, plus the three component cards.
+function CompendiumScreen({ onBack }) {
+  const [lane, setLane] = useState('wit');
+  const [view, setView] = useState('rows');
+  const [slotFilter, setSlotFilter] = useState('all');
+  const [rarityFilter, setRarityFilter] = useState('all');
+  const [schoolFilter, setSchoolFilter] = useState('all');
+  const [filter, setFilter] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState(null);
+  const pool = LANE_POOL[lane] || [];
+  const selectedCard = selectedCardId ? pool.find(c => c.id === selectedCardId) : null;
+
+  const rarityColor = (r) => r === 'basic' ? 'text-parchment-400'
+    : r === 'common' ? 'text-parchment-100'
+    : r === 'uncommon' ? 'text-iris-200'
+    : r === 'rare' ? 'text-gold-300' : 'text-parchment-200';
+  const schoolColor = (s) => s === 'slowburn' ? 'text-emerald-300'
+    : s === 'thorns' ? 'text-rose-300'
+    : s === 'crescendo' ? 'text-amber-300' : 'text-parchment-400';
+  const slotIcon = { intro: '«', subject: '◆', target: '»', modifier: '✦', skill: '⚙', gesture: '✊', annotation: '📝' };
+
+  const f = filter.trim().toLowerCase();
+  const matchesText = (c) => !f || (c.name || '').toLowerCase().includes(f)
+    || (c.phrase || '').toLowerCase().includes(f) || (c.id || '').toLowerCase().includes(f)
+    || (c.desc || '').toLowerCase().includes(f);
+  const matchesSlot = (c) => slotFilter === 'all' || (c.slot || c.type) === slotFilter;
+  const matchesRarity = (c) => rarityFilter === 'all' || c.rarity === rarityFilter;
+  const matchesSchool = (c) => {
+    if (schoolFilter === 'all') return true;
+    if (schoolFilter === 'none') return !c.tierId;
+    return c.tierId === schoolFilter;
+  };
+  const filtered = pool.filter(c => matchesText(c) && matchesSlot(c) && matchesRarity(c) && matchesSchool(c));
+
+  const rowsBySchool = { slowburn: [], thorns: [], crescendo: [] };
+  if (lane === 'wit') {
+    for (const r of WIT_ROWS) if (rowsBySchool[r.tierId]) rowsBySchool[r.tierId].push(r);
+  }
+  const cardsForRow = (row) => [row.introId, row.subjectId, row.targetId]
+    .map(id => pool.find(c => c.id === id)).filter(Boolean);
+
+  const Chip = ({ active, onClick, children, color = 'text-parchment-200' }) => (
+    <button onClick={onClick}
+            className={`text-[11px] uppercase tracking-wide border rounded px-2 py-0.5 transition
+              ${active ? 'border-gold-500 bg-ink-700 ' + color : 'border-ink-500 bg-ink-800 text-parchment-400 hover:border-parchment-400'}`}>
+      {children}
+    </button>
+  );
+
+  const CardEntry = ({ c }) => (
+    <button onClick={() => setSelectedCardId(c.id)}
+            className={`text-left bg-ink-700 hover:bg-ink-600 border rounded px-2 py-1 flex items-center gap-2 w-full
+                       ${selectedCardId === c.id ? 'border-gold-400 ring-1 ring-gold-300' : 'border-ink-500'}`}>
+      <span className="text-parchment-400 text-[11px]">{slotIcon[c.slot || c.type] || '·'}</span>
+      <span className={`flex-1 truncate text-xs font-semibold ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
+      {c.tierId && <span className={`text-[10px] ${schoolColor(c.tierId)}`}>{c.tierId}</span>}
+      <span className="text-parchment-400 text-[10px]">{c.cost ?? '?'}⚡</span>
+    </button>
+  );
+
+  const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'chutzpah' ? 'text-ember-300' : 'text-moss-300';
+
+  return (
+    <div className="min-h-screen flex flex-col p-4 gap-3 max-w-7xl mx-auto w-full">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className={`font-display text-3xl ${laneAccent} tracking-widest`}>📖 Compendium</h2>
+        <button onClick={onBack} className="btn bg-ink-700 text-parchment-200 text-sm px-3 py-1">← Menu</button>
+      </div>
+      <div className="flex gap-1">
+        {[{ id: 'wit', label: 'Wit' }, { id: 'chutzpah', label: 'Chutzpah' }, { id: 'jnsq', label: 'Jnsq' }].map(l => (
+          <button key={l.id} onClick={() => { setLane(l.id); setSelectedCardId(null); setView(l.id === 'wit' ? 'rows' : 'all'); }}
+                  className={`text-sm uppercase tracking-wide border-2 rounded px-3 py-1 transition
+                    ${lane === l.id ? 'border-gold-500 bg-ink-700 text-gold-200' : 'border-ink-500 bg-ink-800 text-parchment-400 hover:border-parchment-300'}`}>
+            {l.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 w-full">
+        <div className="flex flex-col gap-2 min-w-0">
+          {lane === 'wit' && (
+            <div className="flex gap-1">
+              <Chip active={view === 'rows'} onClick={() => setView('rows')} color="text-iris-300">📜 By FFT Row</Chip>
+              <Chip active={view === 'all'} onClick={() => setView('all')} color="text-iris-300">🗂 All Cards</Chip>
+            </div>
+          )}
+
+          {view === 'rows' && lane === 'wit' && (
+            <div className="flex flex-col gap-3 max-h-[78vh] overflow-y-auto pr-1">
+              {['slowburn', 'thorns', 'crescendo'].map(school => (
+                <div key={school} className="flex flex-col gap-1">
+                  <div className={`text-xs uppercase tracking-widest font-bold ${schoolColor(school)}`}>
+                    {school === 'slowburn' ? '🔥 Slow Burn' : school === 'thorns' ? '🌹 Thorns' : '🔔 Crescendo'}
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+                    {rowsBySchool[school].map(row => {
+                      const cards = cardsForRow(row);
+                      return (
+                        <div key={row.id} className="border border-ink-500 bg-ink-800 rounded p-2 flex flex-col gap-1">
+                          <div className="font-display text-base text-iris-200">{row.name}</div>
+                          <div className="text-[11px] italic text-parchment-200">"{row.canonical}"</div>
+                          <div className="text-[11px] text-gold-300">★ {row.riderDesc || '(rider)'}</div>
+                          <div className="border-t border-ink-600 mt-1 pt-1 flex flex-col gap-1">
+                            {cards.map(c => <CardEntry key={c.id} c={c} />)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {view === 'all' && (
+            <>
+              <div className="flex flex-wrap gap-1 items-center">
+                <span className="text-[10px] text-parchment-400 mr-1">Slot:</span>
+                {['all', 'intro', 'subject', 'target', 'modifier', 'skill', 'gesture', 'annotation'].map(s => (
+                  <Chip key={s} active={slotFilter === s} onClick={() => setSlotFilter(s)}>{s}</Chip>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1 items-center">
+                <span className="text-[10px] text-parchment-400 mr-1">Rarity:</span>
+                {['all', 'basic', 'common', 'uncommon', 'rare'].map(r => (
+                  <Chip key={r} active={rarityFilter === r} onClick={() => setRarityFilter(r)} color={rarityColor(r)}>{r}</Chip>
+                ))}
+              </div>
+              {lane === 'wit' && (
+                <div className="flex flex-wrap gap-1 items-center">
+                  <span className="text-[10px] text-parchment-400 mr-1">School:</span>
+                  {['all', 'slowburn', 'thorns', 'crescendo', 'none'].map(s => (
+                    <Chip key={s} active={schoolFilter === s} onClick={() => setSchoolFilter(s)} color={schoolColor(s)}>{s}</Chip>
+                  ))}
+                </div>
+              )}
+              <input type="text" value={filter} onChange={e => setFilter(e.target.value)}
+                     placeholder="Search name, phrase, id, description…"
+                     className="bg-ink-800 border border-ink-500 text-parchment-100 px-2 py-1 rounded text-xs w-full" />
+              <div className="text-[10px] text-parchment-400">{filtered.length} of {pool.length} cards</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1 max-h-[65vh] overflow-y-auto pr-1">
+                {filtered.map(c => <CardEntry key={c.id} c={c} />)}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 min-w-0">
+          {selectedCard ? (
+            <div className="parchment-card p-3 flex flex-col gap-2">
+              <div className="bg-parchment-50 text-ink-800 rounded p-2">
+                <CardFullBody card={selectedCard} />
+              </div>
+              <div className="text-[11px] text-parchment-300 italic">"{selectedCard.flavor || ''}"</div>
+              {selectedCard.setId && (() => {
+                const row = WIT_ROW_BY_ID[selectedCard.setId];
+                if (!row) return null;
+                return (
+                  <div className="border-t border-ink-600 pt-2 flex flex-col gap-1">
+                    <div className="text-[10px] uppercase tracking-widest text-gold-500">Belongs to spell</div>
+                    <div className="font-display text-base text-iris-200">{row.name}</div>
+                    <div className="text-[11px] italic text-parchment-200">"{row.canonical}"</div>
+                    <div className="text-[11px] text-gold-300">★ {row.riderDesc || '(rider)'}</div>
+                  </div>
+                );
+              })()}
+              <button onClick={() => setSelectedCardId(null)} className="text-[10px] text-parchment-400 hover:text-parchment-200 self-end">close ×</button>
+            </div>
+          ) : (
+            <div className="parchment-card p-4 text-sm italic text-parchment-300">
+              Click any card to see its full effect and which spell it belongs to.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -11542,11 +11815,11 @@ function RestScreen({ onChoose, isWit = false }) {
       <div className="flex flex-col gap-2 w-full">
         <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — restore 30% HP and Composure</button>
         <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
+        {isWit && (
+          <button onClick={() => onChoose('upgrade-spell')} className="btn btn-gold">Rehearse a spell — upgrade all 3 cards of one FFT row</button>
+        )}
         <button onClick={() => onChoose('forget')}  className="btn btn-iris">Forget a card — remove one from your deck</button>
         <button onClick={() => onChoose('reflect')} className="btn btn-ember">Reflect — gain a random Passing Thought (one-shot)</button>
-        {isWit && (
-          <button onClick={() => onChoose('read')}  className="btn btn-iris">📖 Read — browse the Library for set-tagged cards</button>
-        )}
       </div>
     </div>
   );
@@ -11697,6 +11970,74 @@ function ForgetTwoModal({ cards, onPick }) {
         </div>
         <div className="text-[11px] text-parchment-400 italic text-center">Click the card you'd rather lose.</div>
       </div>
+    </div>
+  );
+}
+
+// v3.4.15 — Rehearse-a-Spell rest picker. Shows every FFT row the player
+// owns ALL 3 cards of (across hand/deck/discard/exiled/tray). Picking
+// upgrades each owned copy of the row's cards. Already-upgraded cards
+// are no-ops.
+function UpgradeSpellScreen({ hand, deck, discard, exiled, tray, onPick }) {
+  const allOwned = [...hand, ...deck, ...discard, ...exiled,
+                    ...(tray ? [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean) : [])];
+  // Build per-row ownership snapshot: which slots are owned, how many
+  // copies, and whether the player still has any non-upgraded ones.
+  const byRow = {};
+  for (const c of allOwned) {
+    if (!c.setId) continue;
+    if (!byRow[c.setId]) byRow[c.setId] = { slots: new Set(), cards: [] };
+    byRow[c.setId].slots.add(c.setSlot);
+    byRow[c.setId].cards.push(c);
+  }
+  // Eligible: at least 3 slots filled (a complete row) AND at least one
+  // card in the row is still unupgraded.
+  const eligibleRows = WIT_ROWS.filter(r => {
+    const own = byRow[r.id];
+    if (!own || own.slots.size < 3) return false;
+    return own.cards.some(c => !c.upgraded);
+  });
+  const allOwnedRows = WIT_ROWS.filter(r => byRow[r.id]?.slots.size === 3);
+  return (
+    <div className="min-h-screen flex flex-col p-6 gap-4 max-w-5xl mx-auto">
+      <div className="text-center">
+        <h2 className="font-display text-4xl text-gold-300">Rehearse a Spell</h2>
+        <p className="text-base text-parchment-300 italic mt-1">Pick one fully-formed thought. Every copy of its three cards in your deck upgrades together.</p>
+      </div>
+      <div className="parchment-card p-3">
+        <div className="text-xs uppercase text-parchment-300 mb-2 tracking-widest">Eligible spells ({eligibleRows.length})</div>
+        {eligibleRows.length === 0 && (
+          <div className="text-sm italic text-parchment-400">
+            {allOwnedRows.length === 0
+              ? 'No complete FFT row in your deck yet. Defeat an elite to earn one.'
+              : 'Every spell you own is already fully upgraded. Sleep instead?'}
+          </div>
+        )}
+        <div className="flex flex-col gap-3">
+          {eligibleRows.map(row => {
+            const own = byRow[row.id];
+            const copies = own.cards.length;
+            const upgradedCount = own.cards.filter(c => c.upgraded).length;
+            const schoolColor = row.tierId === 'slowburn' ? 'text-emerald-300'
+              : row.tierId === 'thorns' ? 'text-rose-300' : 'text-amber-300';
+            return (
+              <button key={row.id} onClick={() => onPick(row.id)}
+                      className="text-left rounded-lg border-2 border-gold-500 bg-ink-700 hover:bg-ink-600 hover:scale-[1.01] transition p-4 flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-display text-xl text-iris-200">{row.name}</div>
+                  <div className={`text-[11px] uppercase ${schoolColor}`}>{row.tierId}</div>
+                </div>
+                <div className="text-sm italic text-parchment-100">"{row.canonical}"</div>
+                <div className="text-[12px] text-gold-300 mt-1">★ {row.riderDesc || '(rider)'}</div>
+                <div className="text-[11px] text-parchment-400 mt-1">
+                  {copies} card{copies === 1 ? '' : 's'} in deck · {upgradedCount}/{copies} already upgraded
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <button onClick={() => onPick(null)} className="btn btn-ink self-center">Back to rest</button>
     </div>
   );
 }
