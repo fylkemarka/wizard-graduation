@@ -282,6 +282,26 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               <span title={`Defense reduces every incoming hit by ${def} (min 1).`} className="font-mono text-sm text-moss-200">🛡✦{def}</span>
             ) : null;
           })()}
+          {/* v3.4.31 (Alan): wit identity chips (Long Thread / Word Bank /
+              Crescendo Buildup) inlined into Your State so they sit
+              alongside HP / Comp / Block / Poise / Energy. */}
+          {isWit && longThread > 0 && (
+            <span title="Long Thread — wit defender. +1 per turn you cast a wit spell and take no unblocked damage. Reduces incoming damage by Math.min(2, LT) per swing."
+                  className="font-mono text-sm text-iris-300">🧵{longThread}</span>
+          )}
+          {isWit && (
+            <span title="Words Bank — Crescendo's currency. Only Crescendo-school cards add (+1 each). Cap 10. Spent at the CLIMAX cast."
+                  className="font-mono text-sm text-gold-300">📚{wordsBank || 0}<span className="text-[9px] text-parchment-500">/10</span></span>
+          )}
+          {isWit && (crescendoBuildup > 0 || (hand || []).some(c => c?.schoolId === 'crescendo')) && (
+            <span title={`Crescendo Buildup — each full-FFT Crescendo cast advances this. Stage 3 unleashes the climax.${crescendoBuildupRows.length === 2 && crescendoBuildupRows[0] === crescendoBuildupRows[1] ? ' Same-row × 1.5 lockstep is active.' : ''}`}
+                  className="font-mono text-sm text-gold-300">
+              {'●'.repeat(crescendoBuildup)}{'○'.repeat(3 - crescendoBuildup)}
+              {crescendoBuildupRows.length >= 2 && crescendoBuildupRows[0] === crescendoBuildupRows[1] && (
+                <span className="text-[10px] text-gold-200 ml-0.5">🎵</span>
+              )}
+            </span>
+          )}
         </div>
       </div>
       </div>
@@ -567,39 +587,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       <div key={`player-hud-${playerHitFlash || 0}`}
            className={`parchment-card p-3 flex justify-between items-center flex-wrap gap-2 ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
-          {/* v3.4.x: surface previously-invisible wit identity stats. Alan:
-              "I still don't know what Thread and the Word Bank are/do." */}
-          {isWit && longThread > 0 && (
-            <div title={`Long Thread — wit's signature defender mechanic. Ticks +1 each turn you cast a wit spell AND don't take unblocked damage. Some wit targets deal +N damage per stack. Decays by 1 on each unblocked hit.`}>
-              <div className="text-xs uppercase text-iris-300">Long Thread <span className="text-parchment-500">ⓘ</span></div>
-              <div className="text-2xl font-mono text-iris-300">🧵 {longThread}</div>
-            </div>
-          )}
-          {/* Word Bank: Crescendo's currency. v3.4.23 — Crescendo-school
-              cards only. Cap 10. */}
-          {isWit && (
-            <div title={`Words Bank — Crescendo's currency. Only Crescendo-school cards add to it (+1 each). Cap 10. Spent at the Crescendo CLIMAX cast for massive damage.`}>
-              <div className="text-xs uppercase text-gold-300">Word Bank <span className="text-parchment-500">ⓘ</span></div>
-              <div className="text-2xl font-mono text-gold-300">📚 {wordsBank || 0}<span className="text-sm text-parchment-500">/10</span></div>
-            </div>
-          )}
-          {/* v3.4.23 — Crescendo Buildup meter. 3 stages: opener (0 dmg),
-              builder (½ dmg), climax (full dmg ×3, bank consumed). Shown
-              once buildup > 0 OR when player has crescendo cards in hand. */}
-          {/* v3.4.27 (Alan): also show Buildup whenever a crescendo card
-              is in hand, so the player can plan around it even before
-              the first build cast. */}
-          {isWit && (crescendoBuildup > 0 || (hand || []).some(c => c?.schoolId === 'crescendo')) && (
-            <div title={`Crescendo Buildup — each full-FFT Crescendo cast advances this. Stage 3 unleashes the climax (× buildup damage scaling, bank consumed).${crescendoBuildupRows.length === 2 && crescendoBuildupRows[0] === crescendoBuildupRows[1] ? ' Same-row × 1.5 lockstep is active.' : ''}`}>
-              <div className="text-xs uppercase text-gold-300">Buildup</div>
-              <div className="text-2xl font-mono text-gold-300">
-                {'●'.repeat(crescendoBuildup)}{'○'.repeat(3 - crescendoBuildup)}
-                {crescendoBuildupRows.length >= 2 && crescendoBuildupRows[0] === crescendoBuildupRows[1] && (
-                  <span className="text-xs text-gold-200 ml-1">🎵</span>
-                )}
-              </div>
-            </div>
-          )}
+          {/* v3.4.31 — Long Thread / Word Bank / Crescendo Buildup chips
+              MOVED UP to the Your State panel at the top of the screen. */}
           {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
               meter has anything in it OR rage is active. Color: ember (chutzpah
               palette). */}
@@ -1162,7 +1151,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         </div>
 
         {/* Right column: slot pills + Predicted + Cast */}
-        <div className="flex-1 flex flex-wrap items-stretch gap-2">
+        {/* v3.4.31 (Alan): no-wrap + overflow-x-auto so the Cast button
+            stays anchored to the right side regardless of how wide the
+            slot pills get when staged. Pills shrink-min before wrapping. */}
+        <div className="flex-1 flex flex-nowrap items-stretch gap-2 overflow-x-auto">
         {slotPill(intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
         {slotPill(subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
         {slotPill(target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
