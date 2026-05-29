@@ -1191,55 +1191,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                 )}
               </div>
             </div>
-            {/* v3.4.21 — FFT preview chips. Surface incoming DoT /
-                reflect / bank effects so the player can see what the
-                cast will fire alongside the raw damage. */}
-            {[fftPreview, mixedPreview].filter(Boolean).map((p, pi) => {
-              const chips = summarizeRider(p.rider);
-              if (chips.length === 0) return null;
-              const tone = p.kind === 'full' ? 'border-iris-500 bg-iris-900 text-iris-200'
-                         : p.kind === 'partial' ? 'border-gold-500 bg-ink-700 text-gold-200'
-                         : p.kind === 'mixed' ? 'border-moss-500 bg-ink-700 text-moss-200'
-                         : 'border-ink-500 bg-ink-700 text-parchment-300';
-              const icon = p.kind === 'full' ? '✨' : p.kind === 'partial' ? '📐' : p.kind === 'mixed' ? '🎨' : '🎵';
-              return (
-                <div key={pi} className={`mt-1 px-2 py-1 rounded border ${tone} max-w-xs`}>
-                  <div className="text-[10px] uppercase tracking-wide opacity-90">{icon} {p.label}</div>
-                  <div className="flex flex-wrap gap-1 mt-0.5 justify-end">
-                    {chips.map((c, i) => (
-                      <span key={i} className="text-[10px] bg-ink-800 border border-ink-600 rounded px-1.5 py-0.5">{c}</span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            {/* v3.4.23 — Crescendo Buildup preview. Shows the stage this
-                cast would advance to, the expected damage at that stage,
-                and whether the same-row × 1.5 lockstep would activate. */}
-            {crescendoPreview && (() => {
-              const { stage, dmg, sameRow, consumeBank, wordsBank: wb, rowName } = crescendoPreview;
-              const stageLabel = stage === 1 ? 'OPENING NOTE (0 dmg)'
-                               : stage === 2 ? `BUILDING (~${dmg} half-dmg)`
-                               : sameRow ? `🎵 SAME-ROW CLIMAX (~${dmg} dmg)` : `THE CLIMAX (~${dmg} dmg)`;
-              return (
-                <div className="mt-1 px-2 py-1 rounded border border-gold-400 bg-ink-700 text-gold-200 max-w-xs">
-                  <div className="text-[10px] uppercase tracking-wide opacity-90">
-                    📚 Crescendo Buildup → {stage}/3
-                  </div>
-                  <div className="text-[10px] mt-0.5 font-bold">{stageLabel}</div>
-                  {stage === 3 && (
-                    <div className="text-[10px] mt-0.5 opacity-80">
-                      Bank {wb} × {consumeBank} × 2 = +{wb * consumeBank * 2} bonus · BANK CONSUMED
-                    </div>
-                  )}
-                  {stage < 3 && wb > 0 && (
-                    <div className="text-[10px] mt-0.5 opacity-80">
-                      Bank {wb} (held until climax)
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
           </div>
         )}
         {/* v2.99.4: CAST button moved inline with the slot row so it
@@ -1357,6 +1308,46 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         same height whether empty or staged. Always rendered with a
         min-height so the screen below doesn't jitter when you stage. */}
     <div className="parchment-card px-2 py-1 flex flex-col gap-0.5" style={{ minHeight: 32 }}>
+      {/* v3.4.30 — FFT preview chips + Crescendo preview moved here from
+          inside the spell tray. Compact inline rows so the strip stays
+          a few lines tall. */}
+      {([fftPreview, mixedPreview].filter(Boolean).length > 0 || crescendoPreview) && (
+        <div className="flex flex-wrap gap-1 items-center text-[10px]">
+          {[fftPreview, mixedPreview].filter(Boolean).map((p, pi) => {
+            const chips = summarizeRider(p.rider);
+            if (chips.length === 0) return null;
+            const tone = p.kind === 'full' ? 'border-iris-500 bg-iris-900 text-iris-200'
+                       : p.kind === 'partial' ? 'border-gold-500 bg-ink-700 text-gold-200'
+                       : p.kind === 'mixed' ? 'border-moss-500 bg-ink-700 text-moss-200'
+                       : 'border-ink-500 bg-ink-700 text-parchment-300';
+            const icon = p.kind === 'full' ? '✨' : p.kind === 'partial' ? '📐' : p.kind === 'mixed' ? '🎨' : '🎵';
+            return (
+              <span key={pi} className={`px-1.5 py-0.5 rounded border inline-flex items-center gap-1 ${tone}`}>
+                <span className="uppercase tracking-wide font-bold">{icon} {p.label}</span>
+                {chips.map((c, i) => (
+                  <span key={i} className="bg-ink-800 border border-ink-600 rounded px-1 py-0">{c}</span>
+                ))}
+              </span>
+            );
+          })}
+          {crescendoPreview && (() => {
+            const { stage, dmg, sameRow, consumeBank, wordsBank: wb } = crescendoPreview;
+            const stageLabel = stage === 1 ? 'OPENING NOTE (0 dmg)'
+                             : stage === 2 ? `BUILDING (~${dmg} half-dmg)`
+                             : sameRow ? `🎵 SAME-ROW CLIMAX (~${dmg} dmg)` : `THE CLIMAX (~${dmg} dmg)`;
+            const tail = stage === 3
+              ? `· Bank ${wb}×${consumeBank}×2 = +${wb * consumeBank * 2} · BANK CONSUMED`
+              : (wb > 0 ? `· Bank ${wb} held` : '');
+            return (
+              <span className="px-1.5 py-0.5 rounded border border-gold-400 bg-ink-700 text-gold-200 inline-flex items-center gap-1">
+                <span className="uppercase tracking-wide font-bold">📚 Buildup → {stage}/3</span>
+                <span className="font-bold">{stageLabel}</span>
+                {tail && <span className="opacity-80">{tail}</span>}
+              </span>
+            );
+          })()}
+        </div>
+      )}
       {mathBreakdown && (
         <div className="text-[11px] font-mono text-parchment-300 flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span className="text-iris-300 font-bold text-[10px] uppercase tracking-widest mr-1">Math:</span>
