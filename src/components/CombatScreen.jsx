@@ -1120,7 +1120,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
 
   return (
     <div className={`parchment-card p-2 border-l-4 flex flex-col ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}
-         style={{ height: 240, minHeight: 240, maxHeight: 240 }}>
+         style={{ height: 150, minHeight: 150, maxHeight: 150 }}>
       {/* v3.4.29 (Alan): spell tray height is now LOCKED to 240px so a
           staged FFT (which adds preview chips + math row + enemy state
           chips) doesn't push the rest of the screen down. Inner content
