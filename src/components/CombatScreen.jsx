@@ -301,68 +301,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows} />
 
-      {/* FFT Progress panel — wit-only. Shows player progress on the named
-          Fully Formed Thought rows (set-collection overlay). A row's three
-          cards live anywhere in the player's pool (hand/deck/discard/tray/
-          exiled). Hover for the canonical sentence + rider. Only renders
-          rows the player has at least 1 card from, to avoid clutter; if no
-          set-tagged cards are owned at all, the panel is hidden entirely. */}
-      {isWit && WIT_ROWS.length > 0 && (() => {
-        const trayCards = [tray?.intro, tray?.subject, tray?.target, ...(tray?.modifiers || [])].filter(Boolean);
-        const allCards = [...hand, ...deck, ...discard, ...exiled, ...trayCards];
-        const progress = WIT_ROWS.map(row => {
-          const has = { intro: false, subject: false, target: false };
-          for (const c of allCards) {
-            if (c.setId === row.id) {
-              if (c.setSlot === 'intro')   has.intro = true;
-              if (c.setSlot === 'subject') has.subject = true;
-              if (c.setSlot === 'target')  has.target = true;
-            }
-          }
-          const owned = (has.intro ? 1 : 0) + (has.subject ? 1 : 0) + (has.target ? 1 : 0);
-          return { row, owned, has };
-        });
-        const visible = progress.filter(p => p.owned > 0);
-        return (
-          <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
-            <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">🎩 FFT Progress</span>
-            {onOpenCompendium && (
-              <button onClick={onOpenCompendium}
-                      title="Open the Compendium of Fully Formed Thoughts"
-                      className="px-2 py-1 text-xs rounded border bg-iris-700 text-parchment-50 border-iris-400 hover:bg-iris-600">
-                📚 Compendium
-              </button>
-            )}
-            {onOpenDeckView && (
-              <button onClick={onOpenDeckView}
-                      title="View all the cards currently in your deck (hand + draw + discard + exiled + tray), grouped by row"
-                      className="px-2 py-1 text-xs rounded border bg-moss-700 text-parchment-50 border-moss-400 hover:bg-moss-600">
-                🗂 Deck
-              </button>
-            )}
-            {visible.length === 0 && (
-              <span className="text-[11px] text-parchment-400 italic">No rows collected yet — pick up a set-tagged card to start.</span>
-            )}
-            {visible.map(({ row, owned, has }) => {
-              const tier = WIT_SAME_SCHOOL_BONUSES[row.schoolId];
-              const complete = owned === 3;
-              const slotsLabel = `Intro ${has.intro ? '✓' : '✗'} · Subject ${has.subject ? '✓' : '✗'} · Target ${has.target ? '✓' : '✗'}`;
-              return (
-                <span key={row.id}
-                  title={`"${row.canonical}"\n\nTier: ${tier?.name || row.schoolId}\nRider: ${row.riderDesc || '(none)'}\n\n${slotsLabel}`}
-                  className={`px-2 py-1 text-xs rounded border cursor-help ${
-                    complete ? 'bg-gold-700 text-parchment-50 border-gold-400 font-bold'
-                             : owned === 2 ? 'bg-iris-800 text-parchment-100 border-iris-500'
-                             : 'bg-ink-700 text-parchment-200 border-ink-500'
-                  }`}>
-                  {row.name} {owned}/3
-                </span>
-              );
-            })}
-          </div>
-        );
-      })()}
-
       {/* Relic chip row — persistent across the run, shown all combats. */}
       {relics.length > 0 && (
         <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
@@ -520,6 +458,66 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           );
         })}
       </div>
+
+      {/* v3.4.28 (Alan): FFT Progress panel — moved BELOW the hand so the
+          combat-state info above stays compact. Wit-only set-collection
+          overlay; shows owned rows + their canonical phrase + rider on
+          hover. Hidden when no set-tagged cards have been collected. */}
+      {isWit && WIT_ROWS.length > 0 && (() => {
+        const trayCards = [tray?.intro, tray?.subject, tray?.target, ...(tray?.modifiers || [])].filter(Boolean);
+        const allCards = [...hand, ...deck, ...discard, ...exiled, ...trayCards];
+        const progress = WIT_ROWS.map(row => {
+          const has = { intro: false, subject: false, target: false };
+          for (const c of allCards) {
+            if (c.setId === row.id) {
+              if (c.setSlot === 'intro')   has.intro = true;
+              if (c.setSlot === 'subject') has.subject = true;
+              if (c.setSlot === 'target')  has.target = true;
+            }
+          }
+          const owned = (has.intro ? 1 : 0) + (has.subject ? 1 : 0) + (has.target ? 1 : 0);
+          return { row, owned, has };
+        });
+        const visible = progress.filter(p => p.owned > 0);
+        return (
+          <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
+            <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">🎩 FFT Progress</span>
+            {onOpenCompendium && (
+              <button onClick={onOpenCompendium}
+                      title="Open the Compendium of Fully Formed Thoughts"
+                      className="px-2 py-1 text-xs rounded border bg-iris-700 text-parchment-50 border-iris-400 hover:bg-iris-600">
+                📚 Compendium
+              </button>
+            )}
+            {onOpenDeckView && (
+              <button onClick={onOpenDeckView}
+                      title="View all the cards currently in your deck (hand + draw + discard + exiled + tray), grouped by row"
+                      className="px-2 py-1 text-xs rounded border bg-moss-700 text-parchment-50 border-moss-400 hover:bg-moss-600">
+                🗂 Deck
+              </button>
+            )}
+            {visible.length === 0 && (
+              <span className="text-[11px] text-parchment-400 italic">No rows collected yet — pick up a set-tagged card to start.</span>
+            )}
+            {visible.map(({ row, owned, has }) => {
+              const tier = WIT_SAME_SCHOOL_BONUSES[row.schoolId];
+              const complete = owned === 3;
+              const slotsLabel = `Intro ${has.intro ? '✓' : '✗'} · Subject ${has.subject ? '✓' : '✗'} · Target ${has.target ? '✓' : '✗'}`;
+              return (
+                <span key={row.id}
+                  title={`"${row.canonical}"\n\nTier: ${tier?.name || row.schoolId}\nRider: ${row.riderDesc || '(none)'}\n\n${slotsLabel}`}
+                  className={`px-2 py-1 text-xs rounded border cursor-help ${
+                    complete ? 'bg-gold-700 text-parchment-50 border-gold-400 font-bold'
+                             : owned === 2 ? 'bg-iris-800 text-parchment-100 border-iris-500'
+                             : 'bg-ink-700 text-parchment-200 border-ink-500'
+                  }`}>
+                  {row.name} {owned}/3
+                </span>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* v2.35: FOOTNOTE — discard-pile picker. Renders inline below the
           hand when the prompt is active. Only intros / subjects / modifiers
