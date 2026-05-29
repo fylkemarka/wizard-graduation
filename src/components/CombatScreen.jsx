@@ -99,7 +99,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-4 relative ${shakeClass}`}>
+      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-2 relative ${shakeClass}`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
         {dmgFloaters && dmgFloaters.length > 0 && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-20">
@@ -114,9 +114,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             ))}
           </div>
         )}
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex justify-between items-start mb-1">
           <div>
-            <div className="font-display text-3xl text-ember-300 flex items-center gap-2 flex-wrap">
+            <div className="font-display text-xl text-ember-300 flex items-center gap-2 flex-wrap">
               {enemy?.name}
               {/* v2.99.2: phase-shift badge — prominent next to the enemy
                   name so players see the state change immediately when
@@ -128,22 +128,22 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 </span>
               )}
             </div>
-            <div className="text-sm text-parchment-300 italic">
+            <div className="text-[11px] text-parchment-300 italic">
               {enemy?.tier === 'boss' ? 'Boss' : enemy?.tier === 'elite' ? 'Elite' : 'Enemy'}
             </div>
           </div>
           <div className="text-right">
             {showComposure && (
-              <div className="text-3xl font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
-                ✨ {enemyComposure} <span className="text-base text-parchment-300">/ {composureMax}</span>
+              <div className="text-xl font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
+                ✨ {enemyComposure} <span className="text-sm text-parchment-300">/ {composureMax}</span>
               </div>
             )}
             {showHp && (
-              <div className="text-3xl font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
-                ❤ {enemyHp} <span className="text-base text-parchment-300">/ {hpMax}</span>
+              <div className="text-xl font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
+                ❤ {enemyHp} <span className="text-sm text-parchment-300">/ {hpMax}</span>
               </div>
             )}
-            <div className="text-base">🛡 {enemyBlock}</div>
+            <div className="text-sm">🛡 {enemyBlock}</div>
             {/* v3.4: enemy DoT counter (Poison-style). Shows current
                 damage-per-turn AND turns remaining. Drains to 0 → expires. */}
             {enemy?.dot?.turnsRemaining > 0 && enemy?.dot?.damage > 0 && (
@@ -263,43 +263,25 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           Comp / Block / Poise / Defense / Energy. End Turn button anchors
           the bottom-right so it's always in the same place. */}
       <div key={`player-vitals-${playerHitFlash || 0}`}
-           className={`parchment-card-strong p-4 flex flex-col gap-2 ${playerHitFlash ? 'hit-shake' : ''}`}>
-        <div className="text-xs uppercase tracking-widest text-moss-300 mb-1">Your State</div>
-        <div className="grid grid-cols-3 gap-2">
-          <div title="HP — physical health. 0 = defeat.">
-            <div className="text-[10px] uppercase text-parchment-300">HP</div>
-            <div className="text-2xl font-mono text-moss-300">{hp}<span className="text-sm text-parchment-300">/{maxHp}</span></div>
-          </div>
-          <div title="Composure — verbal HP. 0 = lose your nerve.">
-            <div className="text-[10px] uppercase text-parchment-300">Composure</div>
-            <div className="text-2xl font-mono text-iris-200">{playerComposure}<span className="text-sm text-parchment-300">/{playerComposureMax}</span></div>
-          </div>
-          <div title="Energy — refills each turn.">
-            <div className="text-[10px] uppercase text-parchment-300">Energy</div>
-            <div className="text-2xl font-mono text-gold-300">⚡ {energy}/{energyMax}</div>
-          </div>
-          <div title="Block — absorbs physical (HP) hits. Resets each turn.">
-            <div className="text-[10px] uppercase text-parchment-300">Block</div>
-            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
-          </div>
-          <div title="Poise — absorbs composure (mental) hits. Resets each turn.">
-            <div className="text-[10px] uppercase text-parchment-300">Poise</div>
-            <div className="text-2xl font-mono text-moss-300">🪞 {poise}</div>
-          </div>
+           className={`parchment-card-strong p-2 flex flex-col gap-1 ${playerHitFlash ? 'hit-shake' : ''}`}>
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] uppercase tracking-widest text-moss-300">Your State</div>
+          <button onClick={onEndTurn} className="btn btn-ember text-xs px-3 py-1">End Turn</button>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
+          <span title="HP — physical health. 0 = defeat." className="font-mono text-base text-moss-300">{hp}<span className="text-[11px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
+          <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-base text-iris-200">{playerComposure}<span className="text-[11px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
+          <span title="Energy — refills each turn." className="font-mono text-base text-gold-300">⚡{energy}/{energyMax}</span>
+          <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-base text-iris-300">🛡{block}</span>
+          <span title="Poise — absorbs composure hits. Resets each turn." className="font-mono text-base text-moss-300">🪞{poise}</span>
           {(() => {
             const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
                           + (familiar?.bonus?.damageReduction || 0);
             const def = Math.min(2, rawDef);
             return rawDef > 0 ? (
-              <div title={`Defense reduces every incoming hit by ${def} (min 1 damage taken). Capped at 2.`}>
-                <div className="text-[10px] uppercase text-parchment-300">Defense</div>
-                <div className="text-2xl font-mono text-moss-200">🛡✦ {def}</div>
-              </div>
+              <span title={`Defense reduces every incoming hit by ${def} (min 1).`} className="font-mono text-base text-moss-200">🛡✦{def}</span>
             ) : null;
           })()}
-        </div>
-        <div className="flex justify-end pt-2 border-t border-ink-500 mt-auto">
-          <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
         </div>
       </div>
       </div>
@@ -1137,44 +1119,46 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   }
 
   return (
-    <div className={`parchment-card p-3 border-l-4 ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}>
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-xs uppercase tracking-widest text-iris-300 font-bold">📜 Spell Tray</div>
-        {tier > 0 && (
-          <div className={`text-sm font-bold font-mono ${tier === 3 ? 'text-ember-300' : tier === 2 ? 'text-iris-200' : 'text-parchment-300'}`}>
-            {tierLabel} ×{tierMult.toFixed(1)}
+    <div className={`parchment-card p-2 border-l-4 ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}>
+      {/* v3.4.28 — header / sentence / tags now sit in a left column;
+          slot pills + Predicted sit in a right column on the same row. */}
+      <div className="flex gap-3 items-start">
+        {/* Left column: label + sentence + tags */}
+        <div className="flex flex-col gap-1 min-w-[180px] max-w-[280px]">
+          <div className="flex justify-between items-center">
+            <div className="text-[10px] uppercase tracking-widest text-iris-300 font-bold">📜 Spell Tray</div>
+            {tier > 0 && (
+              <div className={`text-[10px] font-bold font-mono ${tier === 3 ? 'text-ember-300' : tier === 2 ? 'text-iris-200' : 'text-parchment-300'}`}>
+                {tierLabel} ×{tierMult.toFixed(1)}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Sentence preview */}
-      <div className="text-sm font-quill italic text-parchment-100 min-h-[1.5rem] mb-2 leading-relaxed">
-        {ready
-          ? <span>"{sentence}"</span>
-          : !anyStaged
-            ? <span className="text-parchment-400">(empty — stage intro + subject + target to cast)</span>
-            : <span>
-                {intro && <span>{intro.phrase} </span>}
-                {subject && <span>{subject.phrase} </span>}
-                {!target && <span className="text-parchment-400 not-italic">… (need a target to cast)</span>}
-              </span>
-        }
-      </div>
-
-      {/* Tag chip row */}
-      {Object.keys(tagCounts).length > 0 && (
-        <div className="mb-2 flex gap-1 flex-wrap text-xs font-mono">
-          <span className="text-iris-300">✦</span>
-          {Object.entries(tagCounts).map(([tag, n]) => (
-            <span key={tag} className="px-2 py-0.5 rounded bg-iris-800 text-parchment-100">
-              {tag}{n > 1 ? ` ×${n}` : ''}
-            </span>
-          ))}
+          <div className="text-[11px] font-quill italic text-parchment-100 leading-snug">
+            {ready
+              ? <span>"{sentence}"</span>
+              : !anyStaged
+                ? <span className="text-parchment-400">(empty — stage intro + subject + target to cast)</span>
+                : <span>
+                    {intro && <span>{intro.phrase} </span>}
+                    {subject && <span>{subject.phrase} </span>}
+                    {!target && <span className="text-parchment-400 not-italic">… (need a target to cast)</span>}
+                  </span>
+            }
+          </div>
+          {Object.keys(tagCounts).length > 0 && (
+            <div className="flex gap-1 flex-wrap text-[10px] font-mono">
+              <span className="text-iris-300">✦</span>
+              {Object.entries(tagCounts).map(([tag, n]) => (
+                <span key={tag} className="px-1.5 py-0.5 rounded bg-iris-800 text-parchment-100">
+                  {tag}{n > 1 ? ` ×${n}` : ''}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Slot row */}
-      <div className="flex flex-wrap items-stretch gap-2">
+        {/* Right column: slot pills + Predicted + Cast */}
+        <div className="flex-1 flex flex-wrap items-stretch gap-2">
         {slotPill(intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
         {slotPill(subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
         {slotPill(target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
@@ -1474,6 +1458,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             </div>
           );
         })()}
+        </div>
       </div>
     </div>
   );
