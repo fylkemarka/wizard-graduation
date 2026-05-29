@@ -302,7 +302,131 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               )}
             </span>
           )}
+          {/* v3.4.32 (Alan): Deck + Familiar + Equipment + conditional
+              over-time chips MOVED UP from the lower strip. */}
+          <span title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}
+                className="font-mono text-sm text-parchment-200">{deck.length}▸{discard.length}<span className="text-[9px] uppercase text-parchment-400 ml-0.5">Deck</span></span>
+          {familiar && (
+            <span title={familiar.desc}
+                  className="font-mono text-sm inline-flex items-center gap-0.5">
+              <span className="leading-none">{familiar.emoji}</span>
+              <span className="text-gold-300 text-[11px]">{familiarName || familiar.species}</span>
+            </span>
+          )}
+          {equipment.length > 0 && equipment.map(eq => (
+            <span key={eq.id} className="text-[11px] text-gold-300 cursor-help font-mono"
+              title={`${eq.name}\n\n${eq.desc || ''}${equipmentEffectSummary(eq) ? '\n\nEffects:\n' + equipmentEffectSummary(eq) : ''}`}>⚜{eq.name}</span>
+          ))}
+          {playerDmgMult < 1.0 && (
+            <span className="text-[11px] text-ember-300 font-mono"
+                  title={`Weak — your spell potency at ×${playerDmgMult.toFixed(2)}.`}>⛧×{playerDmgMult.toFixed(2)}</span>
+          )}
+          {playerDmgMult > 1.0 && (
+            <span className="text-[11px] text-moss-300 font-mono"
+                  title={`Strengthened — your spell potency at ×${playerDmgMult.toFixed(2)}.`}>💫×{playerDmgMult.toFixed(2)}</span>
+          )}
+          {enemyDmgMult > 1.0 && (
+            <span className="text-[11px] text-ember-300 font-mono"
+                  title={`Vulnerable — incoming damage at ×${enemyDmgMult.toFixed(2)}.`}>🩸×{enemyDmgMult.toFixed(2)}</span>
+          )}
+          {enemyDmgMult < 1.0 && (
+            <span className="text-[11px] text-moss-300 font-mono"
+                  title={`Sapped — enemy attack damage at ×${enemyDmgMult.toFixed(2)}.`}>🛡×{enemyDmgMult.toFixed(2)}</span>
+          )}
+          {/* Wit-only over-time chips: Opening / Patience / Hold / Misstep */}
+          {isWit && (combatTurn === 1 || openingExtended) && (
+            <span className="text-[11px] text-iris-200 font-mono"
+                  title={openingExtended ? `Opening extended — wit Effect cards still get the openingBonus.` : `Turn 1 — wit Effect cards with openingBonus deal their bonus damage.`}>
+              🎩{openingExtended ? '↩' : ''}
+            </span>
+          )}
+          {patienceInstalled && (
+            <span className="text-[11px] text-iris-200 font-mono"
+                  title={`Patience — banked stacks. Next cast = Patience × 2 flat damage.`}>🌿{patienceStacks}</span>
+          )}
+          {holdOnArmed && (
+            <span className="text-[11px] text-iris-200 font-mono"
+                  title={`Hold On — armed. Next enemy swing damage reduced by ${holdOnValue}.`}>🛑−{holdOnValue}</span>
+          )}
+          {(pendingMissteps.length > 0 || (hand || []).some(c => c?.id === 'wv2-tok-misstep')) && (() => {
+            const inHand = (hand || []).filter(c => c?.id === 'wv2-tok-misstep').length;
+            const pendingTxt = pendingMissteps.length > 0
+              ? pendingMissteps.map(p => `T-${p.turnsRemaining}`).join(' · ')
+              : '—';
+            return (
+              <span className="text-[11px] text-iris-200 font-mono"
+                    title={`Missteps in flight. ${inHand > 0 ? `${inHand} in hand: discard for 1 Energy, or end-of-turn = -3 HP each. ` : ''}Pending: ${pendingTxt}.`}>
+                📜{inHand > 0 ? <span className="text-ember-300">{inHand}!</span> : pendingMissteps.length}
+              </span>
+            );
+          })()}
+          {/* Chutzpah/jnsq conditional chips (only render when active) */}
+          {(isChutzpah || tunnelVision > 0 || rageActive) && (
+            <span className="text-[11px] text-ember-300 font-mono"
+                  title={`Tunnel Vision — chutzpah rage meter.`}>🔥{tunnelVision}{rageActive && <span className="text-[10px] bg-ember-700 px-1 ml-0.5 rounded">RAGE</span>}</span>
+          )}
+          {cornerTokens > 0 && (
+            <span className="text-[11px] text-ember-300 font-mono"
+                  title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: ${cornerTokens * 2} unblocked HP if enemy alive.`}>🏚{cornerTokens}</span>
+          )}
+          {loudCount > 0 && (
+            <span className="text-[11px] text-ember-300 font-mono"
+                  title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged.`}>📢{loudCount}</span>
+          )}
+          {(pauseHeld || pauseHeldActive) && (
+            <span className="text-[11px] text-amber-200 font-mono"
+                  title={pauseHeldActive ? `Awkward Pause — next cast doubles staged jnsq stats.` : `Paused — graduates at end of turn.`}>🤫{pauseHeldActive ? '×2' : ''}</span>
+          )}
+          {wontShutUpArmed && (
+            <span className="text-[11px] text-amber-200 font-mono"
+                  title={`Won't Shut Up — play any jnsq card before end of turn or take 3 HP.`}>🗣!</span>
+          )}
         </div>
+        {/* Active Defenses panel — bordered sub-box that renders only when
+            something is armed. Moved here from the deleted lower strip. */}
+        {(() => {
+          const buckets = {};
+          for (const eff of (scheduledEffects || [])) {
+            if (eff.trigger !== 'player-turn-start') continue;
+            if (!['block', 'poise', 'hpRegen', 'stripBlock'].includes(eff.kind)) continue;
+            if (!buckets[eff.kind]) buckets[eff.kind] = { amount: 0, turns: 0 };
+            buckets[eff.kind].amount += eff.amount;
+            buckets[eff.kind].turns = Math.max(buckets[eff.kind].turns, eff.turnsRemaining);
+          }
+          for (const eff of (scheduledEffects || [])) {
+            if (eff.trigger !== 'enemy-turn-start') continue;
+            if (!['weak', 'vuln'].includes(eff.kind)) continue;
+            if (!buckets[eff.kind]) buckets[eff.kind] = { amount: 0, turns: 0 };
+            buckets[eff.kind].amount += eff.amount;
+            buckets[eff.kind].turns = Math.max(buckets[eff.kind].turns, eff.turnsRemaining);
+          }
+          const annRed = enemyAnnotation?.effect?.enemyAtkReduction || 0;
+          const thornsAuraTurns = thornsCharges?.turnsRemaining || 0;
+          const thornsSchedule = Array.isArray(thornsCharges?.schedule) ? thornsCharges.schedule : null;
+          const hasAny = Object.keys(buckets).length > 0 || annRed > 0 || enemySkipNextAttack
+                        || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0;
+          if (!hasAny) return null;
+          const chips = [];
+          if (enemySkipNextAttack) chips.push(<span key="skip" className="text-gold-300">🤐 SKIP NEXT</span>);
+          if (buckets.block) chips.push(<span key="b">🛡+{buckets.block.amount}×{buckets.block.turns}t</span>);
+          if (buckets.poise) chips.push(<span key="p">🪞+{buckets.poise.amount}×{buckets.poise.turns}t</span>);
+          if (buckets.hpRegen) chips.push(<span key="h">💚+{buckets.hpRegen.amount}×{buckets.hpRegen.turns}t</span>);
+          if (longThread > 0) chips.push(<span key="lt" className="text-iris-200">🧵−{Math.min(2, longThread)}/swing</span>);
+          if (annRed > 0) chips.push(<span key="a" className="text-iris-200">📝−{annRed}</span>);
+          if (thornsAuraTurns > 0 && !thornsSchedule) chips.push(<span key="ta">🌹{thornsCharges?.amount || 0}×{thornsAuraTurns}t</span>);
+          if (thornsSchedule && thornsSchedule.length > 0) chips.push(<span key="ts">🌹[{thornsSchedule.join(',')}]</span>);
+          if ((thornsCharges?.count || 0) > 0) chips.push(<span key="tc">🌹{thornsCharges.amount}×{thornsCharges.count}</span>);
+          if (buckets.stripBlock) chips.push(<span key="sb">🛇{buckets.stripBlock.amount}×{buckets.stripBlock.turns}t</span>);
+          if (buckets.weak) chips.push(<span key="w">💢{buckets.weak.amount}×{buckets.weak.turns}t</span>);
+          if (buckets.vuln) chips.push(<span key="v">🩸{buckets.vuln.amount}×{buckets.vuln.turns}t</span>);
+          return (
+            <div className="border border-iris-600 bg-ink-800/60 rounded px-1.5 py-0.5 flex flex-wrap gap-x-2 gap-y-0 items-baseline mt-0.5"
+                 title="Over-time effects currently armed.">
+              <span className="text-[9px] uppercase text-iris-300">🛡 Defenses</span>
+              <div className="flex flex-wrap gap-x-1.5 gap-y-0 text-[11px] font-mono items-baseline">{chips}</div>
+            </div>
+          );
+        })()}
       </div>
       </div>
 
@@ -578,267 +702,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         </div>
       )}
 
-      {/* v3.4.28 — Resources / Effects strip. Vitals (HP/Comp/Block/Poise/
-          Energy/Defense) now live in the top-right Your State panel; this
-          strip holds wit-specific resources (Long Thread, Word Bank,
-          Crescendo Buildup) + over-time effect chips (Patience, Hold,
-          Misstep, Opening, etc.) + player status pills. End Turn button
-          now lives in the Your State panel. */}
-      <div key={`player-hud-${playerHitFlash || 0}`}
-           className={`parchment-card p-3 flex justify-between items-center flex-wrap gap-2 ${playerHitFlash ? 'hit-shake' : ''}`}>
-        <div className="flex gap-4 items-center flex-wrap">
-          {/* v3.4.31 — Long Thread / Word Bank / Crescendo Buildup chips
-              MOVED UP to the Your State panel at the top of the screen. */}
-          {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
-              meter has anything in it OR rage is active. Color: ember (chutzpah
-              palette). */}
-          {(isChutzpah || tunnelVision > 0 || rageActive) && (
-            <div title={`Tunnel Vision — chutzpah rage meter. At 5+ entering a turn, you enter RAGE: +50% potency for that turn, then the meter resets.`}>
-              <div className="text-xs uppercase text-ember-300">Tunnel</div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-mono text-ember-300">🔥 {tunnelVision}</span>
-                {rageActive && (
-                  <span className="px-2 py-1 rounded text-xs font-bold bg-ember-700 text-parchment-50 border border-ember-500"
-                        title="RAGE — chutzpah unleashed (+50% damage this turn). Resets at end of turn.">
-                    RAGE
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-          {/* v3.4.27 (Alan): Active Defenses panel. Surfaces all
-              currently-armed over-time defensive effects so the player
-              can SEE what's absorbing their incoming damage. Aggregates
-              scheduledEffects by kind, plus thorns aura, plus annotation
-              reduction, plus the skip-next-attack flag. */}
-          {(() => {
-            const buckets = {};
-            for (const eff of (scheduledEffects || [])) {
-              if (eff.trigger !== 'player-turn-start') continue;
-              if (!['block', 'poise', 'hpRegen', 'stripBlock'].includes(eff.kind)) continue;
-              if (!buckets[eff.kind]) buckets[eff.kind] = { amount: 0, turns: 0 };
-              buckets[eff.kind].amount += eff.amount;
-              buckets[eff.kind].turns = Math.max(buckets[eff.kind].turns, eff.turnsRemaining);
-            }
-            for (const eff of (scheduledEffects || [])) {
-              if (eff.trigger !== 'enemy-turn-start') continue;
-              if (!['weak', 'vuln'].includes(eff.kind)) continue;
-              if (!buckets[eff.kind]) buckets[eff.kind] = { amount: 0, turns: 0 };
-              buckets[eff.kind].amount += eff.amount;
-              buckets[eff.kind].turns = Math.max(buckets[eff.kind].turns, eff.turnsRemaining);
-            }
-            const annRed = enemyAnnotation?.effect?.enemyAtkReduction || 0;
-            const thornsAuraTurns = thornsCharges?.turnsRemaining || 0;
-            const thornsAuraAmount = thornsAuraTurns > 0 ? (thornsCharges?.amount || 0) : 0;
-            const thornsSchedule = Array.isArray(thornsCharges?.schedule) ? thornsCharges.schedule : null;
-            const hasAny = Object.keys(buckets).length > 0 || annRed > 0 || enemySkipNextAttack
-                          || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0;
-            if (!hasAny) return null;
-            const ROW = ({ icon, label, value, tone = 'text-parchment-100' }) => (
-              <div className="flex items-center gap-1 text-[11px]">
-                <span className="w-4">{icon}</span>
-                <span className={tone + ' flex-1 truncate'}>{label}</span>
-                <span className="font-mono">{value}</span>
-              </div>
-            );
-            return (
-              <div className="border border-iris-600 bg-ink-800/80 rounded px-2 py-1.5 flex flex-col gap-0.5 min-w-[180px]"
-                   title="Over-time effects currently armed. Compare against the enemy's intent value to predict the actual hit you'll take.">
-                <div className="text-[10px] uppercase text-iris-300 mb-0.5 flex items-center gap-1">
-                  🛡 Active Defenses
-                </div>
-                {enemySkipNextAttack && (
-                  <ROW icon="🤐" label="Next attack: SKIPPED" value="✓" tone="text-gold-300" />
-                )}
-                {buckets.block && <ROW icon="🛡" label="+Block / turn" value={`${buckets.block.amount} × ${buckets.block.turns}t`} />}
-                {buckets.poise && <ROW icon="🪞" label="+Poise / turn" value={`${buckets.poise.amount} × ${buckets.poise.turns}t`} />}
-                {buckets.hpRegen && <ROW icon="💚" label="+HP / turn" value={`${buckets.hpRegen.amount} × ${buckets.hpRegen.turns}t`} />}
-                {longThread > 0 && (
-                  <ROW icon="🧵" label="LT defensive" value={`−${Math.min(2, longThread)} / swing`} tone="text-iris-200" />
-                )}
-                {annRed > 0 && (
-                  <ROW icon="📝" label={`Annotation atk-red`} value={`−${annRed}`} tone="text-iris-200" />
-                )}
-                {thornsAuraTurns > 0 && !thornsSchedule && (
-                  <ROW icon="🌹" label="Reflect aura" value={`${thornsAuraAmount} × ${thornsAuraTurns}t`} />
-                )}
-                {thornsSchedule && thornsSchedule.length > 0 && (
-                  <ROW icon="🌹" label="Reflect schedule" value={thornsSchedule.join(',')} />
-                )}
-                {(thornsCharges?.count || 0) > 0 && (
-                  <ROW icon="🌹" label="Reflect charges" value={`${thornsCharges.amount} × ${thornsCharges.count}`} />
-                )}
-                {buckets.stripBlock && (
-                  <ROW icon="🛇" label="Strip enemy block / turn" value={`${buckets.stripBlock.amount} × ${buckets.stripBlock.turns}t`} />
-                )}
-                {buckets.weak && (
-                  <ROW icon="💢" label="Weak on enemy / turn" value={`${buckets.weak.amount} × ${buckets.weak.turns}t`} />
-                )}
-                {buckets.vuln && (
-                  <ROW icon="🩸" label="Vuln on enemy / turn" value={`${buckets.vuln.amount} × ${buckets.vuln.turns}t`} />
-                )}
-              </div>
-            );
-          })()}
-          {/* v2.25: chutzpah DOUBLING DOWN pip. Each token bills 2 unblocked
-              HP at end of turn IF the enemy is still alive. Resets every turn.
-              Shown only when non-zero. */}
-          {cornerTokens > 0 && (
-            <div title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: if enemy isn't dead, you take ${cornerTokens * 2} unblocked HP. Resets each turn.`}>
-              <div className="text-xs uppercase text-ember-300">Corner</div>
-              <div className="text-2xl font-mono text-ember-300">🏚 {cornerTokens}</div>
-            </div>
-          )}
-          {/* v2.29: chutzpah SAYING IT LOUDER pip. Each demanding-tagged
-              chutzpah word card staged this turn adds +1; a target with
-              loudScaling reads it for +3 dmg/loud. Resets each turn. */}
-          {loudCount > 0 && (
-            <div title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged this turn. A target with "Said It Louder" gets +${loudCount * 3} flat dmg on cast. Resets each turn.`}>
-              <div className="text-xs uppercase text-ember-300">Loud</div>
-              <div className="text-2xl font-mono text-ember-300">📢 {loudCount}</div>
-            </div>
-          )}
-          {/* v2.48: jnsq AWKWARD PAUSE pip. pauseHeld = armed this turn
-              (graduates at end of turn). pauseHeldActive = doubling banked
-              for THIS turn's cast. Both render the same 🤫 badge with
-              different tooltips so the player can read where the pause is
-              in its lifecycle. Cleared the moment a cast fires. */}
-          {(pauseHeld || pauseHeldActive) && (
-            <div title={pauseHeldActive
-              ? `Awkward Pause — next cast doubles every staged card's jnsq stat contribution. Single-use; cast now to spend.`
-              : `Paused — at end of turn the doubling banks. Hold the silence.`}>
-              <div className="text-xs uppercase text-amber-300">{pauseHeldActive ? 'Pause: ×2' : 'Paused'}</div>
-              <div className="text-2xl font-mono text-amber-200">🤫</div>
-            </div>
-          )}
-          {/* v2.46: jnsq WON'T SHUT UP pip. Armed when a target with
-              `mustPlayAnotherJnsq` resolves a cast. Player must play another
-              jnsq-lane card this turn or eat 3 unblocked HP at end of turn.
-              Cleared by any jnsq play after the rider fires. */}
-          {wontShutUpArmed && (
-            <div title={`Won't Shut Up — you committed mid-statement. Play any jnsq card before end of turn or take 3 HP.`}>
-              <div className="text-xs uppercase text-amber-300">Going on</div>
-              <div className="text-2xl font-mono text-amber-200">🗣 !</div>
-            </div>
-          )}
-          {/* v2.34: wit LONG THREAD pip. Ticks +1 every turn the player
-              casts a wit Effect AND takes zero unblocked HP damage. Resets
-              to 0 when an unblocked hit lands. Wit targets with
-              threadScaling read this for +N × LT flat dmg. Color: iris
-              (wit palette). Shown whenever wit-committed OR meter > 0. */}
-          {(isWit || longThread > 0) && (
-            <div title={`Long Thread — wit's consecutive-turn scaling. Ticks +1 at end of turn IF you cast a wit Effect AND took no unblocked HP damage. Take an unblocked hit, lose the thread. Wit threadScaling targets get +N × Long Thread on cast.`}>
-              <div className="text-xs uppercase text-iris-300">Thread</div>
-              <div className="text-2xl font-mono text-iris-200">🧵 {longThread}</div>
-            </div>
-          )}
-          {/* v2.39: OPENING STATEMENT — show "OPENING" pip while combat is
-              on turn 1, or "REVISIT" pip while the to-revisit-my-opening-
-              point bridge is armed. The pip tells the wit player whether
-              their openingBonus cards are currently active. */}
-          {isWit && (combatTurn === 1 || openingExtended) && (
-            <div title={openingExtended
-              ? `Opening extended — your next wit Effect cast still benefits from openingBonus damage, even though it's now turn ${combatTurn}.`
-              : `Turn 1 — wit Effect cards with openingBonus deal their bonus damage. Cast now or hold "to revisit my opening point," to keep the bonus alive into a later turn.`}>
-              <div className="text-xs uppercase text-iris-300">{openingExtended ? 'Revisit' : 'Opening'}</div>
-              <div className="text-2xl font-mono text-iris-200">🎩{openingExtended ? '↩' : ''}</div>
-            </div>
-          )}
-          {/* v2.40: PATIENCE pip. Shows the current banked stacks while
-              the power is installed. Each stack = +2 flat damage on the
-              next cast. Clears when the cast lands. */}
-          {patienceInstalled && (
-            <div title={`Patience — banked stacks. Each end-of-turn where you DID NOT cast adds +1 to the bank. The next cast adds Patience × 2 flat damage and clears the bank.`}>
-              <div className="text-xs uppercase text-iris-300">Patience</div>
-              <div className="text-2xl font-mono text-iris-200">🌿 {patienceStacks}</div>
-            </div>
-          )}
-          {/* v2.37: HOLD ON armed indicator. Shows the snapshotted reduction
-              that the next enemy swing will eat. Persists across turns
-              until consumed (or auto-cleared at start of next turn — but
-              endTurn fires the clear AFTER the enemy intent, so the
-              indicator only disappears once the swing happened). */}
-          {holdOnArmed && (
-            <div title={`Hold On — armed. The next enemy swing's damage is reduced by ${holdOnValue} (snapshotted from your Long Thread at play time). Clears when the next attack resolves OR at the start of your next turn.`}>
-              <div className="text-xs uppercase text-iris-300">Hold</div>
-              <div className="text-2xl font-mono text-iris-200">🛑 −{holdOnValue}</div>
-            </div>
-          )}
-          {/* v2.38: SAYING SOMETHING WRONG pip. Shows pending Misstep tokens
-              counting down (the off-stage clock) AND the count of Misstep
-              tokens currently in hand (the actual decision). Together: how
-              many shoes are about to drop, and how many are already on the
-              floor. Iris palette since this is a wit mechanic. */}
-          {(pendingMissteps.length > 0 || (hand || []).some(c => c?.id === 'wv2-tok-misstep')) && (() => {
-            const inHand = (hand || []).filter(c => c?.id === 'wv2-tok-misstep').length;
-            const pendingTxt = pendingMissteps.length > 0
-              ? pendingMissteps.map(p => `T-${p.turnsRemaining}`).join(' · ')
-              : '—';
-            return (
-              <div title={`Missteps in flight. ${inHand > 0 ? `${inHand} in hand: discard for 1 Energy, or end-of-turn = -3 HP each. ` : ''}Pending: ${pendingTxt}.`}>
-                <div className="text-xs uppercase text-iris-300">Misstep</div>
-                <div className="text-2xl font-mono text-iris-200">
-                  📜 {inHand > 0 ? <span className="text-ember-300">{inHand}!</span> : pendingMissteps.length}
-                </div>
-              </div>
-            );
-          })()}
-          <div title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}>
-            <div className="text-xs uppercase text-parchment-300">Deck</div>
-            <div className="text-base font-mono text-parchment-200">{deck.length} ▸ {discard.length}</div>
-          </div>
-          {/* PLAYER STATUS — Weak / Vulnerable / Strengthened / etc. Only
-              shows pills for active (non-1.0) modifiers. Same numbers as
-              the enemy-side display, but labeled from the player's POV so
-              "what am I afflicted with" is unambiguous. */}
-          {(playerDmgMult !== 1.0 || enemyDmgMult !== 1.0) && (
-            <div className="flex flex-col gap-1">
-              <div className="text-xs uppercase text-parchment-300">Status</div>
-              <div className="flex gap-1 flex-wrap">
-                {playerDmgMult < 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
-                        title={`Weak — your spell potency is at ×${playerDmgMult.toFixed(2)} (${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    ⛧ Weak ×{playerDmgMult.toFixed(2)}
-                  </span>
-                )}
-                {playerDmgMult > 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
-                        title={`Strengthened — your spell potency is at ×${playerDmgMult.toFixed(2)} (+${Math.round((playerDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    💫 Strong ×{playerDmgMult.toFixed(2)}
-                  </span>
-                )}
-                {enemyDmgMult > 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-ember-800 text-parchment-50 border border-ember-600"
-                        title={`Vulnerable — incoming damage is at ×${enemyDmgMult.toFixed(2)} (+${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    🩸 Vuln ×{enemyDmgMult.toFixed(2)}
-                  </span>
-                )}
-                {enemyDmgMult < 1.0 && (
-                  <span className="px-2 py-1 rounded text-xs bg-moss-800 text-parchment-50 border border-moss-600"
-                        title={`Sapped — enemy attack damage is at ×${enemyDmgMult.toFixed(2)} (${Math.round((enemyDmgMult-1)*100)}%). Drifts back toward 1.00 by 0.25/turn.`}>
-                    🛡 Sapped ×{enemyDmgMult.toFixed(2)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-          {familiar && (
-            <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-ink-600 border border-ink-400 text-sm"
-                  title={familiar.desc}>
-              <span className="text-lg leading-none">{familiar.emoji}</span>
-              <span className="text-gold-300">{familiarName || familiar.species}</span>
-            </span>
-          )}
-          {equipment.length > 0 && (
-            <div className="text-xs flex gap-2 flex-wrap ml-2">
-              {equipment.map(eq => (
-                <span key={eq.id} className="text-gold-300 cursor-help"
-                  title={`${eq.name}\n\n${eq.desc || ''}${equipmentEffectSummary(eq) ? '\n\nEffects:\n' + equipmentEffectSummary(eq) : ''}`}>⚜ {eq.name}</span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* v3.3: action log hidden by default (Alan: "doesn't need to be
           visible on the combat screen"). The log array is still
