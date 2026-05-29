@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WIT_V2, WIT_V2_BY_SLOT } from '../src/cards/wit-v2.js';
-import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from '../src/cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from '../src/cards/wit-v2-rows.js';
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from '../src/cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from '../src/cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/cards/shared.js';
@@ -232,8 +232,8 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
   let bestIdx = -1, bestTier = -1, bestStat = -1;
   // v3.4.8 Delta 3 — FFT-CHAIN STAGING. When the tray has already
   // committed to a setId (intro/subject has setId), bias the next-slot
-  // pick toward a card that completes that row. Same effect for tierId
-  // (a same-tier cast triggers the tier sub-bonus). Lets the AI build
+  // pick toward a card that completes that row. Same effect for schoolId
+  // (a same-school cast triggers the tier sub-bonus). Lets the AI build
   // toward an FFT layer across turns instead of staging whichever card
   // happens to score highest by tier/stat.
   let trayCommitSetId = null;
@@ -242,11 +242,11 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
     const slots = [tray.intro, tray.subject, tray.target].filter(Boolean);
     for (const c of slots) {
       if (c.setId && !trayCommitSetId) trayCommitSetId = c.setId;
-      if (c.tierId && !trayCommitTierId) trayCommitTierId = c.tierId;
+      if (c.schoolId && !trayCommitTierId) trayCommitTierId = c.schoolId;
     }
   }
   // v2.29: detect if a loudScaling target ("I SAID.") is in hand. If so,
-  // bias toward chutzpah cards carrying the 'demanding' tag in same-tier
+  // bias toward chutzpah cards carrying the 'demanding' tag in same-school
   // slot picks — each demanding word adds +3 to the eventual cast for free.
   const hasLoudTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier')
     && state.hand.some(c => c.lane === 'chutzpah' && c.effect?.loudScaling);
@@ -290,7 +290,7 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
     // so this doesn't override the existing tier-first preference.
     // v2.53: bumped from +3 to +7 so demanding-tagged words ALSO outscore
     // adjacent non-demanding picks across the tier boundary in close cases.
-    // Previously the +3 only broke same-tier ties; the report showed avg
+    // Previously the +3 only broke same-school ties; the report showed avg
     // loudCount per cast = 0.51, meaning the AI was almost always missing
     // the stack on cast. +7 lifts demanding tier-1 words above non-demanding
     // tier-2 baselines when an I SAID. target is in hand and committed.
@@ -319,12 +319,12 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
     }
     // v3.4.8 Delta 3 — FFT-chain staging bias. If tray has committed to
     // an FFT row, strongly prefer the card that completes it; otherwise
-    // mildly prefer same-tier (tier bonus). Magnitudes:
+    // mildly prefer same-school (tier bonus). Magnitudes:
     //   Row match (full FFT path):  +20 to effectiveStat
     //   Tier match (tier sub path): +4
     if (trayCommitSetId && c.setId === trayCommitSetId) {
       effectiveStat = effectiveStat + 20;
-    } else if (trayCommitTierId && c.tierId === trayCommitTierId) {
+    } else if (trayCommitTierId && c.schoolId === trayCommitTierId) {
       effectiveStat = effectiveStat + 4;
     }
     if (tier * 10 + effectiveStat > bestTier * 10 + bestStat) {
@@ -468,11 +468,11 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       const slots = [tray.intro, tray.subject].filter(Boolean);
       for (const sc of slots) {
         if (sc.setId && !trayCommitSetId) trayCommitSetId = sc.setId;
-        if (sc.tierId && !trayCommitTierId) trayCommitTierId = sc.tierId;
+        if (sc.schoolId && !trayCommitTierId) trayCommitTierId = sc.schoolId;
       }
     }
     if (trayCommitSetId && c.setId === trayCommitSetId) score += 25;
-    else if (trayCommitTierId && c.tierId === trayCommitTierId) score += 5;
+    else if (trayCommitTierId && c.schoolId === trayCommitTierId) score += 5;
     if (slot === 'target' && (c.rarity === 'uncommon' || c.rarity === 'rare')) {
       score += 6;
     }
@@ -1202,7 +1202,7 @@ function runCombat(state, enemyId, telemetry) {
         // aggressive — Alan casts every turn even on small chip damage.
         // Tightened further: 15% → 7%. AND override the skip when the
         // staged cards form an FFT layer match (full or partial row, or
-        // same-tier across all three slots) — those casts are worth
+        // same-school across all three slots) — those casts are worth
         // taking even at chip damage because they fire school riders.
         const isChip = predicted < remaining * 0.07;
         // FFT-chain check: if the three staged-or-in-hand cards would
@@ -1212,7 +1212,7 @@ function runCombat(state, enemyId, telemetry) {
         let triggersFftLayer = false;
         if (introCard && subjectCard && targetCard) {
           const sId = introCard.setId;
-          const tId = introCard.tierId;
+          const tId = introCard.schoolId;
           // Full row match.
           if (sId && subjectCard.setId === sId && targetCard.setId === sId) {
             triggersFftLayer = true;
@@ -1225,7 +1225,7 @@ function runCombat(state, enemyId, telemetry) {
             triggersFftLayer = true;
           }
           // All-tier match.
-          else if (tId && subjectCard.tierId === tId && targetCard.tierId === tId) {
+          else if (tId && subjectCard.schoolId === tId && targetCard.schoolId === tId) {
             triggersFftLayer = true;
           }
         }
@@ -2229,14 +2229,14 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.fftDamage = (telemetry.fftDamage || 0) + dmg;
       } else if (fftResult.partialRow) {
         telemetry.fftPartialCasts = (telemetry.fftPartialCasts || 0) + 1;
-      } else if (fftResult.tierId) {
-        telemetry.fftTierBonusCasts = (telemetry.fftTierBonusCasts || 0) + 1;
+      } else if (fftResult.schoolId) {
+        telemetry.fftSameSchoolCasts = (telemetry.fftSameSchoolCasts || 0) + 1;
       }
       // v2.93: O-1 support — capture this cast's pre-block damage as
       // lastCastDamage so the NEXT Precedent cast has something to mirror.
       // v3.4.x — Slow Burn targets DEPOSIT DoT (mirror App.jsx).
       // No upfront damage; cast pushes per-turn × turns into enemy.dot.
-      if (tray.target.tierId === 'slowburn') {
+      if (tray.target.schoolId === 'slowburn') {
         const statWit = (tray.intro?.stats?.wit || 0) + (tray.subject?.stats?.wit || 0);
         const perTurn = Math.max(1, (tray.target.effect?.base || 0) + statWit);
         const turns = tray.target.effect?.multiplier || 1;
@@ -2352,9 +2352,9 @@ function runCombat(state, enemyId, telemetry) {
       if (fftResult.fft) {
         applyRiderSim(fftResult.fft.rider);
       } else if (fftResult.partialRow) {
-        applyRiderSim(WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId]);
-      } else if (fftResult.tierId) {
-        applyRiderSim(WIT_TIER_SUB_BONUSES[fftResult.tierId]);
+        applyRiderSim(WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.schoolId]);
+      } else if (fftResult.schoolId) {
+        applyRiderSim(WIT_SAME_SCHOOL_BONUSES[fftResult.schoolId]);
       }
       // v2.15: BURST exiles cashed-in annotation; wit auto-attach stub
       // for casual casts that lacked one.
@@ -3853,7 +3853,7 @@ function awardReward(state) {
   // slowburn/crescendo (matching the school his starter row seeded).
   // Sim was picking lane-pure-random with no school affinity. Now:
   // for wit-lane, count which FFT schools the player's existing deck
-  // commits to (cards with that tierId) and weight bucket picks
+  // commits to (cards with that schoolId) and weight bucket picks
   // toward the dominant school. School-tagged cards get a +N weight
   // proportional to how many cards of that school are already owned;
   // untagged cards keep base weight.
@@ -3861,7 +3861,7 @@ function awardReward(state) {
   if (state.lane === 'wit') {
     const schoolCounts = {};
     for (const c of allCards) {
-      if (c.tierId) schoolCounts[c.tierId] = (schoolCounts[c.tierId] || 0) + 1;
+      if (c.schoolId) schoolCounts[c.schoolId] = (schoolCounts[c.schoolId] || 0) + 1;
     }
     // Weight: base slot weight × (1 + schoolCount × 0.5).
     // A 4-card school owned → 3× weight bonus. A 0-card school → no bonus.
@@ -3869,7 +3869,7 @@ function awardReward(state) {
       if (cards.length === 0) return null;
       const baseWeights = cards.map(c => {
         const slotW = SLOT_WEIGHTS[c.slot] || 10;
-        const schoolMult = c.tierId ? (1 + (schoolCounts[c.tierId] || 0) * 0.5) : 1;
+        const schoolMult = c.schoolId ? (1 + (schoolCounts[c.schoolId] || 0) * 0.5) : 1;
         return slotW * schoolMult;
       });
       const total = baseWeights.reduce((s, w) => s + w, 0);

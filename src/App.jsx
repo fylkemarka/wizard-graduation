@@ -41,7 +41,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
-import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
@@ -4339,7 +4339,7 @@ export default function App() {
     const row = WIT_ROW_BY_ID[rowId];
     if (!row || !selectedCharacter) return;
     setStartingRow(row);
-    logEvent('character.starting_row', { rowId: row.id, name: row.name, tierId: row.tierId });
+    logEvent('character.starting_row', { rowId: row.id, name: row.name, schoolId: row.schoolId });
     pushLog(`📜 Starter spell chosen: ${row.name} — "${row.canonical}"`);
     const starterDeck = buildStartingDeck('wit', { startingRow: row });
     setDeck(starterDeck);
@@ -6096,7 +6096,7 @@ export default function App() {
     // v3.2: FULLY FORMED THOUGHT — set-collection overlay. Hierarchy:
     //   1. fft         — all 3 share setId → row's per-row unique rider
     //   2. partialRow  — any 2 share setId → tier-flavored half-formed bonus
-    //   3. tierId      — all 3 share tierId (no row match) → tier sub-bonus
+    //   3. schoolId      — all 3 share schoolId (no row match) → tier sub-bonus
     //   4. neither     — no bonus
     // Most specific match wins; only one bonus fires per cast. Damage-
     // mutating rider keys apply HERE; state-setting ones apply post-damage.
@@ -6116,23 +6116,28 @@ export default function App() {
       pushLog(`✨✨ FULLY FORMED THOUGHT — ${row.name}.`);
       if (row.canonical) pushLog(`📜 "${row.canonical}"`);
       logEvent('wit.fft.cast', {
-        rowId: row.id, rowName: row.name, tierId: row.tierId,
+        rowId: row.id, rowName: row.name, schoolId: row.schoolId,
         rider: { ...rider }, damageAfterRider: dmg,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     } else if (fftResult.partialRow) {
       const row = fftResult.partialRow;
-      pushLog(`✨ HALF-FORMED THOUGHT — ${row.name} (find the missing slot).`);
+      // v3.4.20 (Alan): surface the SCHOOL of the partial so the
+      // half-formed rider effects (Slow Burn DoT, Thorns reflect,
+      // Crescendo bank) don't read as mystery procs.
+      const partialBonus = WIT_PARTIAL_ROW_BONUSES[row.schoolId];
+      const schoolName = partialBonus?.name?.replace(' (half-formed)', '') || row.schoolId;
+      pushLog(`📐 Half-formed ${schoolName} — ${row.name} (the third word would have landed harder).`);
       logEvent('wit.fft.partial', {
-        rowId: row.id, rowName: row.name, tierId: row.tierId,
+        rowId: row.id, rowName: row.name, schoolId: row.schoolId,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
-    } else if (fftResult.tierId) {
-      const sub = WIT_TIER_SUB_BONUSES[fftResult.tierId];
+    } else if (fftResult.schoolId) {
+      const sub = WIT_SAME_SCHOOL_BONUSES[fftResult.schoolId];
       if (sub) {
-        pushLog(`✨ ${sub.name} — themed coherence.`);
-        logEvent('wit.fft.tierBonus', {
-          tierId: fftResult.tierId, tierName: sub.name,
+        pushLog(`🎵 Same-school ${sub.name} — flavor stitched together.`);
+        logEvent('wit.fft.sameSchool', {
+          schoolId: fftResult.schoolId, schoolName: sub.name,
           enemyId: enemy?.id, enemyTier: enemy?.tier,
         });
       }
@@ -6156,7 +6161,7 @@ export default function App() {
     }
     // v3.2/v3.3: post-damage FFT/partial/tier rider effects — state-
     // setting keys fire here so they compose with the cast's combat-
-    // state mutations. Hierarchy: fft > partialRow > tierId.
+    // state mutations. Hierarchy: fft > partialRow > schoolId.
     //
     // v3.3 strategy keys:
     //   dot: { amount, turns } — push onto enemyDotStacks; ticks each
@@ -6318,9 +6323,9 @@ export default function App() {
     if (fftResult.fft) {
       applyRider(fftResult.fft.rider);
     } else if (fftResult.partialRow) {
-      applyRider(WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.tierId]);
-    } else if (fftResult.tierId) {
-      applyRider(WIT_TIER_SUB_BONUSES[fftResult.tierId]);
+      applyRider(WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.schoolId]);
+    } else if (fftResult.schoolId) {
+      applyRider(WIT_SAME_SCHOOL_BONUSES[fftResult.schoolId]);
     }
     // v2.93: O-6 (The Doubletake) — apply damage a second time. Same dmg
     // value, same type, no second cast counter / scalar (it's a copy, not
@@ -8849,7 +8854,7 @@ export default function App() {
         playerLane: lane,
         offerKind: 'fft-rows',
         tierBumped: bumpTier,
-        offered: rowChoices.map(rc => ({ rowId: rc.row.id, rowName: rc.row.name, tierId: rc.row.tierId })),
+        offered: rowChoices.map(rc => ({ rowId: rc.row.id, rowName: rc.row.name, schoolId: rc.row.schoolId })),
         enemyId: enemy.id, enemyTier: enemy.tier,
       });
       setRewardRowChoices(rowChoices);
@@ -8900,7 +8905,7 @@ export default function App() {
         kind: 'fft-row',
         rowId: cardOrSkip.row.id,
         rowName: cardOrSkip.row.name,
-        tierId: cardOrSkip.row.tierId,
+        schoolId: cardOrSkip.row.schoolId,
         tierBumped: !!cardOrSkip.tierBumped,
         cardIds: fresh.map(c => c.id),
         source: 'combat-reward',
@@ -8914,7 +8919,7 @@ export default function App() {
       return;
     }
     if (cardOrSkip) {
-      // v3.3: include FFT row affinity (setId/tierId) + whether the
+      // v3.3: include FFT row affinity (setId/schoolId) + whether the
       // offered set looked like a school sampler. Lets snapshot 7+
       // measure "how often do players actually pick the synergy card
       // vs the stat card?" from telemetry.
@@ -8928,10 +8933,10 @@ export default function App() {
         cardId: cardOrSkip.id, cardName: cardOrSkip.name, type: cardOrSkip.type,
         rarity: cardOrSkip.rarity,
         setId: cardOrSkip.setId || null,
-        tierId: cardOrSkip.tierId || null,
+        schoolId: cardOrSkip.schoolId || null,
         wasSampler: !!samplerSig,
         samplerRowId: samplerSig,
-        offered: rewardChoices.map(c => ({ id: c?.id, setId: c?.setId || null, tierId: c?.tierId || null })),
+        offered: rewardChoices.map(c => ({ id: c?.id, setId: c?.setId || null, schoolId: c?.schoolId || null })),
         source: 'combat-reward',
       });
       setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, { ...cardOrSkip, uid: uid() }]);
@@ -9881,8 +9886,8 @@ function WitRowSelectScreen({ onPick }) {
           <button key={row.id} onClick={() => onPick(row.id)}
                   className="parchment-card p-4 text-left hover:scale-[1.02] hover:shadow-2xl transition cursor-pointer flex flex-col gap-2">
             <div className="text-center">
-              <div className="font-display text-2xl text-parchment-100">{TIER_ICONS[row.tierId]} {TIER_NAMES[row.tierId]}</div>
-              <div className="text-[11px] italic text-parchment-300 leading-snug mt-1">{TIER_FLAVOR[row.tierId]}</div>
+              <div className="font-display text-2xl text-parchment-100">{TIER_ICONS[row.schoolId]} {TIER_NAMES[row.schoolId]}</div>
+              <div className="text-[11px] italic text-parchment-300 leading-snug mt-1">{TIER_FLAVOR[row.schoolId]}</div>
             </div>
             <div className="border-t border-ink-400 pt-2">
               <div className="font-display text-lg text-iris-200">{row.name}</div>
@@ -10439,8 +10444,8 @@ function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOp
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
           {rowChoices.map((rc, i) => {
             const row = rc.row;
-            const schoolBorder = row.tierId === 'slowburn' ? 'border-emerald-400'
-              : row.tierId === 'thorns' ? 'border-rose-400' : 'border-amber-400';
+            const schoolBorder = row.schoolId === 'slowburn' ? 'border-emerald-400'
+              : row.schoolId === 'thorns' ? 'border-rose-400' : 'border-amber-400';
             return (
               <button key={i} onClick={() => onPick(rc)}
                       className={`rounded-lg border-2 ${schoolBorder} bg-ink-700 hover:bg-ink-600 hover:scale-[1.02] transition p-4 text-left flex flex-col gap-2`}>
@@ -10631,8 +10636,8 @@ function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCance
   const matchesRarity = (c) => rarityFilter === 'all' || c.rarity === rarityFilter;
   const matchesSchool = (c) => {
     if (schoolFilter === 'all') return true;
-    if (schoolFilter === 'none') return !c.tierId;
-    return c.tierId === schoolFilter;
+    if (schoolFilter === 'none') return !c.schoolId;
+    return c.schoolId === schoolFilter;
   };
   const filtered = pool.filter(c => matchesText(c) && matchesSlot(c) && matchesRarity(c) && matchesSchool(c));
 
@@ -10641,7 +10646,7 @@ function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCance
     const out = { slowburn: [], thorns: [], crescendo: [] };
     if (lane !== 'wit') return out;
     for (const r of WIT_ROWS) {
-      if (out[r.tierId]) out[r.tierId].push(r);
+      if (out[r.schoolId]) out[r.schoolId].push(r);
     }
     return out;
   }, [lane]);
@@ -10673,7 +10678,7 @@ function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCance
             title={`${c.desc || c.flavor || ''}${c.phrase ? `\n"${c.phrase}"` : ''}`}>
       <span className="text-parchment-400 text-[11px]" title={c.slot || c.type}>{slotIcon[c.slot || c.type] || '·'}</span>
       <span className={`flex-1 truncate text-xs font-semibold ${rarityColor(c.rarity)}`}>{c.name || c.phrase || c.id}</span>
-      {c.tierId && <span className={`text-[10px] ${schoolColor(c.tierId)}`}>{c.tierId}</span>}
+      {c.schoolId && <span className={`text-[10px] ${schoolColor(c.schoolId)}`}>{c.schoolId}</span>}
       <span className="text-parchment-400 text-[10px]">{c.cost ?? '?'}⚡</span>
       <span className="text-gold-400 text-sm leading-none">+</span>
     </button>
@@ -10888,14 +10893,14 @@ function CompendiumScreen({ onBack }) {
   const matchesRarity = (c) => rarityFilter === 'all' || c.rarity === rarityFilter;
   const matchesSchool = (c) => {
     if (schoolFilter === 'all') return true;
-    if (schoolFilter === 'none') return !c.tierId;
-    return c.tierId === schoolFilter;
+    if (schoolFilter === 'none') return !c.schoolId;
+    return c.schoolId === schoolFilter;
   };
   const filtered = pool.filter(c => matchesText(c) && matchesSlot(c) && matchesRarity(c) && matchesSchool(c));
 
   const rowsBySchool = { slowburn: [], thorns: [], crescendo: [] };
   if (lane === 'wit') {
-    for (const r of WIT_ROWS) if (rowsBySchool[r.tierId]) rowsBySchool[r.tierId].push(r);
+    for (const r of WIT_ROWS) if (rowsBySchool[r.schoolId]) rowsBySchool[r.schoolId].push(r);
   }
   const cardsForRow = (row) => [row.introId, row.subjectId, row.targetId]
     .map(id => pool.find(c => c.id === id)).filter(Boolean);
@@ -10919,7 +10924,7 @@ function CompendiumScreen({ onBack }) {
                          ${selectedCardId === c.id ? 'border-gold-400 ring-1 ring-gold-300' : 'border-ink-500'}`}>
         <span className="text-parchment-400 text-[11px]">{slotIcon[c.slot || c.type] || '·'}</span>
         <span className={`flex-1 truncate text-xs font-semibold ${rarityColor(c.rarity)}`}>{d.name || d.phrase || c.id}</span>
-        {c.tierId && <span className={`text-[10px] ${schoolColor(c.tierId)}`}>{c.tierId}</span>}
+        {c.schoolId && <span className={`text-[10px] ${schoolColor(c.schoolId)}`}>{c.schoolId}</span>}
         <span className="text-parchment-400 text-[10px]">{d.cost ?? '?'}⚡</span>
       </button>
     );
@@ -12176,14 +12181,14 @@ function UpgradeSpellScreen({ hand, deck, discard, exiled, tray, onPick }) {
             const own = byRow[row.id];
             const copies = own.cards.length;
             const upgradedCount = own.cards.filter(c => c.upgraded).length;
-            const schoolColor = row.tierId === 'slowburn' ? 'text-emerald-300'
-              : row.tierId === 'thorns' ? 'text-rose-300' : 'text-amber-300';
+            const schoolColor = row.schoolId === 'slowburn' ? 'text-emerald-300'
+              : row.schoolId === 'thorns' ? 'text-rose-300' : 'text-amber-300';
             return (
               <button key={row.id} onClick={() => onPick(row.id)}
                       className="text-left rounded-lg border-2 border-gold-500 bg-ink-700 hover:bg-ink-600 hover:scale-[1.01] transition p-4 flex flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-display text-xl text-iris-200">{row.name}</div>
-                  <div className={`text-[11px] uppercase ${schoolColor}`}>{row.tierId}</div>
+                  <div className={`text-[11px] uppercase ${schoolColor}`}>{row.schoolId}</div>
                 </div>
                 <div className="text-sm italic text-parchment-100">"{row.canonical}"</div>
                 <div className="text-[12px] text-gold-300 mt-1">★ {row.riderDesc || '(rider)'}</div>

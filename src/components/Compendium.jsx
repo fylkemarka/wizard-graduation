@@ -9,7 +9,7 @@
 // Alan: "Phrases still didn't feel relevant. They should be as clear
 // as a skill tree in a game where characters level up."
 
-import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_PARTIAL_ROW_BONUSES } from '../cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES } from '../cards/wit-v2-rows.js';
 
 const TIER_ORDER = ['slowburn', 'thorns', 'crescendo'];
 
@@ -55,7 +55,7 @@ export function Compendium({ open, onClose, hand = [], deck = [], discard = [], 
   const rowsByTier = {};
   for (const t of TIER_ORDER) rowsByTier[t] = [];
   for (const row of WIT_ROWS) {
-    if (rowsByTier[row.tierId]) rowsByTier[row.tierId].push(row);
+    if (rowsByTier[row.schoolId]) rowsByTier[row.schoolId].push(row);
   }
 
   const totalRows = WIT_ROWS.length;
@@ -87,18 +87,18 @@ export function Compendium({ open, onClose, hand = [], deck = [], discard = [], 
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {TIER_ORDER.map(tierId => {
-            const tier = WIT_TIER_SUB_BONUSES[tierId];
-            const partial = WIT_PARTIAL_ROW_BONUSES[tierId];
-            const palette = TIER_PALETTE[tierId];
-            const rows = rowsByTier[tierId] || [];
+          {TIER_ORDER.map(schoolId => {
+            const tier = WIT_SAME_SCHOOL_BONUSES[schoolId];
+            const partial = WIT_PARTIAL_ROW_BONUSES[schoolId];
+            const palette = TIER_PALETTE[schoolId];
+            const rows = rowsByTier[schoolId] || [];
             return (
-              <div key={tierId}
+              <div key={schoolId}
                    className={`rounded-lg border-2 ${palette.border} ${palette.columnBg} p-3 flex flex-col gap-2`}>
                 {/* Column header — tier identity */}
                 <div className={`rounded ${palette.header} p-2 border ${palette.border}`}>
                   <div className={`font-display text-xl ${palette.accent} flex items-center gap-2`}>
-                    {palette.icon} {tier?.name || tierId}
+                    {palette.icon} {tier?.name || schoolId}
                   </div>
                   <div className="text-[11px] text-parchment-200 mt-1 leading-tight italic">
                     {tier?.flavor}

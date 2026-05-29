@@ -13,7 +13,7 @@
 //   - Damage formula + rider (targets only)
 //   - Flavor: italic at the bottom
 //   - Tags: tiny single line, last
-import { WIT_ROW_BY_ID, WIT_TIER_SUB_BONUSES } from '../cards/wit-v2-rows.js';
+import { WIT_ROW_BY_ID, WIT_SAME_SCHOOL_BONUSES } from '../cards/wit-v2-rows.js';
 
 export const EFFECT_CHIP_RENDERERS = {
   // Numeric / classic
@@ -104,7 +104,7 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
   }
 
   const row = card.setId ? WIT_ROW_BY_ID[card.setId] : null;
-  const tierName = card.tierId ? (WIT_TIER_SUB_BONUSES[card.tierId]?.name || card.tierId) : null;
+  const tierName = card.schoolId ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name || card.schoolId) : null;
 
   // Resonance tag fallback for legacy v1 effect cards (no v2 tags).
   const resonance = card.type === 'effect' && card.effect?.resonatesWith && card.effect.resonatesWith.length > 0

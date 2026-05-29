@@ -10,12 +10,12 @@
 // Schema on a card (in wit-v2.js):
 //   setId:    'slowburn-1' | 'thorns-3' | etc. (one of WIT_ROWS[*].id)
 //   setSlot:  'intro' | 'subject' | 'target'   (matches the card's slot field)
-//   tierId:   'slowburn' | 'thorns' | 'crescendo'
+//   schoolId:   'slowburn' | 'thorns' | 'crescendo'
 //
 // Cards without these fields are FLAVOR POOL — still combine freely, never
-// trigger FFT or same-tier bonuses.
+// trigger FFT or same-school bonuses.
 
-export const WIT_TIER_SUB_BONUSES = {
+export const WIT_SAME_SCHOOL_BONUSES = {
   slowburn: {
     name: 'Slow Burn',
     longThreadPerm: 1, composure: 2,
@@ -76,35 +76,35 @@ export const WIT_ROWS = [
   // small upfront cast, big DoT payoff over multiple turns. Play setup
   // → stack DoT → finish with multiply or consume burst.
   {
-    id: 'slowburn-1', tierId: 'slowburn', name: 'Slow Unraveling',
+    id: 'slowburn-1', schoolId: 'slowburn', name: 'Slow Unraveling',
     canonical: 'Over time, your argument will slowly unravel.',
     introId: 'wv2-i-fabric-merchant', subjectId: 'wv2-s-your-taste', targetId: 'wv2-t-not-tolerated-after-8',
     rider: { setDotMinDamage: 2, setDotMinTurns: 8 },
     riderDesc: 'DoT 2 composure/turn × 8 turns. The long, thin burn.',
   },
   {
-    id: 'slowburn-2', tierId: 'slowburn', name: 'Slow Decay',
+    id: 'slowburn-2', schoolId: 'slowburn', name: 'Slow Decay',
     canonical: 'Permit me to observe that your reasoning will slowly decay.',
     introId: 'wv2-i-permit-me-observe', subjectId: 'wv2-s-linen-october', targetId: 'wv2-t-precisely-what-one-does-not-do',
     rider: { setDotSchedule: [5, 4, 3, 2, 1] },
     riderDesc: 'DoT 5, 4, 3, 2, 1 composure across 5 turns. Front-loaded.',
   },
   {
-    id: 'slowburn-4', tierId: 'slowburn', name: 'Lingering Point',
+    id: 'slowburn-4', schoolId: 'slowburn', name: 'Lingering Point',
     canonical: 'Frankly, your point lingers, badly.',
     introId: 'wv2-i-frankly', subjectId: 'wv2-s-boucle-suggestion', targetId: 'wv2-t-fabric-stops-asking',
     rider: { setDotMinDamage: 3, setDotMinTurns: 3 },
     riderDesc: 'DoT 3 composure/turn × 3 turns. The school\'s clean opener.',
   },
   {
-    id: 'slowburn-5', tierId: 'slowburn', name: 'Steady Erosion',
+    id: 'slowburn-5', schoolId: 'slowburn', name: 'Steady Erosion',
     canonical: 'Speaking plainly, your premise will erode steadily.',
     introId: 'wv2-i-speaking-plainly', subjectId: 'wv2-s-evening-wear', targetId: 'wv2-t-8-has-been-and-gone',
     rider: { setDotSchedule: [1, 3, 6, 8] },
     riderDesc: 'DoT 1, 3, 6, 8 composure across 4 turns. Ramping payoff.',
   },
   {
-    id: 'slowburn-8', tierId: 'slowburn', name: 'The Festering Wound',
+    id: 'slowburn-8', schoolId: 'slowburn', name: 'The Festering Wound',
     canonical: 'If memory serves, your conclusion will fester.',
     introId: 'wv2-i-memory-serves', subjectId: 'wv2-s-silk-before-8', targetId: 'wv2-t-not-what-one-wears-after',
     rider: { setDotMinDamage: 3, setDotMinTurns: 4, enemyVulnPerTurn: { amount: 1, turns: 4 } },
@@ -115,35 +115,35 @@ export const WIT_ROWS = [
   // THORNS — channel the "sparkling clean surface" motif: reflect their
   // attack as their own face, strip grime (block), preempt the move.
   {
-    id: 'thorns-1', tierId: 'thorns', name: 'Returned in Kind',
+    id: 'thorns-1', schoolId: 'thorns', name: 'Returned in Kind',
     canonical: 'Specifically speaking, your next attack comes back to you.',
     introId: 'wv2-i-specifically-speaking', subjectId: 'wv2-s-gentleman-bidet', targetId: 'wv2-t-not-a-gentleman',
     rider: { thorns: { amount: 5, count: 3 } },
     riderDesc: 'Reflect 5 damage on next 3 enemy hits. The school\'s pure-reflect baseline.',
   },
   {
-    id: 'thorns-2', tierId: 'thorns', name: 'Rebound',
+    id: 'thorns-2', schoolId: 'thorns', name: 'Rebound',
     canonical: 'Pardon my saying, every blow you throw rebounds with interest.',
     introId: 'wv2-i-pardon-saying', subjectId: 'wv2-s-dry-shaving', targetId: 'wv2-t-aesthetic-failure-first',
     rider: { thorns: { amount: 4, count: 2, weakOnReflect: 1 } },
     riderDesc: 'Reflect 4 damage on next 2 enemy hits AND apply 1 Weak per reflect. Their second swing softens what would have been the third.',
   },
   {
-    id: 'thorns-3', tierId: 'thorns', name: 'Sharp Reflection',
+    id: 'thorns-3', schoolId: 'thorns', name: 'Sharp Reflection',
     canonical: 'Or rather, your aggression turns inward, sharply.',
     introId: 'wv2-i-or-rather', subjectId: 'wv2-s-dental-schedule', targetId: 'wv2-t-politely-call-memorial',
     rider: { thorns: { amount: 9, count: 1 } },
     riderDesc: 'ONE HUGE reflect — 9 damage on their next hit. Best opened on a multi-swing enemy where one swing matters most.',
   },
   {
-    id: 'thorns-5', tierId: 'thorns', name: 'What You Get Back',
+    id: 'thorns-5', schoolId: 'thorns', name: 'What You Get Back',
     canonical: 'Curiously, what you throw is what you get back.',
     introId: 'wv2-i-curiously', subjectId: 'wv2-s-towel-rotation', targetId: 'wv2-t-did-not-ask-to-know',
     rider: { thorns: { amount: 3, count: 3 }, stripEnemyBlock: 5 },
     riderDesc: 'Reflect 3 damage on next 3 enemy hits AND strip 5 of their Block right now. Cleans the surface so the reflect lands clean.',
   },
   {
-    id: 'thorns-6', tierId: 'thorns', name: 'Answered in Advance',
+    id: 'thorns-6', schoolId: 'thorns', name: 'Answered in Advance',
     canonical: 'Setting aside the obvious, your next move answers itself.',
     introId: 'wv2-i-setting-aside', subjectId: 'wv2-s-bathroom-door', targetId: 'wv2-t-rest-follows',
     rider: { thorns: { amount: 4, count: 2 }, forceSkipNextAttack: true },
@@ -152,35 +152,35 @@ export const WIT_ROWS = [
 
   // ---- Crescendo (Buildup / wordsBank) ----
   {
-    id: 'crescendo-1', tierId: 'crescendo', name: 'All At Once',
+    id: 'crescendo-1', schoolId: 'crescendo', name: 'All At Once',
     canonical: 'When you add it up, every word so far lands at once.',
     introId: 'wv2-i-civically-speaking', subjectId: 'wv2-s-turn-signal', targetId: 'wv2-t-entire-drive',
     rider: { consumeBank: 2 },
     riderDesc: 'Consume Words Bank — +2 damage per word.',
   },
   {
-    id: 'crescendo-2', tierId: 'crescendo', name: 'Just Getting Started',
+    id: 'crescendo-2', schoolId: 'crescendo', name: 'Just Getting Started',
     canonical: 'Strictly speaking, this argument is just getting started.',
     introId: 'wv2-i-strictly-speaking', subjectId: 'wv2-s-yield-sign', targetId: 'wv2-t-suggestion-at-best',
     rider: { consumeBank: 2, addBank: 3 },
     riderDesc: 'Consume Words Bank for +2/word AND immediately re-bank 3.',
   },
   {
-    id: 'crescendo-3', tierId: 'crescendo', name: 'Hardest Now',
+    id: 'crescendo-3', schoolId: 'crescendo', name: 'Hardest Now',
     canonical: "I should think that what's been building lands hardest now.",
     introId: 'wv2-i-i-should-think', subjectId: 'wv2-s-your-volvo', targetId: 'wv2-t-conversation-with-you-itself',
     rider: { consumeBank: 3 },
     riderDesc: 'Consume Words Bank — +3 damage per word (biggest payoff).',
   },
   {
-    id: 'crescendo-4', tierId: 'crescendo', name: 'It All Adds Up',
+    id: 'crescendo-4', schoolId: 'crescendo', name: 'It All Adds Up',
     canonical: "Actually, every point we've made adds up here.",
     introId: 'wv2-i-actually', subjectId: 'wv2-s-parallel-parking', targetId: 'wv2-t-essence-public-service',
     rider: { consumeBank: 2, draw: 1 },
     riderDesc: 'Consume Words Bank for +2/word AND draw 1.',
   },
   {
-    id: 'crescendo-5', tierId: 'crescendo', name: 'Delivered',
+    id: 'crescendo-5', schoolId: 'crescendo', name: 'Delivered',
     canonical: "Honestly, the case I've laid out delivers itself now.",
     introId: 'wv2-i-honestly', subjectId: 'wv2-s-left-lane-behavior', targetId: 'wv2-t-jurisdiction-moral-failing',
     rider: { consumeBank: 2, bankDoublePerTurn: { turns: 3 } },
@@ -207,14 +207,14 @@ export const WIT_RIDER_KEYS = [
 
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));
 
-// Helper: given three cards, return { fft, partialRow, tierId }.
+// Helper: given three cards, return { fft, partialRow, schoolId }.
 // See castV2SentenceSpell in App.jsx for hierarchy semantics.
 export function detectFFT(intro, subject, target) {
-  if (!intro || !subject || !target) return { fft: null, partialRow: null, tierId: null };
+  if (!intro || !subject || !target) return { fft: null, partialRow: null, schoolId: null };
   const sid = intro.setId;
 
   if (sid && subject.setId === sid && target.setId === sid) {
-    return { fft: WIT_ROW_BY_ID[sid] || null, partialRow: null, tierId: intro.tierId || null };
+    return { fft: WIT_ROW_BY_ID[sid] || null, partialRow: null, schoolId: intro.schoolId || null };
   }
 
   let partialRow = null;
@@ -222,9 +222,9 @@ export function detectFFT(intro, subject, target) {
   else if (intro.setId && intro.setId === target.setId) partialRow = WIT_ROW_BY_ID[intro.setId] || null;
   else if (subject.setId && subject.setId === target.setId) partialRow = WIT_ROW_BY_ID[subject.setId] || null;
 
-  let tierId = null;
-  const tid = intro.tierId;
-  if (tid && subject.tierId === tid && target.tierId === tid) tierId = tid;
+  let schoolId = null;
+  const tid = intro.schoolId;
+  if (tid && subject.schoolId === tid && target.schoolId === tid) schoolId = tid;
 
-  return { fft: null, partialRow, tierId };
+  return { fft: null, partialRow, schoolId };
 }

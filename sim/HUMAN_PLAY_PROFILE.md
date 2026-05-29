@@ -511,7 +511,7 @@ session.** Three AI deltas queued from snaps 8-10 implemented + measured.
 **Implemented deltas:**
 
 (1) **School-consistent draft bias** (`awardReward` in playSimV2.js).
-    Wit-only: reward-bucket pick now weights cards by tierId-affinity to
+    Wit-only: reward-bucket pick now weights cards by schoolId-affinity to
     the deck's existing school commitment. Weight multiplier:
       schoolMult = 1 + (cardsOwnedInSchool × 0.5)
     A 4-card school produces 3× weight bonus for cards from that school.

@@ -12,7 +12,7 @@
 import { useState, useMemo } from 'react';
 import { CardFullBody } from './CardFullBody.jsx';
 import { DeckView } from './DeckView.jsx';
-import { WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
+import { WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
 
 const TIER_IDS = ['slowburn', 'thorns', 'crescendo'];
 
@@ -47,7 +47,7 @@ export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConf
     const draws = [];
     let i = 0;
     for (const t of tiers) {
-      const tierCards = witCards.filter(c => c.tierId === t && c.setId);
+      const tierCards = witCards.filter(c => c.schoolId === t && c.setId);
       const picked = shuffle(tierCards).slice(0, 5);
       for (const c of picked) {
         draws.push({ ...c, uid: `read-${i++}-${c.id}-${Math.random().toString(36).slice(2, 8)}` });
@@ -79,8 +79,8 @@ export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConf
   // Group displayed pool by tier for clarity.
   const groupedByTier = {};
   for (const c of pool) {
-    if (!groupedByTier[c.tierId]) groupedByTier[c.tierId] = [];
-    groupedByTier[c.tierId].push(c);
+    if (!groupedByTier[c.schoolId]) groupedByTier[c.schoolId] = [];
+    groupedByTier[c.schoolId].push(c);
   }
 
   function toggle(uid) {
@@ -129,15 +129,15 @@ export function ReadingRoom({ open, witCards, currentHp, ownedCards = [], onConf
         )}
       </div>
 
-      {TIER_IDS.filter(t => groupedByTier[t]).map(tierId => {
-        const tier = WIT_TIER_SUB_BONUSES[tierId];
+      {TIER_IDS.filter(t => groupedByTier[t]).map(schoolId => {
+        const tier = WIT_SAME_SCHOOL_BONUSES[schoolId];
         return (
-          <div key={tierId} className="parchment-card p-3">
+          <div key={schoolId} className="parchment-card p-3">
             <div className="text-xs uppercase tracking-widest text-iris-300 mb-2">
-              {tier?.name || tierId} · 5 sources
+              {tier?.name || schoolId} · 5 sources
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
-              {groupedByTier[tierId].map((c, i) => {
+              {groupedByTier[schoolId].map((c, i) => {
                 const key = `${c.id}-${i}`;
                 const isSelected = selectedUids.has(c.uid);
                 const row = WIT_ROW_BY_ID[c.setId];

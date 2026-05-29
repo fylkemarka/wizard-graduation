@@ -12,7 +12,7 @@
 //                 by row so you can see what you're collecting toward.
 import { useMemo } from 'react';
 import { CardFullBody } from './CardFullBody.jsx';
-import { WIT_ROWS, WIT_ROW_BY_ID, WIT_TIER_SUB_BONUSES } from '../cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_ROW_BY_ID, WIT_SAME_SCHOOL_BONUSES } from '../cards/wit-v2-rows.js';
 
 const TIER_ORDER = ['slowburn', 'thorns', 'crescendo'];
 const SLOT_ORDER = ['intro', 'subject', 'target', 'modifier', 'gesture', 'annotation', 'skill', 'power'];
@@ -58,7 +58,7 @@ export function DeckView({ open, onClose, hand = [], deck = [], discard = [], ex
   for (const tier of TIER_ORDER) rowsByTier[tier] = [];
   for (const row of WIT_ROWS) {
     if (rowGroups[row.id] && rowGroups[row.id].length > 0) {
-      rowsByTier[row.tierId].push(row);
+      rowsByTier[row.schoolId].push(row);
     }
   }
 
@@ -101,14 +101,14 @@ export function DeckView({ open, onClose, hand = [], deck = [], discard = [], ex
           </div>
         </div>
 
-        {TIER_ORDER.map(tierId => {
-          const tier = WIT_TIER_SUB_BONUSES[tierId];
-          const rows = rowsByTier[tierId];
+        {TIER_ORDER.map(schoolId => {
+          const tier = WIT_SAME_SCHOOL_BONUSES[schoolId];
+          const rows = rowsByTier[schoolId];
           if (rows.length === 0) return null;
           return (
-            <div key={tierId} className="mb-6">
+            <div key={schoolId} className="mb-6">
               <div className="font-display text-lg text-iris-200 mb-2 pb-1 border-b border-iris-800">
-                {tier?.name || tierId}
+                {tier?.name || schoolId}
               </div>
               {rows.map(row => {
                 const cardsOwned = rowGroups[row.id] || [];

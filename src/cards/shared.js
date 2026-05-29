@@ -27,7 +27,7 @@
 // can still hit T2 reliably without making the all-rare cliff trivial.
 export const TIER_MULTIPLIER = { 1: 1.0, 2: 1.4, 3: 2.0 };
 
-// Stat contribution per rarity (cards within the same tier vary in raw wit).
+// Stat contribution per rarity (cards within the same school vary in raw wit).
 export const RARITY_WIT = { basic: 1, common: 2, uncommon: 3, rare: 4 };
 
 // Map rarity → tier for the new system.

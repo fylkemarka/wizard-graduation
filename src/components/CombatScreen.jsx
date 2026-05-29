@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText } from '../cards/shared.js';
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
-import { WIT_ROWS, WIT_TIER_SUB_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
@@ -305,12 +305,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               <span className="text-[11px] text-parchment-400 italic">No rows collected yet — pick up a set-tagged card to start.</span>
             )}
             {visible.map(({ row, owned, has }) => {
-              const tier = WIT_TIER_SUB_BONUSES[row.tierId];
+              const tier = WIT_SAME_SCHOOL_BONUSES[row.schoolId];
               const complete = owned === 3;
               const slotsLabel = `Intro ${has.intro ? '✓' : '✗'} · Subject ${has.subject ? '✓' : '✗'} · Target ${has.target ? '✓' : '✗'}`;
               return (
                 <span key={row.id}
-                  title={`"${row.canonical}"\n\nTier: ${tier?.name || row.tierId}\nRider: ${row.riderDesc || '(none)'}\n\n${slotsLabel}`}
+                  title={`"${row.canonical}"\n\nTier: ${tier?.name || row.schoolId}\nRider: ${row.riderDesc || '(none)'}\n\n${slotsLabel}`}
                   className={`px-2 py-1 text-xs rounded border cursor-help ${
                     complete ? 'bg-gold-700 text-parchment-50 border-gold-400 font-bold'
                              : owned === 2 ? 'bg-iris-800 text-parchment-100 border-iris-500'
@@ -831,7 +831,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     // v3.3: surface FFT row affiliation on the staged pill so the
     // player can SEE which school/row each card belongs to mid-cast.
     const row = card.setId ? WIT_ROW_BY_ID[card.setId] : null;
-    const tierName = card.tierId ? (WIT_TIER_SUB_BONUSES[card.tierId]?.name || card.tierId) : null;
+    const tierName = card.schoolId ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name || card.schoolId) : null;
     return (
       <motion.button key={card.uid}
         layout
