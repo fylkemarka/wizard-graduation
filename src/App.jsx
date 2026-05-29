@@ -3584,6 +3584,17 @@ export default function App() {
   const [scheduledEffects, setScheduledEffects] = useState([]);
   const [thornsCharges, setThornsCharges] = useState({ amount: 0, count: 0, weakOnReflect: 0 });
   const [wordsBank, setWordsBank] = useState(0);
+  // v3.4.23 — Crescendo "Build then Climax" mechanic. crescendoBuildup
+  // counts full-FFT crescendo casts in this combat (0/1/2). Cast 1 deals
+  // 0 damage. Cast 2 deals half. Cast 3 (the climax) deals full damage
+  // multiplied by buildup × 3 AND consumes the bank. After climax,
+  // buildup resets to 0 — multiple crescendos per combat are possible
+  // but each requires a fresh 3-cast buildup.
+  // crescendoBuildupRows tracks which row(s) drove each buildup cast.
+  // If all 3 share the same setId, the climax cast gets a × 1.5 same-row
+  // bonus — true "stars aligning" payoff.
+  const [crescendoBuildup, setCrescendoBuildup] = useState(0);
+  const [crescendoBuildupRows, setCrescendoBuildupRows] = useState([]);
   const [compendiumOpen, setCompendiumOpen] = useState(false);
   const [deckViewOpen, setDeckViewOpen] = useState(false);
   // Track whether the player took unblocked HP damage this turn — read at
@@ -5075,6 +5086,9 @@ export default function App() {
     setScheduledEffects([]);
     setThornsCharges({ amount: 0, count: 0, weakOnReflect: 0, turnsRemaining: 0, schedule: undefined });
     setWordsBank(0);
+    // v3.4.23 — Crescendo buildup resets per combat.
+    setCrescendoBuildup(0);
+    setCrescendoBuildupRows([]);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
     // v2.35: FOOTNOTE prompt — never persists between combats. Card
@@ -5295,9 +5309,14 @@ export default function App() {
     const cost = effectiveCardCost(card);
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
     setEnergy(e => e - cost);
-    // v3.3 Crescendo: every card play increments Words Bank (capped to
-    // prevent runaway). Crescendo targets consume the bank for bonus dmg.
-    setWordsBank(b => Math.min(b + 1, 20));
+    // v3.4.23 (Alan): Words Bank is now Crescendo-school-only. Only
+    // cards with schoolId === 'crescendo' tick the bank. Cap halved
+    // from 20 → 10 so building feels achievable. The bank is proof of
+    // commitment to the school, not a passive resource that fills off
+    // any play.
+    if (card.schoolId === 'crescendo') {
+      setWordsBank(b => Math.min(b + 1, 10));
+    }
     // v2.46: WON'T SHUT UP — clear the commitment flag when ANY jnsq-lane
     // card is played AFTER the rider armed. The arming itself happens in
     // castV2SentenceSpell (the soup target's cast), which fires AFTER the
@@ -6106,12 +6125,46 @@ export default function App() {
       const rider = row.rider || {};
       if (rider.damageMult)  dmg = Math.round(dmg * rider.damageMult);
       if (rider.bonus)       dmg += rider.bonus;
-      // v3.3 Crescendo: consumeBank — spend wordsBank, +bank×perWord bonus.
-      if (rider.consumeBank && wordsBank > 0) {
-        const bonus = wordsBank * rider.consumeBank;
-        dmg += bonus;
-        pushLog(`📚 Crescendo: consumed ${wordsBank} words → +${bonus} dmg.`);
-        setWordsBank(0);
+      // v3.4.23 — Crescendo "Build then Climax". Each full-FFT crescendo
+      // cast advances crescendoBuildup. Cast 1 deals 0 damage. Cast 2
+      // deals half. Cast 3 (climax) deals full damage with × buildup
+      // scaling, consumes the bank, and resets. Same-row lockstep bonus
+      // (×1.5) fires when all 3 cards in the buildup share the same row.
+      if (row.schoolId === 'crescendo') {
+        const nextBuildup = crescendoBuildup + 1;  // 1, 2, or 3
+        const nextRows = [...crescendoBuildupRows, row.id];
+        const bank = wordsBank;
+        // Bonus uses the CURRENT-stage multiplier so each successive
+        // cast scales harder. consumeBank rider × bank × stage.
+        const bonus = (rider.consumeBank || 0) * bank * nextBuildup;
+        let crescendoDmg = (dmg + bonus) * nextBuildup;
+        // Stage gating: cast 1 deals nothing, cast 2 deals half.
+        if (nextBuildup === 1)      crescendoDmg = 0;
+        else if (nextBuildup === 2) crescendoDmg = Math.round(crescendoDmg * 0.5);
+        // Climax (stage 3): same-row lockstep bonus.
+        let sameRowBonus = false;
+        if (nextBuildup === 3 && nextRows[0] === nextRows[1] && nextRows[1] === nextRows[2]) {
+          crescendoDmg = Math.round(crescendoDmg * 1.5);
+          sameRowBonus = true;
+        }
+        dmg = crescendoDmg;
+        if (nextBuildup === 1) {
+          pushLog(`📚 Crescendo opening — ${row.name}. The room quiets. Buildup 1/3.`);
+        } else if (nextBuildup === 2) {
+          pushLog(`📚 Crescendo building — ${row.name}. ${dmg} dmg (half). Buildup 2/3.`);
+        } else {
+          const label = sameRowBonus ? `THE CLIMAX (same-row × 1.5)` : `THE CLIMAX`;
+          pushLog(`📚 ${label} — ${row.name}. ${dmg} dmg. Bank consumed.`);
+          setWordsBank(0);
+        }
+        // Advance / reset state.
+        if (nextBuildup === 3) {
+          setCrescendoBuildup(0);
+          setCrescendoBuildupRows([]);
+        } else {
+          setCrescendoBuildup(nextBuildup);
+          setCrescendoBuildupRows(nextRows);
+        }
       }
       pushLog(`✨✨ FULLY FORMED THOUGHT — ${row.name}.`);
       if (row.canonical) pushLog(`📜 "${row.canonical}"`);
@@ -9467,6 +9520,8 @@ export default function App() {
       loudCount={loudCount}
       longThread={longThread}
       wordsBank={wordsBank}
+      crescendoBuildup={crescendoBuildup}
+      crescendoBuildupRows={crescendoBuildupRows}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}
       onApplyFootnote={applyFootnote}

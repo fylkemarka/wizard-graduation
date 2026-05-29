@@ -253,7 +253,7 @@ const SUBJECTS = [
 
   // ---- FFT Sample Rows (Phase 2 — two new subjects; Atelier reuses your-taste) ----
   // The First Principle (Hygiene) — "the gentleman who skips the bidet"
-  { id: 'wv2-s-gentleman-bidet', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+  { id: 'wv2-s-gentleman-bidet', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: "your next attack", tags: ['observational', 'cutting'], stats: { wit: 3 },
     setId: 'thorns-1', setSlot: 'subject', schoolId: 'thorns',
     flavor: 'A small distinction. A defining one.' },
@@ -484,7 +484,7 @@ const TARGETS = [
     setId: 'slowburn-1', setSlot: 'target', schoolId: 'slowburn',
     flavor: 'Eight being, of course, the appointed hour for everything that matters.' },
   // The First Principle (Hygiene)
-  { id: 'wv2-t-not-a-gentleman', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'wv2-t-not-a-gentleman', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "comes back to you.", tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'block' },
     setId: 'thorns-1', setSlot: 'target', schoolId: 'thorns',
@@ -515,7 +515,7 @@ const TARGETS = [
     setId: 'thorns-2', setSlot: 'target', schoolId: 'thorns',
     flavor: 'Aesthetics being, in his school, the only ethics that hold up.' },
   // Dental (Hygiene-3)
-  { id: 'wv2-t-politely-call-memorial', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'wv2-t-politely-call-memorial', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "turns inward, sharply.", tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'block' },
     setId: 'thorns-3', setSlot: 'target', schoolId: 'thorns',
@@ -527,7 +527,7 @@ const TARGETS = [
     setId: 'crescendo-2', setSlot: 'target', schoolId: 'crescendo',
     flavor: 'A suggestion being, legally speaking, a contract you ignored.' },
   // The Volvo Sermon (Transportation-3)
-  { id: 'wv2-t-conversation-with-you-itself', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'wv2-t-conversation-with-you-itself', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "lands hardest now.", tags: ['observational'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure' },
     setId: 'crescendo-3', setSlot: 'target', schoolId: 'crescendo',

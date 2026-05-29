@@ -29,8 +29,8 @@ export const WIT_SAME_SCHOOL_BONUSES = {
   },
   crescendo: {
     name: 'Crescendo',
-    addBank: 2,
-    flavor: 'Words gathering. The point is taking shape.',
+    addBank: 1,
+    flavor: 'Words gathering, gently. The point is taking shape.',
   },
 };
 
@@ -69,8 +69,8 @@ export const WIT_PARTIAL_ROW_BONUSES = {
   },
   crescendo: {
     name: 'Crescendo (half-formed)',
-    consumeBank: 1, addBank: 2,
-    flavor: 'A little of the gathered momentum lands now — and more is still gathering.',
+    addBank: 3,
+    flavor: 'The committed row makes the bank grow. The damage waits for the full thought.',
   },
 };
 

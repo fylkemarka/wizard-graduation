@@ -29,6 +29,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
                        tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
                        longThread = 0, isWit = false, wordsBank = 0,
+                       crescendoBuildup = 0, crescendoBuildupRows = [],
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
                        holdOnArmed = false, holdOnValue = 0,
@@ -562,12 +563,26 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               <div className="text-2xl font-mono text-iris-300">🧵 {longThread}</div>
             </div>
           )}
-          {/* Word Bank: Crescendo's currency. Every card you play in combat
-              adds +1. Crescendo targets can spend the bank for big damage. */}
+          {/* Word Bank: Crescendo's currency. v3.4.23 — Crescendo-school
+              cards only. Cap 10. */}
           {isWit && (
-            <div title={`Words Bank — Crescendo's currency. +1 per card played (cap 20). Cast a Crescendo target row to spend the bank: each Crescendo row delivers +N damage per banked word AT cast. The longer you build, the bigger the finisher.`}>
+            <div title={`Words Bank — Crescendo's currency. Only Crescendo-school cards add to it (+1 each). Cap 10. Spent at the Crescendo CLIMAX cast for massive damage.`}>
               <div className="text-xs uppercase text-gold-300">Word Bank <span className="text-parchment-500">ⓘ</span></div>
-              <div className="text-2xl font-mono text-gold-300">📚 {wordsBank || 0}</div>
+              <div className="text-2xl font-mono text-gold-300">📚 {wordsBank || 0}<span className="text-sm text-parchment-500">/10</span></div>
+            </div>
+          )}
+          {/* v3.4.23 — Crescendo Buildup meter. 3 stages: opener (0 dmg),
+              builder (½ dmg), climax (full dmg ×3, bank consumed). Shown
+              once buildup > 0 OR when player has crescendo cards in hand. */}
+          {isWit && crescendoBuildup > 0 && (
+            <div title={`Crescendo Buildup — each full-FFT Crescendo cast advances this. Stage 3 unleashes the climax (× buildup damage scaling, bank consumed).${crescendoBuildupRows.length === 2 && crescendoBuildupRows[0] === crescendoBuildupRows[1] ? ' Same-row × 1.5 lockstep is active.' : ''}`}>
+              <div className="text-xs uppercase text-gold-300">Buildup</div>
+              <div className="text-2xl font-mono text-gold-300">
+                {'●'.repeat(crescendoBuildup)}{'○'.repeat(3 - crescendoBuildup)}
+                {crescendoBuildupRows.length >= 2 && crescendoBuildupRows[0] === crescendoBuildupRows[1] && (
+                  <span className="text-xs text-gold-200 ml-1">🎵</span>
+                )}
+              </div>
             </div>
           )}
           {/* v2.24: chutzpah TUNNEL VISION pip + RAGE badge. Shown when the
