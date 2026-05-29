@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText } from '../cards/shared.js';
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
-import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID } from '../cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
@@ -777,10 +777,29 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   const tierLabel = tier === 3 ? 'DEVASTATING' : tier === 2 ? 'RESONANT' : tier === 1 ? 'COHERENT' : '';
   let sentence = '';
   let predicted = null;
+  let fftPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
     const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
     predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: openingBonus || 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
+    // v3.4.21 (Alan): preview the FFT-tier rider that will fire on cast.
+    // Most specific match wins (full → partial → same-school). Each tier
+    // surfaces its rider as readable chips under the Predicted damage so
+    // the player can see incoming DoT / reflect / bank effects before
+    // they commit to the cast.
+    const fft = detectFFT(intro, subject, target);
+    if (fft.fft) {
+      fftPreview = { kind: 'full', label: `Full FFT — ${fft.fft.name}`, rider: fft.fft.rider || {}, riderDesc: fft.fft.riderDesc };
+    } else if (fft.partialRow) {
+      const partial = WIT_PARTIAL_ROW_BONUSES[fft.partialRow.schoolId];
+      if (partial) {
+        const schoolName = (partial.name || '').replace(' (half-formed)', '') || fft.partialRow.schoolId;
+        fftPreview = { kind: 'partial', label: `Half-formed ${schoolName}`, rider: partial };
+      }
+    } else if (fft.schoolId) {
+      const sub = WIT_SAME_SCHOOL_BONUSES[fft.schoolId];
+      if (sub) fftPreview = { kind: 'same-school', label: `Same-school ${sub.name}`, rider: sub };
+    }
   }
   // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
   // /3 → /4 (keeps "I bleed for damage" without uncapped spirals).
@@ -818,6 +837,56 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     const footnote = card.footnotes || 0;
     return { laneStat, base, mult, footnote };
   };
+
+  // v3.4.21 — summarize a rider object as readable chip strings.
+  // Handles DoT (flat + schedule), thorns, bank consume/refill, scheduled
+  // per-turn effects (vuln/weak/dormant/block/draw), and a handful of
+  // immediate-state riders (composure, block, draw, longThread).
+  // Returns an array of short chip strings.
+  function summarizeRider(rider) {
+    if (!rider) return [];
+    const chips = [];
+    // DoT: flat (setDotMinDamage × setDotMinTurns) OR schedule.
+    if (rider.setDotMinDamage && rider.setDotMinTurns) {
+      chips.push(`🩸 DoT ${rider.setDotMinDamage}/turn × ${rider.setDotMinTurns}`);
+    } else if (rider.setDotMinDamage) {
+      chips.push(`🩸 DoT ${rider.setDotMinDamage}`);
+    }
+    if (Array.isArray(rider.setDotSchedule) && rider.setDotSchedule.length > 0) {
+      chips.push(`🩸 DoT ${rider.setDotSchedule.join(',')}`);
+    }
+    if (rider.addDotDamage) chips.push(`🩸 +${rider.addDotDamage}/turn to DoT`);
+    if (rider.addDotTurns) chips.push(`🩸 +${rider.addDotTurns} DoT turns`);
+    if (rider.dotMultiply) chips.push(`🩸 DoT ×${rider.dotMultiply}`);
+    if (rider.dotConsumeBig) chips.push(`💥 Detonate DoT`);
+    // Thorns reflect.
+    if (rider.thorns) {
+      const t = rider.thorns;
+      let s = `🌹 Reflect ${t.amount} × next ${t.count}`;
+      if (t.weakOnReflect) s += ` + Weak`;
+      chips.push(s);
+    }
+    if (rider.stripEnemyBlock) chips.push(`🛇 Strip ${rider.stripEnemyBlock} block`);
+    if (rider.forceSkipNextAttack) chips.push(`🛑 Skip their next attack`);
+    // Crescendo bank.
+    if (rider.consumeBank) chips.push(`📚 Spend bank ×${rider.consumeBank}`);
+    if (rider.addBank) chips.push(`📚 +${rider.addBank} bank`);
+    if (rider.bankDoublePerTurn) chips.push(`📚 Bank doubles for ${rider.bankDoublePerTurn.turns} turns`);
+    // Scheduled per-turn enemy debuffs.
+    if (rider.enemyVulnPerTurn) chips.push(`🩸 Vuln ${rider.enemyVulnPerTurn.amount}/turn × ${rider.enemyVulnPerTurn.turns}`);
+    if (rider.enemyWeakPerTurn) chips.push(`💢 Weak ${rider.enemyWeakPerTurn.amount}/turn × ${rider.enemyWeakPerTurn.turns}`);
+    if (rider.dormantDamage) chips.push(`⏱ Dormant ${rider.dormantDamage.amount} in ${rider.dormantDamage.delay} turns`);
+    if (rider.selfBlockPerTurn) chips.push(`🛡 +${rider.selfBlockPerTurn.amount}/turn × ${rider.selfBlockPerTurn.turns}`);
+    if (rider.selfDrawPerTurn) chips.push(`📥 +${rider.selfDrawPerTurn.amount} draw/turn × ${rider.selfDrawPerTurn.turns}`);
+    // Immediate-state riders.
+    if (rider.block) chips.push(`🛡 +${rider.block} Block`);
+    if (rider.poise) chips.push(`🪞 +${rider.poise} Poise`);
+    if (rider.composure) chips.push(`🎭 -${rider.composure} comp`);
+    if (rider.draw) chips.push(`📥 +${rider.draw} draw`);
+    if (rider.energy) chips.push(`⚡ +${rider.energy} energy`);
+    if (rider.longThreadPerm) chips.push(`🧵 +${rider.longThreadPerm} thread`);
+    return chips;
+  }
 
   const slotPill = (card, slotName, color) => {
     if (!card) {
@@ -955,25 +1024,49 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {modifiers.length < 2 && slotPill(null, modifiers.length === 0 ? 'modifier (optional)' : 'modifier 2 (optional)', { empty: 'border-gold-600 text-gold-500', filled: '' })}
         <div className="flex-1" />
         {ready && predicted && (
-          <div className="text-right">
-            <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
-            <div className="text-2xl font-bold font-mono text-iris-200"
-                 title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
-              {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
-              {predicted.stakeBonus > 0 && (
-                <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
-              )}
-              {predicted.predatorBonus > 0 && (
-                <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
-              )}
-              {/* v2.42: insult-hit chip — tag overlap with enemy.insultVulnerabilities */}
-              {predicted.insultBonus > 0 && (
-                <span className="text-xs text-iris-300 ml-1"
-                  title={`Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} (${Math.min(predicted.insultMatches || 0, 3)} match${(predicted.insultMatches || 0) === 1 ? '' : 'es'} × pierce).`}>
-                  🎯+{predicted.insultBonus}
-                </span>
-              )}
+          <div className="text-right flex flex-col items-end gap-1">
+            <div>
+              <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
+              <div className="text-2xl font-bold font-mono text-iris-200"
+                   title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
+                {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
+                {predicted.stakeBonus > 0 && (
+                  <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
+                )}
+                {predicted.predatorBonus > 0 && (
+                  <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
+                )}
+                {/* v2.42: insult-hit chip — tag overlap with enemy.insultVulnerabilities */}
+                {predicted.insultBonus > 0 && (
+                  <span className="text-xs text-iris-300 ml-1"
+                    title={`Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} (${Math.min(predicted.insultMatches || 0, 3)} match${(predicted.insultMatches || 0) === 1 ? '' : 'es'} × pierce).`}>
+                    🎯+{predicted.insultBonus}
+                  </span>
+                )}
+              </div>
             </div>
+            {/* v3.4.21 — FFT preview chips. Surface incoming DoT /
+                reflect / bank effects so the player can see what the
+                cast will fire alongside the raw damage. */}
+            {fftPreview && (() => {
+              const chips = summarizeRider(fftPreview.rider);
+              if (chips.length === 0) return null;
+              const tone = fftPreview.kind === 'full' ? 'border-iris-500 bg-iris-900 text-iris-200'
+                         : fftPreview.kind === 'partial' ? 'border-gold-500 bg-ink-700 text-gold-200'
+                         : 'border-ink-500 bg-ink-700 text-parchment-300';
+              return (
+                <div className={`mt-1 px-2 py-1 rounded border ${tone} max-w-xs`}>
+                  <div className="text-[10px] uppercase tracking-wide opacity-90">
+                    {fftPreview.kind === 'full' ? '✨' : fftPreview.kind === 'partial' ? '📐' : '🎵'} {fftPreview.label}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-0.5 justify-end">
+                    {chips.map((c, i) => (
+                      <span key={i} className="text-[10px] bg-ink-800 border border-ink-600 rounded px-1.5 py-0.5">{c}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
         {/* v2.99.4: CAST button moved inline with the slot row so it
