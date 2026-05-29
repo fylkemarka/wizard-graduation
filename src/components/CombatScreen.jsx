@@ -1122,6 +1122,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   }
 
   return (
+    <>
     <div className={`parchment-card p-2 border-l-4 ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}>
       {/* v3.4.28 — header / sentence / tags sit in a left column; slot
           pills + Predicted sit in a right column on the same row. */}
@@ -1348,121 +1349,105 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             )}
           </div>
         )}
-        {/* v2.79: math breakdown — full-width row INSIDE the same flex
-            container (basis-full forces a new line). Surfaces every step
-            of the damage formula so the player can SEE where the number
-            comes from. Tag resonance, predator, opening, insult, stake
-            bonuses get explicit callouts. */}
-        {mathBreakdown && (
-          <div className="basis-full mt-2 pt-2 border-t border-ink-500 text-[11px] font-mono text-parchment-300 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-iris-300 font-bold text-[10px] uppercase tracking-widest mr-1">Math:</span>
-            {/* v2.94: explicit parens + running subtotal — `5 + 4×1 = 4`
-                misread as `5+4=4`. New shape: `(5 + 4×1) = 9` then `× …`. */}
-            <span title={`${mathBreakdown.baseDmg} base + ${mathBreakdown.statTotal} stat × ${mathBreakdown.mult} target multiplier.`}>
-              ({mathBreakdown.baseDmg} + {mathBreakdown.statTotal}×{mathBreakdown.mult})
-            </span>
-            <span className="text-parchment-500">=</span>
-            <span className="font-bold text-parchment-100">{mathBreakdown.preTier}</span>
-            {tierMult !== 1 && (<>
-              <span className="text-parchment-500">×</span>
-              <span title={`Tier ${tier} multiplier — earned by tag-cohesive intro/subject/target.`}>
-                {tierMult.toFixed(1)}{tier === 3 ? ' (T3)' : tier === 2 ? ' (T2)' : ''}
-              </span>
-            </>)}
-            {mathBreakdown.enemyEff !== 1 && (<>
-              <span className="text-parchment-500">×</span>
-              <span className={mathBreakdown.enemyEff > 1 ? 'text-moss-300' : 'text-ember-300'}
-                title={`Enemy is ${mathBreakdown.enemyEff > 1 ? 'susceptible' : 'resistant'} to ${mathBreakdown.castLane} (×${mathBreakdown.enemyEff}).`}>
-                {mathBreakdown.enemyEff}× eff
-              </span>
-            </>)}
-            {mathBreakdown.playerMult !== 1 && (<>
-              <span className="text-parchment-500">×</span>
-              <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300' : 'text-ember-300'}
-                title={mathBreakdown.playerMult > 1
-                  ? `Enemy is Vulnerable — your spells deal +${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`
-                  : `You're Weak — your spells deal ${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`}>
-                {mathBreakdown.playerMult > 1 ? '🩸 enemy Vuln ' : '⛧ you Weak '}
-                {mathBreakdown.playerMult.toFixed(2)}×
-              </span>
-            </>)}
-            {mathBreakdown.secondCastScalar !== 1 && (<>
-              <span className="text-parchment-500">×</span>
-              <span className="text-ember-300"
-                title={`Cast #${castsThisTurn + 1} this turn — each cast after the first scales to 60%. Energy still gates how many you can fire, but diminishing returns push back on chain-casting.`}>
-                0.6× cast#{castsThisTurn + 1}
-              </span>
-            </>)}
-            {mathBreakdown.tagBonus > 0 && (<>
-              <span className="text-parchment-500">+</span>
-              <span className="text-iris-300 font-bold"
-                title={`Tag-resonance bonus from the target's perLaneTag rider — +N damage per matching tag in your staged cards.`}>
-                ✦{mathBreakdown.tagBonus}
-              </span>
-            </>)}
-            {predicted.loudBonus > 0 && (<>
-              <span className="text-parchment-500">+</span>
-              <span className="text-ember-300" title="Saying-it-Louder — +3 dmg per demanding-tagged chutzpah word staged.">📢+{predicted.loudBonus}</span>
-            </>)}
-            {predicted.openingBonus > 0 && (<>
-              <span className="text-parchment-500">+</span>
-              <span className="text-iris-300" title="Opening Statement — turn-1 (or revisit-extended) bonus.">🎩+{predicted.openingBonus}</span>
-            </>)}
-            {predicted.predatorBonus > 0 && (<>
-              <span className="text-parchment-500">+</span>
-              <span className="text-ember-300" title="Predator rider — enemy is debuffed.">🩸+{predicted.predatorBonus}</span>
-            </>)}
-            {predicted.insultBonus > 0 && (<>
-              <span className="text-parchment-500">+</span>
-              <span className="text-iris-300" title={`Insult-hit — staged-tag overlap with enemy's insultVulnerabilities.`}>🎯+{predicted.insultBonus}</span>
-            </>)}
-            {predicted.stakeBonus > 0 && (<>
-              <span className="text-parchment-500">+</span>
-              <span className="text-ember-300" title="ALL IN — staked HP buys damage.">🩸+{predicted.stakeBonus}</span>
-            </>)}
-            {mathBreakdown.enemyBlock > 0 && (<>
-              <span className="text-parchment-500">−</span>
-              <span className="text-parchment-100 bg-ink-700 px-1 rounded"
-                title={`Enemy has ${mathBreakdown.enemyBlock} Block — absorbed before pool damage lands.`}>
-                🛡 {mathBreakdown.enemyBlock}
-              </span>
-            </>)}
-            <span className="text-parchment-500">=</span>
-            <span className="font-bold text-iris-200 text-sm">{predicted.damage}</span>
-          </div>
-        )}
-        {/* v2.98: enemy-state row. Surfaces enemy statuses that don't change
-            the cast's damage number but DO affect what comes next:
-            phase-shifts, weave debt, annotations. Read-only info chips. */}
-        {enemy && (() => {
-          const chips = [];
-          if (enemy.phaseShifted) {
-            chips.push({ key: 'phase', label: '🕸 thinned (wit-resist + comp regen)', tone: 'text-ember-300' });
-          }
-          if (enemy.annotation) {
-            chips.push({ key: 'ann', label: `📝 ${enemy.annotation.cardName || 'annotated'} (${enemy.annotation.turnsRemaining}t)`, tone: 'text-iris-300' });
-          }
-          if (weaveStacks > 0) {
-            chips.push({ key: 'weave', label: `🪡 Weave debt ${weaveStacks} (fires if you don't cast)`, tone: 'text-ember-300' });
-          }
-          if (riposteCharge > 0) {
-            chips.push({ key: 'rip', label: `🛡⚔ Riposte ${riposteCharge} primed`, tone: 'text-iris-300' });
-          }
-          if (braceArmedDraw > 0) {
-            chips.push({ key: 'brace', label: `🛡✦ Brace draw +${braceArmedDraw} (if no HP hit)`, tone: 'text-moss-300' });
-          }
-          if (chips.length === 0) return null;
-          return (
-            <div className="basis-full mt-1 text-[11px] font-mono text-parchment-400 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-parchment-500 uppercase tracking-widest text-[10px] mr-1">enemy state:</span>
-              {chips.map(c => (
-                <span key={c.key} className={c.tone}>{c.label}</span>
-              ))}
-            </div>
-          );
-        })()}
         </div>
       </div>
     </div>
+    {/* v3.4.30 (Alan): Cast Details strip — math row + enemy state
+        chips MOVED OUT of the spell tray so the tray itself stays the
+        same height whether empty or staged. Always rendered with a
+        min-height so the screen below doesn't jitter when you stage. */}
+    <div className="parchment-card px-2 py-1 flex flex-col gap-0.5" style={{ minHeight: 32 }}>
+      {mathBreakdown && (
+        <div className="text-[11px] font-mono text-parchment-300 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="text-iris-300 font-bold text-[10px] uppercase tracking-widest mr-1">Math:</span>
+          <span title={`${mathBreakdown.baseDmg} base + ${mathBreakdown.statTotal} stat × ${mathBreakdown.mult} target multiplier.`}>
+            ({mathBreakdown.baseDmg} + {mathBreakdown.statTotal}×{mathBreakdown.mult})
+          </span>
+          <span className="text-parchment-500">=</span>
+          <span className="font-bold text-parchment-100">{mathBreakdown.preTier}</span>
+          {tierMult !== 1 && (<>
+            <span className="text-parchment-500">×</span>
+            <span title={`Tier ${tier} multiplier — earned by tag-cohesive intro/subject/target.`}>
+              {tierMult.toFixed(1)}{tier === 3 ? ' (T3)' : tier === 2 ? ' (T2)' : ''}
+            </span>
+          </>)}
+          {mathBreakdown.enemyEff !== 1 && (<>
+            <span className="text-parchment-500">×</span>
+            <span className={mathBreakdown.enemyEff > 1 ? 'text-moss-300' : 'text-ember-300'}
+              title={`Enemy is ${mathBreakdown.enemyEff > 1 ? 'susceptible' : 'resistant'} to ${mathBreakdown.castLane} (×${mathBreakdown.enemyEff}).`}>
+              {mathBreakdown.enemyEff}× eff
+            </span>
+          </>)}
+          {mathBreakdown.playerMult !== 1 && (<>
+            <span className="text-parchment-500">×</span>
+            <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300' : 'text-ember-300'}
+              title={mathBreakdown.playerMult > 1
+                ? `Enemy is Vulnerable — your spells deal +${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`
+                : `You're Weak — your spells deal ${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`}>
+              {mathBreakdown.playerMult > 1 ? '🩸 enemy Vuln ' : '⛧ you Weak '}
+              {mathBreakdown.playerMult.toFixed(2)}×
+            </span>
+          </>)}
+          {mathBreakdown.secondCastScalar !== 1 && (<>
+            <span className="text-parchment-500">×</span>
+            <span className="text-ember-300"
+              title={`Cast #${castsThisTurn + 1} this turn — each cast after the first scales to 60%.`}>
+              0.6× cast#{castsThisTurn + 1}
+            </span>
+          </>)}
+          {mathBreakdown.tagBonus > 0 && (<>
+            <span className="text-parchment-500">+</span>
+            <span className="text-iris-300 font-bold" title={`Tag-resonance bonus.`}>✦{mathBreakdown.tagBonus}</span>
+          </>)}
+          {predicted.loudBonus > 0 && (<>
+            <span className="text-parchment-500">+</span>
+            <span className="text-ember-300" title="Saying-it-Louder.">📢+{predicted.loudBonus}</span>
+          </>)}
+          {predicted.openingBonus > 0 && (<>
+            <span className="text-parchment-500">+</span>
+            <span className="text-iris-300" title="Opening Statement.">🎩+{predicted.openingBonus}</span>
+          </>)}
+          {predicted.predatorBonus > 0 && (<>
+            <span className="text-parchment-500">+</span>
+            <span className="text-ember-300" title="Predator rider.">🩸+{predicted.predatorBonus}</span>
+          </>)}
+          {predicted.insultBonus > 0 && (<>
+            <span className="text-parchment-500">+</span>
+            <span className="text-iris-300" title="Insult-hit.">🎯+{predicted.insultBonus}</span>
+          </>)}
+          {predicted.stakeBonus > 0 && (<>
+            <span className="text-parchment-500">+</span>
+            <span className="text-ember-300" title="ALL IN.">🩸+{predicted.stakeBonus}</span>
+          </>)}
+          {mathBreakdown.enemyBlock > 0 && (<>
+            <span className="text-parchment-500">−</span>
+            <span className="text-parchment-100 bg-ink-700 px-1 rounded"
+              title={`Enemy Block ${mathBreakdown.enemyBlock} — absorbed before pool damage lands.`}>
+              🛡 {mathBreakdown.enemyBlock}
+            </span>
+          </>)}
+          <span className="text-parchment-500">=</span>
+          <span className="font-bold text-iris-200 text-sm">{predicted.damage}</span>
+        </div>
+      )}
+      {enemy && (() => {
+        const chips = [];
+        if (enemy.phaseShifted) chips.push({ key: 'phase', label: '🕸 thinned', tone: 'text-ember-300' });
+        if (enemy.annotation) chips.push({ key: 'ann', label: `📝 ${enemy.annotation.cardName || 'annotated'} (${enemy.annotation.turnsRemaining}t)`, tone: 'text-iris-300' });
+        if (weaveStacks > 0) chips.push({ key: 'weave', label: `🪡 Weave ${weaveStacks}`, tone: 'text-ember-300' });
+        if (riposteCharge > 0) chips.push({ key: 'rip', label: `🛡⚔ Riposte ${riposteCharge}`, tone: 'text-iris-300' });
+        if (braceArmedDraw > 0) chips.push({ key: 'brace', label: `🛡✦ Brace +${braceArmedDraw}`, tone: 'text-moss-300' });
+        if (chips.length === 0) return null;
+        return (
+          <div className="text-[11px] font-mono text-parchment-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="text-parchment-500 uppercase tracking-widest text-[10px] mr-1">enemy state:</span>
+            {chips.map(c => (
+              <span key={c.key} className={c.tone}>{c.label}</span>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+    </>
   );
 }
