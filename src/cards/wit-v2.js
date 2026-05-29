@@ -990,11 +990,37 @@ const STARTER_CARDS = [
     flavor: 'A polite intervention. They will pause. They will not enjoy it.' },
 ];
 
+// v3.4.19 (Alan) — Tutor cards. Address the "I have 2 of 3, waiting on
+// the third" friction without breaking randomness. Each tutor pulls a
+// random card of a specific slot from the deck into hand. Common rarity
+// — show up in normal-enemy support rewards. Exhaust so they can't
+// trivialize every cast.
+const TUTOR_CARDS = [
+  { id: 'wv2-k-where-was-i', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'Where was I?', phrase: 'Where was I?',
+    tags: ['academic'],
+    effects: { tutorSlot: 'intro', exhaust: true },
+    desc: 'Pull a random intro from your deck into your hand. Exhaust.',
+    flavor: 'The opening word. The room is already listening for it.' },
+  { id: 'wv2-k-threading-needle', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'Threading the needle', phrase: 'Threading the needle.',
+    tags: ['academic'],
+    effects: { tutorSlot: 'subject', exhaust: true },
+    desc: 'Pull a random subject from your deck into your hand. Exhaust.',
+    flavor: 'The right specifics matter. You go looking.' },
+  { id: 'wv2-k-to-the-point', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'To the point', phrase: 'To the point.',
+    tags: ['academic', 'cutting'],
+    effects: { tutorSlot: 'target', exhaust: true },
+    desc: 'Pull a random target from your deck into your hand. Exhaust.',
+    flavor: 'The closing word arrives the moment you ask for it.' },
+];
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS, ...TUTOR_CARDS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS],

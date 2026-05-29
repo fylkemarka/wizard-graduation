@@ -3249,7 +3249,22 @@ const STARTING_MAX_COMPOSURE = 30;
 // the current level and widens the gauge / softens the chooser.
 const SKILL_MAX = 5;
 const ENERGY_PER_TURN = 3;
-const HAND_SIZE = 5;
+// v3.4.19 (Alan): hand 5 → 6. Eases the 3-piece spell assembly in a
+// 5-card hand; full-FFT cast cadence was 2.8 turns/cast in playtest,
+// not failing but the wait felt long. Combined with intro/target
+// staging bonuses + juicier partial-row riders so non-cast turns
+// generate tempo too.
+const HAND_SIZE = 6;
+
+// v3.4.19 — Solo staging bonus per slot ("every card useful right
+// now"). Intros open with Block; targets land with chip damage.
+// Subjects stay pure stat-banks — they're the specialist piece you
+// build around. Layered onto card.effects in the playCard branches
+// so per-card riders fire on top of the slot default.
+const STAGE_SLOT_BONUS = {
+  intro:  { block: 2 },
+  target: { compDmg: 2 },
+};
 // Heal a fraction of max HP between acts (STS-style act transition heal).
 // Cycle 3 batch 3: 0.40 → 0.55. Players reaching Act 3+ are too damaged
 // to survive late-act bosses. Bigger between-act recovery gives a real
@@ -5373,7 +5388,12 @@ export default function App() {
         pushLog(`↩ Replaced ${card.slot} ${prev.name}.`);
       }
       setTray(p => syncTrayLegacy({ ...p, [card.slot]: card }));
-      applySideEffects(card.effects || {}, logBits);
+      // v3.4.19 (Alan): solo staging bonus per slot — intros add Block,
+      // subjects stay pure stat-banks (the "specialist piece"), targets
+      // get their bonus in the target branch below. Layered before the
+      // card's own effects so per-card riders still fire on top.
+      const slotBonus = STAGE_SLOT_BONUS[card.slot] || {};
+      applySideEffects({ ...slotBonus, ...(card.effects || {}) }, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfChutzpah();
       pushLog(logBits.join(' · ') + `  →  📜 ${card.slot} staged`);
@@ -5422,9 +5442,15 @@ export default function App() {
         pushLog(`↩ Replaced target ${tray.target.name || tray.target.phrase}.`);
       }
       setTray(p => syncTrayLegacy({ ...p, target: card }));
+      // v3.4.19 — solo staging bonus for targets: small composure chip
+      // damage on stage. The "the moment you finish a thought it lands
+      // a little" beat. Per-card card.effects (rare on targets) still
+      // fire on top.
+      const slotBonus = STAGE_SLOT_BONUS[card.slot] || {};
+      applySideEffects({ ...slotBonus, ...(card.effects || {}) }, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfChutzpah();
-      pushLog(`🎯 Target staged: ${card.phrase} — hit CAST when ready.`);
+      pushLog((logBits.length > 0 ? logBits.join(' · ') + ' · ' : '') + `🎯 Target staged: ${card.phrase} — hit CAST when ready.`);
       return;
     }
 
@@ -7026,6 +7052,30 @@ export default function App() {
     if (fx.compDmg) {
       applyDamageToEnemyComposure(fx.compDmg);
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
+    }
+    // v3.4.19 — tutor a card by slot. Walks the deck for the first
+    // matching slot and pulls it into hand. Random draws stay random
+    // for general draw events; tutoring is the deliberate "I'm
+    // reaching for a specific word" move.
+    if (fx.tutorSlot) {
+      const wantedSlot = fx.tutorSlot;
+      let pulled = null;
+      setDeck(d => {
+        const matches = d.map((c, i) => (c.slot === wantedSlot ? i : -1)).filter(i => i >= 0);
+        if (matches.length === 0) return d;
+        const pickIdx = matches[Math.floor(Math.random() * matches.length)];
+        pulled = d[pickIdx];
+        return d.filter((_, i) => i !== pickIdx);
+      });
+      setTimeout(() => {
+        if (pulled) {
+          setHand(h => [...h, { ...pulled, uid: uid() }]);
+          pushLog(`📚 Tutored ${wantedSlot}: ${pulled.name || pulled.phrase}.`);
+        } else {
+          pushLog(`📚 No ${wantedSlot} found in deck.`);
+        }
+      }, 0);
+      logBits.push(`📚 tutor ${wantedSlot}`);
     }
     if (fx.physDmg) {
       applyDamageToEnemyHp(fx.physDmg);

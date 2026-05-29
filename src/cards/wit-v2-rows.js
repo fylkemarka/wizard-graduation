@@ -33,25 +33,27 @@ export const WIT_TIER_SUB_BONUSES = {
   },
 };
 
-// Half-Formed Thought (2-of-row partial bonus). Tier-flavored payouts
-// that are noticeably bigger than the tier sub-bonus (the player has
-// committed to a SPECIFIC row, not just a theme) but smaller than the
-// full row rider (the third card is still random / from a different row).
+// Half-Formed Thought (2-of-row partial bonus). v3.4.19 (Alan): partial
+// casts now fire a genuine half-school payoff so 2-of-3 is a real
+// "press now or wait" decision. Stacking DoT means partials add to
+// existing dots without overwriting — the full row is still strictly
+// better, but partial is no longer a sad consolation prize.
 export const WIT_PARTIAL_ROW_BONUSES = {
   slowburn: {
     name: 'Slow Burn (half-formed)',
-    longThreadPerm: 2, composure: 3,
-    flavor: 'The seam is already pulling tight. (DoT only triggers on full row.)',
+    longThreadPerm: 1, composure: 2,
+    setDotMinDamage: 2, setDotMinTurns: 2,
+    flavor: 'The seam is already pulling tight — a small thread, but it pulls.',
   },
   thorns: {
     name: 'Thorns (half-formed)',
-    thorns: { amount: 3, count: 2 },
+    thorns: { amount: 4, count: 2 },
     flavor: 'The boomerang is in flight; one shot is enough to land.',
   },
   crescendo: {
     name: 'Crescendo (half-formed)',
-    addBank: 3,
-    flavor: 'The momentum is forming. Bigger words are coming.',
+    consumeBank: 1, addBank: 2,
+    flavor: 'A little of the gathered momentum lands now — and more is still gathering.',
   },
 };
 

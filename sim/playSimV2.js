@@ -76,7 +76,7 @@ const ACT_ELITES = {
 const STARTING_MAX_HP = 70;
 const STARTING_MAX_COMPOSURE = 30;
 const ENERGY_PER_TURN = 3;
-const HAND_SIZE = 5;
+const HAND_SIZE = 6;
 const INTER_ACT_HEAL_RATIO = 0.35; // v2.22: 0.55 → 0.35 (live-play attrition fix)
 const MAX_COMBAT_TURNS = 30;  // safety net
 
@@ -1463,7 +1463,15 @@ function runCombat(state, enemyId, telemetry) {
     // blocks move ABOVE the defense/utility blocks for cadence — see
     // snapshot 11 follow-up.
     const applyStageEffects = (card) => {
-      const fx = card.effects || {};
+      // v3.4.19 — solo staging bonus per slot. Mirrors App.jsx
+      // STAGE_SLOT_BONUS. Intros add Block, targets add comp chip.
+      // Subjects unchanged.
+      const slot = card?.slot;
+      const SIM_STAGE_BONUS = slot === 'intro'  ? { block: 2 }
+                            : slot === 'target' ? { compDmg: 2 }
+                            : {};
+      const fx = { ...SIM_STAGE_BONUS, ...(card.effects || {}) };
+      if (fx.compDmg)    enemy.currentComp = Math.max(0, enemy.currentComp - fx.compDmg);
       if (fx.block)      state.block += fx.block;
       if (fx.poise)      state.poise += fx.poise;
       if (fx.draw)       drawCards(state, fx.draw);
@@ -1579,6 +1587,8 @@ function runCombat(state, enemyId, telemetry) {
           state.energy -= tray.target.cost || 0;
           state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.hand.splice(idx, 1);
+          // v3.4.19 — target stage bonus (compDmg chip). Mirrors App.jsx.
+          applyStageEffects(tray.target);
           bumpTunnelOnStage(tray.target);
           progressed = true;
           continue;
