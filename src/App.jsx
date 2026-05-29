@@ -8494,6 +8494,27 @@ export default function App() {
       // existing damageReduction (2) so combined ceiling is 5 per swing.
       const threadReduction = Math.min(3, longThread || 0);
       const reduction = Math.min(2, rawReduction) + threadReduction;
+      // v3.4.26 (Alan: "I'm not taking damage" investigation) — log
+      // every reduction layer that touches incoming damage so we can
+      // SEE exactly where it's vanishing. Fires once per enemy attack
+      // intent, before the per-swing loop. Telemetry only; no log line.
+      logEvent('combat.intent_damage_calc', {
+        intentKind: intent.kind,
+        intentValue: intent.value,
+        intentPool: intent.pool || 'hp',
+        rawAfterMult: raw,                       // intent.value × enemyDmgMult + arguingBack + drunken − annAtkRed
+        enemyDmgMult: Number((enemyDmgMult || 1).toFixed(3)),
+        annAtkRed,
+        rawReductionCap: Math.min(2, rawReduction),
+        threadReduction,
+        totalPerSwingReduction: reduction,
+        playerBlock: block,
+        playerPoise: poise,
+        playerLongThread: longThread,
+        beetleAbsorb,
+        hits,
+        enemyId: enemy?.id,
+      });
       // v2.9: Beetle's first-hit absorb — applied BEFORE shield routing
       // so it works against both pool types. Consumed on first hit only.
       if (beetleAbsorb > 0 && raw > 0) {
