@@ -261,7 +261,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
         combatTurn={combatTurn} openingExtended={openingExtended}
         pauseHeldActive={pauseHeldActive} enemy={enemy}
-        weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw} />
+        weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
+        wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows} />
 
       {/* FFT Progress panel — wit-only. Shows player progress on the named
           Fully Formed Thought rows (set-collection overlay). A row's three
@@ -778,7 +779,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
                        combatTurn = 1, openingExtended = false,
                        pauseHeldActive = false, enemy = null,
-                       weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0 }) {
+                       weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
+                       wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [] }) {
   const intro = tray.intro;
   const subject = tray.subject;
   const target = tray.target || tray.effectCard;
@@ -794,6 +796,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   let predicted = null;
   let fftPreview = null;
   let mixedPreview = null;
+  let crescendoPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
     const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
@@ -806,6 +809,27 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     const fft = detectFFT(intro, subject, target);
     if (fft.fft) {
       fftPreview = { kind: 'full', label: `Full FFT — ${fft.fft.name}`, rider: fft.fft.rider || {}, riderDesc: fft.fft.riderDesc };
+      // v3.4.23 — Crescendo "Build then Climax" damage preview. Mirrors
+      // the logic in castV2SentenceSpell so the player can see what the
+      // next FFT crescendo cast will deliver at the current buildup stage.
+      if (fft.fft.schoolId === 'crescendo') {
+        const consumeBank = fft.fft.rider?.consumeBank || 0;
+        const nextBuildup = crescendoBuildup + 1;  // 1, 2, or 3
+        const nextRows = [...crescendoBuildupRows, fft.fft.id];
+        const sameRow = nextBuildup === 3 && nextRows[0] === nextRows[1] && nextRows[1] === nextRows[2];
+        const baseRaw = predicted.damage + consumeBank * wordsBank * nextBuildup;
+        const stagedDmg = nextBuildup === 1 ? 0
+                        : nextBuildup === 2 ? Math.round(baseRaw * 0.5)
+                        : Math.round(baseRaw * (sameRow ? 1.5 : 1.0));
+        crescendoPreview = {
+          stage: nextBuildup,
+          dmg: stagedDmg,
+          sameRow,
+          consumeBank,
+          wordsBank,
+          rowName: fft.fft.name,
+        };
+      }
     } else if (fft.partialRow) {
       const partial = WIT_PARTIAL_ROW_BONUSES[fft.partialRow.schoolId];
       if (partial) {
@@ -1096,6 +1120,33 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                 </div>
               );
             })}
+            {/* v3.4.23 — Crescendo Buildup preview. Shows the stage this
+                cast would advance to, the expected damage at that stage,
+                and whether the same-row × 1.5 lockstep would activate. */}
+            {crescendoPreview && (() => {
+              const { stage, dmg, sameRow, consumeBank, wordsBank: wb, rowName } = crescendoPreview;
+              const stageLabel = stage === 1 ? 'OPENING NOTE (0 dmg)'
+                               : stage === 2 ? `BUILDING (~${dmg} half-dmg)`
+                               : sameRow ? `🎵 SAME-ROW CLIMAX (~${dmg} dmg)` : `THE CLIMAX (~${dmg} dmg)`;
+              return (
+                <div className="mt-1 px-2 py-1 rounded border border-gold-400 bg-ink-700 text-gold-200 max-w-xs">
+                  <div className="text-[10px] uppercase tracking-wide opacity-90">
+                    📚 Crescendo Buildup → {stage}/3
+                  </div>
+                  <div className="text-[10px] mt-0.5 font-bold">{stageLabel}</div>
+                  {stage === 3 && (
+                    <div className="text-[10px] mt-0.5 opacity-80">
+                      Bank {wb} × {consumeBank} × {stage} = +{wb * consumeBank * stage} bonus · BANK CONSUMED
+                    </div>
+                  )}
+                  {stage < 3 && wb > 0 && (
+                    <div className="text-[10px] mt-0.5 opacity-80">
+                      Bank {wb} (held until climax)
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
         {/* v2.99.4: CAST button moved inline with the slot row so it
