@@ -817,7 +817,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         const nextBuildup = crescendoBuildup + 1;  // 1, 2, or 3
         const nextRows = [...crescendoBuildupRows, fft.fft.id];
         const sameRow = nextBuildup === 3 && nextRows[0] === nextRows[1] && nextRows[1] === nextRows[2];
-        const baseRaw = predicted.damage + consumeBank * wordsBank * nextBuildup;
+        // v3.4.24 — matches the cast formula: stage 1=0, stage 2=1, stage 3=2.
+        const stageMult = nextBuildup === 1 ? 0 : nextBuildup === 2 ? 1 : 2;
+        const baseRaw = predicted.damage + consumeBank * wordsBank * stageMult;
         const stagedDmg = nextBuildup === 1 ? 0
                         : nextBuildup === 2 ? Math.round(baseRaw * 0.5)
                         : Math.round(baseRaw * (sameRow ? 1.5 : 1.0));
@@ -828,6 +830,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           consumeBank,
           wordsBank,
           rowName: fft.fft.name,
+          stageMult,
         };
       }
     } else if (fft.partialRow) {
@@ -1136,7 +1139,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   <div className="text-[10px] mt-0.5 font-bold">{stageLabel}</div>
                   {stage === 3 && (
                     <div className="text-[10px] mt-0.5 opacity-80">
-                      Bank {wb} × {consumeBank} × {stage} = +{wb * consumeBank * stage} bonus · BANK CONSUMED
+                      Bank {wb} × {consumeBank} × 2 = +{wb * consumeBank * 2} bonus · BANK CONSUMED
                     </div>
                   )}
                   {stage < 3 && wb > 0 && (

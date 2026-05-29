@@ -6134,11 +6134,19 @@ export default function App() {
         const nextBuildup = crescendoBuildup + 1;  // 1, 2, or 3
         const nextRows = [...crescendoBuildupRows, row.id];
         const bank = wordsBank;
-        // Bonus uses the CURRENT-stage multiplier so each successive
-        // cast scales harder. consumeBank rider × bank × stage.
-        const bonus = (rider.consumeBank || 0) * bank * nextBuildup;
-        let crescendoDmg = (dmg + bonus) * nextBuildup;
-        // Stage gating: cast 1 deals nothing, cast 2 deals half.
+        // v3.4.24 (Alan: crescendo was "way too strong"). Two fixes:
+        //   1. Bug fix — removed the double × nextBuildup multiplier that
+        //      was scaling damage by 9× at climax instead of 3×.
+        //   2. Rebalance — bonus uses a gentler stage-multiplier curve:
+        //      stage 1 = 0× (no damage), stage 2 = 1×, stage 3 = 2×.
+        // Final formula:
+        //   bonus = consumeBank × bank × (stage - 1)  (so 0/1/2)
+        //   stage 1: 0 damage (the opener)
+        //   stage 2: ½ × (base + bonus)
+        //   stage 3: (base + bonus); same-row × 1.5
+        const stageMult = nextBuildup === 1 ? 0 : nextBuildup === 2 ? 1 : 2;
+        const bonus = (rider.consumeBank || 0) * bank * stageMult;
+        let crescendoDmg = dmg + bonus;
         if (nextBuildup === 1)      crescendoDmg = 0;
         else if (nextBuildup === 2) crescendoDmg = Math.round(crescendoDmg * 0.5);
         // Climax (stage 3): same-row lockstep bonus.
