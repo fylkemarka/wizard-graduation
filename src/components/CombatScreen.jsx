@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText } from '../cards/shared.js';
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
-import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
@@ -778,6 +778,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   let sentence = '';
   let predicted = null;
   let fftPreview = null;
+  let mixedPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
     const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
@@ -799,6 +800,13 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     } else if (fft.schoolId) {
       const sub = WIT_SAME_SCHOOL_BONUSES[fft.schoolId];
       if (sub) fftPreview = { kind: 'same-school', label: `Same-school ${sub.name}`, rider: sub };
+    }
+    // v3.4.22 — mixed-school preview (additive, can fire alongside fftPreview).
+    const castSchools = new Set([intro?.schoolId, subject?.schoolId, target?.schoolId].filter(Boolean));
+    if (castSchools.size >= 2) {
+      const key = [...castSchools].sort().join('+');
+      const mixed = WIT_MIXED_SCHOOL_BONUSES[key];
+      if (mixed) mixedPreview = { kind: 'mixed', label: `Mixed-school ${mixed.name}`, rider: mixed };
     }
   }
   // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
@@ -859,14 +867,18 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (rider.addDotTurns) chips.push(`🩸 +${rider.addDotTurns} DoT turns`);
     if (rider.dotMultiply) chips.push(`🩸 DoT ×${rider.dotMultiply}`);
     if (rider.dotConsumeBig) chips.push(`💥 Detonate DoT`);
-    // Thorns reflect.
+    // Thorns reflect (discrete charges).
     if (rider.thorns) {
       const t = rider.thorns;
       let s = `🌹 Reflect ${t.amount} × next ${t.count}`;
       if (t.weakOnReflect) s += ` + Weak`;
       chips.push(s);
     }
+    // Thorns reflect aura (duration).
+    if (rider.selfThornsPerTurn) chips.push(`🌹 Reflect ${rider.selfThornsPerTurn.amount}/hit × ${rider.selfThornsPerTurn.turns} turns`);
+    if (Array.isArray(rider.selfThornsSchedule) && rider.selfThornsSchedule.length > 0) chips.push(`🌹 Reflect ${rider.selfThornsSchedule.join(',')}/turn`);
     if (rider.stripEnemyBlock) chips.push(`🛇 Strip ${rider.stripEnemyBlock} block`);
+    if (rider.stripEnemyBlockPerTurn) chips.push(`🛇 Strip ${rider.stripEnemyBlockPerTurn.amount} block/turn × ${rider.stripEnemyBlockPerTurn.turns}`);
     if (rider.forceSkipNextAttack) chips.push(`🛑 Skip their next attack`);
     // Crescendo bank.
     if (rider.consumeBank) chips.push(`📚 Spend bank ×${rider.consumeBank}`);
@@ -876,7 +888,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (rider.enemyVulnPerTurn) chips.push(`🩸 Vuln ${rider.enemyVulnPerTurn.amount}/turn × ${rider.enemyVulnPerTurn.turns}`);
     if (rider.enemyWeakPerTurn) chips.push(`💢 Weak ${rider.enemyWeakPerTurn.amount}/turn × ${rider.enemyWeakPerTurn.turns}`);
     if (rider.dormantDamage) chips.push(`⏱ Dormant ${rider.dormantDamage.amount} in ${rider.dormantDamage.delay} turns`);
-    if (rider.selfBlockPerTurn) chips.push(`🛡 +${rider.selfBlockPerTurn.amount}/turn × ${rider.selfBlockPerTurn.turns}`);
+    if (rider.selfBlockPerTurn) chips.push(`🛡 +${rider.selfBlockPerTurn.amount} Block/turn × ${rider.selfBlockPerTurn.turns}`);
+    if (rider.selfPoisePerTurn) chips.push(`🪞 +${rider.selfPoisePerTurn.amount} Poise/turn × ${rider.selfPoisePerTurn.turns}`);
+    if (rider.selfHpRegenPerTurn) chips.push(`💚 +${rider.selfHpRegenPerTurn.amount} HP/turn × ${rider.selfHpRegenPerTurn.turns}`);
     if (rider.selfDrawPerTurn) chips.push(`📥 +${rider.selfDrawPerTurn.amount} draw/turn × ${rider.selfDrawPerTurn.turns}`);
     // Immediate-state riders.
     if (rider.block) chips.push(`🛡 +${rider.block} Block`);
@@ -1029,7 +1043,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
               <div className="text-2xl font-bold font-mono text-iris-200"
                    title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
-                {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
+                {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'block' ? '🛡 block' : mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
                 {predicted.stakeBonus > 0 && (
                   <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
                 )}
@@ -1048,17 +1062,17 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             {/* v3.4.21 — FFT preview chips. Surface incoming DoT /
                 reflect / bank effects so the player can see what the
                 cast will fire alongside the raw damage. */}
-            {fftPreview && (() => {
-              const chips = summarizeRider(fftPreview.rider);
+            {[fftPreview, mixedPreview].filter(Boolean).map((p, pi) => {
+              const chips = summarizeRider(p.rider);
               if (chips.length === 0) return null;
-              const tone = fftPreview.kind === 'full' ? 'border-iris-500 bg-iris-900 text-iris-200'
-                         : fftPreview.kind === 'partial' ? 'border-gold-500 bg-ink-700 text-gold-200'
+              const tone = p.kind === 'full' ? 'border-iris-500 bg-iris-900 text-iris-200'
+                         : p.kind === 'partial' ? 'border-gold-500 bg-ink-700 text-gold-200'
+                         : p.kind === 'mixed' ? 'border-moss-500 bg-ink-700 text-moss-200'
                          : 'border-ink-500 bg-ink-700 text-parchment-300';
+              const icon = p.kind === 'full' ? '✨' : p.kind === 'partial' ? '📐' : p.kind === 'mixed' ? '🎨' : '🎵';
               return (
-                <div className={`mt-1 px-2 py-1 rounded border ${tone} max-w-xs`}>
-                  <div className="text-[10px] uppercase tracking-wide opacity-90">
-                    {fftPreview.kind === 'full' ? '✨' : fftPreview.kind === 'partial' ? '📐' : '🎵'} {fftPreview.label}
-                  </div>
+                <div key={pi} className={`mt-1 px-2 py-1 rounded border ${tone} max-w-xs`}>
+                  <div className="text-[10px] uppercase tracking-wide opacity-90">{icon} {p.label}</div>
                   <div className="flex flex-wrap gap-1 mt-0.5 justify-end">
                     {chips.map((c, i) => (
                       <span key={i} className="text-[10px] bg-ink-800 border border-ink-600 rounded px-1.5 py-0.5">{c}</span>
@@ -1066,7 +1080,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   </div>
                 </div>
               );
-            })()}
+            })}
           </div>
         )}
         {/* v2.99.4: CAST button moved inline with the slot row so it

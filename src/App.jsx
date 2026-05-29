@@ -41,7 +41,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
-import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
@@ -5073,7 +5073,7 @@ export default function App() {
     setLongThread(0);
     // v3.3: FFT strategy resets per combat.
     setScheduledEffects([]);
-    setThornsCharges({ amount: 0, count: 0, weakOnReflect: 0 });
+    setThornsCharges({ amount: 0, count: 0, weakOnReflect: 0, turnsRemaining: 0, schedule: undefined });
     setWordsBank(0);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
@@ -6154,10 +6154,14 @@ export default function App() {
     // cast. Also captures last cast for any future card that wants it.
     setLastCastDamage(dmg);
     // Apply damage.
+    // v3.4.22 (Alan): Thorns targets carry damageType: 'block'. The cast
+    // 'damage' number is granted as Block to the player instead of dealt
+    // to the enemy — the school's identity hook ("Defense over Time").
     let after = 0;
     if (dmg > 0) {
-      if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
-      else                        after = applyDamageToEnemyComposure(dmg);
+      if (dmgType === 'block')         { setBlock(b => b + dmg); pushLog(`🛡 +${dmg} Block.`); }
+      else if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
+      else                              after = applyDamageToEnemyComposure(dmg);
     }
     // v3.2/v3.3: post-damage FFT/partial/tier rider effects — state-
     // setting keys fire here so they compose with the cast's combat-
@@ -6192,6 +6196,33 @@ export default function App() {
       if (rider.selfBlockPerTurn) scheduleQueue.push({ trigger: 'player-turn-start', kind: 'block', amount: rider.selfBlockPerTurn.amount, turnsRemaining: rider.selfBlockPerTurn.turns });
       if (rider.selfDrawPerTurn)  scheduleQueue.push({ trigger: 'player-turn-start', kind: 'draw',  amount: rider.selfDrawPerTurn.amount, turnsRemaining: rider.selfDrawPerTurn.turns });
       if (rider.bankDoublePerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'bankDouble', amount: 0, turnsRemaining: rider.bankDoublePerTurn.turns });
+      // v3.4.22 — Thorns (Defense over Time) scheduled effects.
+      if (rider.selfPoisePerTurn)        scheduleQueue.push({ trigger: 'player-turn-start', kind: 'poise',     amount: rider.selfPoisePerTurn.amount, turnsRemaining: rider.selfPoisePerTurn.turns });
+      if (rider.selfHpRegenPerTurn)      scheduleQueue.push({ trigger: 'player-turn-start', kind: 'hpRegen',   amount: rider.selfHpRegenPerTurn.amount, turnsRemaining: rider.selfHpRegenPerTurn.turns });
+      if (rider.stripEnemyBlockPerTurn)  scheduleQueue.push({ trigger: 'player-turn-start', kind: 'stripBlock',amount: rider.stripEnemyBlockPerTurn.amount, turnsRemaining: rider.stripEnemyBlockPerTurn.turns });
+      // Thorns reflect aura (flat duration). At player-turn-start the
+      // turn counter ticks down; while > 0, every enemy hit reflects.
+      if (rider.selfThornsPerTurn) {
+        setThornsCharges(t => ({
+          amount: Math.max(t.amount, rider.selfThornsPerTurn.amount),
+          count: t.count || 0,
+          weakOnReflect: t.weakOnReflect || 0,
+          turnsRemaining: Math.max(t.turnsRemaining || 0, rider.selfThornsPerTurn.turns),
+        }));
+      }
+      // Thorns reflect SCHEDULE (Sharp Reflection — [5,7,10] over 3 turns).
+      // Sets the schedule directly; first turn uses schedule[0], shifts at
+      // player-turn-start.
+      if (Array.isArray(rider.selfThornsSchedule) && rider.selfThornsSchedule.length > 0) {
+        const sched = rider.selfThornsSchedule.slice();
+        setThornsCharges(t => ({
+          amount: sched[0],
+          count: t.count || 0,
+          weakOnReflect: t.weakOnReflect || 0,
+          turnsRemaining: sched.length,
+          schedule: sched,
+        }));
+      }
       if (scheduleQueue.length > 0) {
         setScheduledEffects(s => [...s, ...scheduleQueue]);
       }
@@ -6327,13 +6358,32 @@ export default function App() {
     } else if (fftResult.schoolId) {
       applyRider(WIT_SAME_SCHOOL_BONUSES[fftResult.schoolId]);
     }
+    // v3.4.22 (Alan): Mixed-school cast bonus. Fires in ADDITION to any
+    // hierarchy match above, whenever the cast contains cards from 2+
+    // different schools. Detects by sorted school-pair key (e.g.
+    // 'slowburn+thorns'). Currently only the slowburn+thorns pair is
+    // specced; other pairs ignored until they get rider data.
+    const castSchools = new Set([intro?.schoolId, subject?.schoolId, target?.schoolId].filter(Boolean));
+    if (castSchools.size >= 2) {
+      const key = [...castSchools].sort().join('+');
+      const mixed = WIT_MIXED_SCHOOL_BONUSES[key];
+      if (mixed) {
+        pushLog(`🎨 Mixed-school ${mixed.name} — schools combined.`);
+        logEvent('wit.fft.mixedSchool', {
+          schools: [...castSchools].sort(), name: mixed.name,
+          enemyId: enemy?.id, enemyTier: enemy?.tier,
+        });
+        applyRider(mixed);
+      }
+    }
     // v2.93: O-6 (The Doubletake) — apply damage a second time. Same dmg
     // value, same type, no second cast counter / scalar (it's a copy, not
     // a re-cast). Flag is one-shot.
     if (nextCastDoubles && dmg > 0) {
       pushLog(`✦✦ The Doubletake: ${dmg} dmg again.`);
-      if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
-      else                        after = applyDamageToEnemyComposure(dmg);
+      if (dmgType === 'block')         { setBlock(b => b + dmg); pushLog(`🛡 +${dmg} Block (doubletake).`); }
+      else if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
+      else                              after = applyDamageToEnemyComposure(dmg);
       setNextCastDoubles(false);
     }
     // v2.11: stake refund (from "and I mean it." target). Half the
@@ -8131,26 +8181,48 @@ export default function App() {
       const remaining = [];
       let blockGained = 0;
       let drawGained = 0;
+      let poiseGained = 0;
+      let hpRegen = 0;
+      let blockStripped = 0;
       for (const eff of scheduledEffects) {
         if (eff.trigger !== 'player-turn-start') {
           remaining.push(eff);
           continue;
         }
-        if (eff.kind === 'block')      blockGained += eff.amount;
-        else if (eff.kind === 'draw')  drawGained += eff.amount;
+        if      (eff.kind === 'block')      blockGained += eff.amount;
+        else if (eff.kind === 'draw')       drawGained += eff.amount;
+        else if (eff.kind === 'poise')      poiseGained += eff.amount;
+        else if (eff.kind === 'hpRegen')    hpRegen += eff.amount;
+        else if (eff.kind === 'stripBlock') blockStripped += eff.amount;
         if (eff.turnsRemaining > 1) {
           remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
         }
       }
-      if (blockGained > 0) {
-        setBlock(b => b + blockGained);
-        pushLog(`🛡 Slow Burn boon: +${blockGained} Block.`);
-      }
-      if (drawGained > 0) {
-        drawCards(drawGained);
-        pushLog(`📥 Slow Burn boon: drew ${drawGained}.`);
+      if (blockGained > 0)   { setBlock(b => b + blockGained);           pushLog(`🛡 Thorns boon: +${blockGained} Block.`); }
+      if (poiseGained > 0)   { setPoise(p => p + poiseGained);           pushLog(`🪞 Thorns boon: +${poiseGained} Poise.`); }
+      if (hpRegen > 0)       { setHp(h => clamp(h + hpRegen, 0, maxHp)); pushLog(`💚 Thorns boon: +${hpRegen} HP.`); }
+      if (drawGained > 0)    { drawCards(drawGained);                    pushLog(`📥 Slow Burn boon: drew ${drawGained}.`); }
+      if (blockStripped > 0) {
+        setEnemyBlock(b => Math.max(0, b - blockStripped));
+        pushLog(`🛇 Thorns boon: stripped ${blockStripped} enemy Block.`);
       }
       setScheduledEffects(remaining);
+    }
+    // v3.4.22 — Thorns reflect aura tick. Decrement turnsRemaining; if
+    // a schedule is active, shift it and update amount to schedule[0].
+    if (thornsCharges.turnsRemaining && thornsCharges.turnsRemaining > 0) {
+      setThornsCharges(t => {
+        const nextTurns = (t.turnsRemaining || 0) - 1;
+        if (nextTurns <= 0) {
+          // Aura expires. Discrete count-based reflects (if any) remain.
+          return { amount: t.count > 0 ? t.amount : 0, count: t.count, weakOnReflect: t.weakOnReflect, turnsRemaining: 0, schedule: undefined };
+        }
+        if (Array.isArray(t.schedule) && t.schedule.length > 0) {
+          const nextSched = t.schedule.slice(1);
+          return { ...t, turnsRemaining: nextTurns, schedule: nextSched, amount: nextSched.length > 0 ? nextSched[0] : t.amount };
+        }
+        return { ...t, turnsRemaining: nextTurns };
+      });
     }
 
     // v2.24: RAGE entry. If the chutzpah TUNNEL VISION meter is at 5+
@@ -8429,8 +8501,12 @@ export default function App() {
         // armed charges. Fixed amount regardless of incoming damage.
         // Decrements charges; expires when count hits 0. v3.3 extension:
         // weakOnReflect amount applies Weak to enemy per charge consumed.
+        // v3.4.22 — duration-aura reflect: while turnsRemaining > 0,
+        // every hit reflects without depleting count (the school's new
+        // "Defense over Time" identity beat).
+        const auraActive = (initialThorns.turnsRemaining || 0) > 0;
         const chargesLeft = initialThorns.count - thornsUsed;
-        if (chargesLeft > 0 && initialThorns.amount > 0) {
+        if ((auraActive || chargesLeft > 0) && initialThorns.amount > 0) {
           applyDamageToEnemyComposure(initialThorns.amount);
           let logExtra = '';
           if (initialThorns.weakOnReflect > 0) {
@@ -8438,7 +8514,8 @@ export default function App() {
             logExtra = ` + Weak ${initialThorns.weakOnReflect}`;
           }
           pushLog(`🌹 Thorns: ${initialThorns.amount} comp reflected${logExtra}.`);
-          thornsUsed++;
+          // Only decrement discrete count if the aura isn't paying for this hit.
+          if (!auraActive) thornsUsed++;
         }
         // v2.52: DRUNKEN STAGGER — per-swing 50% dodge. Rolled BEFORE the
         // shield-routing block so a missed swing zeroes out completely (no

@@ -23,13 +23,29 @@ export const WIT_SAME_SCHOOL_BONUSES = {
   },
   thorns: {
     name: 'Thorns',
-    thorns: { amount: 2, count: 2 },
-    flavor: 'Their next blows answer themselves.',
+    selfBlockPerTurn: { amount: 2, turns: 2 },
+    selfPoisePerTurn: { amount: 2, turns: 2 },
+    flavor: 'A small shield, restated each round.',
   },
   crescendo: {
     name: 'Crescendo',
     addBank: 2,
     flavor: 'Words gathering. The point is taking shape.',
+  },
+};
+
+// v3.4.22 — Mixed-school cast bonuses. Fires WHENEVER the cast contains
+// cards from 2+ different schools (intro/subject/target). Additive on
+// top of whatever hierarchy match (full FFT / partial / same-school)
+// already fires. Identifies the combo by its sorted school-pair key.
+// Slow Burn × Thorns: small DoT + small Block-per-turn — the school's
+// identities combined in miniature. Other pairs to be specced.
+export const WIT_MIXED_SCHOOL_BONUSES = {
+  'slowburn+thorns': {
+    name: 'Slow Burn × Thorns',
+    setDotMinDamage: 2, setDotMinTurns: 2,
+    selfBlockPerTurn: { amount: 2, turns: 2 },
+    flavor: 'The seam pulls — and the shield holds.',
   },
 };
 
@@ -47,8 +63,9 @@ export const WIT_PARTIAL_ROW_BONUSES = {
   },
   thorns: {
     name: 'Thorns (half-formed)',
-    thorns: { amount: 4, count: 2 },
-    flavor: 'The boomerang is in flight; one shot is enough to land.',
+    selfBlockPerTurn: { amount: 3, turns: 3 },
+    selfPoisePerTurn: { amount: 3, turns: 3 },
+    flavor: 'A small shield, restated each round — and standing for a while.',
   },
   crescendo: {
     name: 'Crescendo (half-formed)',
@@ -118,36 +135,36 @@ export const WIT_ROWS = [
     id: 'thorns-1', schoolId: 'thorns', name: 'Returned in Kind',
     canonical: 'Specifically speaking, your next attack comes back to you.',
     introId: 'wv2-i-specifically-speaking', subjectId: 'wv2-s-gentleman-bidet', targetId: 'wv2-t-not-a-gentleman',
-    rider: { thorns: { amount: 5, count: 3 } },
-    riderDesc: 'Reflect 5 damage on next 3 enemy hits. The school\'s pure-reflect baseline.',
+    rider: { selfBlockPerTurn: { amount: 5, turns: 3 }, selfPoisePerTurn: { amount: 5, turns: 3 } },
+    riderDesc: '+5 Block AND +5 Poise at the start of each of your next 3 turns. Standing defense.',
   },
   {
     id: 'thorns-2', schoolId: 'thorns', name: 'Rebound',
     canonical: 'Pardon my saying, every blow you throw rebounds with interest.',
     introId: 'wv2-i-pardon-saying', subjectId: 'wv2-s-dry-shaving', targetId: 'wv2-t-aesthetic-failure-first',
-    rider: { thorns: { amount: 4, count: 2, weakOnReflect: 1 } },
-    riderDesc: 'Reflect 4 damage on next 2 enemy hits AND apply 1 Weak per reflect. Their second swing softens what would have been the third.',
+    rider: { selfThornsPerTurn: { amount: 5, turns: 3 } },
+    riderDesc: 'Reflect 5 damage on every enemy hit for the next 3 rounds.',
   },
   {
     id: 'thorns-3', schoolId: 'thorns', name: 'Sharp Reflection',
     canonical: 'Or rather, your aggression turns inward, sharply.',
     introId: 'wv2-i-or-rather', subjectId: 'wv2-s-dental-schedule', targetId: 'wv2-t-politely-call-memorial',
-    rider: { thorns: { amount: 9, count: 1 } },
-    riderDesc: 'ONE HUGE reflect — 9 damage on their next hit. Best opened on a multi-swing enemy where one swing matters most.',
+    rider: { selfThornsSchedule: [5, 7, 10], enemyVulnPerTurn: { amount: 1, turns: 3 } },
+    riderDesc: 'Reflect 5, then 7, then 10 across the next 3 rounds AND apply Vulnerable each round. Ramping retort.',
   },
   {
     id: 'thorns-5', schoolId: 'thorns', name: 'What You Get Back',
     canonical: 'Curiously, what you throw is what you get back.',
     introId: 'wv2-i-curiously', subjectId: 'wv2-s-towel-rotation', targetId: 'wv2-t-did-not-ask-to-know',
-    rider: { thorns: { amount: 3, count: 3 }, stripEnemyBlock: 5 },
-    riderDesc: 'Reflect 3 damage on next 3 enemy hits AND strip 5 of their Block right now. Cleans the surface so the reflect lands clean.',
+    rider: { selfHpRegenPerTurn: { amount: 4, turns: 2 }, forceSkipNextAttack: true },
+    riderDesc: 'Heal 4 HP at the start of each of your next 2 turns AND their NEXT attack is skipped entirely.',
   },
   {
     id: 'thorns-6', schoolId: 'thorns', name: 'Answered in Advance',
     canonical: 'Setting aside the obvious, your next move answers itself.',
     introId: 'wv2-i-setting-aside', subjectId: 'wv2-s-bathroom-door', targetId: 'wv2-t-rest-follows',
-    rider: { thorns: { amount: 4, count: 2 }, forceSkipNextAttack: true },
-    riderDesc: 'Reflect 4 damage on next 2 hits AND their NEXT attack is skipped entirely. Pre-empts the swing — they cannot land a thing.',
+    rider: { selfThornsPerTurn: { amount: 5, turns: 3 }, stripEnemyBlockPerTurn: { amount: 7, turns: 3 } },
+    riderDesc: 'Reflect 5 damage on every enemy hit AND strip 7 of their Block at the start of each of your next 3 turns.',
   },
 
   // ---- Crescendo (Buildup / wordsBank) ----
@@ -203,6 +220,9 @@ export const WIT_RIDER_KEYS = [
   'thorns', 'stripEnemyBlock', 'forceSkipNextAttack',
   // Crescendo bank:
   'addBank', 'consumeBank',
+  // v3.4.22 — Thorns rebuilt as Defense over Time.
+  'selfPoisePerTurn', 'selfHpRegenPerTurn',
+  'selfThornsPerTurn', 'selfThornsSchedule', 'stripEnemyBlockPerTurn',
 ];
 
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));
