@@ -89,8 +89,16 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
     lines.push('Block + Defense reduce attack damage to either pool. Debuffs drift back toward neutral by 0.25/turn.');
     return lines.join('\n');
   };
+  // v3.4.28 (Alan): UI refresh — fixed-location information zones.
+  // Top: 2-column grid (Enemy ↔ Your State).
+  // Middle: Spell Tray (centered).
+  // Below tray: Resources/effects strip (Active Defenses + wit chips
+  // + status pills) so over-time and resource info lives together.
+  // Bottom: Hand.
+  // Bottom action bar: End Turn + deck/discard/exile buttons.
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-4 relative ${shakeClass}`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
         {dmgFloaters && dmgFloaters.length > 0 && (
@@ -249,6 +257,51 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             )}
           </div>
         )}
+      </div>
+
+      {/* v3.4.28 — YOUR STATE panel (right column). Compact view of HP /
+          Comp / Block / Poise / Defense / Energy. End Turn button anchors
+          the bottom-right so it's always in the same place. */}
+      <div key={`player-vitals-${playerHitFlash || 0}`}
+           className={`parchment-card-strong p-4 flex flex-col gap-2 ${playerHitFlash ? 'hit-shake' : ''}`}>
+        <div className="text-xs uppercase tracking-widest text-moss-300 mb-1">Your State</div>
+        <div className="grid grid-cols-3 gap-2">
+          <div title="HP — physical health. 0 = defeat.">
+            <div className="text-[10px] uppercase text-parchment-300">HP</div>
+            <div className="text-2xl font-mono text-moss-300">{hp}<span className="text-sm text-parchment-300">/{maxHp}</span></div>
+          </div>
+          <div title="Composure — verbal HP. 0 = lose your nerve.">
+            <div className="text-[10px] uppercase text-parchment-300">Composure</div>
+            <div className="text-2xl font-mono text-iris-200">{playerComposure}<span className="text-sm text-parchment-300">/{playerComposureMax}</span></div>
+          </div>
+          <div title="Energy — refills each turn.">
+            <div className="text-[10px] uppercase text-parchment-300">Energy</div>
+            <div className="text-2xl font-mono text-gold-300">⚡ {energy}/{energyMax}</div>
+          </div>
+          <div title="Block — absorbs physical (HP) hits. Resets each turn.">
+            <div className="text-[10px] uppercase text-parchment-300">Block</div>
+            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
+          </div>
+          <div title="Poise — absorbs composure (mental) hits. Resets each turn.">
+            <div className="text-[10px] uppercase text-parchment-300">Poise</div>
+            <div className="text-2xl font-mono text-moss-300">🪞 {poise}</div>
+          </div>
+          {(() => {
+            const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
+                          + (familiar?.bonus?.damageReduction || 0);
+            const def = Math.min(2, rawDef);
+            return rawDef > 0 ? (
+              <div title={`Defense reduces every incoming hit by ${def} (min 1 damage taken). Capped at 2.`}>
+                <div className="text-[10px] uppercase text-parchment-300">Defense</div>
+                <div className="text-2xl font-mono text-moss-200">🛡✦ {def}</div>
+              </div>
+            ) : null;
+          })()}
+        </div>
+        <div className="flex justify-end pt-2 border-t border-ink-500 mt-auto">
+          <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
+        </div>
+      </div>
       </div>
 
       {/* v2 SENTENCE TRAY — intro + subject + target + 0-2 modifiers.
@@ -520,44 +573,15 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         </div>
       )}
 
-      {/* v2.62: player stat block moved below the hand cards (was above) so the hand sits higher on screen and the stat block anchors the bottom. */}
+      {/* v3.4.28 — Resources / Effects strip. Vitals (HP/Comp/Block/Poise/
+          Energy/Defense) now live in the top-right Your State panel; this
+          strip holds wit-specific resources (Long Thread, Word Bank,
+          Crescendo Buildup) + over-time effect chips (Patience, Hold,
+          Misstep, Opening, etc.) + player status pills. End Turn button
+          now lives in the Your State panel. */}
       <div key={`player-hud-${playerHitFlash || 0}`}
-           className={`parchment-card p-3 flex justify-between items-center ${playerHitFlash ? 'hit-shake' : ''}`}>
+           className={`parchment-card p-3 flex justify-between items-center flex-wrap gap-2 ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="flex gap-4 items-center flex-wrap">
-          <div title="HP — your physical health. Drops to 0 and you fail. Heals through rest stops + inter-act recovery.">
-            <div className="text-xs uppercase text-parchment-300">HP <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-moss-300">{hp} <span className="text-sm text-parchment-300">/ {maxHp}</span></div>
-          </div>
-          <div title="Composure — your nerve / verbal HP. Some enemies (🎭 attacks) target this instead of HP. Drop to 0 and you fail by losing your nerve, even at full HP.">
-            <div className="text-xs uppercase text-parchment-300">Composure <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-iris-200">{playerComposure} <span className="text-sm text-parchment-300">/ {playerComposureMax}</span></div>
-          </div>
-          <div title="Block — absorbs incoming PHYSICAL damage (⚔ attacks → HP). Resets to 0 at the start of your next turn.">
-            <div className="text-xs uppercase text-parchment-300">Block <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-iris-300">🛡 {block}</div>
-          </div>
-          <div title="Poise — absorbs incoming COMPOSURE damage (🎭 mental attacks). Separate from Block. Resets to 0 at the start of your next turn.">
-            <div className="text-xs uppercase text-parchment-300">Poise <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-moss-300">🪞 {poise}</div>
-          </div>
-          {(() => {
-            const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
-                          + (familiar?.bonus?.damageReduction || 0);
-            const def = Math.min(2, rawDef);
-            return rawDef > 0 ? (
-              <div>
-                <div className="text-xs uppercase text-parchment-300">Defense</div>
-                <div className="text-2xl font-mono text-moss-200"
-                  title={`Defense reduces every incoming hit by ${def} (min 1 damage taken). Capped at 2 — additional equipment Defense provides no further benefit.`}>
-                  🛡✦ {def}{rawDef > def ? <span className="text-xs text-parchment-400 align-top">/{rawDef}</span> : null}
-                </div>
-              </div>
-            ) : null;
-          })()}
-          <div title="Energy — spent to play cards. Refills to the cap every turn. Some equipment / rings add to the cap.">
-            <div className="text-xs uppercase text-parchment-300">Energy <span className="text-parchment-500">ⓘ</span></div>
-            <div className="text-2xl font-mono text-gold-300">⚡ {energy} / {energyMax}</div>
-          </div>
           {/* v3.4.x: surface previously-invisible wit identity stats. Alan:
               "I still don't know what Thread and the Word Bank are/do." */}
           {isWit && longThread > 0 && (
@@ -840,7 +864,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             </div>
           )}
         </div>
-        <button onClick={onEndTurn} className="btn btn-ember text-base px-5 py-2">End Turn</button>
       </div>
 
       {/* v3.3: action log hidden by default (Alan: "doesn't need to be
