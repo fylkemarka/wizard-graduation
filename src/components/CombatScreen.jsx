@@ -99,7 +99,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-2 relative ${shakeClass}`}>
+      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative ${shakeClass}`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
         {dmgFloaters && dmgFloaters.length > 0 && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-20">
@@ -114,9 +114,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             ))}
           </div>
         )}
-        <div className="flex justify-between items-start mb-1">
+        <div className="flex justify-between items-start mb-0.5">
           <div>
-            <div className="font-display text-xl text-ember-300 flex items-center gap-2 flex-wrap">
+            <div className="font-display text-base text-ember-300 flex items-center gap-2 flex-wrap leading-tight">
               {enemy?.name}
               {/* v2.99.2: phase-shift badge — prominent next to the enemy
                   name so players see the state change immediately when
@@ -128,22 +128,22 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 </span>
               )}
             </div>
-            <div className="text-[11px] text-parchment-300 italic">
+            <div className="text-[10px] text-parchment-300 italic leading-none">
               {enemy?.tier === 'boss' ? 'Boss' : enemy?.tier === 'elite' ? 'Elite' : 'Enemy'}
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right flex items-baseline gap-2">
             {showComposure && (
-              <div className="text-xl font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
-                ✨ {enemyComposure} <span className="text-sm text-parchment-300">/ {composureMax}</span>
-              </div>
+              <span className="text-base font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
+                ✨{enemyComposure}<span className="text-[11px] text-parchment-300">/{composureMax}</span>
+              </span>
             )}
             {showHp && (
-              <div className="text-xl font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
-                ❤ {enemyHp} <span className="text-sm text-parchment-300">/ {hpMax}</span>
-              </div>
+              <span className="text-base font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
+                ❤{enemyHp}<span className="text-[11px] text-parchment-300">/{hpMax}</span>
+              </span>
             )}
-            <div className="text-sm">🛡 {enemyBlock}</div>
+            <span className="text-[11px] font-mono">🛡{enemyBlock}</span>
             {/* v3.4: enemy DoT counter (Poison-style). Shows current
                 damage-per-turn AND turns remaining. Drains to 0 → expires. */}
             {enemy?.dot?.turnsRemaining > 0 && enemy?.dot?.damage > 0 && (
@@ -207,10 +207,13 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               </div>
             );
           })()}
-          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 Chutz {eff_label(eff.chutzpah ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ Wit {eff_label(eff.wit ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 Jnsq {eff_label(eff.jnsq ?? 1)}</span>
-          <span className={`px-2 py-1 rounded text-xs font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ Phys {eff_label(eff.physical ?? 1)}</span>
+          {/* v3.4.29 (Alan): single-line resistance chips — just symbol +
+              multiplier, no 'resistant/susceptible' suffix. Tooltip still
+              spells it out. Trims a full text row off the enemy panel. */}
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 ×{eff.chutzpah ?? 1}</span>
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ ×{eff.wit ?? 1}</span>
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 ×{eff.jnsq ?? 1}</span>
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ ×{eff.physical ?? 1}</span>
         </div>
         {/* v2.65: STATUS row — what YOU have done to the enemy this combat
             (and what they've done to you). Pulled out from the lane-chip
@@ -263,20 +266,20 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           Comp / Block / Poise / Defense / Energy. End Turn button anchors
           the bottom-right so it's always in the same place. */}
       <div key={`player-vitals-${playerHitFlash || 0}`}
-           className={`parchment-card-strong p-2 flex flex-col gap-1 ${playerHitFlash ? 'hit-shake' : ''}`}>
-        <div className="text-[10px] uppercase tracking-widest text-moss-300">Your State</div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
-          <span title="HP — physical health. 0 = defeat." className="font-mono text-base text-moss-300">{hp}<span className="text-[11px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
-          <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-base text-iris-200">{playerComposure}<span className="text-[11px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
-          <span title="Energy — refills each turn." className="font-mono text-base text-gold-300">⚡{energy}/{energyMax}</span>
-          <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-base text-iris-300">🛡{block}</span>
-          <span title="Poise — absorbs composure hits. Resets each turn." className="font-mono text-base text-moss-300">🪞{poise}</span>
+           className={`parchment-card-strong p-1.5 flex flex-col gap-0.5 ${playerHitFlash ? 'hit-shake' : ''}`}>
+        <div className="text-[10px] uppercase tracking-widest text-moss-300 leading-none">Your State</div>
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
+          <span title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
+          <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
+          <span title="Energy — refills each turn." className="font-mono text-sm text-gold-300">⚡{energy}/{energyMax}</span>
+          <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-sm text-iris-300">🛡{block}</span>
+          <span title="Poise — absorbs composure hits. Resets each turn." className="font-mono text-sm text-moss-300">🪞{poise}</span>
           {(() => {
             const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
                           + (familiar?.bonus?.damageReduction || 0);
             const def = Math.min(2, rawDef);
             return rawDef > 0 ? (
-              <span title={`Defense reduces every incoming hit by ${def} (min 1).`} className="font-mono text-base text-moss-200">🛡✦{def}</span>
+              <span title={`Defense reduces every incoming hit by ${def} (min 1).`} className="font-mono text-sm text-moss-200">🛡✦{def}</span>
             ) : null;
           })()}
         </div>
@@ -1119,15 +1122,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   }
 
   return (
-    <div className={`parchment-card p-2 border-l-4 flex flex-col ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}
-         style={{ height: 150, minHeight: 150, maxHeight: 150 }}>
-      {/* v3.4.29 (Alan): spell tray height is now LOCKED to 240px so a
-          staged FFT (which adds preview chips + math row + enemy state
-          chips) doesn't push the rest of the screen down. Inner content
-          scrolls when it overflows the cap. */}
+    <div className={`parchment-card p-2 border-l-4 ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}>
       {/* v3.4.28 — header / sentence / tags sit in a left column; slot
           pills + Predicted sit in a right column on the same row. */}
-      <div className="flex gap-3 items-start flex-1 overflow-y-auto">
+      <div className="flex gap-3 items-start">
         {/* Left column: label + sentence + tags */}
         <div className="flex flex-col gap-1 min-w-[180px] max-w-[280px]">
           <div className="flex justify-between items-center">
