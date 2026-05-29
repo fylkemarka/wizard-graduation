@@ -264,10 +264,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           the bottom-right so it's always in the same place. */}
       <div key={`player-vitals-${playerHitFlash || 0}`}
            className={`parchment-card-strong p-2 flex flex-col gap-1 ${playerHitFlash ? 'hit-shake' : ''}`}>
-        <div className="flex items-center justify-between">
-          <div className="text-[10px] uppercase tracking-widest text-moss-300">Your State</div>
-          <button onClick={onEndTurn} className="btn btn-ember text-xs px-3 py-1">End Turn</button>
-        </div>
+        <div className="text-[10px] uppercase tracking-widest text-moss-300">Your State</div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
           <span title="HP — physical health. 0 = defeat." className="font-mono text-base text-moss-300">{hp}<span className="text-[11px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
           <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-base text-iris-200">{playerComposure}<span className="text-[11px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
@@ -515,6 +512,11 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 </span>
               );
             })}
+            {/* v3.4.28 (Alan): End Turn anchored at the right end of
+                the FFT Progress bar — out from under the floating menu
+                button at top-right. ml-auto pushes it to the edge so
+                the row chips fill from the left. */}
+            <button onClick={onEndTurn} className="btn btn-ember text-sm px-4 py-1 ml-auto">End Turn</button>
           </div>
         );
       })()}
