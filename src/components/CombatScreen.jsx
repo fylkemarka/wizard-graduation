@@ -1119,10 +1119,15 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   }
 
   return (
-    <div className={`parchment-card p-2 border-l-4 ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}>
-      {/* v3.4.28 — header / sentence / tags now sit in a left column;
-          slot pills + Predicted sit in a right column on the same row. */}
-      <div className="flex gap-3 items-start">
+    <div className={`parchment-card p-2 border-l-4 flex flex-col ${anyStaged ? 'border-l-iris-400' : 'border-l-ink-500'}`}
+         style={{ height: 240, minHeight: 240, maxHeight: 240 }}>
+      {/* v3.4.29 (Alan): spell tray height is now LOCKED to 240px so a
+          staged FFT (which adds preview chips + math row + enemy state
+          chips) doesn't push the rest of the screen down. Inner content
+          scrolls when it overflows the cap. */}
+      {/* v3.4.28 — header / sentence / tags sit in a left column; slot
+          pills + Predicted sit in a right column on the same row. */}
+      <div className="flex gap-3 items-start flex-1 overflow-y-auto">
         {/* Left column: label + sentence + tags */}
         <div className="flex flex-col gap-1 min-w-[180px] max-w-[280px]">
           <div className="flex justify-between items-center">
