@@ -156,8 +156,8 @@ export const WIT_ROWS = [
     id: 'thorns-5', schoolId: 'thorns', name: 'What You Get Back',
     canonical: 'Curiously, what you throw is what you get back.',
     introId: 'wv2-i-curiously', subjectId: 'wv2-s-towel-rotation', targetId: 'wv2-t-did-not-ask-to-know',
-    rider: { selfHpRegenPerTurn: { amount: 4, turns: 2 }, forceSkipNextAttack: true },
-    riderDesc: 'Heal 4 HP at the start of each of your next 2 turns AND their NEXT attack is skipped entirely.',
+    rider: { selfHpRegenPerTurn: { amount: 2, turns: 2 }, forceSkipNextAttack: true },
+    riderDesc: 'Heal 2 HP at the start of each of your next 2 turns AND their NEXT attack is skipped entirely.',
   },
   {
     id: 'thorns-6', schoolId: 'thorns', name: 'Answered in Advance',

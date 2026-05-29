@@ -30,6 +30,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
                        longThread = 0, isWit = false, wordsBank = 0,
                        crescendoBuildup = 0, crescendoBuildupRows = [],
+                       scheduledEffects = [], thornsCharges = null,
+                       enemySkipNextAttack = false, enemyAnnotation = null,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
                        holdOnArmed = false, holdOnValue = 0,
@@ -575,7 +577,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {/* v3.4.23 — Crescendo Buildup meter. 3 stages: opener (0 dmg),
               builder (½ dmg), climax (full dmg ×3, bank consumed). Shown
               once buildup > 0 OR when player has crescendo cards in hand. */}
-          {isWit && crescendoBuildup > 0 && (
+          {/* v3.4.27 (Alan): also show Buildup whenever a crescendo card
+              is in hand, so the player can plan around it even before
+              the first build cast. */}
+          {isWit && (crescendoBuildup > 0 || (hand || []).some(c => c?.schoolId === 'crescendo')) && (
             <div title={`Crescendo Buildup — each full-FFT Crescendo cast advances this. Stage 3 unleashes the climax (× buildup damage scaling, bank consumed).${crescendoBuildupRows.length === 2 && crescendoBuildupRows[0] === crescendoBuildupRows[1] ? ' Same-row × 1.5 lockstep is active.' : ''}`}>
               <div className="text-xs uppercase text-gold-300">Buildup</div>
               <div className="text-2xl font-mono text-gold-300">
@@ -603,6 +608,80 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               </div>
             </div>
           )}
+          {/* v3.4.27 (Alan): Active Defenses panel. Surfaces all
+              currently-armed over-time defensive effects so the player
+              can SEE what's absorbing their incoming damage. Aggregates
+              scheduledEffects by kind, plus thorns aura, plus annotation
+              reduction, plus the skip-next-attack flag. */}
+          {(() => {
+            const buckets = {};
+            for (const eff of (scheduledEffects || [])) {
+              if (eff.trigger !== 'player-turn-start') continue;
+              if (!['block', 'poise', 'hpRegen', 'stripBlock'].includes(eff.kind)) continue;
+              if (!buckets[eff.kind]) buckets[eff.kind] = { amount: 0, turns: 0 };
+              buckets[eff.kind].amount += eff.amount;
+              buckets[eff.kind].turns = Math.max(buckets[eff.kind].turns, eff.turnsRemaining);
+            }
+            for (const eff of (scheduledEffects || [])) {
+              if (eff.trigger !== 'enemy-turn-start') continue;
+              if (!['weak', 'vuln'].includes(eff.kind)) continue;
+              if (!buckets[eff.kind]) buckets[eff.kind] = { amount: 0, turns: 0 };
+              buckets[eff.kind].amount += eff.amount;
+              buckets[eff.kind].turns = Math.max(buckets[eff.kind].turns, eff.turnsRemaining);
+            }
+            const annRed = enemyAnnotation?.effect?.enemyAtkReduction || 0;
+            const thornsAuraTurns = thornsCharges?.turnsRemaining || 0;
+            const thornsAuraAmount = thornsAuraTurns > 0 ? (thornsCharges?.amount || 0) : 0;
+            const thornsSchedule = Array.isArray(thornsCharges?.schedule) ? thornsCharges.schedule : null;
+            const hasAny = Object.keys(buckets).length > 0 || annRed > 0 || enemySkipNextAttack
+                          || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0;
+            if (!hasAny) return null;
+            const ROW = ({ icon, label, value, tone = 'text-parchment-100' }) => (
+              <div className="flex items-center gap-1 text-[11px]">
+                <span className="w-4">{icon}</span>
+                <span className={tone + ' flex-1 truncate'}>{label}</span>
+                <span className="font-mono">{value}</span>
+              </div>
+            );
+            return (
+              <div className="border border-iris-600 bg-ink-800/80 rounded px-2 py-1.5 flex flex-col gap-0.5 min-w-[180px]"
+                   title="Over-time effects currently armed. Compare against the enemy's intent value to predict the actual hit you'll take.">
+                <div className="text-[10px] uppercase text-iris-300 mb-0.5 flex items-center gap-1">
+                  🛡 Active Defenses
+                </div>
+                {enemySkipNextAttack && (
+                  <ROW icon="🤐" label="Next attack: SKIPPED" value="✓" tone="text-gold-300" />
+                )}
+                {buckets.block && <ROW icon="🛡" label="+Block / turn" value={`${buckets.block.amount} × ${buckets.block.turns}t`} />}
+                {buckets.poise && <ROW icon="🪞" label="+Poise / turn" value={`${buckets.poise.amount} × ${buckets.poise.turns}t`} />}
+                {buckets.hpRegen && <ROW icon="💚" label="+HP / turn" value={`${buckets.hpRegen.amount} × ${buckets.hpRegen.turns}t`} />}
+                {longThread > 0 && (
+                  <ROW icon="🧵" label="LT defensive" value={`−${Math.min(2, longThread)} / swing`} tone="text-iris-200" />
+                )}
+                {annRed > 0 && (
+                  <ROW icon="📝" label={`Annotation atk-red`} value={`−${annRed}`} tone="text-iris-200" />
+                )}
+                {thornsAuraTurns > 0 && !thornsSchedule && (
+                  <ROW icon="🌹" label="Reflect aura" value={`${thornsAuraAmount} × ${thornsAuraTurns}t`} />
+                )}
+                {thornsSchedule && thornsSchedule.length > 0 && (
+                  <ROW icon="🌹" label="Reflect schedule" value={thornsSchedule.join(',')} />
+                )}
+                {(thornsCharges?.count || 0) > 0 && (
+                  <ROW icon="🌹" label="Reflect charges" value={`${thornsCharges.amount} × ${thornsCharges.count}`} />
+                )}
+                {buckets.stripBlock && (
+                  <ROW icon="🛇" label="Strip enemy block / turn" value={`${buckets.stripBlock.amount} × ${buckets.stripBlock.turns}t`} />
+                )}
+                {buckets.weak && (
+                  <ROW icon="💢" label="Weak on enemy / turn" value={`${buckets.weak.amount} × ${buckets.weak.turns}t`} />
+                )}
+                {buckets.vuln && (
+                  <ROW icon="🩸" label="Vuln on enemy / turn" value={`${buckets.vuln.amount} × ${buckets.vuln.turns}t`} />
+                )}
+              </div>
+            );
+          })()}
           {/* v2.25: chutzpah DOUBLING DOWN pip. Each token bills 2 unblocked
               HP at end of turn IF the enemy is still alive. Resets every turn.
               Shown only when non-zero. */}

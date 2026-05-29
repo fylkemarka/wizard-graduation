@@ -8492,7 +8492,12 @@ export default function App() {
       // thread alive. Resets when an unblocked hit breaks the thread.
       // Reads `longThread` directly from React state; the cap respects
       // existing damageReduction (2) so combined ceiling is 5 per swing.
-      const threadReduction = Math.min(3, longThread || 0);
+      // v3.4.27 (Alan): Long Thread defensive cap 3 → 2. Combined with
+      // annotation reduction (-2) and per-turn block + poise, LT3 made
+      // every 4-damage swing whittle to the floor of 1. Capping LT
+      // contribution at 2 keeps the school's identity loop intact but
+      // stops the multi-layer stack from zero-ing out attacks entirely.
+      const threadReduction = Math.min(2, longThread || 0);
       const reduction = Math.min(2, rawReduction) + threadReduction;
       // v3.4.26 (Alan: "I'm not taking damage" investigation) — log
       // every reduction layer that touches incoming damage so we can
@@ -9556,6 +9561,10 @@ export default function App() {
       wordsBank={wordsBank}
       crescendoBuildup={crescendoBuildup}
       crescendoBuildupRows={crescendoBuildupRows}
+      scheduledEffects={scheduledEffects}
+      thornsCharges={thornsCharges}
+      enemySkipNextAttack={enemySkipNextAttack}
+      enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}
       onApplyFootnote={applyFootnote}
