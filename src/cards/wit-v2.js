@@ -486,7 +486,7 @@ const TARGETS = [
   // The First Principle (Hygiene)
   { id: 'wv2-t-not-a-gentleman', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "comes back to you.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 1, damageType: 'block' },
     setId: 'thorns-1', setSlot: 'target', schoolId: 'thorns',
     flavor: 'A conclusion arrived at, regretfully, by direct observation.' },
   // The Long Signal (Transportation)
@@ -511,13 +511,13 @@ const TARGETS = [
   // Dry Shaving (Hygiene-2)
   { id: 'wv2-t-aesthetic-failure-first', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "rebounds with interest.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 1, damageType: 'block' },
     setId: 'thorns-2', setSlot: 'target', schoolId: 'thorns',
     flavor: 'Aesthetics being, in his school, the only ethics that hold up.' },
   // Dental (Hygiene-3)
   { id: 'wv2-t-politely-call-memorial', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "turns inward, sharply.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 1, damageType: 'block' },
     setId: 'thorns-3', setSlot: 'target', schoolId: 'thorns',
     flavor: 'Politeness, in a memorial setting, is the entire performance.' },
   // The Yield (Transportation-2)
@@ -554,7 +554,7 @@ const TARGETS = [
   // The Towel (Hygiene-5)
   { id: 'wv2-t-did-not-ask-to-know', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "is what you get back.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 1, damageType: 'block' },
     setId: 'thorns-5', setSlot: 'target', schoolId: 'thorns',
     flavor: 'We did not ask. The towel still spoke.' },
   // The Parallel (Transportation-4)
@@ -590,7 +590,7 @@ const TARGETS = [
   // Civic Cleanliness (Hygiene-6)
   { id: 'wv2-t-rest-follows', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "answers itself.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 1, damageType: 'block' },
     setId: 'thorns-6', setSlot: 'target', schoolId: 'thorns',
     flavor: 'The rest, in his house, being a long list of consequences.' },
   // The Regimen (Hygiene-7)

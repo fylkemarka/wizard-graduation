@@ -8408,6 +8408,11 @@ export default function App() {
       const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
       // v2.93: D-1 (Talking Over Them) — colorless flag that zeroes the
       // next enemy attack outright. Consumed before any other math.
+      // v3.4.25 (Alan, gating-bug audit): the flag is gated to attack/
+      // attack-multi intents only (intentional — "skip next attack").
+      // The early `return` after consuming the flag skips damage AND the
+      // intent.riders block below. That's correct: a skipped attack
+      // shouldn't also apply the attack's Weak / Vuln / block riders.
       if (enemySkipNextAttack) {
         setEnemySkipNextAttack(false);
         pushLog(`🤐 ${e.name}: you spoke right through it. (Talking Over Them)`);
