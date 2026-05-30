@@ -107,10 +107,10 @@ const INTROS = [
     flavor: 'Eye contact has a load-bearing function.' },
 
   // ---- Rare (2) ----
-  { id: 'cv2-i-dont-say-lightly', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+  { id: 'cv2-i-dont-say-lightly', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: "Now I don't say this lightly, and I won't say it twice:", tags: ['threatening', 'direct', 'swaggering'], stats: { chutzpah: 4 },
     flavor: 'Lightly being a word for other people. Twice, also.' },
-  { id: 'cv2-i-comes-a-time', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+  { id: 'cv2-i-comes-a-time', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'There comes a time, see, and that time is right now:', tags: ['demanding', 'swaggering', 'threatening'], stats: { chutzpah: 4 },
     flavor: 'The time has come. The time has been coming. You are the time.' },
   // v2.11: ALL IN synergy — stake bonus uses this card's higher multiplier.
@@ -216,10 +216,10 @@ const SUBJECTS = [
     flavor: 'The standing is the indictment. The pretending is the closing argument.' },
 
   // ---- Rare (2) ----
-  { id: 'cv2-s-unforced-errors', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+  { id: 'cv2-s-unforced-errors', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: "the long, long list of unforced errors you've called a career", tags: ['dismissive', 'threatening', 'direct'], stats: { chutzpah: 4 },
     flavor: 'Long, long being two of the most damning words in commercial English.' },
-  { id: 'cv2-s-brought-you-here', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+  { id: 'cv2-s-brought-you-here', slot: 'subject', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'everything that brought you to this exact moment, here, in front of me', tags: ['threatening', 'direct', 'swaggering'], stats: { chutzpah: 4 },
     flavor: 'Brought being a verb of unwanted gravity.' },
 ];
@@ -291,19 +291,19 @@ const TARGETS = [
     flavor: 'The blood is rhetorical. The conviction is not.' },
 
   // ---- Rare (4) ----
-  { id: 'cv2-t-over-my-head', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-over-my-head', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is officially over my head.', tags: ['dismissive', 'swaggering'],
     effect: { scaleBy: 'chutzpah', base: 10, multiplier: 3, damageType: 'composure', rider: { weak: 2 } },
     flavor: 'Said with the gravity of a man with an extra inch of headroom.' },
-  { id: 'cv2-t-ted-talk', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-ted-talk', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is gonna be a TED talk in three weeks, the unhinged kind.', tags: ['dismissive', 'threatening'],
     effect: { scaleBy: 'chutzpah', base: 12, multiplier: 3, damageType: 'composure', tier3Double: true },
     flavor: 'Three weeks being the standard processing time for unhinged.' },
-  { id: 'cv2-t-stops-here-ends-here', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-stops-here-ends-here', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'stops here, ends here, and gets buried here.', tags: ['demanding', 'threatening', 'direct'],
     effect: { scaleBy: 'chutzpah', base: 11, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
     flavor: "The triple is for those who didn't hear the first time." },
-  { id: 'cv2-t-actually-feel', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 3, type: 'effect',
+  { id: 'cv2-t-actually-feel', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'effect',
     phrase: "is fixin' to get acquainted with how I actually feel.", tags: ['threatening', 'direct', 'swaggering'],
     effect: { scaleBy: 'chutzpah', base: 14, multiplier: 3, damageType: 'composure',
              requiresTier3: { failureDamageMult: 0.5, exhaustOnFail: true } },
@@ -321,7 +321,7 @@ const TARGETS = [
               stakeRefundHalf: true },
     desc: 'Cast: 8 + Chutzpah comp. If staked: heal half the stake on hit.',
     flavor: 'Means it. Has the receipts. The receipts are large.' },
-  { id: 'cv2-t-big-mistake', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-big-mistake', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is a big mistake. Huge.', tags: ['threatening', 'swaggering'],
     effect: { scaleBy: 'chutzpah', base: 18, multiplier: 3, damageType: 'composure',
               requiresStake: 8 },
@@ -371,11 +371,11 @@ const MODIFIERS = [
     flavor: 'Volume being, in chutzpah, a multiplier on truth.' },
 
   // ---- Rare (2) ----
-  { id: 'cv2-m-mark-my-words', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
+  { id: 'cv2-m-mark-my-words', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'modifier',
     modifierKind: 'post', phrase: "— mark my words, write 'em down,", tags: ['threatening'],
     modifierEffect: { tier3Payoff: { damageMult: 2.0, rider: { weak: 2 } } },
     flavor: 'The writing-down is for the courts.' },
-  { id: 'cv2-m-doesnt-blink', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
+  { id: 'cv2-m-doesnt-blink', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'modifier',
     modifierKind: 'pre', phrase: "(eye contact, doesn't blink,)", tags: ['threatening', 'demanding'],
     modifierEffect: { addsTag: 'threatening', stripEnemyBlock: 2, damageMult: 1.5 },
     flavor: 'Blinking having been ruled out at the door.' },
@@ -424,7 +424,7 @@ const GESTURES = [
 
 // v2.6: Modifiers for the new chutzpah lane.
 const NEW_MODIFIERS_V26 = [
-  { id: 'cv2-m-say-again', slot: 'modifier', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'modifier',
+  { id: 'cv2-m-say-again', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'modifier',
     modifierKind: 'post', phrase: '— AND I WILL SAY IT AGAIN,', tags: ['threatening', 'direct'],
     modifierEffect: { damageMult: 2.0 },
     flavor: 'Repetition: the soul of persuasion.' },
@@ -471,7 +471,7 @@ const UNIQUE_TARGETS = [
   // immediately (no draw, no block, no end-of-turn anything). Enemy's next
   // intent is HIDDEN — the player doesn't get to peek. Strategic gate:
   // close the kill in one swing or eat blind next turn.
-  { id: 'cv2-t-last-problem', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'effect',
+  { id: 'cv2-t-last-problem', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is officially my last problem.', tags: ['dismissive', 'threatening', 'swaggering'],
     effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
               stormOut: true, bonusPerEnergy: 5 },
@@ -608,7 +608,7 @@ const SMELL_WEAKNESS_TARGETS  = SMELL_WEAKNESS_CARDS.filter(c => c.slot === 'tar
 // demanding-tagged word per turn (intro+subject was the cap; modifier is the
 // extra slot), AND pumps tunnel vision toward RAGE on stage.
 const SYNERGY_CAPSTONE_CARDS = [
-  { id: 'cv2-t-and-im-not-done', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+  { id: 'cv2-t-and-im-not-done', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "AND I'M NOT DONE.", tags: ['demanding', 'threatening', 'direct'],
     effect: { scaleBy: 'chutzpah', base: 10, multiplier: 3, damageType: 'composure',
               doubleDown: true, loudScaling: true, predator: 4 },
