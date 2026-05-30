@@ -476,6 +476,24 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
     if (slot === 'target' && (c.rarity === 'uncommon' || c.rarity === 'rare')) {
       score += 6;
     }
+    // v3.4.34 cycle 1 — Thorns target value: cast damage routes to block,
+    // not enemy damage. Greedy AI scored these as 0 (no enemy damage) and
+    // never staged them. Score = projected block value, weighted by current
+    // need (low HP boosts) + whether enemy will attack next.
+    if (slot === 'target' && c.effect?.damageType === 'block' && state.lane === 'wit') {
+      // baseline: block is half-value compared to damage
+      const projectedBlock = (c.effect?.base || 0) + ((c.effect?.multiplier || 1) * 5) * 1.5; // rough estimate
+      let blockScore = projectedBlock * 0.5;
+      // HP urgency: bigger payoff when low
+      const hpFrac = state.maxHp > 0 ? state.hp / state.maxHp : 1;
+      if (hpFrac < 0.6) blockScore *= 1 + (0.6 - hpFrac);
+      // Enemy intent attack-projection: if next enemy hit deals damage, block matters
+      if (enemy?.behaviors) {
+        const hasAttackKind = enemy.behaviors.some(b => b.kind === 'attack' || b.kind === 'attack-multi');
+        if (hasAttackKind) blockScore += 4;
+      }
+      score += Math.round(blockScore);
+    }
     // v2.53: tier-3 boss/elite finisher bias. Lane rares (tier-3 targets) are
     // explicitly designed as finishers but the AI's baseline score (tier*10 +
     // stat = ~33) often loses to a tier-2 baseline with a strong rider
@@ -2247,14 +2265,20 @@ function runCombat(state, enemyId, telemetry) {
         dmg = 0; // suppress direct damage application
       }
       state.lastCastDamage = dmg;
-      // Apply damage absorbed by enemy block first
-      let remaining = dmg;
-      if (enemy.block > 0) {
-        const absorbed = Math.min(enemy.block, remaining);
-        enemy.block -= absorbed; remaining -= absorbed;
+      // v3.4.34 cycle 1 — Thorns school casts (damageType: 'block') route the
+      // cast number to player block, not enemy damage. Mirrors App.jsx.
+      if (dmgType === 'block') {
+        state.block = (state.block || 0) + dmg;
+        telemetry.thornsCastBlockGranted = (telemetry.thornsCastBlockGranted || 0) + dmg;
+      } else {
+        let remaining = dmg;
+        if (enemy.block > 0) {
+          const absorbed = Math.min(enemy.block, remaining);
+          enemy.block -= absorbed; remaining -= absorbed;
+        }
+        if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - remaining);
+        else                        enemy.currentComp = Math.max(0, enemy.currentComp - remaining);
       }
-      if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - remaining);
-      else                        enemy.currentComp = Math.max(0, enemy.currentComp - remaining);
       // v2.93: O-6 (The Doubletake) — apply the same damage a second time.
       // Block was consumed on the first pass, so the doubled hit is mostly
       // full damage. Flag is one-shot.
@@ -3869,7 +3893,14 @@ function awardReward(state) {
       if (cards.length === 0) return null;
       const baseWeights = cards.map(c => {
         const slotW = SLOT_WEIGHTS[c.slot] || 10;
-        const schoolMult = c.schoolId ? (1 + (schoolCounts[c.schoolId] || 0) * 0.5) : 1;
+        // v3.4.34 cycle 1 (tester): bias 0.5 → 0.2 to allow cross-school decks.
+        // The greedy AI was compounding into single-school every reward draft;
+        // cross-school combos can't happen if the deck never mixes.
+        // Plus a small one-shot bonus when picking the FIRST card of a new school.
+        const sCount = c.schoolId ? (schoolCounts[c.schoolId] || 0) : 0;
+        const schoolMult = c.schoolId
+          ? (sCount === 0 ? 1.3 : 1 + sCount * 0.2)
+          : 1;
         return slotW * schoolMult;
       });
       const total = baseWeights.reduce((s, w) => s + w, 0);
