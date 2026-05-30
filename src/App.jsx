@@ -687,7 +687,8 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     subjectId,
     targetId,
     ...laneStarters,
-    'c-defend', // v3.4.6 (Alan): 3× defend was too much. Drop to 1.
+    'c-defend', // v3.4.6 (Alan): 3× defend was too much. Dropped to 1.
+    'c-defend', // v3.4.53 (Alan): 1 defend wasn't enough vs elites; back to 2.
     'c-compose',
   ].filter(Boolean);
   if (lane === 'wit') {
@@ -854,15 +855,17 @@ const ENEMIES = [
     effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
-      // v2.9.2: telemetry showed player losing only 3-7 HP per Pattern-Maker
-      // fight. Bumped physical attacks AND added an HP-pool burst so the
-      // fight feels like Silent Spinner does (which the user called "good").
+      // v3.4.53 (Alan: "Pattern-Maker hits too hard, BARELY beat it"). With
+      // the global 1.25× scalar, base 15 → 19 HP burst and 4×3 → 5×3 = 15
+      // HP attack-multi were spiking past the basic Defend ceiling.
+      // Bursts dialed down: 15 → 12 (scales to 15), 4×3 → 3×3 (scales to
+      // 4×3 = 12). 11 + Vuln untouched (14 with vuln is still real).
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 4, count: 3, weight: 1, telegraph: '⚔ 4×3' },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (pattern-wrong)' },
       { kind: 'attack', value: 13, pool: 'composure', weight: 1, telegraph: '🎭 13 (PATTERN COMPLETE)' },
       // HP-side burst — the pattern lashes out physically.
-      { kind: 'attack', value: 15, weight: 1, telegraph: '⚔ 15 (BROKEN-PATTERN STRIKE)' },
+      { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
     effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
