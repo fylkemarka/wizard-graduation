@@ -966,7 +966,7 @@ const BUFF_CARDS = [
     desc: 'Add +2 reflect damage to your active Thorns aura (every remaining tick). Exhaust.',
     flavor: 'Reasoning, once enhanced, is difficult to argue with.' },
   { id: 'wv2-k-you-know-what-i-mean', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'skill',
-    name: 'You Know What I Mean', phrase: 'You know what I mean.',
+    name: 'You Know What I Meant', phrase: 'You know what I meant.',
     tags: ['observational'],
     effects: { partialAsFullNextCast: true, exhaust: true },
     desc: 'On your next cast, a half-formed (2-of-3) FFT resolves as the full row. Exhaust.',

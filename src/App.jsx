@@ -6342,7 +6342,7 @@ export default function App() {
       if (promotedRow) {
         fftResult.fft = promotedRow;
         fftResult.partialRow = null;
-        pushLog(`📐 "You know what I mean." Half-formed → full FFT.`);
+        pushLog(`📐 "You know what I meant." Half-formed → full FFT.`);
         setPartialAsFullArmed(false);
       }
     }
@@ -10385,7 +10385,7 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
         <p className="mt-2 text-iris-200 font-bold">FFT setup:</p>
         <ul className="list-disc list-inside text-sm leading-relaxed">
           <li><b>The Tutor</b> (3E) — next time you stage an intro AND subject from the same row, the matching target is auto-pulled from deck/discard.</li>
-          <li><b>You Know What I Mean</b> (2E) — your next half-formed (2-of-3) FFT counts as the full row.</li>
+          <li><b>You Know What I Meant</b> (2E) — your next half-formed (2-of-3) FFT counts as the full row.</li>
           <li><b>Myriad of Reasons</b> (2E) — pull a random intro AND subject from deck or discard.</li>
           <li><b>To the Rafters</b> (3E) — counts as a FFT of a random Crescendo spell in your hand or discard.</li>
         </ul>

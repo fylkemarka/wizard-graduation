@@ -106,14 +106,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
     } else if (intent.kind === 'block') {
       lines.push(`🛡 Gains ${intent.value} Block — absorbs your damage to it until its next turn.`);
     } else if (intent.kind === 'vulnerable') {
-      lines.push(`🩸 Applies Vulnerable ${intent.value} — its attacks deal +${25*intent.value}% damage to you next turns.`);
+      lines.push(`🩸 Applies Vulnerable ${intent.value} — your incoming damage will be amplified for the next few turns.`);
     } else if (intent.kind === 'weak') {
-      lines.push(`⛧ Applies Weak ${intent.value} — your spell potency drops by ${25*intent.value}% next turns.`);
+      lines.push(`⛧ Applies Weak ${intent.value} — your spell damage will be reduced for the next few turns.`);
     }
     if (intent.riders) {
       const r = intent.riders;
-      if (r.weak)       lines.push(`+ rider ⛧ Weak ${r.weak} — your spell potency also drops ${25*r.weak}%.`);
-      if (r.vulnerable) lines.push(`+ rider 🩸 Vulnerable ${r.vulnerable} — enemy will deal +${25*r.vulnerable}% more damage too.`);
+      if (r.weak)       lines.push(`+ rider ⛧ Weak ${r.weak} — also reduces your spell damage.`);
+      if (r.vulnerable) lines.push(`+ rider 🩸 Vulnerable ${r.vulnerable} — also amplifies your incoming damage.`);
       if (r.block)      lines.push(`+ rider 🛡 ${r.block} — also gains Block.`);
     }
     lines.push('Block + Defense reduce attack damage to either pool. Debuffs drift back toward neutral by 0.25/turn.');
@@ -293,28 +293,31 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                   enemyDmgMult > 1 → we're vulnerable to their attacks (bad)
                   enemyDmgMult < 1 → enemy attacks sapped (good)
             */}
+            {/* v3.4.63 (Alan): never make the player do math. Icons say
+                WHAT is active; the magnitude is already baked into the
+                displayed Predicted damage + enemy intent values. */}
             {playerDmgMult > 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400"
-                title={`Enemy is taking ×${playerDmgMult.toFixed(2)} damage from your spells. From Amplify on you, Vulnerable rider on enemy, predator hits, etc. Drifts toward 1.00 by 0.10/turn.`}>
-                🩸 Enemy Vulnerable +{Math.round((playerDmgMult - 1) * 100)}%
+              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help"
+                title="Enemy is Vulnerable — your Predicted damage is already amplified. Drifts back to neutral over time.">
+                🩸 ENEMY VULNERABLE
               </span>
             )}
             {playerDmgMult < 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500"
-                title={`Your spells deal ×${playerDmgMult.toFixed(2)} damage. Weak applied to you by enemy. Drifts toward 1.00 by 0.10/turn.`}>
-                ⛧ Your spells {Math.round((playerDmgMult - 1) * 100)}% (Weak on you)
+              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help"
+                title="You are Weak — your Predicted damage is already reduced. Drifts back to neutral over time.">
+                ⛧ YOU ARE WEAK
               </span>
             )}
             {enemyDmgMult > 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500"
-                title={`You're vulnerable — enemy attacks hit you for ×${enemyDmgMult.toFixed(2)}. Applied by enemy intent. Drifts toward 1.00 by 0.10/turn.`}>
-                🩸 You're Vulnerable +{Math.round((enemyDmgMult - 1) * 100)}% (incoming)
+              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help"
+                title="You are Vulnerable — the enemy's intent damage is already amplified. Drifts back to neutral over time.">
+                🩸 YOU ARE VULNERABLE
               </span>
             )}
             {enemyDmgMult < 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400"
-                title={`Enemy attacks deal ×${enemyDmgMult.toFixed(2)} damage. From Sap card, Weak rider on enemy, etc. Drifts toward 1.00 by 0.10/turn.`}>
-                ⛧ Enemy Weak {Math.round((enemyDmgMult - 1) * 100)}% (their attacks)
+              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help"
+                title="Enemy is Weak — their intent damage is already reduced. Drifts back to neutral over time.">
+                ⛧ ENEMY WEAK
               </span>
             )}
           </div>
@@ -376,21 +379,24 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span key={eq.id} className="text-[11px] text-gold-300 cursor-help font-mono"
               title={`${eq.name}\n\n${eq.desc || ''}${equipmentEffectSummary(eq) ? '\n\nEffects:\n' + equipmentEffectSummary(eq) : ''}`}>⚜{eq.name}</span>
           ))}
+          {/* v3.4.63 (Alan): just show WEAK / STRONG / VULN / SAPPED.
+              The multiplier is already baked into Predicted damage and the
+              enemy intent — the player doesn't need the math here too. */}
           {playerDmgMult < 1.0 && (
-            <span className="text-[11px] text-ember-300 font-mono"
-                  title={`Weak — your spell potency at ×${playerDmgMult.toFixed(2)}.`}>⛧×{playerDmgMult.toFixed(2)}</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-ember-900 text-ember-100 cursor-help"
+                  title={`Weak — your spell potency reduced. Drifts back toward neutral by 0.10/turn.`}>⛧ WEAK</span>
           )}
           {playerDmgMult > 1.0 && (
-            <span className="text-[11px] text-moss-300 font-mono"
-                  title={`Strengthened — your spell potency at ×${playerDmgMult.toFixed(2)}.`}>💫×{playerDmgMult.toFixed(2)}</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-moss-900 text-moss-100 cursor-help"
+                  title={`Strengthened — your spell potency boosted. Drifts back toward neutral by 0.10/turn.`}>💫 STRONG</span>
           )}
           {enemyDmgMult > 1.0 && (
-            <span className="text-[11px] text-ember-300 font-mono"
-                  title={`Vulnerable — incoming damage at ×${enemyDmgMult.toFixed(2)}.`}>🩸×{enemyDmgMult.toFixed(2)}</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-ember-900 text-ember-100 cursor-help"
+                  title={`Vulnerable — incoming enemy attacks deal more damage. Drifts back toward neutral by 0.10/turn.`}>🩸 VULN</span>
           )}
           {enemyDmgMult < 1.0 && (
-            <span className="text-[11px] text-moss-300 font-mono"
-                  title={`Sapped — enemy attack damage at ×${enemyDmgMult.toFixed(2)}.`}>🛡×{enemyDmgMult.toFixed(2)}</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-moss-900 text-moss-100 cursor-help"
+                  title={`Sapped — enemy attacks deal less damage. Drifts back toward neutral by 0.10/turn.`}>🛡 SAPPED</span>
           )}
           {/* Wit-only over-time chips: Hold / Misstep */}
           {holdOnArmed && (
@@ -1269,13 +1275,11 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             </span>
           </>)}
           {mathBreakdown.playerMult !== 1 && (<>
-            <span className="text-parchment-500">×</span>
-            <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300' : 'text-ember-300'}
+            <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300 ml-2' : 'text-ember-300 ml-2'}
               title={mathBreakdown.playerMult > 1
-                ? `Enemy is Vulnerable — your spells deal +${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`
-                : `You're Weak — your spells deal ${Math.round((mathBreakdown.playerMult - 1) * 100)}% damage.`}>
-              {mathBreakdown.playerMult > 1 ? '🩸 enemy Vuln ' : '⛧ you Weak '}
-              {mathBreakdown.playerMult.toFixed(2)}×
+                ? `Enemy is Vulnerable — your Predicted damage is already amplified.`
+                : `You're Weak — your Predicted damage is already reduced.`}>
+              {mathBreakdown.playerMult > 1 ? '🩸 ENEMY VULN' : '⛧ YOU WEAK'}
             </span>
           </>)}
           {mathBreakdown.secondCastScalar !== 1 && (<>
