@@ -4640,9 +4640,13 @@ export default function App() {
       // v2.60: event grants respect lane AND exclude starter-deck cards
       // (same as combat rewards). isInterestingReward applies inside
       // pickCardByRarity — no vanilla stat-pumps.
+      // v3.4.49 (Alan caught: "Will Slowly Unravel" offered solo on a
+      // hard refresh). Event/rest grants now also exclude spell pieces
+      // (intros/subjects/targets) — those only enter the deck as FFT
+      // row bundles via the elite/boss reward path.
       const lane = selectedCharacter?.lane || null;
       const starterIds = lane ? buildStarterDeckForLane(lane) : [];
-      const c = pickCardByRarity({ [rarity]: 1 }, starterIds, lane);
+      const c = pickCardByRarity({ [rarity]: 1 }, starterIds, lane, { excludeSpellPieces: true });
       if (c) {
         setDeck(d => [...d, { ...c, uid: uid() }]);
         logBits.push(`+ ${c.name}`);
