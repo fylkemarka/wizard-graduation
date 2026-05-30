@@ -365,7 +365,6 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
         longThread: state.longThread || 0, // v2.34
         combatTurn: state._combatTurn || 1, // v2.39
-        openingExtended: !!state.openingExtended, // v2.39
         insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
       };
       // Reuse the shared formula via computeSpellDamage if intro+subject
@@ -412,7 +411,6 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
         longThread: state.longThread || 0, // v2.34
         combatTurn: state._combatTurn || 1, // v2.39
-        openingExtended: !!state.openingExtended, // v2.39
         insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
       };
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
@@ -2070,8 +2068,7 @@ function runCombat(state, enemyId, telemetry) {
           enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
           longThread: state.longThread || 0, // v2.34
           combatTurn: state._combatTurn || 1, // v2.39
-          openingExtended: !!state.openingExtended, // v2.39
-          insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
+            insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const preMult = (tray.target.effect?.damageType === 'physical')
@@ -2160,7 +2157,6 @@ function runCombat(state, enemyId, telemetry) {
         enemyDmgMult: state.enemyDmgMult || 1.0, // v2.30
         longThread: state.longThread || 0, // v2.34
         combatTurn: state._combatTurn || 1, // v2.39
-        openingExtended: !!state.openingExtended, // v2.39
         insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
         pauseDoubled: !!state.pauseHeldActive, // v2.48
         isSecondCast, // v2.50: doubleOnSecondCast rider reads this flag

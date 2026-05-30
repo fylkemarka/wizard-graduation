@@ -36,8 +36,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
                        holdOnArmed = false, holdOnValue = 0,
                        pendingMissteps = [],
-                       combatTurn = 1, openingExtended = false,
-                       patienceInstalled = false, patienceStacks = 0,
+                       combatTurn = 1,
                        pauseHeld = false, pauseHeldActive = false,
                        wontShutUpArmed = false, staggerActive = false,
                        notListeningCharges = 0, hitMeAgainCharges = 0,
@@ -345,17 +344,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="text-[11px] text-moss-300 font-mono"
                   title={`Sapped — enemy attack damage at ×${enemyDmgMult.toFixed(2)}.`}>🛡×{enemyDmgMult.toFixed(2)}</span>
           )}
-          {/* Wit-only over-time chips: Opening / Patience / Hold / Misstep */}
-          {isWit && (combatTurn === 1 || openingExtended) && (
-            <span className="text-[11px] text-iris-200 font-mono"
-                  title={openingExtended ? `Opening extended — wit Effect cards still get the openingBonus.` : `Turn 1 — wit Effect cards with openingBonus deal their bonus damage.`}>
-              🎩{openingExtended ? '↩' : ''}
-            </span>
-          )}
-          {patienceInstalled && (
-            <span className="text-[11px] text-iris-200 font-mono"
-                  title={`Patience — banked stacks. Next cast = Patience × 2 flat damage.`}>🌿{patienceStacks}</span>
-          )}
+          {/* Wit-only over-time chips: Hold / Misstep */}
           {holdOnArmed && (
             <span className="text-[11px] text-iris-200 font-mono"
                   title={`Hold On — armed. Next enemy swing damage reduced by ${holdOnValue}.`}>🛑−{holdOnValue}</span>
@@ -452,7 +441,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
         lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
-        combatTurn={combatTurn} openingExtended={openingExtended}
+        combatTurn={combatTurn}
         pauseHeldActive={pauseHeldActive} enemy={enemy}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows} />
@@ -482,7 +471,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
           {powers.map((p, i) => {
             const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
-            const isPatience = p.installPower?.id === 'patience' || p.id === 'wv2-p-patience';
             const isDrunken  = p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink';
             const isBabbling = p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing';
             return (
@@ -497,11 +485,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 {isHitMeAgain && (
                   <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
                     ⚡{hitMeAgainCharges}
-                  </span>
-                )}
-                {isPatience && (
-                  <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
-                    🌿{patienceStacks}
                   </span>
                 )}
                 {isDrunken && (
@@ -728,7 +711,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
                        lastRoll = null, combatRolls = [], loudCount = 0,
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
-                       combatTurn = 1, openingExtended = false,
+                       combatTurn = 1,
                        pauseHeldActive = false, enemy = null,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [] }) {
@@ -750,8 +733,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   let crescendoPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders, stakeBonus, loudBonus, predatorBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, openingExtended, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
-    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: openingBonus || 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
+    const { damage, riders, stakeBonus, loudBonus, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
+    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
     // v3.4.21 (Alan): preview the FFT-tier rider that will fire on cast.
     // Most specific match wins (full → partial → same-school). Each tier
     // surfaces its rider as readable chips under the Predicted damage so
@@ -1260,10 +1243,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           {predicted.loudBonus > 0 && (<>
             <span className="text-parchment-500">+</span>
             <span className="text-ember-300" title="Saying-it-Louder.">📢+{predicted.loudBonus}</span>
-          </>)}
-          {predicted.openingBonus > 0 && (<>
-            <span className="text-parchment-500">+</span>
-            <span className="text-iris-300" title="Opening Statement.">🎩+{predicted.openingBonus}</span>
           </>)}
           {predicted.predatorBonus > 0 && (<>
             <span className="text-parchment-500">+</span>

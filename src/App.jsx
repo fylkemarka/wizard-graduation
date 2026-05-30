@@ -3604,13 +3604,10 @@ export default function App() {
   // to surface that an auto-play just fired (so the player sees the cost
   // land even on a busy log). Reset every endTurn.
   const [pendingMissteps, setPendingMissteps] = useState([]);
-  // v2.39: wit OPENING STATEMENT — first-turn scaling. combatTurn ticks +1
-  // at every endTurn (turn 1 on enterFight, turn 2 after first endTurn, etc.).
-  // openingExtended is the single-use bridge: the "to revisit my opening
-  // point," skill flips it true, and the next wit target cast consumes it
-  // (granting the openingBonus even past turn 1). Both reset per combat.
+  // v2.39: combatTurn ticks +1 at every endTurn (turn 1 on enterFight,
+  // turn 2 after first endTurn, etc.). Used by UI displays and any
+  // remaining turn-aware riders.
   const [combatTurn, setCombatTurn] = useState(1);
-  const [openingExtended, setOpeningExtended] = useState(false);
   // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
   // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
@@ -3649,14 +3646,6 @@ export default function App() {
   // reset to 0 / false in enterFight.
   const [hitMeAgainInstalled, setHitMeAgainInstalled] = useState(false);
   const [hitMeAgainCharges, setHitMeAgainCharges] = useState(0);
-  // v2.40: PATIENCE — wit's skip-cast-and-defend power. While installed, every
-  // end-of-turn where the player did NOT cast a spell increments
-  // patienceStacks. The next cast adds patienceStacks × 2 flat damage and
-  // clears the counter. Mirrored as a fast-read flag (patienceInstalled) so
-  // the end-of-turn + cast hooks don't have to walk `powers` every tick.
-  // Both reset to false / 0 in enterFight (patience is intra-combat only).
-  const [patienceInstalled, setPatienceInstalled] = useState(false);
-  const [patienceStacks, setPatienceStacks] = useState(0);
   // v2.33: Stubborn Block was removed (Power that converted unspent energy
   // to carry-over Block — wit-flavored on a lane whose defensive identity is
   // "bill them for the hit," not "accumulate Block").
@@ -5083,11 +5072,8 @@ export default function App() {
     // across fights (the apprentice gets a fresh slate when the next enemy
     // walks in).
     setPendingMissteps([]);
-    // v2.39: OPENING STATEMENT — combat turn counter reset to 1 (first turn)
-    // and any extend-opening flag from a previous combat cleared. The "to
-    // revisit my opening point," skill is intra-combat only; no carry.
+    // v2.39: combat turn counter reset to 1.
     setCombatTurn(1);
-    setOpeningExtended(false);
     // v2.25: chutzpah corner-token counter resets per combat.
     setCornerTokens(0);
     // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
@@ -5109,9 +5095,6 @@ export default function App() {
     // v2.52: jnsq DRUNKEN STAGGER — defensive flag clears per combat. The
     // dodge window is intra-turn / intra-combat only.
     setStaggerActive(false);
-    // v2.40: wit PATIENCE — install flag + stacks reset per combat.
-    setPatienceInstalled(false);
-    setPatienceStacks(0);
     // v2.33: chutzpah Not Listening — pending absorb charges reset per combat.
     setNotListeningCharges(0);
     // v2.96: Hollow Weaver weave debt — reset per combat.
@@ -5329,11 +5312,6 @@ export default function App() {
       // attack-resolution doesn't walk `powers` every hit.
       if (card.installPower?.id === 'hit-me-again' || card.id === 'cv2-p-hit-me-again') {
         setHitMeAgainInstalled(true);
-      }
-      // v2.40: PATIENCE — surface a fast-read flag for the end-of-turn +
-      // cast-resolution hooks.
-      if (card.installPower?.id === 'patience' || card.id === 'wv2-p-patience') {
-        setPatienceInstalled(true);
       }
       // v2.47: DRUNKEN CONFIDENCE — telemetry-only install count. The read
       // path is `powers.some(p => p.installPower?.id === 'drunken-confidence')`
@@ -5837,10 +5815,8 @@ export default function App() {
       playerDmgMult, enemyDmgMult,
       // v2.34: wit LONG THREAD — threadScaling targets read this for +N × LT
       longThread,
-      // v2.39: wit OPENING STATEMENT — openingBonus targets read combatTurn
-      // (firstTurn = 1) AND openingExtended (the "to revisit my opening point,"
-      // skill bridges a later turn back into the opening).
-      combatTurn, openingExtended,
+      // v2.39: combatTurn is still passed for any remaining turn-aware reads.
+      combatTurn,
       // v2.42: wit INSULT VULNERABILITIES — pierceVulnerableInsult targets
       // read the enemy's list of vulnerable tags. Default to [] if the enemy
       // has none — rider just won't fire.
@@ -5852,7 +5828,7 @@ export default function App() {
       // v2.50: BABBLING 2nd-cast flag — doubleOnSecondCast targets fire here.
       isSecondCast: ctxIsSecondCast,
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, openingBonus, insultBonus, insultMatches, insultMatchedTags } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, insultBonus, insultMatches, insultMatchedTags } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.48: AWKWARD PAUSE — compute the doubling delta for telemetry by
     // re-running the formula WITHOUT the doubling. Only when actually paused.
@@ -5906,19 +5882,6 @@ export default function App() {
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
     }
-    // v2.39: OPENING STATEMENT — surface the bonus when it fired AND consume
-    // the extend flag if it was the bridge that made this cast count. The
-    // flag drops on every wit target cast (whether the bonus actually applied
-    // or not — a wit target without `openingBonus` still spends the bridge).
-    if (openingBonus > 0) {
-      const viaExtended = openingExtended && combatTurn !== 1;
-      pushLog(`🎩 OPENING STATEMENT → +${openingBonus} dmg${viaExtended ? ' (revisited)' : ''}`);
-      logEvent('wit.opening', {
-        bonusDamage: openingBonus,
-        combatTurn, viaExtended,
-        enemyId: enemy?.id, enemyTier: enemy?.tier,
-      });
-    }
     // v2.42: INSULT VULNERABILITIES — surface tag-match bonus when it fired.
     // matchedTags surfaces WHICH tags landed so the player can read the
     // enemy correctly next time.
@@ -5937,12 +5900,6 @@ export default function App() {
     // checks this together with unblockedThisTurn to tick the thread.
     if (target.lane === 'wit') {
       setCastWitEffectThisTurn(true);
-      // v2.39: a wit target cast consumes the extend flag if armed. We clear
-      // even when the target had no openingBonus (the bridge was spent the
-      // moment you brought the room back to the opening). On turn 1 the flag
-      // is mostly redundant (turn-1 already triggers the bonus), but we
-      // still consume so a future cast doesn't double-dip.
-      if (openingExtended) setOpeningExtended(false);
     }
     // Reset loudCount — the cast consumes the build-up. Future demanding
     // words in the same turn would re-arm if a second cast were possible,
@@ -6053,27 +6010,6 @@ export default function App() {
       const bonus = stormOutEnergySpent * stormOutBonusPerEnergy;
       dmg += bonus;
       pushLog(`🚪 STORM OUT — spent ${stormOutEnergySpent} Energy → +${bonus} dmg.`);
-    }
-
-    // v2.40: PATIENCE — if installed AND stacks > 0, add stacks × 2 flat
-    // damage and clear the counter. The bonus is a flat add (not multiplied
-    // by enemy effectiveness or playerDmgMult — already-resolved damage
-    // pipeline). One bonus per cast; the next skipped turn starts the bank
-    // over from 0.
-    let patienceBonusDealt = 0;
-    if (patienceInstalled && patienceStacks > 0) {
-      // v3.0 cycle 3: payout multiplier 2 → 4. Cycle 2 sim showed mean
-      // peak Patience 2.90 → 5.8 dmg per cast — flavor-text levels.
-      // Doubling the per-stack payout makes the bank feel earned: at
-      // 3 stacks now +12 dmg, at 5 stacks +20 dmg, an actual finisher.
-      patienceBonusDealt = patienceStacks * 4;
-      dmg += patienceBonusDealt;
-      pushLog(`🌿 Patience spent: +${patienceBonusDealt} damage.`);
-      logEvent('wit.patience.spend', {
-        stacks: patienceStacks, bonusDamage: patienceBonusDealt,
-        enemyId: enemy?.id, enemyTier: enemy?.tier,
-      });
-      setPatienceStacks(0);
     }
 
     // Compose + log the full sentence.
@@ -7153,39 +7089,6 @@ export default function App() {
       if (snap > 0) logBits.push(`🛑 Hold on — armed (−${snap} next swing)`);
       else          logBits.push(`🛑 Hold on — armed (no thread)`);
     }
-    // v2.39: OPENING STATEMENT — "to revisit my opening point," skill arms
-    // the openingExtended flag. The next wit target cast (this turn or a
-    // later turn) still receives its openingBonus damage even past turn 1.
-    // Idempotent: re-playing the skill while already armed re-arms (cost
-    // already paid by playCard). Telemetry per play, regardless of whether
-    // a target ever cashes it in.
-    if (fx.extendOpening) {
-      setOpeningExtended(true);
-      logBits.push(`🎩 opening extended`);
-      logEvent('wit.opening.extend', {
-        combatTurn,
-        enemyId: enemy?.id, enemyTier: enemy?.tier,
-      });
-    }
-    // v2.40: PATIENCE skip-cast bank — "I'll let you finish," skill. If
-    // Patience is installed, bump patienceStacks +1 (a deliberate skip-cast
-    // signal without losing the turn). If Patience is NOT installed, the
-    // card is still legal to play (no effect — the player should install
-    // first). Telemetry per play that actually banked.
-    if (fx.skipCastBank) {
-      if (patienceInstalled) {
-        setPatienceStacks(n => {
-          const next = n + 1;
-          logBits.push(`🌿 Patience +1 (${next})`);
-          return next;
-        });
-        logEvent('wit.patience.bank', {
-          enemyId: enemy?.id, enemyTier: enemy?.tier,
-        });
-      } else {
-        logBits.push(`🌿 — Patience not installed`);
-      }
-    }
     if (fx.energy) {
       setEnergy(e => e + fx.energy);
       logBits.push(`+${fx.energy} Energy`);
@@ -8182,19 +8085,6 @@ export default function App() {
     setHpAtTurnStart(hp);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
-
-    // v2.40: PATIENCE — if installed AND the player did NOT cast this turn,
-    // bank +1 stack. Reads castsThisTurn (the per-turn cast counter) which is
-    // still the pre-reset value at this point (setCastsThisTurn(0) fires
-    // later in the wrap-up). Skip turns get rewarded; casting clears nothing
-    // here (the cast itself already consumed the bank in castV2SentenceSpell).
-    if (patienceInstalled && castsThisTurn === 0) {
-      setPatienceStacks(n => {
-        const next = n + 1;
-        pushLog(`🌿 Patience +1 (${next}).`);
-        return next;
-      });
-    }
 
     // v2.36: ACTUALLY— reset per-turn state. arguingBackThisTurn is the
     // enemy-side surcharge; it cleared during the enemy intent that already
@@ -9778,9 +9668,6 @@ export default function App() {
       holdOnValue={holdOnValue}
       pendingMissteps={pendingMissteps}
       combatTurn={combatTurn}
-      openingExtended={openingExtended}
-      patienceInstalled={patienceInstalled}
-      patienceStacks={patienceStacks}
       pauseHeld={pauseHeld}
       pauseHeldActive={pauseHeldActive}
       wontShutUpArmed={wontShutUpArmed}
@@ -10104,8 +9991,8 @@ const WIZARD_TUTORIALS = {
         ],
       },
       {
-        heading: '⏳ PATIENCE and OPENING STATEMENT',
-        body: 'Two tempo tools. Patience (Power) banks every skip-cast turn into a stack; your next cast pays out per-stack. Opening Statement gives you turn-1 scaling on the first wit Effect you cast — and "to revisit my opening point," brings the bonus back later in combat. Wit rewards CHOOSING when to speak, not speaking constantly.',
+        heading: '⏳ OPENING STATEMENT',
+        body: 'Tempo tool. Opening Statement gives you turn-1 scaling on the first wit Effect you cast — and "to revisit my opening point," brings the bonus back later in combat. Wit rewards CHOOSING when to speak, not speaking constantly.',
       },
       {
         heading: '⚠ SAYING SOMETHING WRONG',
