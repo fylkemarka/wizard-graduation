@@ -3962,9 +3962,15 @@ export default function App() {
   // THEIR lane's spell shape. Called from the character-select "Practice
   // match" button with the selected character's lane.
   const TUTORIAL_HANDS = {
+    // v3.4.51 — wit tutorial hand seeds 2 of the 3 cards of slowburn-4
+    // (Lingering Point) so the partial-row tutor fires when both are
+    // staged: the missing target is pulled from deck for free with the
+    // "✨ the sentence finishes itself" toast. Casting then triggers the
+    // FFT rider (3 dmg / turn × 3 turns DoT) so the player sees the
+    // full sentence-grammar → FFT → DoT chain in their first combat.
     wit: {
-      hand: ['wv2-i-frankly', 'wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-defend'],
-      deck: ['wv2-i-honestly', 'wv2-s-this-argument', 'wv2-t-what-i-expected', 'c-compose'],
+      hand: ['wv2-i-frankly', 'wv2-s-boucle-suggestion', 'wv2-i-actually', 'c-defend', 'c-compose'],
+      deck: ['wv2-t-fabric-stops-asking', 'wv2-t-thats-not-it', 'wv2-s-your-conclusion', 'c-acuity'],
     },
     chutzpah: {
       hand: ['cv2-i-look', 'cv2-i-listen-pal', 'cv2-s-this-nonsense', 'cv2-t-stops-now', 'c-defend'],
@@ -9828,10 +9834,10 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
                  : lane === 'chutzpah' ? 'Chutzpah'
                  :                       'Je Ne Sais Quoi';
   const laneStat = lane === 'wit' ? '✨' : lane === 'chutzpah' ? '💪' : '🌀';
-  // Lane-specific signature-mechanic explainer for step 4.
+  // Lane-specific signature-mechanic explainer for the signature step.
   const signatureBody = lane === 'wit' ? (<>
-        <p><b>🧵 Long Thread</b> — your signature meter. Every turn you cast a wit Effect AND take no unblocked damage, your thread grows. Cards like <i>"is, perhaps, the natural conclusion."</i> deal <b>+N × thread</b> bonus damage. Defend like your life depends on the build.</p>
-        <p className="mt-2">Other wit-only tools you'll see: <b>📖 Footnote</b> (attach +1 wit to a phrase permanently), <b>🛑 Hold On —</b> (interrupt an enemy attack), <b>🎩 Opening Statement</b> (turn-1 burst damage). Build patiently, finish big.</p>
+        <p><b>🧵 Long Thread</b> — your defense engine. Every turn you cast a wit Effect AND take no unblocked HP damage, your thread grows by 1. While thread &gt; 0, incoming damage is reduced by <b>min(2, Thread)</b> per swing. The thread decays by 1 on an unblocked hit. Defend like your life depends on the build.</p>
+        <p className="mt-2">Other wit-only tools you'll meet: <b>📖 Footnote</b> (attach +1 wit to a phrase permanently — sticks across casts), <b>🛑 Hold on, hold on —</b> (reactive skill: reduce the next enemy swing by your current Thread). Build patiently, finish big.</p>
       </>)
     : lane === 'chutzpah' ? (<>
         <p><b>🔥 Tunnel Vision</b> — your signature meter. Each chutzpah card played adds +1 to the meter. At <b>5+</b>, you enter <b>RAGE</b> next turn: all chutzpah damage +50%. Ride it for the burst, but you can't play Skills during RAGE.</p>
@@ -9852,7 +9858,109 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
         <p className="mt-2">Other jnsq-only tools: <b>🤫 Awkward Pause</b> (hold the tray, double next cast), <b>🍺 Drunken Confidence</b> (Power — +50% damage but +2 incoming), <b>🌀 Stagger</b> (50% enemy miss chance).</p>
       </>);
 
-  const STEPS = [
+  // v3.4.51 — wit tutorial is fully expanded so a single practice match
+  // teaches the whole sentence-grammar + FFT + schools + buff system.
+  // Other lanes still get a shorter shared structure (they need their
+  // own treatment when those lanes are revisited).
+  const witSteps = [
+    {
+      title: `Welcome — ${laneName} practice match.`,
+      body: (<>
+        <p>The Bursar has offered to spar with you. <i>Verbally</i>, of course — wizards prefer it that way. He's pulling his punches; you can't actually lose this match.</p>
+        <p className="mt-2">Three card types: <b>Words</b> (intros / subjects / modifiers — stage into the Spell Tray) · <b>Effects</b> (targets — seal and cast the spell) · <b>Skills</b> (like Defend — do their thing immediately).</p>
+        <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), <b>Poise</b> (🪞), and <b>Energy</b> (⚡) at the bottom. Energy refills every turn — spend it on cards.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 1 — Play an INTRO word.',
+      body: (<>
+        <p>Look at your hand. <b>Word cards</b> have slot labels like INTRO, SUBJECT, or MODIFIER (top-left). They don't damage the enemy alone — they add stat points to your <b>Spell Tray</b> above the hand.</p>
+        <p className="mt-2">Find a card labeled <b>INTRO</b> and play it. Watch the Tray fill the intro slot.</p>
+      </>),
+      cta: '(play an Intro card)',
+      waitsForAction: true,
+    },
+    {
+      title: 'Step 2 — Play a SUBJECT word.',
+      body: (<>
+        <p>Every spell needs three slots filled to cast: <b>intro + subject + target</b>.</p>
+        <p className="mt-2">Many wit cards carry a small <b>row tag</b> (purple chip). Tagged cards from the SAME row chain into a <b>Fully Formed Thought</b> — a bonus rider on top of the cast.</p>
+        <p className="mt-2">Find a card labeled <b>SUBJECT</b> in your hand and play it. If it shares a row with your intro, watch the top of the screen for <b>"✨ THE SENTENCE FINISHES ITSELF"</b> — the game pulls the missing target from your deck for free.</p>
+      </>),
+      cta: '(play a Subject card)',
+      waitsForAction: true,
+    },
+    {
+      title: 'Step 3 — Stage a TARGET and CAST.',
+      body: (<>
+        <p>Both word slots are full. Now you need a <b>Target</b> card to seal and cast the spell.</p>
+        <p className="mt-2">Click a <b>TARGET</b> card — it goes to the tray. The tray shows a <b>Predicted damage</b> number and a Math line showing where it comes from. Click the big <b>✨ CAST</b> button to fire.</p>
+        <p className="mt-2">If all three staged cards share a row, the cast becomes a <b>Fully Formed Thought</b> and applies that row's rider effect — usually a damage-over-time stack or a special boon.</p>
+      </>),
+      cta: '(stage a Target, then click CAST)',
+      waitsForAction: true,
+    },
+    {
+      title: 'Step 4 — Fully Formed Thoughts and the three Schools.',
+      body: (<>
+        <p>You just cast a <b>Fully Formed Thought</b> — three cards from the same row landed together. The Bursar now has a <b>DoT counter</b> ticking down his Composure each turn (start with 3 / turn for 3 turns). DoTs are the lane's signature damage engine.</p>
+        <p className="mt-2">There are three FFT <b>Schools</b>:</p>
+        <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
+          <li><b>🌡 Slow Burn</b> — stacking damage-over-time. Cast another Slow Burn FFT and the waves add together. <i>Your starter is here.</i></li>
+          <li><b>🪞 Thorns</b> — counter-puncher. Casts route to player Block; reflect riders hurt the enemy when they attack.</li>
+          <li><b>🎺 Crescendo</b> — Words Bank ticks composure damage each turn; spend the Bank on Crescendo cards for big spikes.</li>
+        </ul>
+        <p className="mt-2">You'll draft new rows from elite and boss combats (full 3-card bundles).</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 5 — Long Thread (your defense engine).',
+      body: signatureBody,
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 6 — Resistances, defense, and pre-staging.',
+      body: (<>
+        <p><b>Effectiveness badges</b> next to the Intent show how the enemy reacts to each stat: <b>×1</b> baseline · <span className="text-moss-300">×1.5–2 susceptible</span> · <span className="text-ember-300">×0.5 resistant</span> · <span className="text-parchment-400">×0 immune</span>. Read it before you cast.</p>
+        <p className="mt-2"><b>Defend</b> grants Block (🛡) — absorbs HP damage. <b>Compose Yourself</b> grants Poise (🪞) — absorbs composure damage. Both reset at start of YOUR next turn — spend them this turn or lose them.</p>
+        <p className="mt-2"><b>Pre-staging cost:</b> staged cards <i>persist</i> across turns until you cast, but each one held over costs <b>1 Composure</b> per turn. Hold one card to set up cheap; hold three and bleed.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 7 — Buff cards you may draft.',
+      body: (<>
+        <p>A few skill cards will appear in your run rewards. Each one extends or amplifies an active state — no good if you haven't cast something first, devastating if you have:</p>
+        <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
+          <li><b>And Another Thing</b> — add 2 turns to your active enemy DoT.</li>
+          <li><b>Hidden Meaning</b> — add 2 damage to each remaining DoT tick.</li>
+          <li><b>I Already Thought of That</b> — extend your Thorns aura by 2 turns.</li>
+          <li><b>Enhanced Reasoning</b> — add 2 block to each remaining selfBlock tick.</li>
+          <li><b>You Know What I Mean</b> — your next half-formed FFT counts as the full row.</li>
+          <li><b>Myriad of Reasons</b> — pull a random intro AND subject from deck or discard.</li>
+        </ul>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 8 — Finish the match.',
+      body: (<>
+        <p>You've got the basics. Finish the Bursar at your leisure. Cards drift back into your deck via the discard pile; when your draw pile empties, the discard reshuffles in.</p>
+        <p className="mt-2">After this match, you'll be returned to the wizard select. Choose a wizard and walk the path.</p>
+      </>),
+      cta: 'Got it — finish him',
+      waitsForAction: false,
+    },
+  ];
+
+  const otherLaneSteps = [
     {
       title: `Welcome — ${laneName} practice match.`,
       body: (<>
@@ -9918,6 +10026,8 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       waitsForAction: false,
     },
   ];
+
+  const STEPS = lane === 'wit' ? witSteps : otherLaneSteps;
   const data = STEPS[Math.min(step, STEPS.length - 1)];
   if (step >= STEPS.length) return null;
 
