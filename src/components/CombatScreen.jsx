@@ -473,7 +473,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           const mirrorCount = mirrorReflectCharges?.count || 0;
           const mirrorCap = mirrorReflectCharges?.capPerHit || 0;
           const hasAny = Object.keys(buckets).length > 0 || annRed > 0 || enemySkipNextAttack
-                        || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0 || mirrorCount > 0;
+                        || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0 || mirrorCount > 0
+                        || tempHp > 0 || playerIncomingMult > 1.0;
           if (!hasAny) return null;
           const chips = [];
           if (enemySkipNextAttack) chips.push(<span key="skip" className="text-gold-300 cursor-help" title="The enemy's next attack will be fully skipped.">🤐 SKIP NEXT</span>);
@@ -937,6 +938,31 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (rider.draw) chips.push(`📥 +${rider.draw} draw`);
     if (rider.energy) chips.push(`⚡ +${rider.energy} energy`);
     if (rider.longThreadPerm) chips.push(`🧵 +${rider.longThreadPerm} thread`);
+    // v3.4.71 — chutzpah school riders.
+    if (rider.addPressure) chips.push(`🔥 +${rider.addPressure} Pressure`);
+    if (rider.pressureBonus) {
+      const cur = enemy?.pressure || 0;
+      chips.push(cur > 0 ? `🔥 +${cur} from Pressure` : `🔥 +Pressure bonus`);
+    }
+    if (rider.consumePressureMult) {
+      const cur = enemy?.pressure || 0;
+      const bonus = cur * rider.consumePressureMult;
+      chips.push(cur > 0 ? `🔥 Consume ${cur} Pressure × ${rider.consumePressureMult} = +${bonus}` : `🔥 Consume Pressure × ${rider.consumePressureMult}`);
+    }
+    if (rider.addTempHp) chips.push(`🎈 +${rider.addTempHp.amount} Temp HP × ${rider.addTempHp.turns}t`);
+    if (rider.consumeTempHpAsDamage) {
+      const cur = tempHp || 0;
+      const bonus = Math.round(cur * rider.consumeTempHpAsDamage);
+      chips.push(cur > 0 ? `🎈 Pop ${cur} Temp HP × ${rider.consumeTempHpAsDamage} = +${bonus}` : `🎈 Pop Temp HP × ${rider.consumeTempHpAsDamage}`);
+    }
+    if (rider.selfVulnerable) chips.push(`🩸 YOU Vuln ${rider.selfVulnerable.amount} × ${rider.selfVulnerable.turns}t`);
+    if (rider.rageDouble) chips.push(rageActive ? `💥 RAGE × 2 (active!)` : `💥 RAGE × 2 (if in RAGE)`);
+    if (rider.missingHpScaling) {
+      const missing = Math.max(0, (maxHp || 0) - (hp || 0));
+      const bonus = missing * rider.missingHpScaling;
+      chips.push(bonus > 0 ? `🩸 +${bonus} from missing HP` : `🩸 +N × missing HP`);
+    }
+    if (rider.addTunnelVision) chips.push(`🔥 +${rider.addTunnelVision} Tunnel Vision`);
     return chips;
   }
 
@@ -951,8 +977,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     const contrib = cardContribution(card, slotName);
     // v3.3: surface FFT row affiliation on the staged pill so the
     // player can SEE which school/row each card belongs to mid-cast.
-    const row = card.setId ? WIT_ROW_BY_ID[card.setId] : null;
-    const tierName = card.schoolId ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name || card.schoolId) : null;
+    const row = card.setId ? (WIT_ROW_BY_ID[card.setId] || CHUTZPAH_ROW_BY_ID[card.setId]) : null;
+    const tierName = card.schoolId
+      ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name
+         || CHUTZPAH_SAME_SCHOOL_BONUSES[card.schoolId]?.name
+         || card.schoolId)
+      : null;
     return (
       <motion.button key={card.uid}
         layout

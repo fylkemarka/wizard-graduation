@@ -396,16 +396,19 @@ const GESTURES = [
   { id: 'cv2-g-slams-table', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(SLAMS THE TABLE,)', tags: ['threatening', 'direct'],
     gestureEffect: { icon: '💥', damage: 6, damageType: 'composure', trayMultiplier: 1, rider: { vulnerable: 1 }, exhaust: true },
+    desc: 'Bypasses tray. Deal 6 composure. Apply 1 Vulnerable. Exhaust.',
     flavor: 'The table was a witness. The table is now also a victim.' },
   // v2.6: Pontification — high-cost monologue, NOT exhausted.
   { id: 'cv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
     phrase: 'GET A LOAD OF THIS:', tags: ['swaggering', 'direct'],
     gestureEffect: { icon: '📣', damage: 12, damageType: 'composure', trayMultiplier: 2, exhaust: false },
+    desc: 'Bypasses tray. Deal 12 composure. Reusable (does not exhaust).',
     flavor: 'A load is exactly what they are about to get.' },
   // v2.6: Quip — strip-block style threat.
   { id: 'cv2-g-quip-eyebrow', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(quip, with raised eyebrow,)', tags: ['dismissive', 'swaggering'],
     gestureEffect: { icon: '😏', damage: 4, damageType: 'composure', stripEnemyBlock: 6, exhaust: false },
+    desc: 'Bypasses tray. Deal 4 composure. Strip 6 enemy Block. Reusable.',
     flavor: 'The eyebrow is the threat. The quip is the apology for the eyebrow.' },
   // v3.0 multi-hit: HEADBUTT — chutzpah's "shake it off" gesture. Deals
   // physical damage on play AND arms next enemy attack: each swing
@@ -415,6 +418,7 @@ const GESTURES = [
   { id: 'cv2-g-headbutt', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(headbutt — no commentary)', tags: ['direct', 'threatening'],
     gestureEffect: { icon: '🪨', damage: 4, damageType: 'composure', rider: { nextAttackSwingReduction: 1 }, exhaust: true },
+    desc: "Bypasses tray. Deal 4 composure. Enemy's next attack: each swing −1 damage. Exhaust.",
     flavor: 'A philosophical question, answered with a noun.' },
 ];
 
@@ -529,6 +533,7 @@ const STARTER_CARDS = [
     name: 'Shove', phrase: '(a shove, brief and chiropractic,)',
     tags: ['threatening', 'direct'],
     gestureEffect: { icon: '👊', damage: 5, damageType: 'composure', exhaust: true },
+    desc: 'Bypasses tray. Deal 5 composure. Exhaust.',
     flavor: 'It is not subtle. It does not need to be.' },
 ];
 
