@@ -3930,6 +3930,11 @@ export default function App() {
   //     chosenMaterial: matObj | null, quality: 'rough'|'fine'|'master' | null,
   //     gaugeWidth: 0-1, result: cardObj | null }
   const [craftingPrompt, setCraftingPrompt] = useState(null);
+  // v3.4.64 (Alan): on boss defeat, the player picks one FFT row they
+  // own to upgrade (all 3 cards in that row). Fires BEFORE the crafting
+  // prompt. Stored as { rows: [WIT_ROW], pendingCraftPrompt: {...} }.
+  // After the player picks or skips, pendingCraftPrompt is launched.
+  const [bossFftUpgradeChoice, setBossFftUpgradeChoice] = useState(null);
   // Card-upgrade picker at rest sites. When set, shows the deck and lets
   // the player pick one non-upgraded card to upgrade.
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -3974,6 +3979,28 @@ export default function App() {
   // v3.4.56 — one-shot side effects when a relic is acquired (not on combat
   // entry — those are handled by onCombatStart in the existing pipeline).
   // Handles: maxComposurePlus, upgradeRandomCards, upgradeRandomFFTRow.
+  // v3.4.64 — boss FFT upgrade choice resolution. setId = the picked
+  // row id, or null if the player skipped. After resolution, kicks the
+  // pending craft prompt and stages 'crafting'.
+  function resolveBossFftUpgrade(setId) {
+    const choice = bossFftUpgradeChoice;
+    if (!choice) return;
+    if (setId) {
+      const upgradeRowCard = (c) => (c.setId === setId && !c.upgraded) ? upgradeCard(c) : c;
+      setDeck(prev => prev.map(upgradeRowCard));
+      setDiscard(prev => prev.map(upgradeRowCard));
+      setHand(prev => prev.map(upgradeRowCard));
+      setExiled(prev => prev.map(upgradeRowCard));
+      const row = WIT_ROW_BY_ID[setId];
+      pushLog(`📜 Upgraded FFT row "${row?.name || setId}" (all 3 cards).`);
+    } else {
+      pushLog(`📜 No FFT row upgraded (skipped).`);
+    }
+    setBossFftUpgradeChoice(null);
+    setCraftingPrompt(choice.pendingCraftPrompt);
+    setStage('crafting');
+  }
+
   function applyRelicOnAcquire(relic) {
     const on = relic?.effect?.onAcquire;
     if (!on) return;
@@ -9501,8 +9528,8 @@ export default function App() {
       setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards]);
       setHand([]); setDiscard([]); setExiled([]);
       setTray(initialV2Tray());
-      pushLog(`👑 ${enemy.name} falls. Time to craft your ${SLOT_LABEL[slot]}.`);
-      setCraftingPrompt({
+      pushLog(`👑 ${enemy.name} falls.`);
+      const craftPrompt = {
         slot,
         skillName,
         materials,
@@ -9512,7 +9539,38 @@ export default function App() {
         quality: null,
         result: null,
         salvaged: gathered.length === 0,
-      });
+      };
+      // v3.4.64 — if wit lane AND player owns at least one FFT row,
+      // offer an FFT row upgrade choice BEFORE crafting.
+      if (selectedCharacter?.lane === 'wit') {
+        const owned = {};
+        for (const list of [hand, discard, exiled, [...trayCards]]) {
+          for (const c of list) {
+            if (c.setId) owned[c.setId] = true;
+          }
+        }
+        // Also check the deck snapshot just written: the deck we just
+        // built includes everything, so check that.
+        const fullDeckCheck = [...hand, ...discard, ...exiled, ...trayCards];
+        for (const c of fullDeckCheck) {
+          if (c.setId) owned[c.setId] = true;
+        }
+        const rowIds = Object.keys(owned);
+        // Filter out rows that are already fully upgraded in every owned card.
+        const eligibleRowIds = rowIds.filter(setId => {
+          const allCardsOfRow = fullDeckCheck.filter(c => c.setId === setId);
+          return allCardsOfRow.some(c => !c.upgraded);
+        });
+        const rows = eligibleRowIds.map(id => WIT_ROW_BY_ID[id]).filter(Boolean);
+        if (rows.length > 0) {
+          setBossFftUpgradeChoice({ rows, pendingCraftPrompt: craftPrompt });
+          pushLog(`📜 Choose an FFT row to upgrade (boss reward).`);
+          setStage('boss-fft-upgrade');
+          return;
+        }
+      }
+      pushLog(`Time to craft your ${SLOT_LABEL[slot]}.`);
+      setCraftingPrompt(craftPrompt);
       setStage('crafting');
       return;
     }
@@ -10017,6 +10075,10 @@ export default function App() {
     eventTitle={skillMinigame.eventTitle}
     choiceLabel={skillMinigame.choiceLabel}
     onComplete={finalizeSkillMinigame} />;
+  if (stage === 'boss-fft-upgrade') return <BossFftUpgradeScreen
+    choice={bossFftUpgradeChoice}
+    onPick={resolveBossFftUpgrade}
+    onSkip={() => resolveBossFftUpgrade(null)} />;
   if (stage === 'crafting') return <CraftingScreen
     prompt={craftingPrompt}
     onPickMaterial={craftingPickMaterial}
@@ -10752,6 +10814,46 @@ function WitRowSelectScreen({ onPick }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function BossFftUpgradeScreen({ choice, onPick, onSkip }) {
+  if (!choice) return null;
+  const rows = choice.rows || [];
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-4 max-w-3xl mx-auto">
+      <div className="text-center">
+        <div className="text-xs uppercase tracking-widest text-gold-300 font-display">👑 Boss reward</div>
+        <h1 className="text-3xl font-display text-iris-200 mt-1">Upgrade an FFT row</h1>
+        <p className="text-sm text-parchment-300 mt-2">All 3 cards in the chosen row gain their tier-2 stats. Skip to take no upgrade.</p>
+      </div>
+      <div className="flex flex-col gap-3 w-full">
+        {rows.map(row => (
+          <button key={row.id}
+            onClick={() => onPick(row.id)}
+            className="parchment-card-strong p-4 text-left hover:border-iris-400 border-2 border-transparent transition-colors">
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="font-display text-lg text-iris-200">{row.name}</div>
+              <div className="text-[10px] uppercase tracking-widest text-parchment-400">
+                {row.schoolId}
+              </div>
+            </div>
+            {row.canonical && (
+              <div className="text-sm font-quill italic text-parchment-300 mt-1">"{row.canonical}"</div>
+            )}
+            {row.riderDesc && (
+              <div className="text-xs text-parchment-300 mt-2">
+                <span className="text-iris-300 uppercase tracking-wider">Rider:</span> {row.riderDesc}
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+      <button onClick={onSkip}
+        className="text-xs text-parchment-400 hover:text-parchment-200 uppercase tracking-widest mt-2">
+        Skip (no upgrade)
+      </button>
     </div>
   );
 }
