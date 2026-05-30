@@ -220,7 +220,7 @@ const CARDS = [
   // POWERS — install on the field, trigger via turn hooks.
   // =============================================================================
   { id: 'p-borrowed-confidence', name: 'Borrowed Confidence',
-    cost: 1, type: 'power', rarity: 'common',
+    cost: 2, type: 'power', rarity: 'common',
     power: { startOfTurn: { block: 2 } }, upgrade: { power: { startOfTurn: { block: 3 } } },
     desc: 'At the start of each turn, gain 2 Block.',
     flavor: 'On loan from someone who needed it less.' },
