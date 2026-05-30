@@ -3318,6 +3318,23 @@ export default function App() {
   // v2.10: pull annotation effect value (0 if no annotation or key missing).
   function annoFx(key) { return enemy?.annotation?.effect?.[key] || 0; }
   function adjustPlayerDmg(delta) { setPlayerDmgMult(m => Math.max(0.5, Math.min(1.5, m + delta))); }
+  // v3.4.43 (Alan): weak/vuln were permanent damageMult adjustments — paying
+  // 1 energy to permanently debuff was OP. Now expires after WEAK_VULN_DURATION
+  // enemy turns. Applies the mult immediately AND queues a 'weakExpire' /
+  // 'vulnExpire' scheduledEffect that reverses the adjustment on expire.
+  const WEAK_VULN_DURATION = 3;
+  function applyExpiringWeak(stacks) {
+    if (!stacks) return;
+    const delta = -0.25 * stacks;
+    adjustEnemyDmg(delta);
+    setScheduledEffects(s => [...s, { trigger: 'enemy-turn-start', kind: 'weakExpire', amount: -delta, turnsRemaining: WEAK_VULN_DURATION }]);
+  }
+  function applyExpiringVuln(stacks) {
+    if (!stacks) return;
+    const delta = +0.25 * stacks;
+    adjustPlayerDmg(delta);
+    setScheduledEffects(s => [...s, { trigger: 'enemy-turn-start', kind: 'vulnExpire', amount: -delta, turnsRemaining: WEAK_VULN_DURATION }]);
+  }
   // Attack counter for everyNthAttack relic hooks (resets each combat).
   // Count of effect cards cast this run (drives everyNthEffect relic).
   const [effectCount, setEffectCount] = useState(0);
@@ -4981,7 +4998,24 @@ export default function App() {
   function enterFight(enemyId, opts = {}) {
     const tmpl = ENEMIES_BY_ID[enemyId];
     if (!tmpl) return;
-    const e = { ...tmpl, annotation: null }; // v2.10: fresh annotation slot per combat
+    // v3.4.44 (Alan: "I'm winning every time with virtually no difficulty").
+    // Global difficulty scalar. Bumps composure, HP, and per-behavior attack
+    // values for every enemy. 1.25 = 25% harder; tuneable.
+    const DIFFICULTY_MULT = 1.25;
+    const scaledBehaviors = (tmpl.behaviors || []).map(b => {
+      if (b.kind === 'attack' || b.kind === 'attack-multi') {
+        const newVal = Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT));
+        return { ...b, value: newVal, telegraph: b.telegraph ? b.telegraph.replace(/\d+/, String(newVal)) : b.telegraph };
+      }
+      return b;
+    });
+    const e = {
+      ...tmpl,
+      annotation: null,
+      composureMax: Math.round((tmpl.composureMax || 0) * DIFFICULTY_MULT),
+      hpMax: tmpl.hpMax >= 900 ? tmpl.hpMax : Math.round((tmpl.hpMax || 0) * DIFFICULTY_MULT),
+      behaviors: scaledBehaviors,
+    };
     logEvent(TE.COMBAT_START, { enemyId: e.id, enemyName: e.name, tier: e.tier, act: e.act, hp, composure, deckSize: deck.length + hand.length + discard.length, equipment: equipment.map(eq => eq.id), piles: pilesSnapshot() });
     setEnemy(e);
     setEnemyComposure(e.composureMax);
@@ -5496,8 +5530,8 @@ export default function App() {
       if (dmgType === 'physical') applyDamageToEnemyHp(dmg);
       else                        applyDamageToEnemyComposure(dmg);
       // Apply riders (weak/vulnerable on the enemy).
-      if (ge.rider?.weak)       { adjustEnemyDmg(-0.25 * ge.rider.weak);  pushLog(`💢 enemy −${25*ge.rider.weak}% atk`); }
-      if (ge.rider?.vulnerable) { adjustPlayerDmg(+0.25 * ge.rider.vulnerable); pushLog(`🩸 enemy Vulnerable +${ge.rider.vulnerable} (your spells +${25*ge.rider.vulnerable}%)`); }
+      if (ge.rider?.weak)       { applyExpiringWeak(ge.rider.weak);  pushLog(`💢 enemy −${25*ge.rider.weak}% atk (3 turns)`); }
+      if (ge.rider?.vulnerable) { applyExpiringVuln(ge.rider.vulnerable); pushLog(`🩸 enemy Vulnerable +${ge.rider.vulnerable} (your spells +${25*ge.rider.vulnerable}%, 3 turns)`); }
       if (ge.rider?.block)      { setBlock(b => b + ge.rider.block); pushLog(`🛡 +${ge.rider.block}`); }
       // v3.0 multi-hit: gestures can arm a per-swing reduction.
       if (ge.rider?.nextAttackSwingReduction) {
@@ -6500,8 +6534,8 @@ export default function App() {
         pushLog(`⚡ +${chaosOutcome.energyNext} Energy (chaos)`);
       }
       if (chaosOutcome.vuln > 0) {
-        adjustPlayerDmg(+0.25 * chaosOutcome.vuln);
-        pushLog(`💫 +${25*chaosOutcome.vuln}% potency (cosmic alignment)`);
+        applyExpiringVuln(chaosOutcome.vuln);
+        pushLog(`💫 +${25*chaosOutcome.vuln}% potency (cosmic alignment, 3 turns)`);
       }
       // Roll consumed; reset the opt-in toggle.
       setRollOptIn(false);
@@ -6514,8 +6548,8 @@ export default function App() {
     pushLog(`🎯 ${tierLabel} (×${TIER_MULTIPLIER[tier] || 1.0}) → ${dmgTagSuffix}`);
 
     // Riders.
-    if (riders.weak)       { adjustEnemyDmg(-0.25 * riders.weak);  pushLog(`💢 enemy −${25*riders.weak}% atk`); }
-    if (riders.vulnerable) { adjustPlayerDmg(+0.25 * riders.vulnerable); pushLog(`💫 +${25*riders.vulnerable}% potency`); }
+    if (riders.weak)       { applyExpiringWeak(riders.weak);  pushLog(`💢 enemy −${25*riders.weak}% atk (3 turns)`); }
+    if (riders.vulnerable) { applyExpiringVuln(riders.vulnerable); pushLog(`💫 +${25*riders.vulnerable}% potency (3 turns)`); }
     if (riders.block)      { setBlock(b => b + riders.block); pushLog(`🛡 +${riders.block}`); }
 
     // Side effects (draw, self-composure cost, self-HP cost).
@@ -6811,8 +6845,8 @@ export default function App() {
     pushLog(`🎯 ${(card.name || '').toUpperCase()} — ${dmgTag}`);
 
     const rider = eff.rider || {};
-    if (rider.weak)       { adjustEnemyDmg(-0.25 * rider.weak);  pushLog(`💢 enemy −${25*rider.weak}% atk`); }
-    if (rider.vulnerable) { adjustPlayerDmg(+0.25 * rider.vulnerable); pushLog(`💫 +${25*rider.vulnerable}% potency`); }
+    if (rider.weak)       { applyExpiringWeak(rider.weak);  pushLog(`💢 enemy −${25*rider.weak}% atk (3 turns)`); }
+    if (rider.vulnerable) { applyExpiringVuln(rider.vulnerable); pushLog(`💫 +${25*rider.vulnerable}% potency (3 turns)`); }
     if (rider.block)      { setBlock(b => b + rider.block);          pushLog(`🛡 +${rider.block}`); }
     if (rider.draw)       { drawCards(rider.draw);                   pushLog(`+${rider.draw} draw`); }
     // Chutzpah-archetype effects: pay HP to cast.
@@ -6978,8 +7012,8 @@ export default function App() {
       logBits.push(`💪 next Chutzpah cast +${Math.round(fx.boostNextChutzpahCast * 100)}%`);
     }
     if (fx.vulnerable) {
-      adjustPlayerDmg(+0.25 * fx.vulnerable);
-      logBits.push(`🩸 enemy Vulnerable +${fx.vulnerable} (your spells +${25*fx.vulnerable}%)`);
+      applyExpiringVuln(fx.vulnerable);
+      logBits.push(`🩸 enemy Vulnerable +${fx.vulnerable} (your spells +${25*fx.vulnerable}%, 3 turns)`);
     }
     // Direct multiplier ops (Sap / Amplify / Dispel and any new modifier card).
     if (fx.enemyDmgMod) {
@@ -6993,8 +7027,8 @@ export default function App() {
       logBits.push(`💫 ${pct > 0 ? '+' : ''}${pct}% potency`);
     }
     if (fx.weak) {
-      adjustEnemyDmg(-0.25 * fx.weak);
-      logBits.push(`💢 enemy −${25*fx.weak}% atk`);
+      applyExpiringWeak(fx.weak);
+      logBits.push(`💢 enemy −${25*fx.weak}% atk (3 turns)`);
     }
     // v2.32: NOT LISTENING — debuff cleanse. removeWeak scrubs player-side
     // weakness (playerDmgMult below 1.0) back toward neutral; removeVulnerable
@@ -7332,8 +7366,8 @@ export default function App() {
     // Apply Vulnerable to the enemy from a side-effect path (used by
     // chance.success in some Jnsq effects).
     if (fx.enemyVulnerable) {
-      adjustPlayerDmg(+0.25 * fx.enemyVulnerable);
-      logBits.push(`💫 +${25*fx.enemyVulnerable}% potency`);
+      applyExpiringVuln(fx.enemyVulnerable);
+      logBits.push(`💫 +${25*fx.enemyVulnerable}% potency (3 turns)`);
     }
     // v2.45: APOLOGY — discard the entire spell tray (intro/subject/target/
     // modifiers all go to discard, no energy refund). The hp+4 and
@@ -7563,12 +7597,12 @@ export default function App() {
       bits.push(`🛡 +${effects.block}`);
     }
     if (effects.vulnerable) {
-      adjustPlayerDmg(+0.25 * effects.vulnerable);
-      bits.push(`💫 +${25*effects.vulnerable}% potency`);
+      applyExpiringVuln(effects.vulnerable);
+      bits.push(`💫 +${25*effects.vulnerable}% potency (3 turns)`);
     }
     if (effects.weak) {
-      adjustEnemyDmg(-0.25 * effects.weak);
-      bits.push(`💢 enemy −${25*effects.weak}% atk`);
+      applyExpiringWeak(effects.weak);
+      bits.push(`💢 enemy −${25*effects.weak}% atk (3 turns)`);
     }
     if (effects.energy) {
       setEnergy(e => e + effects.energy);
@@ -8146,8 +8180,8 @@ export default function App() {
       const bits = [`📿 ${p.name}`];
       if (trig.block)      { wBlock += trig.block;   bits.push(`🛡 +${trig.block}`); }
       if (trig.energy)     { wEnergy += trig.energy; bits.push(`+${trig.energy} Energy`); }
-      if (trig.vulnerable) { adjustPlayerDmg(+0.25 * trig.vulnerable); bits.push(`💫 +${25*trig.vulnerable}% potency`); }
-      if (trig.weak)       { adjustEnemyDmg(-0.25 * trig.weak);        bits.push(`💢 enemy −${25*trig.weak}% atk`); }
+      if (trig.vulnerable) { applyExpiringVuln(trig.vulnerable); bits.push(`💫 +${25*trig.vulnerable}% potency (3 turns)`); }
+      if (trig.weak)       { applyExpiringWeak(trig.weak);       bits.push(`💢 enemy −${25*trig.weak}% atk (3 turns)`); }
       if (trig.draw) {
         for (let i = 0; i < trig.draw; i++) {
           if (wDeck.length === 0) {
@@ -8360,6 +8394,7 @@ export default function App() {
       let vulnStacks = 0;
       let dormantBurst = 0;
       let bankDoubled = false;
+      let weakExpiring = 0, vulnExpiring = 0;
       for (const eff of scheduledEffects) {
         if (eff.trigger !== 'enemy-turn-start') {
           remaining.push(eff);
@@ -8371,17 +8406,30 @@ export default function App() {
         else if (eff.kind === 'dormantDamage' && eff.turnsRemaining <= 1) {
           dormantBurst += eff.amount;
         }
+        // v3.4.43 — weak/vuln expire ticks. amount field stores the REVERSE
+        // mult delta. When turnsRemaining hits 0, apply the reverse to
+        // restore enemyDmgMult / playerDmgMult.
+        else if (eff.kind === 'weakExpire' && eff.turnsRemaining <= 1) weakExpiring += eff.amount;
+        else if (eff.kind === 'vulnExpire' && eff.turnsRemaining <= 1) vulnExpiring += eff.amount;
         if (eff.turnsRemaining > 1) {
           remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
         }
       }
+      if (weakExpiring > 0) {
+        adjustEnemyDmg(weakExpiring);
+        pushLog(`💢 Weak debuff expired (enemy attack restored).`);
+      }
+      if (vulnExpiring > 0) {
+        adjustPlayerDmg(vulnExpiring);
+        pushLog(`🩸 Vulnerable debuff expired.`);
+      }
       if (weakStacks > 0) {
-        adjustEnemyDmg(-0.25 * weakStacks);
-        pushLog(`🌡 Slow Burn: enemy weakened by ${weakStacks} stack${weakStacks > 1 ? 's' : ''}.`);
+        applyExpiringWeak(weakStacks);
+        pushLog(`🌡 Slow Burn: enemy weakened by ${weakStacks} stack${weakStacks > 1 ? 's' : ''} (3 turns).`);
       }
       if (vulnStacks > 0) {
-        adjustPlayerDmg(+0.25 * vulnStacks);
-        pushLog(`🩸 Slow Burn: enemy Vulnerable +${vulnStacks} (your spells +${25 * vulnStacks}%).`);
+        applyExpiringVuln(vulnStacks);
+        pushLog(`🩸 Slow Burn: enemy Vulnerable +${vulnStacks} (your spells +${25 * vulnStacks}%, 3 turns).`);
       }
       if (dormantBurst > 0) {
         // v3.3 bugfix (same as DoT above): bypass block to avoid the
@@ -8633,8 +8681,8 @@ export default function App() {
           applyDamageToEnemyComposure(initialThorns.amount);
           let logExtra = '';
           if (initialThorns.weakOnReflect > 0) {
-            adjustEnemyDmg(-0.25 * initialThorns.weakOnReflect);
-            logExtra = ` + Weak ${initialThorns.weakOnReflect}`;
+            applyExpiringWeak(initialThorns.weakOnReflect);
+            logExtra = ` + Weak ${initialThorns.weakOnReflect} (3 turns)`;
           }
           pushLog(`🌹 Thorns: ${initialThorns.amount} comp reflected${logExtra}.`);
           // Only decrement discrete count if the aura isn't paying for this hit.

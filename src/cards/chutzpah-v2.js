@@ -14,14 +14,14 @@ const INTROS = [
   { id: 'cv2-i-look', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Look,', tags: ['direct', 'demanding'], stats: { chutzpah: 1 },
     flavor: 'Two letters. One verb. Full sentence.' },
-  { id: 'cv2-i-listen-pal', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
+  { id: 'cv2-i-listen-pal', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 2, type: 'word',
     phrase: 'Listen pal,', tags: ['demanding', 'direct'], stats: { chutzpah: 1 },
     effects: { weak: 1 },
     flavor: 'Pal is doing a lot of work here.' },
   { id: 'cv2-i-hey-now', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Hey now,', tags: ['demanding', 'dismissive'], stats: { chutzpah: 1 },
     flavor: 'Now being the operative word.' },
-  { id: 'cv2-i-buddy', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
+  { id: 'cv2-i-buddy', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 2, type: 'word',
     phrase: 'Buddy,', tags: ['dismissive', 'direct'], stats: { chutzpah: 1 },
     effects: { vulnerable: 1 },
     flavor: 'The friendliest insult in the language.' },
@@ -35,7 +35,7 @@ const INTROS = [
     flavor: 'Bluntness is, today, the only currency I have.' },
 
   // ---- Common (12) ----
-  { id: 'cv2-i-listen-carefully', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+  { id: 'cv2-i-listen-carefully', slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'word',
     phrase: 'Listen carefully now,', tags: ['demanding', 'threatening'], stats: { chutzpah: 2 },
     effects: { weak: 1 },
     flavor: 'The careful is for them, not you.' },
@@ -130,7 +130,7 @@ const SUBJECTS = [
   { id: 'cv2-s-this-nonsense', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'this nonsense', tags: ['dismissive'], stats: { chutzpah: 1 },
     flavor: 'Diagnosis: nonsense. Prognosis: about to be over.' },
-  { id: 'cv2-s-your-attitude', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
+  { id: 'cv2-s-your-attitude', slot: 'subject', tier: 1, rarity: 'basic', lane: LANE, cost: 2, type: 'word',
     phrase: 'your attitude', tags: ['dismissive', 'direct'], stats: { chutzpah: 1 },
     effects: { vulnerable: 1 },
     flavor: 'Attitude being a thing that can, in fact, be confiscated.' },
@@ -577,7 +577,7 @@ const SAYING_IT_LOUDER_TARGETS = SAYING_IT_LOUDER_CARDS.filter(c => c.slot === '
 // subject first to apply Vuln, then cast with the predator target for the
 // +6. Pairs naturally with any other Vuln/Weak applier already in the lane.
 const SMELL_WEAKNESS_CARDS = [
-  { id: 'cv2-s-blood-in-water', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+  { id: 'cv2-s-blood-in-water', slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'word',
     phrase: 'smells like blood in the water,', tags: ['threatening', 'dismissive'], stats: { chutzpah: 2 },
     effects: { vulnerable: 1 },
     desc: 'Stage: apply Vulnerable 1.',

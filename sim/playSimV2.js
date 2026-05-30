@@ -656,7 +656,13 @@ function pickBestModifier(state, energyLeft, tier, bossFight, loudTargetStaged =
 function runCombat(state, enemyId, telemetry) {
   const tmpl = ENEMIES_BY_ID[enemyId];
   if (!tmpl) throw new Error(`Unknown enemy ${enemyId}`);
-  const enemy = { ...tmpl, currentComp: tmpl.comp, currentHp: tmpl.hp, block: 0 };
+  // v3.4.44 — match App.jsx DIFFICULTY_MULT (1.25). Sim enemy comp/hp/atk
+  // scaled to mirror what the live build now spawns.
+  const DIFFICULTY_MULT = 1.25;
+  const scaledComp = Math.round((tmpl.comp || 0) * DIFFICULTY_MULT);
+  const scaledHp = (tmpl.hp >= 900) ? tmpl.hp : Math.round((tmpl.hp || 0) * DIFFICULTY_MULT);
+  const scaledAtk = Math.max(1, Math.round((tmpl.atk || 0) * DIFFICULTY_MULT));
+  const enemy = { ...tmpl, atk: scaledAtk, comp: scaledComp, hp: scaledHp, startComp: scaledComp, currentComp: scaledComp, currentHp: scaledHp, block: 0 };
   state.block = 0;
   state.poise = 0; // v2.9: composure-shield
   state.combatRolls = []; // v2.12: track chaos rolls this combat

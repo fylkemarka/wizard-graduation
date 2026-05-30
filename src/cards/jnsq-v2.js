@@ -25,7 +25,7 @@ const INTROS = [
   { id: 'jv2-i-now', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
     phrase: 'Now,', tags: ['theatrical', 'chaotic'], stats: { jnsq: 1 },
     flavor: 'Now is a long time in jnsq.' },
-  { id: 'jv2-i-funny-thing', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'word',
+  { id: 'jv2-i-funny-thing', slot: 'intro', tier: 1, rarity: 'basic', lane: LANE, cost: 2, type: 'word',
     phrase: 'Funny thing —', tags: ['conspiratorial', 'chaotic'], stats: { jnsq: 1 },
     effects: { vulnerable: 1 },
     flavor: 'It will not be funny. It will be a thing.' },

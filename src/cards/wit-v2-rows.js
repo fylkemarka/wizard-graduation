@@ -124,8 +124,8 @@ export const WIT_ROWS = [
     id: 'slowburn-8', schoolId: 'slowburn', name: 'The Festering Wound',
     canonical: 'If memory serves, your conclusion will fester.',
     introId: 'wv2-i-memory-serves', subjectId: 'wv2-s-silk-before-8', targetId: 'wv2-t-not-what-one-wears-after',
-    rider: { setDotMinDamage: 3, setDotMinTurns: 4, enemyVulnPerTurn: { amount: 1, turns: 4 } },
-    riderDesc: 'DoT 3 composure/turn × 4 turns AND Vulnerable 1× each turn.',
+    rider: { setDotMinDamage: 3, setDotMinTurns: 4, enemyVulnPerTurn: { amount: 1, turns: 3 } },
+    riderDesc: 'DoT 3 composure/turn × 4 turns AND Vulnerable 1× each turn × 3.',
   },
 
   // ---- Thorns (Counter-Puncher) ----
