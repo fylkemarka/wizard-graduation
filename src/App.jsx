@@ -8246,7 +8246,11 @@ export default function App() {
         && newComposure > 0 && newComposure <= enemy.composureMax * 0.5) {
       setEnemy(e => e ? { ...e, phaseShifted: true,
         effectiveness: { ...e.effectiveness, wit: 0.5 } } : e);
-      pushLog('🕸 Silk Wraith thins — words slide through it (wit-resistant, regenerating).');
+      pushLog('━━━━━━━━━━━━━━━━━━━━━━━');
+      pushLog('🕸 PHASE SHIFT — Silk Wraith thins!');
+      pushLog('   • Words now slide through it (wit ×0.5).');
+      pushLog('   • Re-weaves +1 Composure at the start of every enemy turn.');
+      pushLog('━━━━━━━━━━━━━━━━━━━━━━━');
     }
     if (newComposure <= 0) setTimeout(() => onEnemyDefeated(), 200);
     return newComposure;

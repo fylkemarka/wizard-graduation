@@ -152,6 +152,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 ✨{enemyComposure}<span className="text-[11px] text-parchment-300">/{composureMax}</span>
               </span>
             )}
+            {/* v3.4.60 — Silk Wraith phase-shift composure regen. Persistent
+                chip so the player understands why their drain isn't sticking. */}
+            {enemy?.id === 'e2-silk-wraith' && enemy?.phaseShifted && (
+              <span className="text-[11px] font-mono text-moss-300 cursor-help"
+                    title="The Silk Wraith has phase-shifted (at ≤50% Composure). It re-weaves +1 Composure at the start of each of its turns, and is wit-resistant (×0.5).">
+                🕸 +1 comp/turn
+              </span>
+            )}
             {showHp && (
               <span className="text-base font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
                 ❤{enemyHp}<span className="text-[11px] text-parchment-300">/{hpMax}</span>
