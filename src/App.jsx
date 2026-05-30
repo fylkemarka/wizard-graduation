@@ -194,6 +194,54 @@ const CARDS = [
     desc: '5 Composure damage. Draw 1.',
     flavor: 'The line was already there. You just delivered it.' },
 
+  // ---- v3.4.59 (Alan) — Universal-lane utility / tempo skills + powers.
+  { id: 'c-take-as-compliment', name: "I'll Take That as a Compliment", cost: 2, type: 'skill', rarity: 'uncommon',
+    effects: { block: 5, complimentHealOnAbsorb: 5, exhaust: true },
+    upgrade: { effects: { block: 7, complimentHealOnAbsorb: 7, exhaust: true } },
+    desc: 'Gain 5 Block. At end of turn, heal HP for damage this Block absorbed (max 5). Exhaust.',
+    flavor: 'Thank you. Really. It means a lot.' },
+  { id: 'c-speechless', name: 'Speechless', cost: 2, type: 'skill', rarity: 'uncommon',
+    effects: { enemySkipNextTurn: true, exhaust: true },
+    upgrade: { effects: { enemySkipNextTurn: true, draw: 1, exhaust: true } },
+    desc: 'The enemy is stunned — they lose their next turn entirely. Exhaust.',
+    flavor: 'They had something prepared. They no longer do.' },
+  { id: 'c-when-youre-older', name: "I'll Tell You When You're Older", cost: 3, type: 'skill', rarity: 'rare',
+    effects: { delayedComposureDamage: { amount: 21, delay: 3 }, exhaust: true },
+    upgrade: { effects: { delayedComposureDamage: { amount: 27, delay: 3 }, exhaust: true } },
+    desc: 'Deal 21 composure damage to the enemy 3 turns from now. Exhaust.',
+    flavor: 'For now, you simply file it.' },
+  { id: 'c-know-what-to-say', name: 'I Know Just What to Say', cost: 1, type: 'skill', rarity: 'common',
+    effects: { nextCardFree: true, exhaust: true },
+    upgrade: { effects: { nextCardFree: true, draw: 1, exhaust: true } },
+    desc: 'Your next card played this turn costs 0. Exhaust.',
+    flavor: 'You did, in fact, know just what to say.' },
+  { id: 'c-kind-word', name: 'A Kind Word', cost: 2, type: 'skill', rarity: 'common',
+    effects: { hp: 4, composure: 4, exhaust: true },
+    upgrade: { effects: { hp: 6, composure: 6, exhaust: true } },
+    desc: 'Heal 4 HP and 4 Composure. Exhaust.',
+    flavor: 'Brief. Unrehearsed. The room exhales.' },
+  // ---- Powers (rest of combat) ----
+  { id: 'c-subject-matter-expert', name: 'Subject Matter Expert', cost: 2, type: 'power', rarity: 'uncommon',
+    installPower: { id: 'subjectCheaper' },
+    desc: 'Power. All Subject cards cost 1 less for the rest of combat (min 0).',
+    flavor: 'They asked you. They keep asking you.' },
+  { id: 'c-allow-me-to-introduce', name: 'Allow Me to Introduce Myself', cost: 2, type: 'power', rarity: 'uncommon',
+    installPower: { id: 'introCheaper' },
+    desc: 'Power. All Intro cards cost 1 less for the rest of combat (min 0).',
+    flavor: 'They had heard. They wanted to hear it from you.' },
+  { id: 'c-intended-effect', name: 'Intended Effect', cost: 3, type: 'power', rarity: 'rare',
+    installPower: { id: 'targetCheaper' },
+    desc: 'Power. All Effect (target) cards cost 1 less for the rest of combat (min 0).',
+    flavor: 'The arrow finds the gap. Did not look for it. Found it.' },
+  { id: 'c-keynote-speaker', name: 'Keynote Speaker', cost: 3, type: 'power', rarity: 'rare',
+    installPower: { id: 'offensiveFftAmp25' },
+    desc: 'Power. All offensive FFT casts deal +25% damage, including DoT ticks. Rest of combat.',
+    flavor: 'The applause was, in retrospect, pre-arranged.' },
+  { id: 'c-speak-to-my-agent', name: 'Speak to My Agent', cost: 2, type: 'power', rarity: 'uncommon',
+    installPower: { id: 'defensiveFftAmp25' },
+    desc: 'Power. All defensive FFT amounts (Block, Thorns reflect, defense-over-time) +25%. Rest of combat.',
+    flavor: 'You no longer take meetings yourself.' },
+
   // ---- MODIFIER SKILLS — stacking toward [0.5, 1.5] caps ----
   // v2.65: per-play shift dropped 0.25 → 0.15. Combined with the
   // slower 0.10/turn drift, you now need 3-4 plays to reach the cap
@@ -3596,6 +3644,14 @@ export default function App() {
   // v3.4.57 — "The Tutor": next intro+subject same-row stage auto-pulls
   // the matching target from deck/discard. Consumed only on pull.
   const [tutorArmed, setTutorArmed] = useState(false);
+  // v3.4.59 — "I Know Just What to Say": next card played costs 0.
+  const [nextCardFree, setNextCardFree] = useState(false);
+  // v3.4.59 — "Speechless": enemy's next intent (any kind) is skipped.
+  const [enemySkipNextTurn, setEnemySkipNextTurn] = useState(false);
+  // v3.4.59 — "I'll Take That as a Compliment": HP heal at end of turn for
+  // damage absorbed by THIS card's block contribution. Stores the block
+  // snapshot right after the card was played + the heal cap (5).
+  const [complimentSnap, setComplimentSnap] = useState(null);
   // v3.4.55 (Alan) — next-spell modifier flags. All single-use; consumed
   // on the next applicable cast. Reset per combat.
   const [nextSpellDoubleInitial, setNextSpellDoubleInitial] = useState(false);
@@ -5244,6 +5300,9 @@ export default function App() {
     setNextSpellAddDefensiveDot(false);
     setNextSpellApplyToAll(false);
     setTutorArmed(false);
+    setNextCardFree(false);
+    setEnemySkipNextTurn(false);
+    setComplimentSnap(null);
     setWordsBank(0);
     // v3.4.23 — Crescendo buildup resets per combat.
     setCrescendoBuildup(0);
@@ -5453,7 +5512,15 @@ export default function App() {
   // unchanged; Amplify escalates by +1 for every prior play this combat.
   function effectiveCardCost(card) {
     if (card?.id === 'c-amplify') return (card.cost || 0) + amplifyPlaysThisCombat;
-    return card?.cost || 0;
+    let c = card?.cost || 0;
+    // v3.4.59 — slot-cost-reduction powers.
+    const hasPower = (id) => powers.some(p => p.installPower?.id === id);
+    if (card?.slot === 'intro' && hasPower('introCheaper')) c = Math.max(0, c - 1);
+    if (card?.slot === 'subject' && hasPower('subjectCheaper')) c = Math.max(0, c - 1);
+    if (card?.slot === 'target' && hasPower('targetCheaper')) c = Math.max(0, c - 1);
+    // v3.4.59 — "I Know Just What to Say" makes the next card played free.
+    if (nextCardFree) c = 0;
+    return c;
   }
 
   function playCard(handIdx) {
@@ -5463,6 +5530,11 @@ export default function App() {
     const cost = effectiveCardCost(card);
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
     setEnergy(e => e - cost);
+    // v3.4.59 — consume "I Know Just What to Say" flag if it was the reason
+    // this card is free. Don't consume on the card that armed it.
+    if (nextCardFree && card?.effects?.nextCardFree !== true) {
+      setNextCardFree(false);
+    }
     // v3.4.23 (Alan): Words Bank is now Crescendo-school-only. Only
     // cards with schoolId === 'crescendo' tick the bank. Cap halved
     // from 20 → 10 so building feels achievable. The bank is proof of
@@ -6335,6 +6407,14 @@ export default function App() {
       pushLog(`💥 Verbal Smack: ${before} → ${dmg} composure (×2).`);
       setNextSpellDoubleInitial(false);
     }
+    // v3.4.59 — Keynote Speaker power: +25% damage on offensive FFTs.
+    // FFT detection happens later; check rider here on full FFT only.
+    const fftRowForKeynote = detectFFT(intro, subject, target).fft;
+    if (fftRowForKeynote && powers.some(p => p.installPower?.id === 'offensiveFftAmp25') && dmg > 0 && dmgType !== 'block') {
+      const before = dmg;
+      dmg = Math.round(dmg * 1.25);
+      pushLog(`🎤 Keynote Speaker: ${before} → ${dmg} (×1.25).`);
+    }
     // v3.4.55 — That Goes For All of You! flag: single-enemy combat means
     // no extra targets, but consume the flag and log so the player sees
     // that it triggered. Will become real when multi-enemy combat lands.
@@ -6348,7 +6428,15 @@ export default function App() {
     // to the enemy — the school's identity hook ("Defense over Time").
     let after = 0;
     if (dmg > 0) {
-      if (dmgType === 'block')         { setBlock(b => b + dmg); pushLog(`🛡 +${dmg} Block.`); }
+      if (dmgType === 'block')         {
+        let blockGrant = dmg;
+        // v3.4.59 — Speak to My Agent power: defensive FFT block +25%.
+        if (powers.some(p => p.installPower?.id === 'defensiveFftAmp25') && detectFFT(intro, subject, target).fft) {
+          blockGrant = Math.round(blockGrant * 1.25);
+        }
+        setBlock(b => b + blockGrant);
+        pushLog(`🛡 +${blockGrant} Block.`);
+      }
       else if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
       else                              after = applyDamageToEnemyComposure(dmg);
     }
@@ -6385,11 +6473,14 @@ export default function App() {
       // v3.4.55 — defensive-DoT amount modifiers.
       //   Cited Source relic: +1 to amount on every defensive per-turn rider.
       //   I Won't Hear of It (nextSpellDoubleDefensive): ×2 the amount once.
+      //   Speak to My Agent power: ×1.25 to every defensive per-turn rider.
       const hasCitedSource = relics.some(r => r.id === 'r-cited-source');
+      const hasAgent = powers.some(p => p.installPower?.id === 'defensiveFftAmp25');
       const doubleDef = nextSpellDoubleDefensive;
       const modifyDefAmount = (n) => {
         let v = n;
         if (hasCitedSource) v += 1;
+        if (hasAgent) v = Math.round(v * 1.25);
         if (doubleDef) v *= 2;
         return v;
       };
@@ -6460,10 +6551,13 @@ export default function App() {
         if (!rawWave || rawWave.length === 0) return;
         // v3.4.55 — relic + buff-card modifiers on incoming DoT wave.
         // The Footnote: +1 to every tick. Blow to the Ego: ×2 the whole wave.
+        // v3.4.59 — Keynote Speaker power: ×1.25 to every tick.
         const hasFootnote = relics.some(r => r.id === 'r-the-footnote');
+        const hasKeynote = powers.some(p => p.installPower?.id === 'offensiveFftAmp25');
         const doubleDot = nextSpellDoubleDot;
         let wave = rawWave.slice();
         if (hasFootnote) wave = wave.map(v => (v || 0) + 1);
+        if (hasKeynote) wave = wave.map(v => Math.round((v || 0) * 1.25));
         if (doubleDot) {
           wave = wave.map(v => (v || 0) * 2);
           pushLog(`🌡 Blow to the Ego: DoT wave doubled.`);
@@ -7488,6 +7582,35 @@ export default function App() {
       setTutorArmed(true);
       logBits.push(`📚 The Tutor is watching — next matching intro+subject auto-places the target`);
     }
+    // v3.4.59 — new universal-lane skill handlers.
+    if (fx.complimentHealOnAbsorb) {
+      // Snap = current block + block granted by THIS card right now.
+      // At end of turn, heal = min(cap, snap - block_now).
+      const cap = fx.complimentHealOnAbsorb;
+      const grantedThisCard = fx.block || 0;
+      const snap = (block || 0) + grantedThisCard;
+      setComplimentSnap({ snap, cap });
+      logBits.push(`💞 +${cap} HP heal pending if Block absorbs`);
+    }
+    if (fx.enemySkipNextTurn) {
+      setEnemySkipNextTurn(true);
+      setEnemySkipNextAttack(true); // also covers attack-shaped intents
+      logBits.push(`🤐 Enemy is stunned — they lose their next turn`);
+    }
+    if (fx.delayedComposureDamage) {
+      const { amount, delay } = fx.delayedComposureDamage;
+      setScheduledEffects(s => [...s, {
+        trigger: 'enemy-turn-start',
+        kind: 'dormantDamage',
+        amount,
+        turnsRemaining: delay,
+      }]);
+      logBits.push(`⏳ +${amount} comp in ${delay} turns`);
+    }
+    if (fx.nextCardFree) {
+      setNextCardFree(true);
+      logBits.push(`🎁 next card played costs 0`);
+    }
     // v3.4.55 — next-spell modifier flags. Each consumed on the
     // applicable next cast.
     if (fx.nextSpellDoubleInitial) {
@@ -8404,6 +8527,20 @@ export default function App() {
     setHpAtTurnStart(hp);
     setUnblockedThisTurn(false);
     setCastWitEffectThisTurn(false);
+    // v3.4.59 — "I'll Take That as a Compliment" end-of-turn heal.
+    // Heal HP for damage that came out of the snapshotted block pool
+    // this turn (capped at cap). Then clear snap.
+    if (complimentSnap) {
+      const absorbed = Math.max(0, complimentSnap.snap - (block || 0));
+      const healed = Math.min(complimentSnap.cap, absorbed);
+      if (healed > 0) {
+        setHp(h => Math.min(maxHp, h + healed));
+        pushLog(`💞 I'll Take That as a Compliment: +${healed} HP (Block absorbed ${absorbed}).`);
+      }
+      setComplimentSnap(null);
+    }
+    // v3.4.59 — clear "I Know Just What to Say" if it was unused this turn.
+    if (nextCardFree) setNextCardFree(false);
 
     // v2.36: ACTUALLY— reset per-turn state. arguingBackThisTurn is the
     // enemy-side surcharge; it cleared during the enemy intent that already
@@ -8704,6 +8841,13 @@ export default function App() {
   function applyEnemyIntent(intent) {
     const e = enemy;
     if (!e) return;
+    // v3.4.59 — Speechless: enemy fully skips their turn (any intent kind).
+    if (enemySkipNextTurn) {
+      setEnemySkipNextTurn(false);
+      setEnemySkipNextAttack(false);
+      pushLog(`🤐 ${e.name} is speechless — turn skipped.`);
+      return;
+    }
     // v3.3 unified scheduled-effects tick (enemy-turn-start trigger).
     // Handles: debuff-over-time (Weak/Vuln), dormant delayed payloads,
     // and Crescendo's bankDouble. DoT damage moved to the
