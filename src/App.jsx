@@ -6140,19 +6140,17 @@ export default function App() {
     // Most specific match wins; only one bonus fires per cast. Damage-
     // mutating rider keys apply HERE; state-setting ones apply post-damage.
     const fftResult = detectFFT(intro, subject, target);
-    // v3.4.45 — "You Know What I Mean": if armed AND we have a partial row
-    // (any 2 of 3 sharing setId), promote it to the full FFT this cast.
-    // Consumes the flag whether or not it actually fires.
-    if (partialAsFullArmed) {
-      if (fftResult.partialRow) {
-        const promotedRow = WIT_ROW_BY_ID[fftResult.partialRow.id];
-        if (promotedRow) {
-          fftResult.fft = promotedRow;
-          fftResult.partialRow = null;
-          pushLog(`📐 "You know what I mean." Half-formed → full FFT.`);
-        }
+    // v3.4.45 — "You Know What I Mean": if armed AND we have a partial row,
+    // promote it to the full FFT this cast. Flag is ONLY consumed on actual
+    // promotion (Alan: "until it actually promotes a partial").
+    if (partialAsFullArmed && fftResult.partialRow) {
+      const promotedRow = WIT_ROW_BY_ID[fftResult.partialRow.id];
+      if (promotedRow) {
+        fftResult.fft = promotedRow;
+        fftResult.partialRow = null;
+        pushLog(`📐 "You know what I mean." Half-formed → full FFT.`);
+        setPartialAsFullArmed(false);
       }
-      setPartialAsFullArmed(false);
     }
     if (fftResult.fft) {
       const row = fftResult.fft;

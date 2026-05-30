@@ -1065,7 +1065,15 @@ const BUFF_CARDS = [
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS, ...TUTOR_CARDS, ...BUFF_CARDS];
+// v3.4.46 (Alan: "remove the Patience cards, they never come up enough and
+// I don't know what they do"). Patience Power and the "I'll let you finish"
+// skill are pulled from the playable pool. Underlying patienceInstalled /
+// patienceStacks state in App.jsx stays dead-but-harmless so Patience can
+// be re-added later by un-filtering here.
+const PATIENCE_CARD_IDS = new Set(['wv2-p-patience', 'wv2-k-let-you-finish']);
+const SKILLS_NO_PATIENCE = SKILLS.filter(c => !PATIENCE_CARD_IDS.has(c.id));
+
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS_NO_PATIENCE, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS, ...TUTOR_CARDS, ...BUFF_CARDS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS],
@@ -1073,6 +1081,6 @@ export const WIT_V2_BY_SLOT = {
   gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   annotation: ANNOTATIONS,
-  skill: [...SKILLS, ...STARTER_CARDS.filter(c => c.slot === 'skill'), ...TUTOR_CARDS, ...BUFF_CARDS],
-  power: PATIENCE_POWER,
+  skill: [...SKILLS_NO_PATIENCE, ...STARTER_CARDS.filter(c => c.slot === 'skill'), ...TUTOR_CARDS, ...BUFF_CARDS],
+  power: [],
 };
