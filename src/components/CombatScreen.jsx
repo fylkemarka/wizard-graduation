@@ -428,6 +428,59 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             </div>
           );
         })()}
+        {/* v3.4.52 — Relics moved INTO Your State (was a separate strip
+            below the spell tray). Run-persistent, always shown when any
+            relic is held. */}
+        {relics.length > 0 && (
+          <div className="border border-gold-600 bg-ink-800/60 rounded px-1.5 py-0.5 flex flex-wrap gap-x-2 gap-y-0 items-baseline mt-0.5">
+            <span className="text-[9px] uppercase tracking-widest text-gold-300">📿 Relics</span>
+            <div className="flex flex-wrap gap-x-1.5 gap-y-0 text-[11px] font-mono items-baseline">
+              {relics.map(r => {
+                const summary = relicEffectSummary(r);
+                return (
+                  <span key={r.id}
+                    title={`${r.name}\n\n${r.desc || ''}${summary ? '\n\nEffects:\n' + summary : ''}${r.flavor ? '\n\n"' + r.flavor + '"' : ''}`}
+                    className="text-gold-300 cursor-help">{r.name}</span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {/* v3.4.52 — Powers In Effect moved INTO Your State. */}
+        {(powers.length > 0 || notListeningCharges > 0 || staggerActive) && (
+          <div className="border border-iris-600 bg-ink-800/60 rounded px-1.5 py-0.5 flex flex-wrap gap-x-2 gap-y-0 items-baseline mt-0.5">
+            <span className="text-[9px] uppercase tracking-widest text-iris-300">📿 Powers</span>
+            <div className="flex flex-wrap gap-x-1.5 gap-y-0 text-[11px] font-mono items-baseline">
+              {powers.map((p, i) => {
+                const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
+                const isDrunken  = p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink';
+                const isBabbling = p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing';
+                return (
+                  <span key={p.uid || i}
+                    title={isDrunken
+                      ? 'Drunken Confidence — all your spell casts deal +50% damage, BUT every enemy attack adds +2 raw damage before block. Play "sober second thought," to remove.'
+                      : isBabbling
+                      ? 'Babbling — lifts the per-turn cast cap from 1 → 2 with a 0.6× scalar on the 2nd cast.'
+                      : `${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
+                    className="text-iris-200 cursor-help">
+                    {p.name}
+                    {isHitMeAgain && <span className="ml-0.5 text-ember-300">⚡{hitMeAgainCharges}</span>}
+                    {isDrunken && <span className="ml-0.5 text-ember-300">🍺×1.5/+2</span>}
+                    {isBabbling && <span className="ml-0.5 text-iris-300">🗯2×/60%{castsThisTurn === 1 && ' (2nd ready)'}</span>}
+                  </span>
+                );
+              })}
+              {notListeningCharges > 0 && (
+                <span title="Sorry — what? — pending: the next enemy Weak/Vulnerable attempt is ignored."
+                      className="text-iris-200 cursor-help">Sorry — what?<span className="ml-0.5">🙉{notListeningCharges}</span></span>
+              )}
+              {staggerActive && (
+                <span title="Drunken Stagger — this turn, every enemy attack swing has a 50% chance to fully miss."
+                      className="text-iris-200 cursor-help">Drunken Stagger<span className="ml-0.5 text-ember-300">🌀50%</span></span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       </div>
 
@@ -445,82 +498,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         pauseHeldActive={pauseHeldActive} enemy={enemy}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows} />
-
-      {/* Relic chip row — persistent across the run, shown all combats. */}
-      {relics.length > 0 && (
-        <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
-          <span className="text-[10px] uppercase tracking-widest text-gold-300 mr-1">📿 Relics</span>
-          {relics.map(r => {
-            const summary = relicEffectSummary(r);
-            return (
-              <span key={r.id}
-                title={`${r.name}\n\n${r.desc || ''}${summary ? '\n\nEffects:\n' + summary : ''}${r.flavor ? '\n\n"' + r.flavor + '"' : ''}`}
-                className="px-2 py-1 bg-gold-700 text-parchment-50 rounded border border-gold-500 text-xs cursor-help">
-                {r.name}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Active Powers row — visible while at least one power is on the
-          field OR a pending "Sorry — what?" absorb is armed. Hover shows
-          the trigger + flavor. */}
-      {(powers.length > 0 || notListeningCharges > 0 || staggerActive) && (
-        <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
-          <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">📿 Powers in effect</span>
-          {powers.map((p, i) => {
-            const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
-            const isDrunken  = p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink';
-            const isBabbling = p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing';
-            return (
-              <span key={p.uid || i}
-                title={isDrunken
-                  ? 'Drunken Confidence — all your spell casts deal +50% damage, BUT every enemy attack adds +2 raw damage before block. Play "sober second thought," to remove.'
-                  : isBabbling
-                  ? 'Babbling — vestigial after v2.87 removed the cast cap. Originally lifted the per-turn cap from 1 → 2 with a 0.6× scalar on the 2nd cast; that scalar still fires but the cap no longer exists, so you can cast as many times as your energy allows even without this Power.'
-                  : `${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
-                className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
-                {p.name}
-                {isHitMeAgain && (
-                  <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
-                    ⚡{hitMeAgainCharges}
-                  </span>
-                )}
-                {isDrunken && (
-                  <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
-                    🍺×1.5 / +2
-                  </span>
-                )}
-                {isBabbling && (
-                  <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
-                    🗯 2× / 60%
-                    {castsThisTurn === 1 && <span className="ml-1 text-[10px]">(2nd cast available)</span>}
-                  </span>
-                )}
-              </span>
-            );
-          })}
-          {notListeningCharges > 0 && (
-            <span title="Sorry — what? — pending: the next enemy Weak/Vulnerable attempt is ignored."
-              className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
-              Sorry — what?
-              <span className="ml-1 px-1 rounded bg-iris-700 text-parchment-50">
-                🙉{notListeningCharges}
-              </span>
-            </span>
-          )}
-          {staggerActive && (
-            <span title="Drunken Stagger — this turn, every enemy attack swing has a 50% chance to fully miss."
-              className="px-2 py-1 bg-iris-800 text-parchment-50 rounded border border-iris-600 text-xs cursor-help">
-              Drunken Stagger
-              <span className="ml-1 px-1 rounded bg-ember-700 text-parchment-50">
-                🌀 50% miss
-              </span>
-            </span>
-          )}
-        </div>
-      )}
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
           played the "As Hewn-Greaves notes in his footnotes," skill and
