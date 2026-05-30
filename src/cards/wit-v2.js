@@ -1019,7 +1019,7 @@ const BUFF_CARDS = [
     name: 'The Tutor', phrase: 'The Tutor is watching.',
     tags: ['academic'],
     effects: { tutorArmNextSentence: true, exhaust: true },
-    desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your deck or discard. Exhaust.',
+    desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your deck or discard and placed directly in the spell tray, ready to cast. Exhaust.',
     flavor: 'They never stopped grading you. They never will.' },
 ];
 

@@ -5692,10 +5692,17 @@ export default function App() {
             }
           }
           if (pulled) {
-            setHand(h => [...h, pulled]);
+            // v3.4.65 (Alan): The Tutor places the target DIRECTLY IN THE
+            // SPELL TRAY so the cast is ready to fire. Energy is NOT
+            // charged — the 3E + exhaust cost on The Tutor itself is the
+            // payment. Target slot bonus (compDmg +1) still applies.
+            const stagedCard = { ...pulled, uid: uid() };
+            setTray(p => syncTrayLegacy({ ...p, target: stagedCard }));
+            const slotBonus = STAGE_SLOT_BONUS.target || {};
+            applySideEffects({ ...slotBonus, ...(pulled.effects || {}) }, []);
             setTutorArmed(false);
             setTutorFlash({ cardName: pulled.name || pulled.phrase || 'card', fromPile, t: Date.now() });
-            pushLog(`📚 The Tutor places ${pulled.name || pulled.phrase} from ${fromPile} — your effect is ready.`);
+            pushLog(`📚 The Tutor stages ${pulled.name || pulled.phrase} from ${fromPile} — your effect is ready to cast.`);
           }
         }
       }
