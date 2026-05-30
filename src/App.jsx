@@ -240,8 +240,8 @@ const CARDS = [
     desc: 'At the start of each turn, draw 1 extra card.',
     flavor: 'The faster you go, the more there is to look at. Look anyway.' },
   { id: 'p-significant-pause', name: 'The Significant Pause',
-    cost: 2, type: 'power', rarity: 'uncommon',
-    power: { startOfTurn: { energy: 1 } }, upgrade: { cost: 1 },
+    cost: 3, type: 'power', rarity: 'uncommon',
+    power: { startOfTurn: { energy: 1 } }, upgrade: { cost: 2 },
     desc: 'At the start of each turn, gain 1 Energy.',
     flavor: 'Wait. …Now.' },
   { id: 'p-ostensible-inferno', name: 'Ostensible Inferno',
@@ -4126,15 +4126,13 @@ export default function App() {
   // THEIR lane's spell shape. Called from the character-select "Practice
   // match" button with the selected character's lane.
   const TUTORIAL_HANDS = {
-    // v3.4.51 — wit tutorial hand seeds 2 of the 3 cards of slowburn-4
-    // (Lingering Point) so the partial-row tutor fires when both are
-    // staged: the missing target is pulled from deck for free with the
-    // "✨ the sentence finishes itself" toast. Casting then triggers the
-    // FFT rider (3 dmg / turn × 3 turns DoT) so the player sees the
-    // full sentence-grammar → FFT → DoT chain in their first combat.
+    // v3.4.58 — wit tutorial hand seeds the full slowburn-4 row directly
+    // (intro + subject + target all in hand). Player stages all three →
+    // FFT fires → 3 dmg/turn × 3 turns DoT lands. No reliance on the
+    // partial-row tutor (which is now opt-in via The Tutor card).
     wit: {
-      hand: ['wv2-i-frankly', 'wv2-s-boucle-suggestion', 'wv2-i-actually', 'c-defend', 'c-compose'],
-      deck: ['wv2-t-fabric-stops-asking', 'wv2-t-thats-not-it', 'wv2-s-your-conclusion', 'c-acuity'],
+      hand: ['wv2-i-frankly', 'wv2-s-boucle-suggestion', 'wv2-t-fabric-stops-asking', 'c-defend', 'c-compose'],
+      deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
     chutzpah: {
       hand: ['cv2-i-look', 'cv2-i-listen-pal', 'cv2-s-this-nonsense', 'cv2-t-stops-now', 'c-defend'],
@@ -7470,18 +7468,17 @@ export default function App() {
       });
       logBits.push(`💥 DoT +${fx.boostEnemyDot} per tick`);
     }
-    if (fx.boostSelfBlockPerTurn) {
-      const amt = fx.boostSelfBlockPerTurn;
+    if (fx.boostThornsReflect) {
+      const amt = fx.boostThornsReflect;
       let boostedAny = false;
-      setScheduledEffects(s => s.map(eff => {
-        if (eff.trigger === 'player-turn-start' && eff.kind === 'block') {
-          boostedAny = true;
-          return { ...eff, amount: (eff.amount || 0) + amt };
-        }
-        return eff;
-      }));
-      if (!boostedAny) pushLog(`🛡 No defensive selfBlock-per-turn boon active to boost.`);
-      logBits.push(`🛡 selfBlock/turn +${amt}`);
+      setThornsCharges(t => {
+        if (!t || ((t.turnsRemaining || 0) <= 0 && (t.count || 0) <= 0)) return t;
+        boostedAny = true;
+        const nextSched = Array.isArray(t.schedule) ? t.schedule.map(v => (v || 0) + amt) : t.schedule;
+        return { ...t, amount: (t.amount || 0) + amt, schedule: nextSched };
+      });
+      if (!boostedAny) pushLog(`🌹 No Thorns aura active to boost.`);
+      logBits.push(`🌹 Thorns reflect +${amt}/tick`);
     }
     if (fx.partialAsFullNextCast) {
       setPartialAsFullArmed(true);
@@ -10180,8 +10177,8 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       title: 'Step 2 — Play a SUBJECT word.',
       body: (<>
         <p>Every spell needs three slots filled to cast: <b>intro + subject + target</b>.</p>
-        <p className="mt-2">Many wit cards carry a small <b>row tag</b> (purple chip). Tagged cards from the SAME row chain into a <b>Fully Formed Thought</b> — a bonus rider on top of the cast.</p>
-        <p className="mt-2">Find a card labeled <b>SUBJECT</b> in your hand and play it. If it shares a row with your intro, watch the top of the screen for <b>"✨ THE SENTENCE FINISHES ITSELF"</b> — the game pulls the missing target from your deck for free.</p>
+        <p className="mt-2">Many wit cards carry a small <b>row tag</b> (purple chip) — like <i>slowburn-4</i>. When all three staged cards share the same row tag, the cast becomes a <b>Fully Formed Thought</b> (FFT) and triggers a bonus rider on top of the cast.</p>
+        <p className="mt-2">Find a card labeled <b>SUBJECT</b> in your hand and play it. Look at the row tag — your intro, subject, and (next step) target should all match.</p>
       </>),
       cta: '(play a Subject card)',
       waitsForAction: true,
@@ -10230,14 +10227,31 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
     {
       title: 'Step 7 — Buff cards you may draft.',
       body: (<>
-        <p>A few skill cards will appear in your run rewards. Each one extends or amplifies an active state — no good if you haven't cast something first, devastating if you have:</p>
-        <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
-          <li><b>And Another Thing</b> — add 2 turns to your active enemy DoT.</li>
-          <li><b>Hidden Meaning</b> — add 2 damage to each remaining DoT tick.</li>
-          <li><b>I Already Thought of That</b> — extend your Thorns aura by 2 turns.</li>
-          <li><b>Enhanced Reasoning</b> — add 2 block to each remaining selfBlock tick.</li>
-          <li><b>You Know What I Mean</b> — your next half-formed FFT counts as the full row.</li>
-          <li><b>Myriad of Reasons</b> — pull a random intro AND subject from deck or discard.</li>
+        <p>Skill cards that extend, amplify, or set up your next cast. Most are no-ops without something active to amplify — and devastating with one. All exhaust.</p>
+        <p className="mt-2 text-iris-200 font-bold">FFT setup:</p>
+        <ul className="list-disc list-inside text-sm leading-relaxed">
+          <li><b>The Tutor</b> (3E) — next time you stage an intro AND subject from the same row, the matching target is auto-pulled from deck/discard.</li>
+          <li><b>You Know What I Mean</b> (2E) — your next half-formed (2-of-3) FFT counts as the full row.</li>
+          <li><b>Myriad of Reasons</b> (2E) — pull a random intro AND subject from deck or discard.</li>
+          <li><b>To the Rafters</b> (3E) — counts as a FFT of a random Crescendo spell in your hand or discard.</li>
+        </ul>
+        <p className="mt-2 text-iris-200 font-bold">DoT amplifiers:</p>
+        <ul className="list-disc list-inside text-sm leading-relaxed">
+          <li><b>And Another Thing</b> (2E) — +2 turns to your active enemy DoT.</li>
+          <li><b>Hidden Meaning</b> (1E) — +2 damage to each remaining DoT tick.</li>
+          <li><b>Blow to the Ego</b> (2E) — next offensive spell deals DOUBLE its DoT damage.</li>
+        </ul>
+        <p className="mt-2 text-iris-200 font-bold">Damage spikes:</p>
+        <ul className="list-disc list-inside text-sm leading-relaxed">
+          <li><b>Verbal Smack</b> (2E) — next offensive spell deals DOUBLE its initial composure damage.</li>
+          <li><b>That Goes For All of You!</b> (2E) — next offensive spell hits every enemy (when multi-enemy lands).</li>
+          <li><b>Solid Argument</b> (2E) — next offensive DoT also grants matching block-per-turn for you.</li>
+        </ul>
+        <p className="mt-2 text-iris-200 font-bold">Defense extenders:</p>
+        <ul className="list-disc list-inside text-sm leading-relaxed">
+          <li><b>I Already Thought of That</b> (2E) — extend your active Thorns aura by 2 turns.</li>
+          <li><b>Enhanced Reasoning</b> (1E) — +2 reflect damage to each remaining Thorns aura tick.</li>
+          <li><b>I Won't Hear of It</b> (2E) — next defensive spell DOUBLES its defensive-DoT amounts.</li>
         </ul>
       </>),
       cta: 'Continue',
