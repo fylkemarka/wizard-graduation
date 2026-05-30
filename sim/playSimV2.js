@@ -3726,39 +3726,8 @@ function awardReward(state) {
       }
     }
   }
-  // v2.39: OPENING STATEMENT target bias — wit lane only. Common target with
-  // a built-in first-turn rider. ~32% bias because it's the heart of the new
-  // primitive; we want it in deck reliably so sim measures the mechanic and
-  // not draft variance. Cap at TWO copies — early turn-1 casts can chain
-  // through reshuffle if the deck cycles fast enough.
-  if (state.lane === 'wit') {
-    const openingCount = allCards.filter(c => c.id === 'wv2-t-let-me-begin').length;
-    if (openingCount < 2) {
-      const ok = pool.find(c => c.id === 'wv2-t-let-me-begin');
-      if (ok && rnd() < 0.32) {
-        state.discard.push({ ...ok, uid: uid() });
-        state.rewardsTaken.push(ok.id);
-        return;
-      }
-    }
-  }
-  // v2.39: REVISIT-OPENING skill bias — wit lane only. Uncommon Skill that
-  // pairs with the openingBonus target; only worth picking if the player
-  // already owns at least one opening target (otherwise the bridge has no
-  // payoff). ~18% bias gated by the prereq. Cap at one copy — the flag
-  // is boolean, two in hand stacks nothing.
-  if (state.lane === 'wit') {
-    const ownsOpening = allCards.some(c => c.id === 'wv2-t-let-me-begin');
-    const ownsRevisit = allCards.some(c => c.id === 'wv2-k-revisit-opening');
-    if (ownsOpening && !ownsRevisit) {
-      const rk = pool.find(c => c.id === 'wv2-k-revisit-opening');
-      if (rk && rnd() < 0.18) {
-        state.discard.push({ ...rk, uid: uid() });
-        state.rewardsTaken.push(rk.id);
-        return;
-      }
-    }
-  }
+  // v3.4.48 — Opening Statement bias and Revisit-Opening bias removed
+  // (cards deleted from the pool in the same cycle).
   // v2.40: PATIENCE power bias — wit lane only. ~25% bias on the power so
   // the sim engages reliably; cap at one copy (a second copy stacks
   // nothing). Power is uncommon-tier, cost 1.

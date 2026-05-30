@@ -368,10 +368,6 @@ const TARGETS = [
   // ---- Common (5) — cost 1 ----
   // v2.15: common target bases bumped +1 (sim showed +2 overshot wit
   // from 8.2% to 24.4%; +1 lands closer to the 16-18% target).
-  { id: 'wv2-t-shows', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
-    phrase: 'shows.', tags: ['cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 3, damageType: 'composure' },
-    flavor: 'The whole sentence is a setup. This is the snap.' },
   { id: 'wv2-t-what-i-expected', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is exactly what I expected.', tags: ['cutting', 'observational'],
     effect: { scaleBy: 'wit', base: 3, multiplier: 3, damageType: 'composure', rider: { weak: 1 } },
@@ -384,36 +380,16 @@ const TARGETS = [
     phrase: 'has been politely overlooked, until now.', tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', drawAfterCast: 1 },
     flavor: 'Politeness is a renewable resource. Today it ran out.' },
-  { id: 'wv2-t-questions-you-fear', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
-    phrase: 'invites the questions you most fear.', tags: ['cutting', 'observational'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure' },
-    flavor: 'The fear is the answer. The questions are formality.' },
 
   // ---- Uncommon (6) — cost 2 ----
   { id: 'wv2-t-lacks-seriousness', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'lacks the seriousness it pretends to.', tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'composure', rider: { weak: 1 } },
     flavor: 'The pretense was the only weight it carried.' },
-  { id: 'wv2-t-drunk-parrot', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'could have been written by a slightly drunk parrot.', tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
-    flavor: 'Slightly drunk because the parrot, like you, has standards.' },
   { id: 'wv2-t-mistakes-vehemence', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'mistakes vehemence for vigor.', tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
     flavor: 'The two have, at this point, never even been introduced.' },
-  { id: 'wv2-t-dried-apricot', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'has the texture of a dried apricot.', tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
-    flavor: 'The apricot, to be fair, never claimed to be more.' },
-  { id: 'wv2-t-remembered-briefly', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'will be remembered, briefly, with embarrassment.', tags: ['cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
-    flavor: 'Briefly, because embarrassment is exhausting work.' },
-  { id: 'wv2-t-too-dull', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'survives only by being too dull to attack.', tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 7, multiplier: 2, damageType: 'composure' },
-    flavor: 'And yet, here we are.' },
   // v2.34: LONG THREAD payoff target. Cast damage = base 6 + Wit×3 +
   // (Long Thread × 3). Wit's first thread-scaling card — at LT=3 it's
   // +9 dmg, at LT=5 it's +15. Pays off conservative defensive play.
@@ -432,10 +408,6 @@ const TARGETS = [
     phrase: 'will be cited in future studies of what to avoid.', tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 10, multiplier: 3, damageType: 'composure', tier3Double: true },
     flavor: 'The citation is the gift. The avoidance is the lesson.' },
-  { id: 'wv2-t-announces-itself', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'announces itself, repeatedly, while saying nothing.', tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 9, multiplier: 3, damageType: 'composure' },
-    flavor: 'The announcement was the entire content. Loudness mistaken for substance.' },
   { id: 'wv2-t-own-punctuation', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 3, type: 'effect',
     phrase: 'collapses under the weight of its own punctuation.', tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure',
@@ -454,16 +426,6 @@ const TARGETS = [
               delayedMisstep: { delay: 2, selfDamage: 3 } },
     desc: 'Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.',
     flavor: 'You said it with conviction. The conviction is, on reflection, the problem.' },
-  // v2.39: OPENING STATEMENT — wit's strong-start target. Tier-1 common with a
-  // built-in +4 first-turn rider. On turn 1 of combat (or in any turn extended
-  // by "to revisit my opening point,"), cast = 5 + Wit×3 + 4. Late-turn it
-  // drops back to a baseline 5 + Wit×3 — you held it too long. Pratchett-tone
-  // dovetails with the existing 'rhetorical' / 'continuing' wit cluster.
-  { id: 'wv2-t-let-me-begin', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
-    phrase: 'is what I propose to begin by saying.', tags: ['academic'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 3, damageType: 'composure' },
-    desc: 'Cast: 5 + Wit×3 composure.',
-    flavor: 'A standard convocation. The standard is the trick.' },
 
   // v3.2 damage tune: basic-tier STARTER variant of the Fabric target.
   // Same setId as the uncommon Fabric (atelier-4) so FFT detection still
@@ -503,11 +465,6 @@ const TARGETS = [
     effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-2', setSlot: 'target', schoolId: 'slowburn',
     flavor: 'One being, in this case, the entire civilised population.' },
-  // The Cuff (Atelier-3)
-  { id: 'wv2-t-wrong-and-proud', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
-    phrase: 'is, somehow, both wrong and proud.', tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
-    flavor: 'The pride is the worse half. The wrongness is just the setup.' },
   // Dry Shaving (Hygiene-2)
   { id: 'wv2-t-aesthetic-failure-first', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "rebounds with interest.", tags: ['academic', 'cutting'],

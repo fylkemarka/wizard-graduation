@@ -3963,7 +3963,7 @@ export default function App() {
   // match" button with the selected character's lane.
   const TUTORIAL_HANDS = {
     wit: {
-      hand: ['wv2-i-frankly', 'wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-shows', 'c-defend'],
+      hand: ['wv2-i-frankly', 'wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-defend'],
       deck: ['wv2-i-honestly', 'wv2-s-this-argument', 'wv2-t-what-i-expected', 'c-compose'],
     },
     chutzpah: {
@@ -4045,7 +4045,7 @@ export default function App() {
   // Boss preset to drop directly at the act-3 boss room.
   const DEV_PRESETS = {
     wit: {
-      2: ['wv2-k-hewn-greaves-footnotes', 'wv2-i-strikes-me', 'wv2-ann-subtext-italics', 'wv2-t-shows', 'wv2-t-not-survive-scrutiny'],
+      2: ['wv2-k-hewn-greaves-footnotes', 'wv2-i-strikes-me', 'wv2-ann-subtext-italics', 'wv2-t-thats-not-it', 'wv2-t-not-survive-scrutiny'],
       3: ['wv2-t-natural-conclusion', 'wv2-i-i-should-think', 'wv2-ann-thorned-footnote', 'wv2-k-word-in-edgewise', 'c-mend'],
       4: ['wv2-t-generous-error', 'wv2-t-in-summary', 'wv2-ann-thesis-expanded', 'c-bulwark', 'c-acuity'],
     },
