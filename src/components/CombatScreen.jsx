@@ -15,6 +15,7 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
+import { CHUTZPAH_ROWS, CHUTZPAH_ROW_BY_ID, CHUTZPAH_SAME_SCHOOL_BONUSES, CHUTZPAH_PARTIAL_ROW_BONUSES } from '../cards/chutzpah-v2-rows.js';
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
@@ -655,10 +656,18 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           combat-state info above stays compact. Wit-only set-collection
           overlay; shows owned rows + their canonical phrase + rider on
           hover. Hidden when no set-tagged cards have been collected. */}
-      {isWit && WIT_ROWS.length > 0 && (() => {
+      {(() => {
+        // v3.4.71 — generalized FFT Progress for any lane with rows.
+        const laneRows = isWit ? WIT_ROWS
+                      : isChutzpah ? CHUTZPAH_ROWS
+                      : null;
+        const laneBonuses = isWit ? WIT_SAME_SCHOOL_BONUSES
+                         : isChutzpah ? CHUTZPAH_SAME_SCHOOL_BONUSES
+                         : null;
+        if (!laneRows || laneRows.length === 0) return null;
         const trayCards = [tray?.intro, tray?.subject, tray?.target, ...(tray?.modifiers || [])].filter(Boolean);
         const allCards = [...hand, ...deck, ...discard, ...exiled, ...trayCards];
-        const progress = WIT_ROWS.map(row => {
+        const progress = laneRows.map(row => {
           const has = { intro: false, subject: false, target: false };
           for (const c of allCards) {
             if (c.setId === row.id) {
@@ -692,7 +701,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               <span className="text-[11px] text-parchment-400 italic">No rows collected yet — pick up a set-tagged card to start.</span>
             )}
             {visible.map(({ row, owned, has }) => {
-              const tier = WIT_SAME_SCHOOL_BONUSES[row.schoolId];
+              const tier = laneBonuses?.[row.schoolId];
               const complete = owned === 3;
               const slotsLabel = `Intro ${has.intro ? '✓' : '✗'} · Subject ${has.subject ? '✓' : '✗'} · Target ${has.target ? '✓' : '✗'}`;
               return (
