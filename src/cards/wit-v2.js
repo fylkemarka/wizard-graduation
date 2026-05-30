@@ -1017,10 +1017,55 @@ const TUTOR_CARDS = [
 ];
 
 // =============================================================================
+// BUFF CARDS (v3.4.45 — Alan-designed wit utility cards that extend / amplify
+// existing DoT and FFT states). All exhaust after one use — these are
+// situational tools, not engine pieces.
+// =============================================================================
+
+const BUFF_CARDS = [
+  { id: 'wv2-k-and-another-thing', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'skill',
+    name: 'And Another Thing', phrase: 'And another thing —',
+    tags: ['cutting'],
+    effects: { extendEnemyDot: 2, exhaust: true },
+    desc: 'Add 2 turns to the active enemy DoT (offensive). Exhaust.',
+    flavor: 'The list, as it turns out, was not actually finished.' },
+  { id: 'wv2-k-already-thought-of-that', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'skill',
+    name: 'I Already Thought of That', phrase: "I already thought of that.",
+    tags: ['academic'],
+    effects: { extendSelfThorns: 2, exhaust: true },
+    desc: 'Add 2 turns to your active defensive Thorns aura. Exhaust.',
+    flavor: 'Preparation is its own answer.' },
+  { id: 'wv2-k-hidden-meaning', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'Hidden Meaning', phrase: 'There is a hidden meaning here.',
+    tags: ['cutting', 'observational'],
+    effects: { boostEnemyDot: 2, exhaust: true },
+    desc: 'Add +2 damage to each remaining tick of the active enemy DoT. Exhaust.',
+    flavor: 'It was always there. They were merely not listening for it.' },
+  { id: 'wv2-k-enhanced-reasoning', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'Enhanced Reasoning', phrase: 'My reasoning has, in fact, improved.',
+    tags: ['academic'],
+    effects: { boostSelfBlockPerTurn: 2, exhaust: true },
+    desc: 'Add +2 to each remaining tick of your active selfBlock-per-turn boon. Exhaust.',
+    flavor: 'Reasoning, once enhanced, is difficult to argue with.' },
+  { id: 'wv2-k-you-know-what-i-mean', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'skill',
+    name: 'You Know What I Mean', phrase: 'You know what I mean.',
+    tags: ['observational'],
+    effects: { partialAsFullNextCast: true, exhaust: true },
+    desc: 'On your next cast, a half-formed (2-of-3) FFT resolves as the full row. Exhaust.',
+    flavor: 'They do, in fact, know what you mean. They simply will not admit it.' },
+  { id: 'wv2-k-myriad-of-reasons', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'skill',
+    name: 'Myriad of Reasons', phrase: 'A myriad of reasons —',
+    tags: ['academic'],
+    effects: { tutorSlots: ['intro', 'subject'], exhaust: true },
+    desc: 'Pull a random intro AND a random subject (from deck or discard) into your hand. Exhaust.',
+    flavor: 'There is, regrettably, no shortage of them.' },
+];
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS, ...TUTOR_CARDS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...PATIENCE_POWER, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS, ...TUTOR_CARDS, ...BUFF_CARDS];
 export const WIT_V2_BY_SLOT = {
   intro: INTROS,
   subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS],
@@ -1028,6 +1073,6 @@ export const WIT_V2_BY_SLOT = {
   gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   annotation: ANNOTATIONS,
-  skill: [...SKILLS, ...STARTER_CARDS.filter(c => c.slot === 'skill')],
+  skill: [...SKILLS, ...STARTER_CARDS.filter(c => c.slot === 'skill'), ...TUTOR_CARDS, ...BUFF_CARDS],
   power: PATIENCE_POWER,
 };

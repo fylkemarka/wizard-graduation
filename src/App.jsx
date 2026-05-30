@@ -3530,6 +3530,8 @@ export default function App() {
   // damage back to the enemy on the next-attack resolution.
   const [mirrorReflectCharges, setMirrorReflectCharges] = useState({ count: 0, capPerHit: 0 });
   const [skipAndReturnArmed, setSkipAndReturnArmed] = useState(false);
+  // v3.4.45 — "You Know What I Mean": next cast's partial FFT resolves as full.
+  const [partialAsFullArmed, setPartialAsFullArmed] = useState(false);
   const [wordsBank, setWordsBank] = useState(0);
   // v3.4.23 — Crescendo "Build then Climax" mechanic. crescendoBuildup
   // counts full-FFT crescendo casts in this combat (0/1/2). Cast 1 deals
@@ -5058,6 +5060,7 @@ export default function App() {
     setThornsCharges({ amount: 0, count: 0, weakOnReflect: 0, turnsRemaining: 0, schedule: undefined });
     setMirrorReflectCharges({ count: 0, capPerHit: 0 });
     setSkipAndReturnArmed(false);
+    setPartialAsFullArmed(false);
     setWordsBank(0);
     // v3.4.23 — Crescendo buildup resets per combat.
     setCrescendoBuildup(0);
@@ -6137,6 +6140,20 @@ export default function App() {
     // Most specific match wins; only one bonus fires per cast. Damage-
     // mutating rider keys apply HERE; state-setting ones apply post-damage.
     const fftResult = detectFFT(intro, subject, target);
+    // v3.4.45 — "You Know What I Mean": if armed AND we have a partial row
+    // (any 2 of 3 sharing setId), promote it to the full FFT this cast.
+    // Consumes the flag whether or not it actually fires.
+    if (partialAsFullArmed) {
+      if (fftResult.partialRow) {
+        const promotedRow = WIT_ROW_BY_ID[fftResult.partialRow.id];
+        if (promotedRow) {
+          fftResult.fft = promotedRow;
+          fftResult.partialRow = null;
+          pushLog(`📐 "You know what I mean." Half-formed → full FFT.`);
+        }
+      }
+      setPartialAsFullArmed(false);
+    }
     if (fftResult.fft) {
       const row = fftResult.fft;
       const rider = row.rider || {};
@@ -7202,23 +7219,122 @@ export default function App() {
     // reaching for a specific word" move.
     if (fx.tutorSlot) {
       const wantedSlot = fx.tutorSlot;
-      let pulled = null;
-      setDeck(d => {
-        const matches = d.map((c, i) => (c.slot === wantedSlot ? i : -1)).filter(i => i >= 0);
-        if (matches.length === 0) return d;
-        const pickIdx = matches[Math.floor(Math.random() * matches.length)];
-        pulled = d[pickIdx];
-        return d.filter((_, i) => i !== pickIdx);
-      });
-      setTimeout(() => {
-        if (pulled) {
+      // v3.4.45 (Alan: "the cards that pull a random subject/intro/target
+      // seem to be broken"). Old impl searched ONLY the deck; if the
+      // matching slot was sitting in the discard pile, the pull silently
+      // failed. Also violated the React pure-updater rule by mutating an
+      // outer closure variable inside setDeck. Rewritten: read deck +
+      // discard directly, pick once, splice.
+      const deckMatches = deck.map((c, i) => (c.slot === wantedSlot ? i : -1)).filter(i => i >= 0);
+      const discardMatches = discard.map((c, i) => (c.slot === wantedSlot ? i : -1)).filter(i => i >= 0);
+      const pool = [
+        ...deckMatches.map(i => ({ from: 'deck', i })),
+        ...discardMatches.map(i => ({ from: 'discard', i })),
+      ];
+      if (pool.length > 0) {
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick.from === 'deck') {
+          const pulled = deck[pick.i];
+          setDeck(deck.filter((_, i) => i !== pick.i));
           setHand(h => [...h, { ...pulled, uid: uid() }]);
-          pushLog(`📚 Tutored ${wantedSlot}: ${pulled.name || pulled.phrase}.`);
+          pushLog(`📚 Tutored ${wantedSlot} (from deck): ${pulled.name || pulled.phrase}.`);
         } else {
-          pushLog(`📚 No ${wantedSlot} found in deck.`);
+          const pulled = discard[pick.i];
+          setDiscard(discard.filter((_, i) => i !== pick.i));
+          setHand(h => [...h, { ...pulled, uid: uid() }]);
+          pushLog(`📚 Tutored ${wantedSlot} (from discard): ${pulled.name || pulled.phrase}.`);
         }
-      }, 0);
+      } else {
+        pushLog(`📚 No ${wantedSlot} found in deck or discard.`);
+      }
       logBits.push(`📚 tutor ${wantedSlot}`);
+    }
+    // v3.4.45 — Buff cards (Alan-designed wit utility).
+    if (fx.tutorSlots && Array.isArray(fx.tutorSlots)) {
+      // Pull one card per requested slot, from deck or discard. Same
+      // semantics as tutorSlot but for multiple slots in one fire.
+      let workingDeck = [...deck];
+      let workingDiscard = [...discard];
+      const pulled = [];
+      for (const wantedSlot of fx.tutorSlots) {
+        const deckMatches = workingDeck.map((c, i) => (c.slot === wantedSlot ? i : -1)).filter(i => i >= 0);
+        const discMatches = workingDiscard.map((c, i) => (c.slot === wantedSlot ? i : -1)).filter(i => i >= 0);
+        const pool = [
+          ...deckMatches.map(i => ({ from: 'deck', i })),
+          ...discMatches.map(i => ({ from: 'discard', i })),
+        ];
+        if (pool.length === 0) {
+          pushLog(`📚 No ${wantedSlot} found in deck or discard.`);
+          continue;
+        }
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick.from === 'deck') {
+          pulled.push({ ...workingDeck[pick.i], uid: uid(), _from: 'deck', _slot: wantedSlot });
+          workingDeck = workingDeck.filter((_, i) => i !== pick.i);
+        } else {
+          pulled.push({ ...workingDiscard[pick.i], uid: uid(), _from: 'discard', _slot: wantedSlot });
+          workingDiscard = workingDiscard.filter((_, i) => i !== pick.i);
+        }
+      }
+      if (pulled.length > 0) {
+        setDeck(workingDeck);
+        setDiscard(workingDiscard);
+        setHand(h => [...h, ...pulled.map(p => { const { _from, _slot, ...rest } = p; return rest; })]);
+        for (const p of pulled) pushLog(`📚 Tutored ${p._slot} (from ${p._from}): ${p.name || p.phrase}.`);
+      }
+      logBits.push(`📚 tutor ${fx.tutorSlots.join('+')}`);
+    }
+    if (fx.extendEnemyDot) {
+      setEnemy(e => {
+        if (!e || !e.dot) { pushLog(`⏳ No enemy DoT to extend.`); return e; }
+        const turns = fx.extendEnemyDot;
+        const tail = Array.isArray(e.dot.schedule) && e.dot.schedule.length > 0
+          ? e.dot.schedule[e.dot.schedule.length - 1]
+          : (e.dot.damage || 0);
+        const newSchedule = Array.isArray(e.dot.schedule)
+          ? [...e.dot.schedule, ...new Array(turns).fill(tail)]
+          : new Array((e.dot.turnsRemaining || 0) + turns).fill(e.dot.damage || tail);
+        return { ...e, dot: { ...e.dot, schedule: newSchedule, turnsRemaining: (e.dot.turnsRemaining || 0) + turns } };
+      });
+      logBits.push(`⏳ DoT +${fx.extendEnemyDot} turns`);
+    }
+    if (fx.extendSelfThorns) {
+      setThornsCharges(t => {
+        if (!t || (t.turnsRemaining || 0) <= 0) { pushLog(`🛡 No defensive aura active to extend.`); return t; }
+        const turns = fx.extendSelfThorns;
+        const newSchedule = Array.isArray(t.schedule)
+          ? [...t.schedule, ...new Array(turns).fill(t.schedule[t.schedule.length - 1] || t.amount || 0)]
+          : t.schedule;
+        return { ...t, turnsRemaining: (t.turnsRemaining || 0) + turns, schedule: newSchedule };
+      });
+      logBits.push(`🛡 Thorns aura +${fx.extendSelfThorns} turns`);
+    }
+    if (fx.boostEnemyDot) {
+      setEnemy(e => {
+        if (!e || !e.dot) { pushLog(`💢 No enemy DoT to boost.`); return e; }
+        const amt = fx.boostEnemyDot;
+        const schedule = Array.isArray(e.dot.schedule) ? e.dot.schedule : new Array(e.dot.turnsRemaining || 0).fill(e.dot.damage || 0);
+        const boosted = schedule.map(v => (v || 0) + amt);
+        return { ...e, dot: { ...e.dot, schedule: boosted, damage: boosted[0] || e.dot.damage || amt } };
+      });
+      logBits.push(`💥 DoT +${fx.boostEnemyDot} per tick`);
+    }
+    if (fx.boostSelfBlockPerTurn) {
+      const amt = fx.boostSelfBlockPerTurn;
+      let boostedAny = false;
+      setScheduledEffects(s => s.map(eff => {
+        if (eff.trigger === 'player-turn-start' && eff.kind === 'block') {
+          boostedAny = true;
+          return { ...eff, amount: (eff.amount || 0) + amt };
+        }
+        return eff;
+      }));
+      if (!boostedAny) pushLog(`🛡 No defensive selfBlock-per-turn boon active to boost.`);
+      logBits.push(`🛡 selfBlock/turn +${amt}`);
+    }
+    if (fx.partialAsFullNextCast) {
+      setPartialAsFullArmed(true);
+      logBits.push(`📐 next half-formed cast counts as full row`);
     }
     if (fx.physDmg) {
       applyDamageToEnemyHp(fx.physDmg);
