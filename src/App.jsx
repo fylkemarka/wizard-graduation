@@ -220,6 +220,14 @@ const CARDS = [
     upgrade: { effects: { hp: 6, composure: 6, exhaust: true } },
     desc: 'Heal 4 HP and 4 Composure. Exhaust.',
     flavor: 'Brief. Unrehearsed. The room exhales.' },
+  // v3.4.66 (Alan) — The Tutor, moved from wit-v2.js to colorless so all
+  // wizards can draft it. Currently only meaningful for wit (FFT rows
+  // exist); becomes useful for chutzpah/jnsq when those lanes get their
+  // row systems built.
+  { id: 'c-the-tutor', name: 'The Tutor', cost: 3, type: 'skill', rarity: 'common',
+    effects: { tutorArmNextSentence: true, exhaust: true },
+    desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your deck or discard and placed directly in the spell tray, ready to cast. Exhaust.',
+    flavor: 'They never stopped grading you. They never will.' },
   // ---- Powers (rest of combat) ----
   { id: 'c-subject-matter-expert', name: 'Subject Matter Expert', cost: 2, type: 'power', rarity: 'uncommon',
     installPower: { id: 'subjectCheaper' },
@@ -5670,7 +5678,10 @@ export default function App() {
       // just-staged card completes an intro+subject same-row match with
       // an empty target slot, pull the matching target from deck or
       // discard. Single-fire; consumes tutorArmed only on actual pull.
-      if (selectedCharacter?.lane === 'wit' && tutorArmed && card.setId) {
+      // v3.4.66 — wizard-agnostic. Any lane can play The Tutor; it only
+      // FIRES when an intro+subject pair sharing setId exists (i.e., the
+      // player has FFT rows in their deck — currently only wit).
+      if (tutorArmed && card.setId) {
         const post = { ...tray, [card.slot]: card };
         const introSet = post.intro?.setId;
         const subjectSet = post.subject?.setId;
