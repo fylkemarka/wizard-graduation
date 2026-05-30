@@ -651,7 +651,7 @@ const MODIFIERS = [
 const GESTURES = [
   { id: 'wv2-g-adjusts-spectacles', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(adjusts spectacles,)', tags: ['observational'],
-    gestureEffect: { icon: '👓', damage: 5, damageType: 'composure', trayMultiplier: 1, rider: { weak: 1 }, exhaust: true },
+    gestureEffect: { icon: '👓', damage: 5, damageType: 'composure', rider: { weak: 1 }, exhaust: true },
     flavor: 'The lenses are clean. The look behind them, less so.' },
   // v2.6: PONTIFICATION — high cost, big damage, NON-exhaust (the card
   // goes back into the deck after firing, so it's reusable across combat).
