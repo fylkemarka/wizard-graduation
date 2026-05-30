@@ -3066,109 +3066,31 @@ function pickRelicByRarity(rarityWeights = { common: 3, uncommon: 2, rare: 1 }, 
 // player's route choice is deterministic at the strategic level —
 // you can see "row 3 has the wood gather, route accordingly".
 function generateActMap(rows, width) {
+  // v3.4.33 (Alan): collapsed to a single linear path for now. Fixed
+  // sequence per act:
+  //   0 town → 1-3 combat → 4 elite → 5 rest → 6 material
+  //         → 7-10 combat → 11 elite → 12 rest → 13 boss
+  // The `rows` / `width` params are ignored — every act runs the same
+  // 14-node path. Rendering uses width=1 (single column, centered).
+  // Sidequest spur seeding skips linear maps (see seedSidequestSpurs).
+  const SEQUENCE = [
+    'town', 'combat', 'combat', 'combat', 'elite', 'rest', 'material',
+    'combat', 'combat', 'combat', 'combat', 'elite', 'rest', 'boss',
+  ];
+  const totalRows = SEQUENCE.length;
+  const totalCols = width || 4; // viewport width hint; node centers use col=0
   const nodes = [];
-  const rng = Math.random;
-  // Row 0 is one Town hub — three paths radiate outward into the act.
-  // Was 2-3 separate trailheads; collapsed per the Town + sidequests plan
-  // ([[wg-town-and-sidequests]]). Future slices add NPC offers + sidequest
-  // forks; for now the Town is purely the single shared starting node.
-  nodes.push({ id: `n-0-0`, row: 0, col: 0, type: 'town',
-    x: spacedX(0, 1, width), y: rowY(0, rows) });
-  const materialRows = new Set([3, 7, 11]);
-  const skillRows    = new Set([5, 9]);
-  const preBossRow   = rows - 2; // Always rest before the boss, every path.
-  for (let r = 1; r < rows - 1; r++) {
-    // Row 1 is the Town's immediate fanout — pinned at 3 so the player
-    // always sees three distinct first-step paths. Other rows vary 2-3.
-    const w = r === 1 ? 3 : (2 + Math.floor(rng() * 2));
-    // Material/skill rows used to force EVERY column to be that type —
-    // 6-9 material nodes visible on the map but the player could only
-    // pick one per row. Now one column per material/skill row is the
-    // special tile and the rest are normal mix. Player's path may or
-    // may not cross the material; typical outcome is 2 materials per
-    // act with max 3 if the path is lucky.
-    const materialCol = materialRows.has(r) ? Math.floor(rng() * w) : -1;
-    const skillCol    = skillRows.has(r)    ? Math.floor(rng() * w) : -1;
-    for (let c = 0; c < w; c++) {
-      // Pre-boss row is ALL rest — every path lands at an inn before the
-      // boss so the player gets one HP/Composure top-off no matter how
-      // they routed through the act.
-      let t = r === preBossRow      ? 'rest'
-            : c === materialCol     ? 'material'
-            : c === skillCol        ? 'skill'
-            :                         pickNodeType(r, rows);
-      // v2.62: no rest within 2 rows of another rest along likely paths.
-      // Map edges link each node to its column-nearest neighbor in the
-      // previous row, so check R-1 and R-2 for a nearby rest. Also block
-      // rest within 2 rows BEFORE the pre-boss row (which is all-rest by
-      // design), so the inn-before-boss isn't preceded by another inn.
-      if (t === 'rest' && r !== preBossRow) {
-        const isCloseRest = (prevRow) => {
-          if (prevRow < 0) return false;
-          for (const n of nodes) {
-            if (n.row !== prevRow) continue;
-            if (n.type !== 'rest') continue;
-            if (Math.abs(n.col - c) <= 1) return true;
-          }
-          return false;
-        };
-        if (isCloseRest(r - 1) || isCloseRest(r - 2)) t = 'combat';
-        // Pre-boss row will be all-rest, so the two rows before it must not
-        // also be rest.
-        if (r === preBossRow - 1 || r === preBossRow - 2) t = 'combat';
-      }
-      nodes.push({ id: `n-${r}-${c}`, row: r, col: c,
-        type: t,
-        x: spacedX(c, w, width), y: rowY(r, rows) });
-    }
+  for (let r = 0; r < totalRows; r++) {
+    nodes.push({
+      id: `n-${r}-0`, row: r, col: 0, type: SEQUENCE[r],
+      x: spacedX(0, 1, totalCols), y: rowY(r, totalRows),
+    });
   }
-  const bossRow = rows - 1;
-  nodes.push({ id: `n-${bossRow}-0`, row: bossRow, col: 0, type: 'boss',
-    x: spacedX(0, 1, width), y: rowY(bossRow, rows) });
-
-  const byRow = {};
-  for (const n of nodes) (byRow[n.row] = byRow[n.row] || []).push(n);
   const edges = {};
-  for (let r = 0; r < rows - 1; r++) {
-    const cur = byRow[r] || [];
-    const next = byRow[r + 1] || [];
-    for (const a of cur) {
-      // Town (row 0) fans out to ALL row-1 nodes so the player genuinely
-      // sees the three branching directions instead of a random 1-2 slice.
-      // Every other row keeps the random-fanout that gives the map its
-      // STS-style "pick a lane and ride it" feel.
-      if (a.type === 'town') {
-        edges[a.id] = next.map(n => n.id);
-      } else {
-        const sorted = [...next].sort((x, y) => Math.abs(x.col - a.col) - Math.abs(y.col - a.col));
-        const links = sorted.slice(0, 1 + Math.floor(rng() * 2));
-        edges[a.id] = links.map(n => n.id);
-      }
-    }
+  for (let r = 0; r < totalRows - 1; r++) {
+    edges[`n-${r}-0`] = [`n-${r + 1}-0`];
   }
-  for (let r = 1; r < rows; r++) {
-    const cur = byRow[r] || [];
-    for (const n of cur) {
-      const hasIn = Object.values(edges).some(arr => arr.includes(n.id));
-      if (!hasIn) {
-        const prev = byRow[r - 1] || [];
-        const closest = prev.sort((a, b) => Math.abs(a.col - n.col) - Math.abs(b.col - n.col))[0];
-        if (closest) edges[closest.id] = [...(edges[closest.id] || []), n.id];
-      }
-    }
-  }
-  return { nodes, edges };
-
-  function pickNodeType(r, rows) {
-    // Forge nodes were removed — equipment now drops only from the act
-    // boss (Master tier). Map distribution skews toward combat with
-    // events and rest as breathers, plus the occasional elite.
-    const roll = rng();
-    if (roll < 0.58) return 'combat';
-    if (roll < 0.78) return 'event';
-    if (roll < 0.92) return 'rest';
-    return 'elite';
-  }
+  return { nodes, edges, linear: true };
 }
 
 // Module-level positioning helpers — hoisted out of generateActMap so
@@ -3191,6 +3113,9 @@ function rowY(r, totalRows) { return totalRows - 1 - r; }
 // keeping the sidequest path at the same boss-distance as the main path.
 function seedSidequestSpurs(map, actId, rows, cols) {
   if (!map) return map;
+  // v3.4.33 — linear maps (single path) skip sidequest seeding so the
+  // "one path" simplification stays one path.
+  if (map.linear) return map;
   if (Math.random() > 0.6) return map;
   const pool = SIDEQUESTS_BY_ACT[actId] || [];
   if (pool.length === 0) return map;
