@@ -664,11 +664,19 @@ pushRowTriple('ballistic-3', 'ballistic',  'I can',                             
 pushRowTriple('ballistic-4', 'ballistic',  'I, in point of fact,',                 'have nothing',                'left to lose.');
 pushRowTriple('ballistic-5', 'ballistic',  'Pal,',                                 'this is officially',          'scorched earth.');
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS, ...ROW_CARDS];
+// v3.4.70 (Alan): "Remove all generic (not part of a row) intro,
+// subject, and effect cards from the chutzpah deck." The only
+// intro/subject/target cards in the playable pool are now row-tagged
+// (the 45 ROW_CARDS). Modifiers, gestures, skills, and powers stay.
+// Mechanic-specific intro/subject/target (Saying It Louder, Smell
+// Weakness, Synergy Capstone targets, Unique RAGE/Doubling-Down/
+// Storm-Out targets) are EXCLUDED — they were generic too. Easy to
+// re-add later by extending the exports below.
+export const CHUTZPAH_V2 = [...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...HIT_ME_AGAIN_POWER, ...SYNERGY_CAPSTONE_MODIFIERS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS, ...ROW_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
-  intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS, ...ROW_CARDS.filter(c => c.slot === 'intro')],
-  subject: [...SUBJECTS, ...SMELL_WEAKNESS_SUBJECTS, ...ROW_CARDS.filter(c => c.slot === 'subject')],
-  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS, ...SYNERGY_CAPSTONE_TARGETS, ...ROW_CARDS.filter(c => c.slot === 'target')],
+  intro: ROW_CARDS.filter(c => c.slot === 'intro'),
+  subject: ROW_CARDS.filter(c => c.slot === 'subject'),
+  target: ROW_CARDS.filter(c => c.slot === 'target'),
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   power: [...HIT_ME_AGAIN_POWER],

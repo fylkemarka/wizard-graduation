@@ -796,9 +796,12 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // v3.4.69 — seed the chutzpah starter with a full Bluster-1 row
     // ("Take That Tone Elsewhere") so the player can complete an FFT in
     // their first combat. Bluster-1 = +12 comp + 1 Pressure + pressureBonus
-    // — immediately damaging AND teaches the Pressure mechanic. The row
-    // cards exist via pushRowTriple() in chutzpah-v2.js.
-    introIds = ['cv2-i-bluster-1', basics(pool.intro)[0]?.id];
+    // — immediately damaging AND teaches the Pressure mechanic.
+    // v3.4.70 — chutzpah pool no longer has generic intros/subjects/targets
+    // (per Alan), so the second intro slot is filled by the bluster-2 intro
+    // instead of a "basic" pool pick. Player gets 2 intros (bluster-1 +
+    // bluster-2), 1 subject, 1 target — same shape as wit's starter.
+    introIds = ['cv2-i-bluster-1', 'cv2-i-bluster-2'];
     subjectId = 'cv2-s-bluster-1';
     targetId  = 'cv2-t-bluster-1';
   } else {
