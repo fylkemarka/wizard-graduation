@@ -3249,7 +3249,7 @@ const HAND_SIZE = 6;
 // so per-card riders fire on top of the slot default.
 const STAGE_SLOT_BONUS = {
   intro:  { block: 2 },
-  target: { compDmg: 2 },
+  target: { compDmg: 1 },
 };
 // Heal a fraction of max HP between acts (STS-style act transition heal).
 // Cycle 3 batch 3: 0.40 → 0.55. Players reaching Act 3+ are too damaged
@@ -3593,6 +3593,9 @@ export default function App() {
   const [skipAndReturnArmed, setSkipAndReturnArmed] = useState(false);
   // v3.4.45 — "You Know What I Mean": next cast's partial FFT resolves as full.
   const [partialAsFullArmed, setPartialAsFullArmed] = useState(false);
+  // v3.4.57 — "The Tutor": next intro+subject same-row stage auto-pulls
+  // the matching target from deck/discard. Consumed only on pull.
+  const [tutorArmed, setTutorArmed] = useState(false);
   // v3.4.55 (Alan) — next-spell modifier flags. All single-use; consumed
   // on the next applicable cast. Reset per combat.
   const [nextSpellDoubleInitial, setNextSpellDoubleInitial] = useState(false);
@@ -5242,6 +5245,7 @@ export default function App() {
     setNextSpellDoubleDefensive(false);
     setNextSpellAddDefensiveDot(false);
     setNextSpellApplyToAll(false);
+    setTutorArmed(false);
     setWordsBank(0);
     // v3.4.23 — Crescendo buildup resets per combat.
     setCrescendoBuildup(0);
@@ -5563,26 +5567,18 @@ export default function App() {
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfChutzpah();
       pushLog(logBits.join(' · ') + `  →  📜 ${card.slot} staged`);
-      // v3.4.40 cycle 8 — Partial-Row Tutor. When staging completes a
-      // 2-of-3 setId match in the tray, search deck+discard for the
-      // missing third slot of the same setId and pull it free into hand.
-      // Fires once per turn; wit lane only.
-      if (selectedCharacter?.lane === 'wit' && card.setId && !tutorFiredThisTurnRef.current) {
+      // v3.4.57 (Alan) — Auto partial-row tutor was too strong. Now the
+      // ONLY way to trigger sentence-finishes-itself is to play "The Tutor"
+      // buff card first (sets tutorArmed = true). When armed AND the
+      // just-staged card completes an intro+subject same-row match with
+      // an empty target slot, pull the matching target from deck or
+      // discard. Single-fire; consumes tutorArmed only on actual pull.
+      if (selectedCharacter?.lane === 'wit' && tutorArmed && card.setId) {
         const post = { ...tray, [card.slot]: card };
         const introSet = post.intro?.setId;
         const subjectSet = post.subject?.setId;
-        const targetSet = post.target?.setId;
-        let missingSlot = null;
-        let matchSet = null;
         if (introSet && subjectSet && introSet === subjectSet && !post.target) {
-          missingSlot = 'target'; matchSet = introSet;
-        } else if (introSet && targetSet && introSet === targetSet && !post.subject) {
-          missingSlot = 'subject'; matchSet = introSet;
-        } else if (subjectSet && targetSet && subjectSet === targetSet && !post.intro) {
-          missingSlot = 'intro'; matchSet = subjectSet;
-        }
-        if (missingSlot && matchSet) {
-          const findFn = c => c.setId === matchSet && c.slot === missingSlot;
+          const findFn = c => c.setId === introSet && c.slot === 'target';
           const deckIdx = deck.findIndex(findFn);
           let pulled = null;
           let fromPile = null;
@@ -5600,9 +5596,9 @@ export default function App() {
           }
           if (pulled) {
             setHand(h => [...h, pulled]);
-            tutorFiredThisTurnRef.current = true;
+            setTutorArmed(false);
             setTutorFlash({ cardName: pulled.name || pulled.phrase || 'card', fromPile, t: Date.now() });
-            pushLog(`✨ THE SENTENCE FINISHES ITSELF — ${pulled.name || pulled.phrase} pulled from ${fromPile}.`);
+            pushLog(`📚 The Tutor places ${pulled.name || pulled.phrase} from ${fromPile} — your effect is ready.`);
           }
         }
       }
@@ -7490,6 +7486,10 @@ export default function App() {
     if (fx.partialAsFullNextCast) {
       setPartialAsFullArmed(true);
       logBits.push(`📐 next half-formed cast counts as full row`);
+    }
+    if (fx.tutorArmNextSentence) {
+      setTutorArmed(true);
+      logBits.push(`📚 The Tutor is watching — next matching intro+subject auto-places the target`);
     }
     // v3.4.55 — next-spell modifier flags. Each consumed on the
     // applicable next cast.

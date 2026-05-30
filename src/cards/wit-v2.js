@@ -1014,6 +1014,13 @@ const BUFF_CARDS = [
     effects: { castRandomCrescendoFFT: true, exhaust: true },
     desc: 'Counts as a FFT of a random Crescendo spell in your hand or discard. Exhaust.',
     flavor: 'The voice carries. You let it.' },
+  // v3.4.57 (Alan) — was the auto partial-row tutor. Now opt-in.
+  { id: 'wv2-k-the-tutor', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 3, type: 'skill',
+    name: 'The Tutor', phrase: 'The Tutor is watching.',
+    tags: ['academic'],
+    effects: { tutorArmNextSentence: true, exhaust: true },
+    desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your deck or discard. Exhaust.',
+    flavor: 'They never stopped grading you. They never will.' },
 ];
 
 // =============================================================================

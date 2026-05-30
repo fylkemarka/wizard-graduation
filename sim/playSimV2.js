@@ -1612,44 +1612,11 @@ function runCombat(state, enemyId, telemetry) {
           continue;
         }
       }
-      // v3.4.40 cycle 8 — Partial-Row Tutor. When 2-of-3 staged cards
-      // share a setId, search the deck and discard for the missing third
-      // card of the same row and pull it into hand for free. Converts
-      // the structural draw-luck problem into a strategic commitment
-      // (which row do I commit to?) and kills the hold-and-shop loop.
-      // wit-lane only; ONCE per turn; only fires when the 2 staged cards
-      // share setId AND the missing slot is empty.
-      if (state.lane === 'wit' && !state.tutorFiredThisTurn) {
-        const introSet = tray.intro?.setId;
-        const subjectSet = tray.subject?.setId;
-        const targetSet = tray.target?.setId;
-        let missingSlot = null;
-        let matchSet = null;
-        if (introSet && subjectSet && introSet === subjectSet && !tray.target) {
-          missingSlot = 'target'; matchSet = introSet;
-        } else if (introSet && targetSet && introSet === targetSet && !tray.subject) {
-          missingSlot = 'subject'; matchSet = introSet;
-        } else if (subjectSet && targetSet && subjectSet === targetSet && !tray.intro) {
-          missingSlot = 'intro'; matchSet = subjectSet;
-        }
-        if (missingSlot && matchSet) {
-          const findFn = c => c.setId === matchSet && c.slot === missingSlot;
-          let pulledIdx = state.deck.findIndex(findFn);
-          let pulledFrom = 'deck';
-          if (pulledIdx < 0) {
-            pulledIdx = state.discard.findIndex(findFn);
-            pulledFrom = 'discard';
-          }
-          if (pulledIdx >= 0) {
-            const pulled = pulledFrom === 'deck'
-              ? state.deck.splice(pulledIdx, 1)[0]
-              : state.discard.splice(pulledIdx, 1)[0];
-            state.hand.push(pulled);
-            state.tutorFiredThisTurn = true;
-            telemetry.partialRowTutorFires = (telemetry.partialRowTutorFires || 0) + 1;
-          }
-        }
-      }
+      // v3.4.57 (Alan) — Auto partial-row tutor REMOVED from sim mirror.
+      // Now only the opt-in The Tutor card (effect: tutorArmNextSentence)
+      // can trigger this pull, and only on an intro+subject same-row
+      // stage. Sim AI does not currently play The Tutor; left as a
+      // no-op until AI heuristics are updated.
       // Will compute these defense need vars below; stub them here so
       // the target gate can read skipChipCast (which was computed
       // earlier in the function, before the pass loop).
