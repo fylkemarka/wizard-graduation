@@ -5347,7 +5347,7 @@ export default function App() {
       // 2-of-3 setId match in the tray, search deck+discard for the
       // missing third slot of the same setId and pull it free into hand.
       // Fires once per turn; wit lane only.
-      if (lane === 'wit' && card.setId && !tutorFiredThisTurnRef.current) {
+      if (selectedCharacter?.lane === 'wit' && card.setId && !tutorFiredThisTurnRef.current) {
         const post = { ...tray, [card.slot]: card };
         const introSet = post.intro?.setId;
         const subjectSet = post.subject?.setId;
