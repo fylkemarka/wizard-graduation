@@ -4249,10 +4249,24 @@ export default function App() {
     setSelectedCharacter(c);
     logEvent('character.select', { characterId: c.id, lane: c.lane, name: c.name });
     pushLog(`🧙 You are ${c.name}, ${c.title}.`);
-    // v3.4.7 — wit gets a starting-row choice screen before the supply
-    // shop. Defer starter-deck build until the row is picked.
+    // v3.4.50 (Alan): wit skips the FFT row picker AND the supply shop.
+    // Default starting row is Lingering Point (slowburn-4); a random
+    // common relic is auto-granted. Goes straight to familiar-shop.
     if (c.lane === 'wit') {
-      setStage('wit-row-select');
+      const row = WIT_ROW_BY_ID['slowburn-4'];
+      setStartingRow(row);
+      logEvent('character.starting_row', { rowId: row.id, name: row.name, schoolId: row.schoolId, auto: true });
+      pushLog(`📜 Starter spell: ${row.name} — "${row.canonical}"`);
+      const starterDeck = buildStartingDeck('wit', { startingRow: row });
+      setDeck(starterDeck);
+      const commonRelics = RELICS.filter(r => r.rarity === 'common');
+      const grantedRelic = commonRelics[Math.floor(Math.random() * commonRelics.length)];
+      if (grantedRelic) {
+        setRelics(r => [...r, grantedRelic]);
+        pushLog(`🛒 Strapped on: ${grantedRelic.name}.`);
+        logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: grantedRelic.id, relicName: grantedRelic.name, rarity: grantedRelic.rarity, auto: true });
+      }
+      setStage('familiar-shop');
       return;
     }
     // Non-wit characters: build starter immediately and continue.
