@@ -57,6 +57,33 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // restarts even on rapid consecutive hits.
   const shakeClass = enemyHitFlash ? 'enemy-hit-shake' : '';
 
+  // v3.4.62 (Alan): Show the EFFECTIVE damage the enemy will actually
+  // hit for (post-Weak / enemyDmgMult), not the raw telegraph value. The
+  // player shouldn't have to math out "12 × 0.75 = 9". Falls back to the
+  // hardcoded telegraph for non-damage intents (block / buff / debuff).
+  const intentDisplay = (intent) => {
+    if (!intent) return { display: '...', reduced: false, amplified: false, rawValue: 0, effValue: 0 };
+    const mult = enemyDmgMult ?? 1;
+    if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
+      const raw = intent.value;
+      const eff = Math.round(raw * mult);
+      const reduced = eff < raw;
+      const amplified = eff > raw;
+      const count = intent.kind === 'attack-multi' ? (intent.count || 1) : null;
+      const poolIcon = intent.pool === 'composure' ? '🎭' : '⚔';
+      // Pull the (label) suffix from the original telegraph if present.
+      const tg = intent.telegraph || '';
+      const labelMatch = tg.match(/\((.*?)\)\s*$/);
+      const label = labelMatch ? ` (${labelMatch[1]})` : '';
+      // Pull "+rider Vuln/Weak" tail if present in the telegraph.
+      const riderMatch = tg.match(/(\+ [^()]+)$/);
+      const riderTail = riderMatch && !labelMatch ? ' ' + riderMatch[1] : '';
+      let body = count ? `${eff}×${count}` : `${eff}`;
+      return { display: `${poolIcon} ${body}${label}${riderTail}`, reduced, amplified, rawValue: raw, effValue: eff };
+    }
+    return { display: intent.telegraph || '...', reduced: false, amplified: false, rawValue: intent.value, effValue: intent.value };
+  };
+
   // Build a plain-language tooltip for the enemy's intent box. The
   // telegraph string ('🎭 5 (pattern-wrong)') is opaque on first read —
   // this is what teaches the icon vocabulary on hover.
@@ -186,8 +213,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                  ? "You stormed out — you didn't see what they're winding up. Reveals next turn."
                  : (intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.')}>
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
-            <div className="text-lg text-parchment-50">
-              {intentHidden ? '🌫 ???' : (enemyIntent?.telegraph || '...')}
+            <div className="text-lg">
+              {intentHidden ? <span className="text-parchment-50">🌫 ???</span> : (() => {
+                const { display, reduced, amplified, rawValue, effValue } = intentDisplay(enemyIntent);
+                const color = reduced ? 'text-moss-300' : amplified ? 'text-ember-300' : 'text-parchment-50';
+                const tooltip = reduced
+                  ? `Reduced by Weak: was ${rawValue}, now ${effValue}.`
+                  : amplified
+                  ? `Amplified: was ${rawValue}, now ${effValue}.`
+                  : '';
+                return <span className={color + (tooltip ? ' cursor-help' : '')} title={tooltip}>{display}</span>;
+              })()}
             </div>
             {/* v2.36: ACTUALLY— arguing-back surcharge. Each Actually—
                 played this turn adds +1 to this enemy attack's raw damage.
@@ -1020,23 +1056,39 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           <div className="text-right flex flex-col items-end gap-1">
             <div>
               <div className="text-[10px] uppercase text-parchment-300">Predicted</div>
-              <div className="text-2xl font-bold font-mono text-iris-200"
-                   title={`Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
-                {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'block' ? '🛡 block' : mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
-                {predicted.stakeBonus > 0 && (
-                  <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
-                )}
-                {predicted.predatorBonus > 0 && (
-                  <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
-                )}
-                {/* v2.42: insult-hit chip — tag overlap with enemy.insultVulnerabilities */}
-                {predicted.insultBonus > 0 && (
-                  <span className="text-xs text-iris-300 ml-1"
-                    title={`Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} (${Math.min(predicted.insultMatches || 0, 3)} match${(predicted.insultMatches || 0) === 1 ? '' : 'es'} × pierce).`}>
-                    🎯+{predicted.insultBonus}
-                  </span>
-                )}
-              </div>
+              {(() => {
+                // v3.4.62 (Alan): color the predicted damage when the
+                // player's damage mult is amplified (e.g. enemy Vulnerable)
+                // or weakened. The raw 'predicted.damage' already includes
+                // playerDmgMult, but the visual didn't signal it.
+                const amped = (playerDmgMult ?? 1) > 1.05;
+                const sapped = (playerDmgMult ?? 1) < 0.95;
+                const color = amped ? 'text-moss-300' : sapped ? 'text-ember-300' : 'text-iris-200';
+                const ampTitle = amped
+                  ? `Amplified ×${(playerDmgMult ?? 1).toFixed(2)} — enemy is Vulnerable.`
+                  : sapped
+                  ? `Sapped ×${(playerDmgMult ?? 1).toFixed(2)} — you are Weakened.`
+                  : '';
+                return (
+                  <div className={`text-2xl font-bold font-mono ${color} ${ampTitle ? 'cursor-help' : ''}`}
+                       title={ampTitle || `Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
+                    {amped && <span className="text-xs mr-1">🩸</span>}
+                    {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'block' ? '🛡 block' : mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
+                    {predicted.stakeBonus > 0 && (
+                      <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
+                    )}
+                    {predicted.predatorBonus > 0 && (
+                      <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
+                    )}
+                    {predicted.insultBonus > 0 && (
+                      <span className="text-xs text-iris-300 ml-1"
+                        title={`Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} (${Math.min(predicted.insultMatches || 0, 3)} match${(predicted.insultMatches || 0) === 1 ? '' : 'es'} × pierce).`}>
+                        🎯+{predicted.insultBonus}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
