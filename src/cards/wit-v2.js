@@ -657,7 +657,7 @@ const GESTURES = [
   // goes back into the deck after firing, so it's reusable across combat).
   { id: 'wv2-g-pontificate', slot: 'gesture', tier: 2, rarity: 'uncommon', lane: LANE, cost: 3, type: 'gesture',
     phrase: 'Pontificate at length:', tags: ['academic', 'cutting'],
-    gestureEffect: { icon: '📚', damage: 11, damageType: 'composure', trayMultiplier: 2, exhaust: false },
+    gestureEffect: { icon: '📚', damage: 11, damageType: 'composure', exhaust: false },
     flavor: 'The pontifex pontificates. The audience reconsiders their afternoon.' },
   // v2.6: QUIP — light damage gesture that strips enemy block.
   { id: 'wv2-g-quip-correction', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
