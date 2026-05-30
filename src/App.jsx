@@ -792,6 +792,15 @@ function buildStarterDeckForLane(lane, startingRow = null) {
       subjectId = 'wv2-s-boucle-starter';
       targetId  = 'wv2-t-fabric-starter';
     }
+  } else if (lane === 'chutzpah') {
+    // v3.4.69 — seed the chutzpah starter with a full Bluster-1 row
+    // ("Take That Tone Elsewhere") so the player can complete an FFT in
+    // their first combat. Bluster-1 = +12 comp + 1 Pressure + pressureBonus
+    // — immediately damaging AND teaches the Pressure mechanic. The row
+    // cards exist via pushRowTriple() in chutzpah-v2.js.
+    introIds = ['cv2-i-bluster-1', basics(pool.intro)[0]?.id];
+    subjectId = 'cv2-s-bluster-1';
+    targetId  = 'cv2-t-bluster-1';
   } else {
     introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
     subjectId = basics(pool.subject)[0]?.id;
