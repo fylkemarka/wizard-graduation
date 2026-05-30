@@ -4533,9 +4533,11 @@ export default function App() {
     setSelectedCharacter(c);
     logEvent('character.select', { characterId: c.id, lane: c.lane, name: c.name });
     pushLog(`🧙 You are ${c.name}, ${c.title}.`);
-    // v3.4.50 (Alan): wit skips the FFT row picker AND the supply shop.
-    // Default starting row is Lingering Point (slowburn-4); a random
-    // common relic is auto-granted. Goes straight to familiar-shop.
+    // v3.4.50 / v3.4.72 (Alan): ALL wizards skip the supply shop. Each
+    // wizard gets a random common relic auto-strapped on, then goes
+    // straight to familiar-shop. Wit additionally defaults to the
+    // slowburn-4 starting row (Lingering Point); chutzpah seeds bluster-1
+    // automatically via buildStartingDeck; jnsq uses the lane defaults.
     if (c.lane === 'wit') {
       const row = WIT_ROW_BY_ID['slowburn-4'];
       setStartingRow(row);
@@ -4543,46 +4545,19 @@ export default function App() {
       pushLog(`📜 Starter spell: ${row.name} — "${row.canonical}"`);
       const starterDeck = buildStartingDeck('wit', { startingRow: row });
       setDeck(starterDeck);
-      const commonRelics = RELICS.filter(r => r.rarity === 'common');
-      const grantedRelic = commonRelics[Math.floor(Math.random() * commonRelics.length)];
-      if (grantedRelic) {
-        setRelics(r => [...r, grantedRelic]);
-        pushLog(`🛒 Strapped on: ${grantedRelic.name}.`);
-        logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: grantedRelic.id, relicName: grantedRelic.name, rarity: grantedRelic.rarity, auto: true });
-        applyRelicOnAcquire(grantedRelic);
-      }
-      setStage('familiar-shop');
-      return;
+    } else {
+      const starterDeck = buildStartingDeck(c.lane);
+      setDeck(starterDeck);
     }
-    // Non-wit characters: build starter immediately and continue.
-    const starterDeck = buildStartingDeck(c.lane);
-    setDeck(starterDeck);
-    // v2.8: STS-style 1-of-3. Build three offers from three different
-    // categories so each option feels meaningfully distinct.
-    const lanePool = LANE_POOL[c.lane] || [];
-    // Card: a strong lane uncommon — picking it commits to lane identity.
-    // v2.61: apply isInterestingReward filter — never offer a vanilla
-    // 2-stat uncommon as the starting card. The offer should bring a
-    // real mechanic or scaling upgrade.
-    const starterIds = buildStarterDeckForLane(c.lane);
-    const uncommons = lanePool.filter(card =>
-      card.rarity === 'uncommon' &&
-      !starterIds.includes(card.id) &&
-      isInterestingReward(card)
-    );
-    const cardOffer = uncommons.length > 0
-      ? uncommons[Math.floor(Math.random() * uncommons.length)]
-      : null;
-    // Relic: any common relic. Reuses the existing RELICS table.
     const commonRelics = RELICS.filter(r => r.rarity === 'common');
-    const relicOffer = commonRelics.length > 0
-      ? commonRelics[Math.floor(Math.random() * commonRelics.length)]
-      : null;
-    // Boon: a permanent stat tweak.
-    const boonOffer = SHOP_BOONS[Math.floor(Math.random() * SHOP_BOONS.length)];
-    setSupplyOffers({ card: cardOffer, relic: relicOffer, boon: boonOffer });
-    setStage('supply-shop');
-    pushLog(`🏘 You set out from the school. Town first.`);
+    const grantedRelic = commonRelics[Math.floor(Math.random() * commonRelics.length)];
+    if (grantedRelic) {
+      setRelics(r => [...r, grantedRelic]);
+      pushLog(`🛒 Strapped on: ${grantedRelic.name}.`);
+      logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: grantedRelic.id, relicName: grantedRelic.name, rarity: grantedRelic.rarity, auto: true });
+      applyRelicOnAcquire(grantedRelic);
+    }
+    setStage('familiar-shop');
   }
 
   // v3.4.7 — Wit-only: after character select, the player picks one of
