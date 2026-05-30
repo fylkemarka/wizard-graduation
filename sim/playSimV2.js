@@ -476,21 +476,33 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
     if (slot === 'target' && (c.rarity === 'uncommon' || c.rarity === 'rare')) {
       score += 6;
     }
-    // v3.4.34 cycle 1 — Thorns target value: cast damage routes to block,
-    // not enemy damage. Greedy AI scored these as 0 (no enemy damage) and
-    // never staged them. Score = projected block value, weighted by current
-    // need (low HP boosts) + whether enemy will attack next.
+    // v3.4.37 cycle 5 — Thorns target value: only score above zero when
+    // a defensive build is actually warranted. Otherwise the greedy AI was
+    // over-staging Thorns and the team-fight clock ran out (offense > shield).
     if (slot === 'target' && c.effect?.damageType === 'block' && state.lane === 'wit') {
-      // baseline: block is half-value compared to damage
-      const projectedBlock = (c.effect?.base || 0) + ((c.effect?.multiplier || 1) * 5) * 1.5; // rough estimate
-      let blockScore = projectedBlock * 0.5;
-      // HP urgency: bigger payoff when low
       const hpFrac = state.maxHp > 0 ? state.hp / state.maxHp : 1;
-      if (hpFrac < 0.6) blockScore *= 1 + (0.6 - hpFrac);
-      // Enemy intent attack-projection: if next enemy hit deals damage, block matters
-      if (enemy?.behaviors) {
-        const hasAttackKind = enemy.behaviors.some(b => b.kind === 'attack' || b.kind === 'attack-multi');
-        if (hasAttackKind) blockScore += 4;
+      const willAttack = enemy?.behaviors?.some(b => b.kind === 'attack' || b.kind === 'attack-multi');
+      // Skip Thorns entirely when offensive opportunity is clearly stronger.
+      const enemyHpFrac = enemy && enemy.startComp ? enemy.currentComp / enemy.startComp : 1;
+      const offenseFavored = enemyHpFrac < 0.35; // boss almost dead, finish it
+      let blockScore = 0;
+      if (!offenseFavored) {
+        const projectedBlock = (c.effect?.base || 0) + ((c.effect?.multiplier || 1) * 6);
+        blockScore = projectedBlock * 0.5;
+        if (hpFrac < 0.5) blockScore *= 1 + (0.5 - hpFrac) * 3;
+        if (willAttack) blockScore += 6;
+        // Cross-school: if we already staged a Slow Burn card this tray,
+        // Thorns target unlocks the mixed-school combo. WORTH it.
+        if (state.tray && state.tray.some(t => t && t.schoolId === 'slowburn')) {
+          blockScore += 10;
+        }
+        // Reflect riders deal damage — score the per-turn reflect like DoT.
+        if (c.rider?.selfThornsPerTurn) {
+          blockScore += (c.rider.selfThornsPerTurn.amount || 0) * (c.rider.selfThornsPerTurn.turns || 0);
+        }
+        if (Array.isArray(c.rider?.selfThornsSchedule)) {
+          blockScore += c.rider.selfThornsSchedule.reduce((s, v) => s + (v || 0), 0);
+        }
       }
       score += Math.round(blockScore);
     }
@@ -2362,6 +2374,21 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.dormantDamage)    state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'dormantDamage', amount: rider.dormantDamage.amount, turnsRemaining: rider.dormantDamage.delay });
         if (rider.selfBlockPerTurn) state.scheduledEffects.push({ trigger: 'player-turn-start', kind: 'block', amount: rider.selfBlockPerTurn.amount, turnsRemaining: rider.selfBlockPerTurn.turns });
         if (rider.selfDrawPerTurn)  state.scheduledEffects.push({ trigger: 'player-turn-start', kind: 'draw',  amount: rider.selfDrawPerTurn.amount, turnsRemaining: rider.selfDrawPerTurn.turns });
+        // v3.4.36 cycle 4 — remaining Thorns riders mirrored from App.jsx applyRider.
+        // Without these the Thorns school was inert in sim (block-only).
+        if (rider.selfPoisePerTurn) state.scheduledEffects.push({ trigger: 'player-turn-start', kind: 'poise', amount: rider.selfPoisePerTurn.amount, turnsRemaining: rider.selfPoisePerTurn.turns });
+        if (rider.selfHpRegenPerTurn) state.scheduledEffects.push({ trigger: 'player-turn-start', kind: 'hpRegen', amount: rider.selfHpRegenPerTurn.amount, turnsRemaining: rider.selfHpRegenPerTurn.turns });
+        if (rider.selfThornsPerTurn) {
+          if (!state.thornsCharges) state.thornsCharges = { amount: 0, count: 0, weakOnReflect: 0, turnsRemaining: 0 };
+          state.thornsCharges.amount = Math.max(state.thornsCharges.amount, rider.selfThornsPerTurn.amount);
+          state.thornsCharges.turnsRemaining = Math.max(state.thornsCharges.turnsRemaining || 0, rider.selfThornsPerTurn.turns);
+        }
+        if (rider.selfThornsSchedule && Array.isArray(rider.selfThornsSchedule)) {
+          if (!state.thornsCharges) state.thornsCharges = { amount: 0, count: 0, weakOnReflect: 0, turnsRemaining: 0 };
+          state.thornsCharges.schedule = [...rider.selfThornsSchedule];
+          state.thornsCharges.turnsRemaining = Math.max(state.thornsCharges.turnsRemaining || 0, rider.selfThornsSchedule.length);
+        }
+        if (rider.stripEnemyBlockPerTurn) state.scheduledEffects.push({ trigger: 'player-turn-start', kind: 'stripEnemyBlock', amount: rider.stripEnemyBlockPerTurn.amount, turnsRemaining: rider.stripEnemyBlockPerTurn.turns });
         if (rider.bankDoublePerTurn) state.scheduledEffects.push({ trigger: 'enemy-turn-start', kind: 'bankDouble', amount: 0, turnsRemaining: rider.bankDoublePerTurn.turns });
         if (rider.thorns) {
           if (!state.thornsCharges) state.thornsCharges = { amount: 0, count: 0, weakOnReflect: 0 };
@@ -3384,18 +3411,50 @@ function runCombat(state, enemyId, telemetry) {
     // v3.3 unified scheduled-effects tick (player-turn-start trigger).
     if (state.scheduledEffects && state.scheduledEffects.length > 0) {
       const remaining = [];
-      let blockGained = 0, drawGained = 0;
+      let blockGained = 0, drawGained = 0, poiseGained = 0, hpRegainGained = 0, blockStripped = 0;
       for (const eff of state.scheduledEffects) {
         if (eff.trigger !== 'player-turn-start') {
           remaining.push(eff);
           continue;
         }
-        if (eff.kind === 'block')     blockGained += eff.amount;
-        else if (eff.kind === 'draw') drawGained += eff.amount;
+        if (eff.kind === 'block')        blockGained += eff.amount;
+        else if (eff.kind === 'draw')    drawGained += eff.amount;
+        else if (eff.kind === 'poise')   poiseGained += eff.amount;
+        else if (eff.kind === 'hpRegen') hpRegainGained += eff.amount;
+        else if (eff.kind === 'stripEnemyBlock') blockStripped += eff.amount;
         if (eff.turnsRemaining > 1) remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
       }
       if (blockGained > 0) state.block = (state.block || 0) + blockGained;
       if (drawGained > 0) drawCards(state, drawGained);
+      if (poiseGained > 0) state.poise = (state.poise || 0) + poiseGained;
+      if (hpRegainGained > 0) {
+        state.hp = Math.min(state.maxHp, state.hp + hpRegainGained);
+        telemetry.thornsHpRegen = (telemetry.thornsHpRegen || 0) + hpRegainGained;
+      }
+      if (blockStripped > 0 && enemy) {
+        enemy.block = Math.max(0, (enemy.block || 0) - blockStripped);
+        telemetry.thornsBlockStripped = (telemetry.thornsBlockStripped || 0) + blockStripped;
+      }
+      // v3.4.36 cycle 4 — Thorns aura tick: if charges active this turn,
+      // estimate reflect damage from the enemy's projected attack-shaped
+      // intent. The aura was completely silent in sim before.
+      if (state.thornsCharges && state.thornsCharges.turnsRemaining > 0 && enemy) {
+        const willAttack = (enemy.behaviors || []).some(b => b.kind === 'attack' || b.kind === 'attack-multi');
+        if (willAttack) {
+          let reflectAmt = state.thornsCharges.amount || 0;
+          if (Array.isArray(state.thornsCharges.schedule) && state.thornsCharges.schedule.length > 0) {
+            reflectAmt = Math.max(reflectAmt, state.thornsCharges.schedule.shift() || 0);
+          }
+          if (reflectAmt > 0) {
+            enemy.currentComp = Math.max(0, enemy.currentComp - reflectAmt);
+            telemetry.thornsReflectDamage = (telemetry.thornsReflectDamage || 0) + reflectAmt;
+          }
+        }
+        state.thornsCharges.turnsRemaining -= 1;
+        if (state.thornsCharges.turnsRemaining <= 0 && !state.thornsCharges.count) {
+          state.thornsCharges = null;
+        }
+      }
       state.scheduledEffects = remaining;
     }
     // v2.38: SAYING SOMETHING WRONG — decrement pending Misstep timers and
@@ -3893,13 +3952,14 @@ function awardReward(state) {
       if (cards.length === 0) return null;
       const baseWeights = cards.map(c => {
         const slotW = SLOT_WEIGHTS[c.slot] || 10;
-        // v3.4.34 cycle 1 (tester): bias 0.5 → 0.2 to allow cross-school decks.
-        // The greedy AI was compounding into single-school every reward draft;
-        // cross-school combos can't happen if the deck never mixes.
-        // Plus a small one-shot bonus when picking the FIRST card of a new school.
+        // v3.4.38 cycle 6: 0.2 was too flat — stalls climbed because no school
+        // built up enough density to power its own engine. Restore some cohesion
+        // (0.35) while keeping the new-school bonus (1.3) for first-of-school
+        // picks, so cross-school mixing still happens but mature decks
+        // still close combats.
         const sCount = c.schoolId ? (schoolCounts[c.schoolId] || 0) : 0;
         const schoolMult = c.schoolId
-          ? (sCount === 0 ? 1.3 : 1 + sCount * 0.2)
+          ? (sCount === 0 ? 1.3 : 1 + sCount * 0.35)
           : 1;
         return slotW * schoolMult;
       });
