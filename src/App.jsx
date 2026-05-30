@@ -295,6 +295,15 @@ const RELICS = [
     effect: { everyNthEffect: { n: 5, extraDamage: 5 } },
     desc: 'Every 5th Effect you cast deals +5 damage.',
     flavor: 'Watches everything. Pretends it isn\'t.' },
+  // v3.4.55 (Alan) — wit-flavored DoT relics.
+  { id: 'r-the-footnote', name: 'The Footnote', rarity: 'uncommon',
+    effect: { fftDotDamagePlus: 1 },
+    desc: '+1 damage to every tick of every offensive DoT applied by a FFT.',
+    flavor: 'Footnotes accumulate. Eventually they outweigh the body.' },
+  { id: 'r-cited-source', name: 'Cited Source', rarity: 'uncommon',
+    effect: { fftDefensiveDotPlus: 1 },
+    desc: '+1 to every tick of every defensive DoT (block / Thorns aura) applied by a FFT.',
+    flavor: 'Citation is, in a sense, armour. Or perhaps a brick wall.' },
 
   // ---- RARE / BOSS ----
   { id: 'r-inverted-hourglass', name: 'Inverted Hourglass', rarity: 'rare',
@@ -3535,6 +3544,13 @@ export default function App() {
   const [skipAndReturnArmed, setSkipAndReturnArmed] = useState(false);
   // v3.4.45 — "You Know What I Mean": next cast's partial FFT resolves as full.
   const [partialAsFullArmed, setPartialAsFullArmed] = useState(false);
+  // v3.4.55 (Alan) — next-spell modifier flags. All single-use; consumed
+  // on the next applicable cast. Reset per combat.
+  const [nextSpellDoubleInitial, setNextSpellDoubleInitial] = useState(false);
+  const [nextSpellDoubleDot, setNextSpellDoubleDot] = useState(false);
+  const [nextSpellDoubleDefensive, setNextSpellDoubleDefensive] = useState(false);
+  const [nextSpellAddDefensiveDot, setNextSpellAddDefensiveDot] = useState(false);
+  const [nextSpellApplyToAll, setNextSpellApplyToAll] = useState(false);
   const [wordsBank, setWordsBank] = useState(0);
   // v3.4.23 — Crescendo "Build then Climax" mechanic. crescendoBuildup
   // counts full-FFT crescendo casts in this combat (0/1/2). Cast 1 deals
@@ -5077,6 +5093,11 @@ export default function App() {
     setMirrorReflectCharges({ count: 0, capPerHit: 0 });
     setSkipAndReturnArmed(false);
     setPartialAsFullArmed(false);
+    setNextSpellDoubleInitial(false);
+    setNextSpellDoubleDot(false);
+    setNextSpellDoubleDefensive(false);
+    setNextSpellAddDefensiveDot(false);
+    setNextSpellApplyToAll(false);
     setWordsBank(0);
     // v3.4.23 — Crescendo buildup resets per combat.
     setCrescendoBuildup(0);
@@ -6168,6 +6189,21 @@ export default function App() {
     // v2.93: O-1 support — capture the damage value for the NEXT Precedent
     // cast. Also captures last cast for any future card that wants it.
     setLastCastDamage(dmg);
+    // v3.4.55 — next-spell modifiers. Verbal Smack doubles initial cast
+    // damage to the enemy (NOT Block damage — defensive cast is unaffected).
+    if (nextSpellDoubleInitial && dmg > 0 && dmgType !== 'block') {
+      const before = dmg;
+      dmg *= 2;
+      pushLog(`💥 Verbal Smack: ${before} → ${dmg} composure (×2).`);
+      setNextSpellDoubleInitial(false);
+    }
+    // v3.4.55 — That Goes For All of You! flag: single-enemy combat means
+    // no extra targets, but consume the flag and log so the player sees
+    // that it triggered. Will become real when multi-enemy combat lands.
+    if (nextSpellApplyToAll && dmgType !== 'block') {
+      pushLog(`📣 That Goes For All of You! — (single enemy; full effect when multi-enemy lands)`);
+      setNextSpellApplyToAll(false);
+    }
     // Apply damage.
     // v3.4.22 (Alan): Thorns targets carry damageType: 'block'. The cast
     // 'damage' number is granted as Block to the player instead of dealt
@@ -6208,18 +6244,32 @@ export default function App() {
       if (rider.enemyWeakPerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'weak',   amount: rider.enemyWeakPerTurn.amount, turnsRemaining: rider.enemyWeakPerTurn.turns });
       if (rider.enemyVulnPerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'vuln',   amount: rider.enemyVulnPerTurn.amount, turnsRemaining: rider.enemyVulnPerTurn.turns });
       if (rider.dormantDamage)    scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'dormantDamage', amount: rider.dormantDamage.amount, turnsRemaining: rider.dormantDamage.delay });
-      if (rider.selfBlockPerTurn) scheduleQueue.push({ trigger: 'player-turn-start', kind: 'block', amount: rider.selfBlockPerTurn.amount, turnsRemaining: rider.selfBlockPerTurn.turns });
+      // v3.4.55 — defensive-DoT amount modifiers.
+      //   Cited Source relic: +1 to amount on every defensive per-turn rider.
+      //   I Won't Hear of It (nextSpellDoubleDefensive): ×2 the amount once.
+      const hasCitedSource = relics.some(r => r.id === 'r-cited-source');
+      const doubleDef = nextSpellDoubleDefensive;
+      const modifyDefAmount = (n) => {
+        let v = n;
+        if (hasCitedSource) v += 1;
+        if (doubleDef) v *= 2;
+        return v;
+      };
+      let defModifiedThisCast = false;
+      if (rider.selfBlockPerTurn) { scheduleQueue.push({ trigger: 'player-turn-start', kind: 'block', amount: modifyDefAmount(rider.selfBlockPerTurn.amount), turnsRemaining: rider.selfBlockPerTurn.turns }); defModifiedThisCast = true; }
       if (rider.selfDrawPerTurn)  scheduleQueue.push({ trigger: 'player-turn-start', kind: 'draw',  amount: rider.selfDrawPerTurn.amount, turnsRemaining: rider.selfDrawPerTurn.turns });
       if (rider.bankDoublePerTurn) scheduleQueue.push({ trigger: 'enemy-turn-start', kind: 'bankDouble', amount: 0, turnsRemaining: rider.bankDoublePerTurn.turns });
       // v3.4.22 — Thorns (Defense over Time) scheduled effects.
-      if (rider.selfPoisePerTurn)        scheduleQueue.push({ trigger: 'player-turn-start', kind: 'poise',     amount: rider.selfPoisePerTurn.amount, turnsRemaining: rider.selfPoisePerTurn.turns });
-      if (rider.selfHpRegenPerTurn)      scheduleQueue.push({ trigger: 'player-turn-start', kind: 'hpRegen',   amount: rider.selfHpRegenPerTurn.amount, turnsRemaining: rider.selfHpRegenPerTurn.turns });
+      if (rider.selfPoisePerTurn)        { scheduleQueue.push({ trigger: 'player-turn-start', kind: 'poise',     amount: modifyDefAmount(rider.selfPoisePerTurn.amount), turnsRemaining: rider.selfPoisePerTurn.turns }); defModifiedThisCast = true; }
+      if (rider.selfHpRegenPerTurn)      { scheduleQueue.push({ trigger: 'player-turn-start', kind: 'hpRegen',   amount: modifyDefAmount(rider.selfHpRegenPerTurn.amount), turnsRemaining: rider.selfHpRegenPerTurn.turns }); defModifiedThisCast = true; }
       if (rider.stripEnemyBlockPerTurn)  scheduleQueue.push({ trigger: 'player-turn-start', kind: 'stripBlock',amount: rider.stripEnemyBlockPerTurn.amount, turnsRemaining: rider.stripEnemyBlockPerTurn.turns });
       // Thorns reflect aura (flat duration). At player-turn-start the
       // turn counter ticks down; while > 0, every enemy hit reflects.
       if (rider.selfThornsPerTurn) {
+        const amt = modifyDefAmount(rider.selfThornsPerTurn.amount);
+        defModifiedThisCast = true;
         setThornsCharges(t => ({
-          amount: Math.max(t.amount, rider.selfThornsPerTurn.amount),
+          amount: Math.max(t.amount, amt),
           count: t.count || 0,
           weakOnReflect: t.weakOnReflect || 0,
           turnsRemaining: Math.max(t.turnsRemaining || 0, rider.selfThornsPerTurn.turns),
@@ -6229,7 +6279,8 @@ export default function App() {
       // Sets the schedule directly; first turn uses schedule[0], shifts at
       // player-turn-start.
       if (Array.isArray(rider.selfThornsSchedule) && rider.selfThornsSchedule.length > 0) {
-        const sched = rider.selfThornsSchedule.slice();
+        const sched = rider.selfThornsSchedule.map(v => modifyDefAmount(v));
+        defModifiedThisCast = true;
         setThornsCharges(t => ({
           amount: sched[0],
           count: t.count || 0,
@@ -6237,6 +6288,10 @@ export default function App() {
           turnsRemaining: sched.length,
           schedule: sched,
         }));
+      }
+      if (defModifiedThisCast && doubleDef) {
+        pushLog(`🛡 I Won't Hear of It: defensive DoT doubled.`);
+        setNextSpellDoubleDefensive(false);
       }
       if (scheduleQueue.length > 0) {
         setScheduledEffects(s => [...s, ...scheduleQueue]);
@@ -6263,8 +6318,36 @@ export default function App() {
       // array of per-turn damage — and summed element-wise onto the
       // enemy's schedule. The dot is internally schedule-driven now;
       // dot.damage is always schedule[0] for display compat.
-      const addDotWave = (wave) => {
-        if (!wave || wave.length === 0) return;
+      const addDotWave = (rawWave) => {
+        if (!rawWave || rawWave.length === 0) return;
+        // v3.4.55 — relic + buff-card modifiers on incoming DoT wave.
+        // The Footnote: +1 to every tick. Blow to the Ego: ×2 the whole wave.
+        const hasFootnote = relics.some(r => r.id === 'r-the-footnote');
+        const doubleDot = nextSpellDoubleDot;
+        let wave = rawWave.slice();
+        if (hasFootnote) wave = wave.map(v => (v || 0) + 1);
+        if (doubleDot) {
+          wave = wave.map(v => (v || 0) * 2);
+          pushLog(`🌡 Blow to the Ego: DoT wave doubled.`);
+          setNextSpellDoubleDot(false);
+        }
+        // Solid Argument: ALSO push a matching selfBlockPerTurn schedule
+        // (per-turn block matching each DoT tick value).
+        if (nextSpellAddDefensiveDot) {
+          const defWave = wave.slice();
+          for (let i = 0; i < defWave.length; i++) {
+            if ((defWave[i] || 0) > 0) {
+              setScheduledEffects(s => [...s, {
+                trigger: 'player-turn-start',
+                kind: 'block',
+                amount: defWave[i],
+                turnsRemaining: i + 1,
+              }]);
+            }
+          }
+          pushLog(`🛡 Solid Argument: matching block-per-turn scheduled.`);
+          setNextSpellAddDefensiveDot(false);
+        }
         setEnemy(e => {
           if (!e) return e;
           const cur = e.dot;
@@ -7263,6 +7346,74 @@ export default function App() {
     if (fx.partialAsFullNextCast) {
       setPartialAsFullArmed(true);
       logBits.push(`📐 next half-formed cast counts as full row`);
+    }
+    // v3.4.55 — next-spell modifier flags. Each consumed on the
+    // applicable next cast.
+    if (fx.nextSpellDoubleInitial) {
+      setNextSpellDoubleInitial(true);
+      logBits.push(`💥 next offensive cast: DOUBLE initial composure damage`);
+    }
+    if (fx.nextSpellDoubleDot) {
+      setNextSpellDoubleDot(true);
+      logBits.push(`🌡 next offensive cast: DOUBLE DoT damage`);
+    }
+    if (fx.nextSpellDoubleDefensive) {
+      setNextSpellDoubleDefensive(true);
+      logBits.push(`🛡 next defensive cast: DOUBLE defensive-DoT amounts`);
+    }
+    if (fx.nextSpellAddDefensiveDot) {
+      setNextSpellAddDefensiveDot(true);
+      logBits.push(`🛡 next offensive DoT also grants matching block/turn`);
+    }
+    if (fx.nextSpellApplyToAll) {
+      setNextSpellApplyToAll(true);
+      logBits.push(`📣 next offensive cast applies to ALL enemies`);
+    }
+    // v3.4.55 — To the Rafters: cast a random Crescendo FFT row's rider
+    // by finding any Crescendo-school card in hand or discard.
+    if (fx.castRandomCrescendoFFT) {
+      const pool = [...hand, ...discard].filter(c => c.schoolId === 'crescendo' && c.setId);
+      if (pool.length === 0) {
+        logBits.push(`🎺 To the Rafters — no Crescendo card found.`);
+      } else {
+        const picked = pool[Math.floor(Math.random() * pool.length)];
+        const row = WIT_ROW_BY_ID[picked.setId];
+        if (row && row.rider) {
+          // Apply the rider via the same applyRider path. We need access
+          // to it from the cast pipeline; here in applySideEffects we
+          // call a thin emulation: just fire consumeBankFlat / addBank /
+          // doubleBankNow / bankAuraDoublePerTurn since those are the
+          // Crescendo riders. Other rider keys are no-ops here.
+          const r = row.rider;
+          if (r.consumeBankFlat && (wordsBank || 0) > 0) {
+            const bank = wordsBank;
+            const flat = bank * r.consumeBankFlat;
+            setEnemyComposure(c => {
+              const after = Math.max(0, c - flat);
+              if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+              return after;
+            });
+            showDamageFloater(flat, 'composure');
+            setWordsBank(0);
+            logBits.push(`🎺 To the Rafters → ${row.name}: ${flat} composure (${bank} bank × ${r.consumeBankFlat})`);
+          } else if (r.doubleBankNow) {
+            setWordsBank(b => Math.min(40, b * 2));
+            logBits.push(`🎺 To the Rafters → ${row.name}: bank doubled`);
+          } else {
+            logBits.push(`🎺 To the Rafters → ${row.name}: rider triggered`);
+          }
+          if (r.addBank) setWordsBank(b => (b || 0) + r.addBank);
+          if (r.bankAuraDoublePerTurn) {
+            setScheduledEffects(s => [...s, {
+              trigger: 'enemy-turn-start',
+              kind: 'bankAuraDouble',
+              amount: 0,
+              turnsRemaining: r.bankAuraDoublePerTurn.turns,
+            }]);
+          }
+          if (r.draw) drawCards(r.draw);
+        }
+      }
     }
     if (fx.physDmg) {
       applyDamageToEnemyHp(fx.physDmg);
