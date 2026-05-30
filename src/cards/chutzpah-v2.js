@@ -414,7 +414,7 @@ const GESTURES = [
   // mediocre vs single big hits.
   { id: 'cv2-g-headbutt', slot: 'gesture', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'gesture',
     phrase: '(headbutt — no commentary)', tags: ['direct', 'threatening'],
-    gestureEffect: { icon: '🪨', damage: 4, damageType: 'physical', rider: { nextAttackSwingReduction: 1 }, exhaust: true },
+    gestureEffect: { icon: '🪨', damage: 4, damageType: 'composure', rider: { nextAttackSwingReduction: 1 }, exhaust: true },
     flavor: 'A philosophical question, answered with a noun.' },
 ];
 
@@ -528,7 +528,7 @@ const STARTER_CARDS = [
   { id: 'cv2-g-shove', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
     name: 'Shove', phrase: '(a shove, brief and chiropractic,)',
     tags: ['threatening', 'direct'],
-    gestureEffect: { icon: '👊', damage: 5, damageType: 'physical', exhaust: true },
+    gestureEffect: { icon: '👊', damage: 5, damageType: 'composure', exhaust: true },
     flavor: 'It is not subtle. It does not need to be.' },
 ];
 

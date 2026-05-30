@@ -8650,7 +8650,6 @@ export default function App() {
       // counts per spec). Mutates local copies of enemy pools so the multi-
       // swing path doesn't lose state between swings.
       let recoilWComp = enemyComposure;
-      let recoilWHp = enemyHp;
       let recoilCharges = hitMeAgainCharges;
       let recoilTotal = 0;
       // v3.3 Thorns: per-swing reflect from FFT-armed thorns charges.
@@ -8660,18 +8659,14 @@ export default function App() {
       let thornsUsed = 0;
       for (let i = 0; i < hits; i++) {
         // Recoil fires BEFORE the swing's player-damage resolves.
+        // v3.4.54 (Alan): physical damage against enemies removed. Recoil
+        // now ALWAYS routes to composure, ignoring the prior enemyHpIsReal
+        // split.
         if (hitMeAgainInstalled && recoilCharges > 0) {
           const recoil = recoilCharges;
-          // Prefer HP if it's a real pool; fall back to composure for hp:999
-          // sentinels (Hollow Weaver, Silk Wraith, etc.).
-          const enemyHpIsReal = (enemy?.hpMax || 0) < 900;
-          if (enemyHpIsReal && recoilWHp > 0) {
-            recoilWHp = Math.max(0, recoilWHp - recoil);
-          } else {
-            recoilWComp = Math.max(0, recoilWComp - recoil);
-          }
+          recoilWComp = Math.max(0, recoilWComp - recoil);
           recoilTotal += recoil;
-          if (recoilWComp <= 0 || (enemyHpIsReal && recoilWHp <= 0)) {
+          if (recoilWComp <= 0) {
             // Enemy died to its own swing — stop here.
             break;
           }
@@ -8780,9 +8775,8 @@ export default function App() {
       // Commit recoil + charge state.
       if (hitMeAgainInstalled && recoilTotal > 0) {
         setEnemyComposure(recoilWComp);
-        setEnemyHp(recoilWHp);
         pushLog(`⚡ Hit me again recoils: -${recoilTotal} on ${enemy?.name || 'enemy'}.`);
-        if (recoilWComp <= 0 || ((enemy?.hpMax || 0) < 900 && recoilWHp <= 0)) {
+        if (recoilWComp <= 0) {
           setTimeout(() => onEnemyDefeated(), 200);
         }
       }

@@ -46,7 +46,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
-  const showHp = hpMax < 999;
+  // v3.4.54 (Alan): physical damage to enemies removed altogether. Enemy
+  // HP is no longer drained by any player card; hide the HP bar.
+  const showHp = false;
   const eff = enemy?.effectiveness || { chutzpah: 1, wit: 1, jnsq: 1, physical: 1 };
   const eff_label = (v) => v === 0 ? 'immune' : v >= 1.5 ? `×${v} susceptible` : v <= 0.5 ? `×${v} resistant` : `×${v}`;
   const eff_color = (v) => v === 0 ? 'bg-ink-500 text-parchment-300' : v >= 1.5 ? 'bg-moss-700 text-parchment-50' : v <= 0.5 ? 'bg-ember-800 text-parchment-100' : 'bg-ink-600 text-parchment-200';
@@ -224,7 +226,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 ×{eff.chutzpah ?? 1}</span>
           <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ ×{eff.wit ?? 1}</span>
           <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 ×{eff.jnsq ?? 1}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.physical ?? 1)}`} title={`Physical ${eff_label(eff.physical ?? 1)}`}>⚔ ×{eff.physical ?? 1}</span>
+          {/* v3.4.54: physical effectiveness chip hidden — no card deals
+              physical damage to enemies anymore. */}
         </div>
         {/* v2.65: STATUS row — what YOU have done to the enemy this combat
             (and what they've done to you). Pulled out from the lane-chip
