@@ -4012,7 +4012,7 @@ export default function App() {
       setDiscard(prev => prev.map(upgradeRowCard));
       setHand(prev => prev.map(upgradeRowCard));
       setExiled(prev => prev.map(upgradeRowCard));
-      const row = WIT_ROW_BY_ID[setId];
+      const row = WIT_ROW_BY_ID[setId] || CHUTZPAH_ROW_BY_ID[setId];
       pushLog(`📜 Upgraded FFT row "${row?.name || setId}" (all 3 cards).`);
     } else {
       pushLog(`📜 No FFT row upgraded (skipped).`);
@@ -4101,7 +4101,7 @@ export default function App() {
         setDeck(prev => prev.map(upgradeRowCard));
         setDiscard(prev => prev.map(upgradeRowCard));
         setHand(prev => prev.map(upgradeRowCard));
-        const row = WIT_ROW_BY_ID[pickedRow];
+        const row = WIT_ROW_BY_ID[pickedRow] || CHUTZPAH_ROW_BY_ID[pickedRow];
         pushLog(`📿 ${relic.name}: upgraded FFT row "${row?.name || pickedRow}" (all 3 cards).`);
       }
     }
@@ -9668,17 +9668,14 @@ export default function App() {
         result: null,
         salvaged: gathered.length === 0,
       };
-      // v3.4.64 — if wit lane AND player owns at least one FFT row,
-      // offer an FFT row upgrade choice BEFORE crafting.
-      if (selectedCharacter?.lane === 'wit') {
+      // v3.4.64 — if player owns at least one FFT row, offer an FFT row
+      // upgrade choice BEFORE crafting. Lane-aware via per-lane row table.
+      // v3.4.68 — generalized to chutzpah (uses CHUTZPAH_ROW_BY_ID).
+      const laneRowTable = selectedCharacter?.lane === 'wit' ? WIT_ROW_BY_ID
+                        : selectedCharacter?.lane === 'chutzpah' ? CHUTZPAH_ROW_BY_ID
+                        : null;
+      if (laneRowTable) {
         const owned = {};
-        for (const list of [hand, discard, exiled, [...trayCards]]) {
-          for (const c of list) {
-            if (c.setId) owned[c.setId] = true;
-          }
-        }
-        // Also check the deck snapshot just written: the deck we just
-        // built includes everything, so check that.
         const fullDeckCheck = [...hand, ...discard, ...exiled, ...trayCards];
         for (const c of fullDeckCheck) {
           if (c.setId) owned[c.setId] = true;
@@ -9689,7 +9686,7 @@ export default function App() {
           const allCardsOfRow = fullDeckCheck.filter(c => c.setId === setId);
           return allCardsOfRow.some(c => !c.upgraded);
         });
-        const rows = eligibleRowIds.map(id => WIT_ROW_BY_ID[id]).filter(Boolean);
+        const rows = eligibleRowIds.map(id => laneRowTable[id]).filter(Boolean);
         if (rows.length > 0) {
           setBossFftUpgradeChoice({ rows, pendingCraftPrompt: craftPrompt });
           pushLog(`📜 Choose an FFT row to upgrade (boss reward).`);
@@ -9741,7 +9738,13 @@ export default function App() {
     // Elite enemies grant a choice of 3 T1 FFT rows; bosses grant 3 T2
     // rows. Each row is a bundle — picking adds all 3 cards at once.
     const isEliteOrBoss = enemy.tier === 'elite' || enemy.tier === 'boss';
-    if (lane === 'wit' && isEliteOrBoss) {
+    // v3.4.68 — generalized FFT-row bundle reward: wit OR chutzpah (jnsq
+    // when its rows land). Each lane has its own ROWS table; we pick from
+    // the lane's pool, biased toward partials.
+    const laneRowsTable = lane === 'wit' ? WIT_ROWS
+                       : lane === 'chutzpah' ? CHUTZPAH_ROWS
+                       : null;
+    if (laneRowsTable && isEliteOrBoss) {
       // Pick 3 rows the player doesn't already fully own.
       const ownedRowSlots = {};
       for (const c of [...hand, ...deck, ...discard, ...exiled]) {
@@ -9750,7 +9753,7 @@ export default function App() {
         ownedRowSlots[c.setId].add(c.setSlot);
       }
       const isFullyOwned = (r) => ownedRowSlots[r.id]?.size === 3;
-      const eligibleRows = WIT_ROWS.filter(r => !isFullyOwned(r));
+      const eligibleRows = laneRowsTable.filter(r => !isFullyOwned(r));
       // Bias toward partial rows (1-2 slots already owned) — finishing a
       // row a player started feels better than starting fresh on a 4th.
       const partials = eligibleRows.filter(r => ownedRowSlots[r.id]?.size > 0);
