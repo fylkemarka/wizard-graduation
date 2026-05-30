@@ -74,8 +74,8 @@ const CARDS = [
   // which Block can't touch. Every starter deck gets one of these
   // alongside Defend so the player has both shields from turn 1.
   { id: 'c-compose', name: 'Compose Yourself', cost: 1, type: 'skill', rarity: 'basic',
-    effects: { poise: 5, removeWeak: 1 }, upgrade: { effects: { poise: 8, removeWeak: 2 } },
-    desc: 'Gain 5 Poise (vs composure attacks). Remove 1 Weak from yourself.',
+    effects: { poise: 7, removeWeak: 1 }, upgrade: { effects: { poise: 10, removeWeak: 2 } },
+    desc: 'Gain 7 Poise (vs composure attacks). Remove 1 Weak from yourself.',
     flavor: 'The first thing they took from you is the first thing you take back.' },
   // v3.4.10 (Alan): replaces the cross-row second intro that used to ride
   // along in the wit starter. One-shot, non-exhausting damage so the
@@ -6361,6 +6361,11 @@ export default function App() {
       //   - Cast damage itself is unmodified by Crescendo school.
       pushLog(`✨✨ FULLY FORMED THOUGHT — ${row.name}.`);
       if (row.canonical) pushLog(`📜 "${row.canonical}"`);
+      // v3.4.61 (Alan) — every FFT cast restores +1 Composure (player HP).
+      // Small per-cast sustain so the late-act elite isn't always hit at
+      // a depleted composure pool.
+      setComposure(c => Math.min(composureMax, c + 1));
+      pushLog(`✨ +1 Composure (FFT bonus).`);
       logEvent('wit.fft.cast', {
         rowId: row.id, rowName: row.name, schoolId: row.schoolId,
         rider: { ...rider }, damageAfterRider: dmg,
