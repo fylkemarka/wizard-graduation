@@ -2289,10 +2289,23 @@ function runCombat(state, enemyId, telemetry) {
         const rider = fftResult.fft.rider || {};
         if (rider.damageMult) dmg = Math.round(dmg * rider.damageMult);
         if (rider.bonus)      dmg += rider.bonus;
-        // v3.3 Crescendo consumeBank — applies pre-damage.
+        // v3.3 Crescendo consumeBank — applies pre-damage. (Legacy key,
+        // retained for safety; new design uses consumeBankFlat below.)
         if (rider.consumeBank && (state.wordsBank || 0) > 0) {
           dmg += state.wordsBank * rider.consumeBank;
           state.wordsBank = 0;
+        }
+        // v3.4.42 — Crescendo consumeBankFlat: consume entire bank for
+        // Bank × N flat damage. Applied as bonus damage (will route
+        // through normal damage type / block handling).
+        if (rider.consumeBankFlat && (state.wordsBank || 0) > 0) {
+          dmg += state.wordsBank * rider.consumeBankFlat;
+          telemetry.crescendoFlatDamage = (telemetry.crescendoFlatDamage || 0) + state.wordsBank * rider.consumeBankFlat;
+          state.wordsBank = 0;
+        }
+        // v3.4.42 — Crescendo doubleBankNow (Delivered): immediate ×2.
+        if (rider.doubleBankNow) {
+          state.wordsBank = Math.min(40, (state.wordsBank || 0) * 2);
         }
         telemetry.fftCasts = (telemetry.fftCasts || 0) + 1;
         telemetry.fftDamage = (telemetry.fftDamage || 0) + dmg;
@@ -2438,6 +2451,25 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.stripEnemyBlock)  enemy.block = Math.max(0, (enemy.block || 0) - rider.stripEnemyBlock);
         if (rider.forceSkipNextAttack) state.enemySkipNextAttack = true;
         if (rider.addBank)          state.wordsBank = (state.wordsBank || 0) + rider.addBank;
+        // v3.4.42 — Thorns/Crescendo redesign rider parsing.
+        if (rider.mirrorReflectCharges) {
+          state.mirrorReflectCharges = state.mirrorReflectCharges || { count: 0, capPerHit: 0 };
+          state.mirrorReflectCharges.count += (rider.mirrorReflectCharges.count || 0);
+          state.mirrorReflectCharges.capPerHit = Math.max(state.mirrorReflectCharges.capPerHit, rider.mirrorReflectCharges.capPerHit || 999);
+        }
+        if (rider.skipAndReturnNext) {
+          state.enemySkipNextAttack = true;
+          state.skipAndReturnArmed = true;
+        }
+        if (rider.bankAuraDoublePerTurn) {
+          state.scheduledEffects = state.scheduledEffects || [];
+          state.scheduledEffects.push({
+            trigger: 'enemy-turn-start',
+            kind: 'bankAuraDouble',
+            amount: 0,
+            turnsRemaining: rider.bankAuraDoublePerTurn.turns,
+          });
+        }
       };
       if (fftResult.fft) {
         applyRiderSim(fftResult.fft.rider);
@@ -3134,6 +3166,16 @@ function runCombat(state, enemyId, telemetry) {
       state.enemySkipNextAttack = false;
       attackSkipped = true;
       telemetry.passingThoughtSkipsAttack = (telemetry.passingThoughtSkipsAttack || 0) + 1;
+      // v3.4.42 — Thorns skipAndReturnNext: the cancelled attack damage
+      // is dealt to the enemy as composure damage.
+      if (state.skipAndReturnArmed) {
+        state.skipAndReturnArmed = false;
+        const returned = Math.round((enemy.atk || 0) * (state.enemyDmgMult || 1));
+        if (returned > 0) {
+          enemy.currentComp = Math.max(0, enemy.currentComp - returned);
+          telemetry.skipAndReturnDamage = (telemetry.skipAndReturnDamage || 0) + returned;
+        }
+      }
     }
     let incoming = attackSkipped ? 0 : enemy.atk;
     // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
@@ -3178,6 +3220,17 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.fftThornsWeakApplied = (telemetry.fftThornsWeakApplied || 0) + state.thornsCharges.weakOnReflect;
       }
       state.thornsCharges.count -= 1;
+      if (enemy.currentComp <= 0) {
+        flushThreadPeak();
+        return { outcome: 'won', turns, telemetry };
+      }
+    }
+    // v3.4.42 — Mirror Reflect: reflects 100% of incoming damage capped per hit.
+    if (state.mirrorReflectCharges && state.mirrorReflectCharges.count > 0 && incoming > 0) {
+      const reflected = Math.min(incoming, state.mirrorReflectCharges.capPerHit || 9999);
+      enemy.currentComp = Math.max(0, enemy.currentComp - reflected);
+      telemetry.mirrorReflectDamage = (telemetry.mirrorReflectDamage || 0) + reflected;
+      state.mirrorReflectCharges.count -= 1;
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
         return { outcome: 'won', turns, telemetry };
@@ -3451,8 +3504,10 @@ function runCombat(state, enemyId, telemetry) {
     if (state.scheduledEffects && state.scheduledEffects.length > 0) {
       const remaining = [];
       let blockGained = 0, drawGained = 0, poiseGained = 0, hpRegainGained = 0, blockStripped = 0;
+      let bankAuraDoubled = false;
       for (const eff of state.scheduledEffects) {
         if (eff.trigger !== 'player-turn-start') {
+          if (eff.kind === 'bankAuraDouble' && eff.turnsRemaining > 0) bankAuraDoubled = true;
           remaining.push(eff);
           continue;
         }
@@ -3462,6 +3517,15 @@ function runCombat(state, enemyId, telemetry) {
         else if (eff.kind === 'hpRegen') hpRegainGained += eff.amount;
         else if (eff.kind === 'stripEnemyBlock') blockStripped += eff.amount;
         if (eff.turnsRemaining > 1) remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
+      }
+      // v3.4.42 — Bank Aura tick.
+      if (state.lane === 'wit' && (state.wordsBank || 0) > 0 && enemy) {
+        let auraDmg = Math.min(4, Math.floor(state.wordsBank / 5));
+        if (bankAuraDoubled) auraDmg *= 2;
+        if (auraDmg > 0) {
+          enemy.currentComp = Math.max(0, enemy.currentComp - auraDmg);
+          telemetry.bankAuraDamage = (telemetry.bankAuraDamage || 0) + auraDmg;
+        }
       }
       if (blockGained > 0) state.block = (state.block || 0) + blockGained;
       if (drawGained > 0) drawCards(state, drawGained);

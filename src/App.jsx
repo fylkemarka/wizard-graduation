@@ -3508,6 +3508,11 @@ export default function App() {
   //   wordsBank — Crescendo currency; +1 per card play.
   const [scheduledEffects, setScheduledEffects] = useState([]);
   const [thornsCharges, setThornsCharges] = useState({ amount: 0, count: 0, weakOnReflect: 0 });
+  // v3.4.42 — Thorns redesign: mirrorReflectCharges holds N reflect-100%
+  // hits (capped per hit). skipAndReturnArmed deals the skipped attack's
+  // damage back to the enemy on the next-attack resolution.
+  const [mirrorReflectCharges, setMirrorReflectCharges] = useState({ count: 0, capPerHit: 0 });
+  const [skipAndReturnArmed, setSkipAndReturnArmed] = useState(false);
   const [wordsBank, setWordsBank] = useState(0);
   // v3.4.23 — Crescendo "Build then Climax" mechanic. crescendoBuildup
   // counts full-FFT crescendo casts in this combat (0/1/2). Cast 1 deals
@@ -3609,6 +3614,12 @@ export default function App() {
   const [intentHidden, setIntentHidden] = useState(false);
   const stormOutFiredRef = useRef(false);
   const tutorFiredThisTurnRef = useRef(false);
+  const [tutorFlash, setTutorFlash] = useState(null);
+  useEffect(() => {
+    if (!tutorFlash) return;
+    const id = setTimeout(() => setTutorFlash(null), 2800);
+    return () => clearTimeout(id);
+  }, [tutorFlash]);
   // v2.27: HIT ME AGAIN — chutzpah's reactive recoil power. While the
   // `cv2-p-hit-me-again` power is installed (mirrored on this flag so the
   // attack-resolution path doesn't have to walk `powers` on every swing),
@@ -5011,6 +5022,8 @@ export default function App() {
     // v3.3: FFT strategy resets per combat.
     setScheduledEffects([]);
     setThornsCharges({ amount: 0, count: 0, weakOnReflect: 0, turnsRemaining: 0, schedule: undefined });
+    setMirrorReflectCharges({ count: 0, capPerHit: 0 });
+    setSkipAndReturnArmed(false);
     setWordsBank(0);
     // v3.4.23 — Crescendo buildup resets per combat.
     setCrescendoBuildup(0);
@@ -5363,23 +5376,26 @@ export default function App() {
         }
         if (missingSlot && matchSet) {
           const findFn = c => c.setId === matchSet && c.slot === missingSlot;
+          const deckIdx = deck.findIndex(findFn);
           let pulled = null;
-          setDeck(d => {
-            const i = d.findIndex(findFn);
-            if (i >= 0) { pulled = d[i]; return d.filter((_, ix) => ix !== i); }
-            return d;
-          });
-          if (!pulled) {
-            setDiscard(d => {
-              const i = d.findIndex(findFn);
-              if (i >= 0) { pulled = d[i]; return d.filter((_, ix) => ix !== i); }
-              return d;
-            });
+          let fromPile = null;
+          if (deckIdx >= 0) {
+            pulled = deck[deckIdx];
+            fromPile = 'deck';
+            setDeck(deck.filter((_, i) => i !== deckIdx));
+          } else {
+            const discardIdx = discard.findIndex(findFn);
+            if (discardIdx >= 0) {
+              pulled = discard[discardIdx];
+              fromPile = 'discard';
+              setDiscard(discard.filter((_, i) => i !== discardIdx));
+            }
           }
           if (pulled) {
             setHand(h => [...h, pulled]);
             tutorFiredThisTurnRef.current = true;
-            pushLog(`📜 the sentence finishes itself — ${pulled.name || pulled.phrase} pulled to hand.`);
+            setTutorFlash({ cardName: pulled.name || pulled.phrase || 'card', fromPile, t: Date.now() });
+            pushLog(`✨ THE SENTENCE FINISHES ITSELF — ${pulled.name || pulled.phrase} pulled from ${fromPile}.`);
           }
         }
       }
@@ -6092,55 +6108,14 @@ export default function App() {
       const rider = row.rider || {};
       if (rider.damageMult)  dmg = Math.round(dmg * rider.damageMult);
       if (rider.bonus)       dmg += rider.bonus;
-      // v3.4.23 — Crescendo "Build then Climax". Each full-FFT crescendo
-      // cast advances crescendoBuildup. Cast 1 deals 0 damage. Cast 2
-      // deals half. Cast 3 (climax) deals full damage with × buildup
-      // scaling, consumes the bank, and resets. Same-row lockstep bonus
-      // (×1.5) fires when all 3 cards in the buildup share the same row.
-      if (row.schoolId === 'crescendo') {
-        const nextBuildup = crescendoBuildup + 1;  // 1, 2, or 3
-        const nextRows = [...crescendoBuildupRows, row.id];
-        const bank = wordsBank;
-        // v3.4.24 (Alan: crescendo was "way too strong"). Two fixes:
-        //   1. Bug fix — removed the double × nextBuildup multiplier that
-        //      was scaling damage by 9× at climax instead of 3×.
-        //   2. Rebalance — bonus uses a gentler stage-multiplier curve:
-        //      stage 1 = 0× (no damage), stage 2 = 1×, stage 3 = 2×.
-        // Final formula:
-        //   bonus = consumeBank × bank × (stage - 1)  (so 0/1/2)
-        //   stage 1: 0 damage (the opener)
-        //   stage 2: ½ × (base + bonus)
-        //   stage 3: (base + bonus); same-row × 1.5
-        const stageMult = nextBuildup === 1 ? 0 : nextBuildup === 2 ? 1 : 2;
-        const bonus = (rider.consumeBank || 0) * bank * stageMult;
-        let crescendoDmg = dmg + bonus;
-        if (nextBuildup === 1)      crescendoDmg = 0;
-        else if (nextBuildup === 2) crescendoDmg = Math.round(crescendoDmg * 0.5);
-        // Climax (stage 3): same-row lockstep bonus.
-        let sameRowBonus = false;
-        if (nextBuildup === 3 && nextRows[0] === nextRows[1] && nextRows[1] === nextRows[2]) {
-          crescendoDmg = Math.round(crescendoDmg * 1.5);
-          sameRowBonus = true;
-        }
-        dmg = crescendoDmg;
-        if (nextBuildup === 1) {
-          pushLog(`📚 Crescendo opening — ${row.name}. The room quiets. Buildup 1/3.`);
-        } else if (nextBuildup === 2) {
-          pushLog(`📚 Crescendo building — ${row.name}. ${dmg} dmg (half). Buildup 2/3.`);
-        } else {
-          const label = sameRowBonus ? `THE CLIMAX (same-row × 1.5)` : `THE CLIMAX`;
-          pushLog(`📚 ${label} — ${row.name}. ${dmg} dmg. Bank consumed.`);
-          setWordsBank(0);
-        }
-        // Advance / reset state.
-        if (nextBuildup === 3) {
-          setCrescendoBuildup(0);
-          setCrescendoBuildupRows([]);
-        } else {
-          setCrescendoBuildup(nextBuildup);
-          setCrescendoBuildupRows(nextRows);
-        }
-      }
+      // v3.4.42 — Crescendo Build-then-Climax REMOVED. The cycle-3-5
+      // stage-mult gating made Crescendo unplayable (cast 1 = 0 dmg
+      // required three consecutive Crescendo casts). New design:
+      //   - Bank Aura ticks composure every player turn (see player-
+      //     turn-start handler) — the bank is a visible growing threat.
+      //   - Crescendo cards use consumeBankFlat to spend the bank for
+      //     Bank × N flat damage (applied as a rider in applyRider).
+      //   - Cast damage itself is unmodified by Crescendo school.
       pushLog(`✨✨ FULLY FORMED THOUGHT — ${row.name}.`);
       if (row.canonical) pushLog(`📜 "${row.canonical}"`);
       logEvent('wit.fft.cast', {
@@ -6378,6 +6353,57 @@ export default function App() {
         pushLog(`🌹 Thorns — their next attack will be answered before it lands.`);
       }
       if (rider.addBank)        setWordsBank(b => b + rider.addBank);
+      // v3.4.42 — Thorns/Crescendo redesign riders.
+      // mirrorReflectCharges: N enemy hits each reflect 100% of damage taken,
+      // capped per hit. Stored as a count-based charge that the attack
+      // resolution path checks BEFORE the regular thornsCharges aura.
+      if (rider.mirrorReflectCharges) {
+        setMirrorReflectCharges(m => ({
+          count: (m?.count || 0) + (rider.mirrorReflectCharges.count || 0),
+          capPerHit: Math.max(m?.capPerHit || 0, rider.mirrorReflectCharges.capPerHit || 999),
+        }));
+        pushLog(`🪞 Mirror line set — next ${rider.mirrorReflectCharges.count} hits reflect 100% (cap ${rider.mirrorReflectCharges.capPerHit}).`);
+      }
+      // skipAndReturnNext: skip enemy's next attack AND deal that same
+      // damage to them. Sets BOTH the skip flag AND the return-damage flag.
+      if (rider.skipAndReturnNext) {
+        setEnemySkipNextAttack(true);
+        setSkipAndReturnArmed(true);
+        pushLog(`🪞 Their next attack will be returned to them.`);
+      }
+      // consumeBankFlat: consume entire wordsBank for Bank × N flat damage
+      // on top of cast. Resolved here so the cast damage already landed.
+      if (rider.consumeBankFlat) {
+        const bank = wordsBank;
+        if (bank > 0) {
+          const flat = bank * rider.consumeBankFlat;
+          setEnemyComposure(c => {
+            const after = Math.max(0, c - flat);
+            if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+            return after;
+          });
+          showDamageFloater(flat, 'composure');
+          pushLog(`🎺 Crescendo cash-in — ${bank} bank × ${rider.consumeBankFlat} = ${flat} composure.`);
+          setWordsBank(0);
+        }
+      }
+      // doubleBankNow: immediate bank ×2.
+      if (rider.doubleBankNow) {
+        setWordsBank(b => {
+          const next = Math.min(b * 2, 40);
+          if (b > 0) pushLog(`🎺 Bank doubled: ${b} → ${next}.`);
+          return next;
+        });
+      }
+      // bankAuraDoublePerTurn: for N enemy turns, the bank-aura tick doubles.
+      if (rider.bankAuraDoublePerTurn) {
+        setScheduledEffects(s => [...s, {
+          trigger: 'enemy-turn-start',
+          kind: 'bankAuraDouble',
+          amount: 0,
+          turnsRemaining: rider.bankAuraDoublePerTurn.turns,
+        }]);
+      }
     };
     if (fftResult.fft) {
       applyRider(fftResult.fft.rider);
@@ -8212,8 +8238,12 @@ export default function App() {
       let poiseGained = 0;
       let hpRegen = 0;
       let blockStripped = 0;
+      let bankAuraDoubled = false;
       for (const eff of scheduledEffects) {
         if (eff.trigger !== 'player-turn-start') {
+          // Detect bankAuraDouble (lives on enemy-turn-start trigger but
+          // affects THIS player-turn's aura tick).
+          if (eff.kind === 'bankAuraDouble' && eff.turnsRemaining > 0) bankAuraDoubled = true;
           remaining.push(eff);
           continue;
         }
@@ -8233,6 +8263,22 @@ export default function App() {
       if (blockStripped > 0) {
         setEnemyBlock(b => Math.max(0, b - blockStripped));
         pushLog(`🛇 Thorns boon: stripped ${blockStripped} enemy Block.`);
+      }
+      // v3.4.42 — Bank Aura tick. While wordsBank > 0, deal floor(bank/5)
+      // composure damage, cap 4. Crescendo's Delivered card doubles this
+      // for 3 turns via bankAuraDouble.
+      if (wordsBank > 0) {
+        let auraDmg = Math.min(4, Math.floor(wordsBank / 5));
+        if (bankAuraDoubled) auraDmg *= 2;
+        if (auraDmg > 0 && enemy) {
+          setEnemyComposure(c => {
+            const after = Math.max(0, c - auraDmg);
+            if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+            return after;
+          });
+          showDamageFloater(auraDmg, 'composure');
+          pushLog(`🎺 Bank Aura: ${wordsBank} bank → ${auraDmg} comp${bankAuraDoubled ? ' (×2)' : ''}.`);
+        }
       }
       setScheduledEffects(remaining);
     }
@@ -8383,7 +8429,24 @@ export default function App() {
       // shouldn't also apply the attack's Weak / Vuln / block riders.
       if (enemySkipNextAttack) {
         setEnemySkipNextAttack(false);
-        pushLog(`🤐 ${e.name}: you spoke right through it. (Talking Over Them)`);
+        // v3.4.42 — Thorns skipAndReturnNext: the cancelled attack damage
+        // is dealt to the enemy instead. Resolves BEFORE the early return
+        // so the player still escapes the hit AND the enemy eats it.
+        if (skipAndReturnArmed) {
+          setSkipAndReturnArmed(false);
+          const returned = Math.round(intent.value * enemyDmgMult);
+          if (returned > 0) {
+            setEnemyComposure(c => {
+              const after = Math.max(0, c - returned);
+              if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+              return after;
+            });
+            showDamageFloater(returned, 'composure');
+            pushLog(`🪞 ${e.name}: their own ${returned} damage, handed back.`);
+          }
+        } else {
+          pushLog(`🤐 ${e.name}: you spoke right through it. (Talking Over Them)`);
+        }
         return;
       }
       // v2.9: dual-shield routing.
@@ -8576,6 +8639,15 @@ export default function App() {
           pushLog(`🌹 Thorns: ${initialThorns.amount} comp reflected${logExtra}.`);
           // Only decrement discrete count if the aura isn't paying for this hit.
           if (!auraActive) thornsUsed++;
+        }
+        // v3.4.42 — Mirror Reflect: charge-based, reflect 100% of THIS
+        // swing's incoming raw damage capped per charge. Stacks ON TOP of
+        // regular thorns. Consumes one charge per swing.
+        if (mirrorReflectCharges.count > 0 && remaining > 0) {
+          const reflected = Math.min(remaining, mirrorReflectCharges.capPerHit || 9999);
+          applyDamageToEnemyComposure(reflected);
+          pushLog(`🪞 Mirror: ${reflected} comp reflected (100% of incoming).`);
+          setMirrorReflectCharges(m => ({ count: Math.max(0, (m?.count || 0) - 1), capPerHit: m?.capPerHit || 0 }));
         }
         // v2.52: DRUNKEN STAGGER — per-swing 50% dodge. Rolled BEFORE the
         // shield-routing block so a missed swing zeroes out completely (no
@@ -9532,6 +9604,7 @@ export default function App() {
       scheduledEffects={scheduledEffects}
       thornsCharges={thornsCharges}
       enemySkipNextAttack={enemySkipNextAttack}
+      tutorFlash={tutorFlash}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}

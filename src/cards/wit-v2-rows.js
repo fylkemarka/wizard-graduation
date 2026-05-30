@@ -128,15 +128,18 @@ export const WIT_ROWS = [
     riderDesc: 'DoT 3 composure/turn × 4 turns AND Vulnerable 1× each turn.',
   },
 
-  // ---- Thorns (Reflect) ----
-  // THORNS — channel the "sparkling clean surface" motif: reflect their
-  // attack as their own face, strip grime (block), preempt the move.
+  // ---- Thorns (Counter-Puncher) ----
+  // THORNS v2 — pure counter-puncher. Every row is "throw their move back."
+  // Dropped the defender lines (block-on-cast, heal-on-cast) so the school
+  // has ONE clear identity. Strategic pick: choose Thorns when you see
+  // attack-shaped intent. Weak against non-attackers, dominant against
+  // aggressive enemies.
   {
     id: 'thorns-1', schoolId: 'thorns', name: 'Returned in Kind',
     canonical: 'Specifically speaking, your next attack comes back to you.',
     introId: 'wv2-i-specifically-speaking', subjectId: 'wv2-s-gentleman-bidet', targetId: 'wv2-t-not-a-gentleman',
-    rider: { selfBlockPerTurn: { amount: 5, turns: 3 }, selfPoisePerTurn: { amount: 5, turns: 3 } },
-    riderDesc: '+5 Block AND +5 Poise at the start of each of your next 3 turns. Standing defense.',
+    rider: { mirrorReflectCharges: { count: 3, capPerHit: 12 } },
+    riderDesc: 'Next 3 enemy hits each reflect 100% of damage taken (capped at 12 per reflect). The mirror line.',
   },
   {
     id: 'thorns-2', schoolId: 'thorns', name: 'Rebound',
@@ -156,8 +159,8 @@ export const WIT_ROWS = [
     id: 'thorns-5', schoolId: 'thorns', name: 'What You Get Back',
     canonical: 'Curiously, what you throw is what you get back.',
     introId: 'wv2-i-curiously', subjectId: 'wv2-s-towel-rotation', targetId: 'wv2-t-did-not-ask-to-know',
-    rider: { selfHpRegenPerTurn: { amount: 2, turns: 2 }, forceSkipNextAttack: true },
-    riderDesc: 'Heal 2 HP at the start of each of your next 2 turns AND their NEXT attack is skipped entirely.',
+    rider: { skipAndReturnNext: true },
+    riderDesc: 'Their NEXT attack is skipped entirely — AND the damage they would have dealt is dealt to them instead. Pure counter.',
   },
   {
     id: 'thorns-6', schoolId: 'thorns', name: 'Answered in Advance',
@@ -167,41 +170,45 @@ export const WIT_ROWS = [
     riderDesc: 'Reflect 5 damage on every enemy hit AND strip 7 of their Block at the start of each of your next 3 turns.',
   },
 
-  // ---- Crescendo (Buildup / wordsBank) ----
+  // ---- Crescendo (Visible Bank Aura) ----
+  // CRESCENDO v2 — Bank is now a VISIBLE growing threat that ticks composure
+  // damage every player turn (floor(bank/5), cap 4). Drops the build-then-
+  // climax gating that made casts 1+2 useless. Crescendo cards become
+  // flat Bank-spenders: deal Bank × N damage and consume.
   {
     id: 'crescendo-1', schoolId: 'crescendo', name: 'All At Once',
     canonical: 'When you add it up, every word so far lands at once.',
     introId: 'wv2-i-civically-speaking', subjectId: 'wv2-s-turn-signal', targetId: 'wv2-t-entire-drive',
-    rider: { consumeBank: 1 },
-    riderDesc: 'Consume Words Bank — +1 damage per word (scaled by buildup stage at climax).',
+    rider: { consumeBankFlat: 2 },
+    riderDesc: 'Consume Words Bank — deal Bank × 2 damage on top of cast. The straight dump.',
   },
   {
     id: 'crescendo-2', schoolId: 'crescendo', name: 'Just Getting Started',
     canonical: 'Strictly speaking, this argument is just getting started.',
     introId: 'wv2-i-strictly-speaking', subjectId: 'wv2-s-yield-sign', targetId: 'wv2-t-suggestion-at-best',
-    rider: { consumeBank: 1, addBank: 3 },
-    riderDesc: 'Consume Words Bank for +1/word AND immediately re-bank 3.',
+    rider: { consumeBankFlat: 1, addBank: 5 },
+    riderDesc: 'Consume Bank for Bank × 1 damage AND immediately re-bank 5. Sustain.',
   },
   {
     id: 'crescendo-3', schoolId: 'crescendo', name: 'Hardest Now',
     canonical: "I should think that what's been building lands hardest now.",
     introId: 'wv2-i-i-should-think', subjectId: 'wv2-s-your-volvo', targetId: 'wv2-t-conversation-with-you-itself',
-    rider: { consumeBank: 2 },
-    riderDesc: 'Consume Words Bank — +2 damage per word (biggest payoff).',
+    rider: { consumeBankFlat: 3 },
+    riderDesc: 'Consume Bank — Bank × 3 damage on top of cast. The biggest payoff.',
   },
   {
     id: 'crescendo-4', schoolId: 'crescendo', name: 'It All Adds Up',
     canonical: "Actually, every point we've made adds up here.",
     introId: 'wv2-i-actually', subjectId: 'wv2-s-parallel-parking', targetId: 'wv2-t-essence-public-service',
-    rider: { consumeBank: 1, draw: 1 },
-    riderDesc: 'Consume Words Bank for +1/word AND draw 1.',
+    rider: { consumeBankFlat: 2, draw: 1 },
+    riderDesc: 'Consume Bank for Bank × 2 damage AND draw 1. Tempo dump.',
   },
   {
     id: 'crescendo-5', schoolId: 'crescendo', name: 'Delivered',
     canonical: "Honestly, the case I've laid out delivers itself now.",
     introId: 'wv2-i-honestly', subjectId: 'wv2-s-left-lane-behavior', targetId: 'wv2-t-jurisdiction-moral-failing',
-    rider: { consumeBank: 1, bankDoublePerTurn: { turns: 3 } },
-    riderDesc: 'Consume Words Bank for +1/word NOW — AND for the next 3 enemy turns, the bank doubles automatically. The longer you wait to cast another Crescendo, the bigger the next one.',
+    rider: { doubleBankNow: true, bankAuraDoublePerTurn: { turns: 3 } },
+    riderDesc: 'Bank doubles immediately — AND the Bank Aura ticks at 2× for 3 turns. No consume. Escalation.',
   },
 ];
 
@@ -223,6 +230,18 @@ export const WIT_RIDER_KEYS = [
   // v3.4.22 — Thorns rebuilt as Defense over Time.
   'selfPoisePerTurn', 'selfHpRegenPerTurn',
   'selfThornsPerTurn', 'selfThornsSchedule', 'stripEnemyBlockPerTurn',
+  // v3.4.42 — Thorns/Crescendo redesign:
+  //   mirrorReflectCharges: { count, capPerHit } — N enemy hits each
+  //     reflect 100% of damage taken (capped per hit).
+  //   skipAndReturnNext: true — skip enemy's next attack AND deal that
+  //     same damage to them instead.
+  //   consumeBankFlat: N — consume entire Words Bank for Bank × N flat
+  //     damage on top of the cast.
+  //   doubleBankNow: true — multiply current wordsBank by 2.
+  //   bankAuraDoublePerTurn: { turns } — for N enemy turns, the per-
+  //     player-turn Bank Aura tick is doubled.
+  'mirrorReflectCharges', 'skipAndReturnNext',
+  'consumeBankFlat', 'doubleBankNow', 'bankAuraDoublePerTurn',
 ];
 
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));

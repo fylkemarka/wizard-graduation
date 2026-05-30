@@ -42,6 +42,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        wontShutUpArmed = false, staggerActive = false,
                        notListeningCharges = 0, hitMeAgainCharges = 0,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
+                       tutorFlash = null,
                        onOpenCompendium, onOpenDeckView }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
@@ -98,6 +99,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // Bottom action bar: End Turn + deck/discard/exile buttons.
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
+      {tutorFlash && (
+        <div key={tutorFlash.t} className="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="parchment-card-strong px-6 py-3 border-2 border-gold-400 shadow-2xl animate-pulse">
+            <div className="text-xs uppercase tracking-widest text-gold-300 font-display">✨ The sentence finishes itself</div>
+            <div className="text-lg font-display text-parchment-50 mt-1">
+              <span className="text-iris-200">{tutorFlash.cardName}</span>
+              <span className="text-parchment-300 text-sm ml-2">pulled from {tutorFlash.fromPile} → hand</span>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative ${shakeClass}`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
