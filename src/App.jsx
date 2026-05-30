@@ -3701,7 +3701,7 @@ export default function App() {
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
-    const id = setTimeout(() => setTutorFlash(null), 2800);
+    const id = setTimeout(() => setTutorFlash(null), 5000);
     return () => clearTimeout(id);
   }, [tutorFlash]);
   // v2.27: HIT ME AGAIN — chutzpah's reactive recoil power. While the
