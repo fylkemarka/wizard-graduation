@@ -9970,6 +9970,7 @@ export default function App() {
       crescendoBuildupRows={crescendoBuildupRows}
       scheduledEffects={scheduledEffects}
       thornsCharges={thornsCharges}
+      mirrorReflectCharges={mirrorReflectCharges}
       enemySkipNextAttack={enemySkipNextAttack}
       tutorFlash={tutorFlash}
       enemyAnnotation={enemy?.annotation || null}

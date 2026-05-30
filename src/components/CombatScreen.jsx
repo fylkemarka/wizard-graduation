@@ -31,6 +31,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        longThread = 0, isWit = false, wordsBank = 0,
                        crescendoBuildup = 0, crescendoBuildupRows = [],
                        scheduledEffects = [], thornsCharges = null,
+                       mirrorReflectCharges = null,
                        enemySkipNextAttack = false, enemyAnnotation = null,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
@@ -407,8 +408,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           const annRed = enemyAnnotation?.effect?.enemyAtkReduction || 0;
           const thornsAuraTurns = thornsCharges?.turnsRemaining || 0;
           const thornsSchedule = Array.isArray(thornsCharges?.schedule) ? thornsCharges.schedule : null;
+          const mirrorCount = mirrorReflectCharges?.count || 0;
+          const mirrorCap = mirrorReflectCharges?.capPerHit || 0;
           const hasAny = Object.keys(buckets).length > 0 || annRed > 0 || enemySkipNextAttack
-                        || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0;
+                        || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0 || mirrorCount > 0;
           if (!hasAny) return null;
           const chips = [];
           if (enemySkipNextAttack) chips.push(<span key="skip" className="text-gold-300">🤐 SKIP NEXT</span>);
@@ -420,6 +423,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           if (thornsAuraTurns > 0 && !thornsSchedule) chips.push(<span key="ta">🌹{thornsCharges?.amount || 0}×{thornsAuraTurns}t</span>);
           if (thornsSchedule && thornsSchedule.length > 0) chips.push(<span key="ts">🌹[{thornsSchedule.join(',')}]</span>);
           if ((thornsCharges?.count || 0) > 0) chips.push(<span key="tc">🌹{thornsCharges.amount}×{thornsCharges.count}</span>);
+          if (mirrorCount > 0) chips.push(<span key="mr" title={`Mirror reflect: next ${mirrorCount} enemy hits each reflect 100% of damage taken (cap ${mirrorCap} per hit).`} className="text-iris-200">🪞{mirrorCount}×100%≤{mirrorCap}</span>);
           if (buckets.stripBlock) chips.push(<span key="sb">🛇{buckets.stripBlock.amount}×{buckets.stripBlock.turns}t</span>);
           if (buckets.weak) chips.push(<span key="w">💢{buckets.weak.amount}×{buckets.weak.turns}t</span>);
           if (buckets.vuln) chips.push(<span key="v">🩸{buckets.vuln.amount}×{buckets.vuln.turns}t</span>);
