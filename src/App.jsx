@@ -41,7 +41,9 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
-import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, WIT_ROW_BY_ID, detectFFT } from './cards/wit-v2-rows.js';
+import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, WIT_ROW_BY_ID, detectFFT, registerRows } from './cards/wit-v2-rows.js';
+import { CHUTZPAH_ROWS, CHUTZPAH_ROW_BY_ID, CHUTZPAH_SAME_SCHOOL_BONUSES, CHUTZPAH_PARTIAL_ROW_BONUSES } from './cards/chutzpah-v2-rows.js';
+registerRows(CHUTZPAH_ROW_BY_ID);
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
@@ -3660,6 +3662,17 @@ export default function App() {
   // damage absorbed by THIS card's block contribution. Stores the block
   // snapshot right after the card was played + the heal cap (5).
   const [complimentSnap, setComplimentSnap] = useState(null);
+  // v3.4.67 — Chutzpah schools state.
+  //   Bluster: enemy.pressure (lives on enemy object).
+  //   Ballooning: tempHp + tempHpExpiresOnTurn. Decays at start of player
+  //     turn once the marker passes. Damage routing: incoming →
+  //     block → tempHp → HP/Comp.
+  //   Ballistic: playerIncomingMult — multiplier on incoming damage to
+  //     player. Self-Vulnerable raises it. Decays per turn.
+  const [tempHp, setTempHp] = useState(0);
+  const [tempHpTurns, setTempHpTurns] = useState(0);
+  const [playerIncomingMult, setPlayerIncomingMult] = useState(1.0);
+  const [playerIncomingMultTurns, setPlayerIncomingMultTurns] = useState(0);
   // v3.4.55 (Alan) — next-spell modifier flags. All single-use; consumed
   // on the next applicable cast. Reset per combat.
   const [nextSpellDoubleInitial, setNextSpellDoubleInitial] = useState(false);
@@ -5338,6 +5351,11 @@ export default function App() {
     setNextCardFree(false);
     setEnemySkipNextTurn(false);
     setComplimentSnap(null);
+    // v3.4.67 — chutzpah school state resets per combat.
+    setTempHp(0);
+    setTempHpTurns(0);
+    setPlayerIncomingMult(1.0);
+    setPlayerIncomingMultTurns(0);
     setWordsBank(0);
     // v3.4.23 — Crescendo buildup resets per combat.
     setCrescendoBuildup(0);
@@ -6396,6 +6414,42 @@ export default function App() {
       const rider = row.rider || {};
       if (rider.damageMult)  dmg = Math.round(dmg * rider.damageMult);
       if (rider.bonus)       dmg += rider.bonus;
+      // v3.4.67 — Chutzpah school riders (PRE-damage).
+      //   Bluster: pressureBonus reads enemy.pressure as flat damage;
+      //   consumePressureMult eats all pressure for multiplier bonus.
+      //   Ballistic: rageDouble doubles damage while in RAGE (TV≥5);
+      //   missingHpScaling adds (maxHp-hp) × N flat.
+      //   Ballooning: consumeTempHpAsDamage cashes tempHp for damage.
+      if (rider.pressureBonus && (enemy?.pressure || 0) > 0) {
+        const bonus = enemy.pressure;
+        dmg += bonus;
+        pushLog(`🔥 Pressure bonus: +${bonus} flat damage.`);
+      }
+      if (rider.consumePressureMult && (enemy?.pressure || 0) > 0) {
+        const bonus = enemy.pressure * rider.consumePressureMult;
+        dmg += bonus;
+        pushLog(`🔥 Pressure spike: ${enemy.pressure} × ${rider.consumePressureMult} = +${bonus} damage. Pressure cleared.`);
+        setEnemy(e => e ? { ...e, pressure: 0 } : e);
+      }
+      if (rider.rageDouble && rageActive) {
+        dmg = Math.round(dmg * 2);
+        pushLog(`💥 RAGE × 2 on Ballistic cast.`);
+      }
+      if (rider.missingHpScaling) {
+        const missing = Math.max(0, maxHp - hp);
+        const bonus = missing * rider.missingHpScaling;
+        if (bonus > 0) {
+          dmg += bonus;
+          pushLog(`🩸 Missing-HP scaling: +${bonus} damage.`);
+        }
+      }
+      if (rider.consumeTempHpAsDamage && tempHp > 0) {
+        const bonus = Math.round(tempHp * rider.consumeTempHpAsDamage);
+        dmg += bonus;
+        pushLog(`🎈 Pop Off: ${tempHp} Temp HP × ${rider.consumeTempHpAsDamage} = +${bonus} damage. Temp HP cleared.`);
+        setTempHp(0);
+        setTempHpTurns(0);
+      }
       // v3.4.42 — Crescendo Build-then-Climax REMOVED. The cycle-3-5
       // stage-mult gating made Crescendo unplayable (cast 1 = 0 dmg
       // required three consecutive Crescendo casts). New design:
@@ -6730,6 +6784,27 @@ export default function App() {
         pushLog(`🌹 Thorns — their next attack will be answered before it lands.`);
       }
       if (rider.addBank)        setWordsBank(b => b + rider.addBank);
+      // v3.4.67 — Chutzpah school riders (POST-damage state mutations).
+      if (rider.addPressure) {
+        setEnemy(e => e ? { ...e, pressure: (e.pressure || 0) + rider.addPressure } : e);
+        pushLog(`🔥 +${rider.addPressure} Pressure on enemy.`);
+      }
+      if (rider.addTempHp) {
+        const { amount, turns } = rider.addTempHp;
+        setTempHp(t => t + amount);
+        setTempHpTurns(t => Math.max(t, turns));
+        pushLog(`🎈 +${amount} Temp HP for ${turns} turn${turns > 1 ? 's' : ''}.`);
+      }
+      if (rider.selfVulnerable) {
+        const { amount, turns } = rider.selfVulnerable;
+        setPlayerIncomingMult(m => Math.min(2.0, m + 0.25 * amount));
+        setPlayerIncomingMultTurns(t => Math.max(t, turns));
+        pushLog(`🩸 Self-Vuln +${amount} for ${turns} turn${turns > 1 ? 's' : ''}.`);
+      }
+      if (rider.addTunnelVision) {
+        setTunnelVision(tv => tv + rider.addTunnelVision);
+        pushLog(`🔥 +${rider.addTunnelVision} Tunnel Vision.`);
+      }
       // v3.4.42 — Thorns/Crescendo redesign riders.
       // mirrorReflectCharges: N enemy hits each reflect 100% of damage taken,
       // capped per hit. Stored as a count-based charge that the attack
@@ -8595,6 +8670,26 @@ export default function App() {
     }
     // v3.4.59 — clear "I Know Just What to Say" if it was unused this turn.
     if (nextCardFree) setNextCardFree(false);
+    // v3.4.67 — Chutzpah school over-time decay.
+    //   Temp HP: each end-of-turn the turn counter decrements; at 0,
+    //   any remaining Temp HP evaporates.
+    //   Self-Vulnerable: counter decrements; at 0, reset playerIncomingMult.
+    if (tempHpTurns > 0) {
+      const next = tempHpTurns - 1;
+      setTempHpTurns(next);
+      if (next === 0 && tempHp > 0) {
+        pushLog(`🎈 Temp HP expired (${tempHp} lost).`);
+        setTempHp(0);
+      }
+    }
+    if (playerIncomingMultTurns > 0) {
+      const next = playerIncomingMultTurns - 1;
+      setPlayerIncomingMultTurns(next);
+      if (next === 0 && playerIncomingMult !== 1.0) {
+        pushLog(`🩸 Self-Vulnerable expired.`);
+        setPlayerIncomingMult(1.0);
+      }
+    }
 
     // v2.36: ACTUALLY— reset per-turn state. arguingBackThisTurn is the
     // enemy-side surcharge; it cleared during the enemy intent that already
@@ -9032,7 +9127,7 @@ export default function App() {
         targetsComposure = true;
         glancingApplied = true;
       }
-      let raw = Math.round(intent.value * enemyDmgMult);
+      let raw = Math.round(intent.value * enemyDmgMult * (playerIncomingMult || 1));
       // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
       // turn adds +1 to enemy raw damage value. Applied BEFORE annotation
       // reduction so a strong annotation can still scrub the surcharge (the
@@ -9131,6 +9226,7 @@ export default function App() {
       let wBlock = block;
       let wPoise = poise;
       let wHp = hp;
+      let wTempHp = tempHp; // v3.4.67 — Ballooning Temp HP buffer; committed below.
       let wComp = composure;
       // v2.27: Hit Me Again — per-swing recoil + charge accrual. Each swing
       // first eats `charges` self-damage on the enemy (composure if hp:999
@@ -9251,6 +9347,18 @@ export default function App() {
             wBlock -= absorbed; remaining -= absorbed;
             if (absorbed > 0) landed = true;
           }
+          // v3.4.67 — Ballooning Temp HP buffer absorbs HP-pool damage
+          // BEFORE real HP. Tracked via wTempHp local so multi-swing
+          // attacks see consumed Temp HP from prior swings.
+          if (remaining > 0 && wTempHp > 0) {
+            const absorbed = Math.min(wTempHp, remaining);
+            wTempHp -= absorbed;
+            remaining -= absorbed;
+            if (absorbed > 0) {
+              landed = true;
+              pushLog(`🎈 Temp HP absorbed ${absorbed} damage.`);
+            }
+          }
           if (remaining > 0) {
             const before = wHp;
             wHp = Math.max(0, wHp - remaining);
@@ -9281,6 +9389,8 @@ export default function App() {
       setPoise(wPoise);
       setHp(wHp);
       setComposure(wComp);
+      // v3.4.67 — commit Temp HP after the loop has consumed it.
+      if (wTempHp !== tempHp) setTempHp(wTempHp);
       // Hit-shake the player HUD if either pool actually moved. Block-only
       // absorption (both pools unchanged) shouldn't shake — that beat is
       // "the bracing worked," visually distinct from "you got hit."
@@ -10204,6 +10314,10 @@ export default function App() {
       scheduledEffects={scheduledEffects}
       thornsCharges={thornsCharges}
       mirrorReflectCharges={mirrorReflectCharges}
+      tempHp={tempHp}
+      tempHpTurns={tempHpTurns}
+      playerIncomingMult={playerIncomingMult}
+      enemyPressure={enemy?.pressure || 0}
       enemySkipNextAttack={enemySkipNextAttack}
       tutorFlash={tutorFlash}
       enemyAnnotation={enemy?.annotation || null}

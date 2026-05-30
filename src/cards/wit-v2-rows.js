@@ -246,6 +246,15 @@ export const WIT_RIDER_KEYS = [
 
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));
 
+// Lane-aware row lookup. The default is wit; callers can pass a chutzpah
+// or jnsq row table to make detectFFT find rows in the right pool.
+// v3.4.67 — registry pattern. Each lane registers its row table here so
+// detectFFT can resolve setIds across lanes without imports.
+const ROW_REGISTRY = { ...WIT_ROW_BY_ID };
+export function registerRows(rowById) {
+  Object.assign(ROW_REGISTRY, rowById);
+}
+
 // Helper: given three cards, return { fft, partialRow, schoolId }.
 // See castV2SentenceSpell in App.jsx for hierarchy semantics.
 export function detectFFT(intro, subject, target) {
@@ -253,13 +262,13 @@ export function detectFFT(intro, subject, target) {
   const sid = intro.setId;
 
   if (sid && subject.setId === sid && target.setId === sid) {
-    return { fft: WIT_ROW_BY_ID[sid] || null, partialRow: null, schoolId: intro.schoolId || null };
+    return { fft: ROW_REGISTRY[sid] || null, partialRow: null, schoolId: intro.schoolId || null };
   }
 
   let partialRow = null;
-  if (intro.setId && intro.setId === subject.setId) partialRow = WIT_ROW_BY_ID[intro.setId] || null;
-  else if (intro.setId && intro.setId === target.setId) partialRow = WIT_ROW_BY_ID[intro.setId] || null;
-  else if (subject.setId && subject.setId === target.setId) partialRow = WIT_ROW_BY_ID[subject.setId] || null;
+  if (intro.setId && intro.setId === subject.setId) partialRow = ROW_REGISTRY[intro.setId] || null;
+  else if (intro.setId && intro.setId === target.setId) partialRow = ROW_REGISTRY[intro.setId] || null;
+  else if (subject.setId && subject.setId === target.setId) partialRow = ROW_REGISTRY[subject.setId] || null;
 
   let schoolId = null;
   const tid = intro.schoolId;

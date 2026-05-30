@@ -621,11 +621,54 @@ const SYNERGY_CAPSTONE_CARDS = [
 const SYNERGY_CAPSTONE_TARGETS  = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'target');
 const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'modifier');
 
-export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS];
+// =============================================================================
+// FFT ROW CARDS — three cards (intro / subject / target) per row × 15 rows.
+// Placeholder phrases keyed to the row name; Alan will write the final
+// canonical phrases later. Each card carries the setId/setSlot/schoolId tags
+// that detectFFT() reads to fire the Fully Formed Thought rider.
+// =============================================================================
+const ROW_CARDS = [];
+function pushRowTriple(rowId, schoolId, introPhrase, subjectPhrase, targetPhrase) {
+  ROW_CARDS.push(
+    { id: `cv2-i-${rowId}`, slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
+      phrase: introPhrase, tags: ['demanding', 'direct'], stats: { chutzpah: 1 },
+      setId: rowId, setSlot: 'intro', schoolId,
+      flavor: 'A starting move.' },
+    { id: `cv2-s-${rowId}`, slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
+      phrase: subjectPhrase, tags: ['demanding'], stats: { chutzpah: 1 },
+      setId: rowId, setSlot: 'subject', schoolId,
+      flavor: 'The middle of the line.' },
+    { id: `cv2-t-${rowId}`, slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'effect',
+      phrase: targetPhrase, tags: ['demanding', 'threatening'],
+      effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure' },
+      setId: rowId, setSlot: 'target', schoolId,
+      flavor: 'The cap. The bill.' },
+  );
+}
+// Bluster (5 rows)
+pushRowTriple('bluster-1',  'bluster',    'Listen pal,',                          'take that tone',              'elsewhere.');
+pushRowTriple('bluster-2',  'bluster',    'Buddy,',                                "don't walk away",             'from me.');
+pushRowTriple('bluster-3',  'bluster',    'Look,',                                 "who do you think",            "you're talking to?");
+pushRowTriple('bluster-4',  'bluster',    'Frankly,',                              "I'm done",                    'being polite.');
+pushRowTriple('bluster-5',  'bluster',    'Now',                                   'you listen',                  'here.');
+// Ballooning (5 rows)
+pushRowTriple('ballooning-1','ballooning', 'I,',                                   'frankly, am bigger',          'than this implies.');
+pushRowTriple('ballooning-2','ballooning', 'It was,',                              'at least,',                   'three of them.');
+pushRowTriple('ballooning-3','ballooning', "I've got",                             'plenty more',                 'where that came from.');
+pushRowTriple('ballooning-4','ballooning', 'Speaking from authority,',             "I'd already",                 'won.');
+pushRowTriple('ballooning-5','ballooning', 'And THIS',                             'is what',                     'it was all for.');
+// Ballistic (5 rows)
+pushRowTriple('ballistic-1', 'ballistic',  'Buddy,',                               'I am going',                  'OFF.');
+pushRowTriple('ballistic-2', 'ballistic',  'Listen carefully,',                    'we are off',                  'the RAILS now.');
+pushRowTriple('ballistic-3', 'ballistic',  'I can',                                'no longer see',               'the room.');
+pushRowTriple('ballistic-4', 'ballistic',  'I, in point of fact,',                 'have nothing',                'left to lose.');
+pushRowTriple('ballistic-5', 'ballistic',  'Pal,',                                 'this is officially',          'scorched earth.');
+
+export const CHUTZPAH_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...HIT_ME_AGAIN_POWER, ...SAYING_IT_LOUDER_CARDS, ...SMELL_WEAKNESS_CARDS, ...SYNERGY_CAPSTONE_CARDS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS, ...ROW_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
-  intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS],
-  subject: [...SUBJECTS, ...SMELL_WEAKNESS_SUBJECTS],
-  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS, ...SYNERGY_CAPSTONE_TARGETS],
+  intro: [...INTROS, ...SAYING_IT_LOUDER_INTROS, ...ROW_CARDS.filter(c => c.slot === 'intro')],
+  subject: [...SUBJECTS, ...SMELL_WEAKNESS_SUBJECTS, ...ROW_CARDS.filter(c => c.slot === 'subject')],
+  target: [...TARGETS, ...UNIQUE_TARGETS, ...SAYING_IT_LOUDER_TARGETS, ...SMELL_WEAKNESS_TARGETS, ...SYNERGY_CAPSTONE_TARGETS, ...ROW_CARDS.filter(c => c.slot === 'target')],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   power: [...HIT_ME_AGAIN_POWER],

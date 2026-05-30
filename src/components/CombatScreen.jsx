@@ -32,6 +32,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        crescendoBuildup = 0, crescendoBuildupRows = [],
                        scheduledEffects = [], thornsCharges = null,
                        mirrorReflectCharges = null,
+                       tempHp = 0, tempHpTurns = 0,
+                       playerIncomingMult = 1.0, enemyPressure = 0,
                        enemySkipNextAttack = false, enemyAnnotation = null,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
@@ -185,6 +187,15 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               <span className="text-[11px] font-mono text-moss-300 cursor-help"
                     title="The Silk Wraith has phase-shifted (at ≤50% Composure). It re-weaves +1 Composure at the start of each of its turns, and is wit-resistant (×0.5).">
                 🕸 +1 comp/turn
+              </span>
+            )}
+            {/* v3.4.67 — Chutzpah Pressure chip. Bluster casts stack
+                Pressure on the enemy; Bluster cards with pressureBonus get
+                +Pressure flat damage; capstones consume Pressure × N. */}
+            {enemyPressure > 0 && (
+              <span className="text-[11px] font-mono text-ember-300 cursor-help"
+                    title={`Pressure: ${enemyPressure} stack${enemyPressure > 1 ? 's' : ''}. Bluster casts deal +${enemyPressure} flat damage; capstones consume it for a × multiplier spike.`}>
+                🔥 {enemyPressure} pressure
               </span>
             )}
             {showHp && (
@@ -479,6 +490,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           if (thornsSchedule && thornsSchedule.length > 0) chips.push(<span key="ts" className="cursor-help" title={`Thorns ramping schedule: incoming attacks reflect by these values, one per turn, in order.`}>🌹 ramp [{thornsSchedule.join(',')}]</span>);
           if ((thornsCharges?.count || 0) > 0) chips.push(<span key="tc" className="cursor-help" title={`Thorns charges: ${thornsCharges.count} enemy hit${thornsCharges.count > 1 ? 's' : ''} reflect ${thornsCharges.amount} composure damage each.`}>🌹 reflect {thornsCharges.amount} × {thornsCharges.count} hits</span>);
           if (mirrorCount > 0) chips.push(<span key="mr" title={`Mirror reflect: next ${mirrorCount} enemy hit${mirrorCount > 1 ? 's' : ''} each reflect 100% of damage taken (cap ${mirrorCap} per hit).`} className="text-iris-200 cursor-help">🪞 mirror × {mirrorCount} (cap {mirrorCap})</span>);
+          // v3.4.67 — Chutzpah school chips.
+          if (tempHp > 0) chips.push(<span key="thp" className="text-gold-300 cursor-help" title={`Ballooning Temp HP: absorbs HP damage BEFORE your real HP. Expires after ${tempHpTurns} more turn${tempHpTurns > 1 ? 's' : ''}; any unused Temp HP is lost.`}>🎈 {tempHp} Temp HP × {tempHpTurns}t</span>);
+          if (playerIncomingMult > 1.0) chips.push(<span key="sv" className="text-ember-300 cursor-help" title="Self-Vulnerable — incoming enemy damage to you is amplified. Decays back to neutral.">🩸 YOU VULN</span>);
           if (buckets.stripBlock) chips.push(<span key="sb" className="cursor-help" title={`At the start of each of your next ${buckets.stripBlock.turns} turn${buckets.stripBlock.turns > 1 ? 's' : ''}, strip ${buckets.stripBlock.amount} of the enemy's Block.`}>🛇 strip {buckets.stripBlock.amount}/turn × {buckets.stripBlock.turns}t</span>);
           if (buckets.weak) chips.push(<span key="w" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.weak.turns} turn${buckets.weak.turns > 1 ? 's' : ''}, apply +${buckets.weak.amount} Weak (-25% attack per stack).`}>💢 Weak +{buckets.weak.amount}/turn × {buckets.weak.turns}t</span>);
           if (buckets.vuln) chips.push(<span key="v" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.vuln.turns} turn${buckets.vuln.turns > 1 ? 's' : ''}, apply +${buckets.vuln.amount} Vulnerable (+25% spell potency per stack).`}>🩸 Vuln +{buckets.vuln.amount}/turn × {buckets.vuln.turns}t</span>);
