@@ -414,19 +414,24 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                         || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0 || mirrorCount > 0;
           if (!hasAny) return null;
           const chips = [];
-          if (enemySkipNextAttack) chips.push(<span key="skip" className="text-gold-300">🤐 SKIP NEXT</span>);
-          if (buckets.block) chips.push(<span key="b">🛡+{buckets.block.amount}×{buckets.block.turns}t</span>);
-          if (buckets.poise) chips.push(<span key="p">🪞+{buckets.poise.amount}×{buckets.poise.turns}t</span>);
-          if (buckets.hpRegen) chips.push(<span key="h">💚+{buckets.hpRegen.amount}×{buckets.hpRegen.turns}t</span>);
-          if (longThread > 0) chips.push(<span key="lt" className="text-iris-200">🧵−{Math.min(2, longThread)}/swing</span>);
-          if (annRed > 0) chips.push(<span key="a" className="text-iris-200">📝−{annRed}</span>);
-          if (thornsAuraTurns > 0 && !thornsSchedule) chips.push(<span key="ta">🌹{thornsCharges?.amount || 0}×{thornsAuraTurns}t</span>);
-          if (thornsSchedule && thornsSchedule.length > 0) chips.push(<span key="ts">🌹[{thornsSchedule.join(',')}]</span>);
-          if ((thornsCharges?.count || 0) > 0) chips.push(<span key="tc">🌹{thornsCharges.amount}×{thornsCharges.count}</span>);
-          if (mirrorCount > 0) chips.push(<span key="mr" title={`Mirror reflect: next ${mirrorCount} enemy hits each reflect 100% of damage taken (cap ${mirrorCap} per hit).`} className="text-iris-200">🪞{mirrorCount}×100%≤{mirrorCap}</span>);
-          if (buckets.stripBlock) chips.push(<span key="sb">🛇{buckets.stripBlock.amount}×{buckets.stripBlock.turns}t</span>);
-          if (buckets.weak) chips.push(<span key="w">💢{buckets.weak.amount}×{buckets.weak.turns}t</span>);
-          if (buckets.vuln) chips.push(<span key="v">🩸{buckets.vuln.amount}×{buckets.vuln.turns}t</span>);
+          if (enemySkipNextAttack) chips.push(<span key="skip" className="text-gold-300 cursor-help" title="The enemy's next attack will be fully skipped.">🤐 SKIP NEXT</span>);
+          if (buckets.block) chips.push(<span key="b" className="cursor-help" title={`At the start of each of your next ${buckets.block.turns} turn${buckets.block.turns > 1 ? 's' : ''}, gain +${buckets.block.amount} Block.`}>🛡+{buckets.block.amount}/turn × {buckets.block.turns}t</span>);
+          if (buckets.poise) chips.push(<span key="p" className="cursor-help" title={`At the start of each of your next ${buckets.poise.turns} turn${buckets.poise.turns > 1 ? 's' : ''}, gain +${buckets.poise.amount} Poise.`}>🪞+{buckets.poise.amount}/turn × {buckets.poise.turns}t</span>);
+          if (buckets.hpRegen) chips.push(<span key="h" className="cursor-help" title={`Heal ${buckets.hpRegen.amount} HP at the start of each of your next ${buckets.hpRegen.turns} turn${buckets.hpRegen.turns > 1 ? 's' : ''}.`}>💚+{buckets.hpRegen.amount}/turn × {buckets.hpRegen.turns}t</span>);
+          if (longThread > 0) chips.push(
+            <span key="lt" className="text-iris-200 cursor-help"
+                  title={`Long Thread — ${longThread} stack${longThread > 1 ? 's' : ''}. Reduces incoming damage by ${Math.min(2, longThread)} per swing (cap 2).\n\nGrows by 1 each turn you cast a wit Effect AND take no unblocked HP damage. Decays by 1 on an unblocked HP hit.`}>
+              🧵{longThread} (−{Math.min(2, longThread)}/swing)
+            </span>
+          );
+          if (annRed > 0) chips.push(<span key="a" className="text-iris-200 cursor-help" title={`Enemy annotation: every incoming enemy attack value is reduced by ${annRed} before block / poise routing.`}>📝 enemy atk −{annRed}</span>);
+          if (thornsAuraTurns > 0 && !thornsSchedule) chips.push(<span key="ta" className="cursor-help" title={`Thorns aura: every enemy attack reflects ${thornsCharges?.amount || 0} composure damage back. Active for ${thornsAuraTurns} more turn${thornsAuraTurns > 1 ? 's' : ''}.`}>🌹 reflect {thornsCharges?.amount || 0}/hit × {thornsAuraTurns}t</span>);
+          if (thornsSchedule && thornsSchedule.length > 0) chips.push(<span key="ts" className="cursor-help" title={`Thorns ramping schedule: incoming attacks reflect by these values, one per turn, in order.`}>🌹 ramp [{thornsSchedule.join(',')}]</span>);
+          if ((thornsCharges?.count || 0) > 0) chips.push(<span key="tc" className="cursor-help" title={`Thorns charges: ${thornsCharges.count} enemy hit${thornsCharges.count > 1 ? 's' : ''} reflect ${thornsCharges.amount} composure damage each.`}>🌹 reflect {thornsCharges.amount} × {thornsCharges.count} hits</span>);
+          if (mirrorCount > 0) chips.push(<span key="mr" title={`Mirror reflect: next ${mirrorCount} enemy hit${mirrorCount > 1 ? 's' : ''} each reflect 100% of damage taken (cap ${mirrorCap} per hit).`} className="text-iris-200 cursor-help">🪞 mirror × {mirrorCount} (cap {mirrorCap})</span>);
+          if (buckets.stripBlock) chips.push(<span key="sb" className="cursor-help" title={`At the start of each of your next ${buckets.stripBlock.turns} turn${buckets.stripBlock.turns > 1 ? 's' : ''}, strip ${buckets.stripBlock.amount} of the enemy's Block.`}>🛇 strip {buckets.stripBlock.amount}/turn × {buckets.stripBlock.turns}t</span>);
+          if (buckets.weak) chips.push(<span key="w" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.weak.turns} turn${buckets.weak.turns > 1 ? 's' : ''}, apply +${buckets.weak.amount} Weak (-25% attack per stack).`}>💢 Weak +{buckets.weak.amount}/turn × {buckets.weak.turns}t</span>);
+          if (buckets.vuln) chips.push(<span key="v" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.vuln.turns} turn${buckets.vuln.turns > 1 ? 's' : ''}, apply +${buckets.vuln.amount} Vulnerable (+25% spell potency per stack).`}>🩸 Vuln +{buckets.vuln.amount}/turn × {buckets.vuln.turns}t</span>);
           return (
             <div className="border border-iris-600 bg-ink-800/60 rounded px-1.5 py-0.5 flex flex-wrap gap-x-2 gap-y-0 items-baseline mt-0.5"
                  title="Over-time effects currently armed.">
