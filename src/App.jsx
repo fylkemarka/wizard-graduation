@@ -3608,6 +3608,7 @@ export default function App() {
   // signal so the immediate storm-out endTurn doesn't clear its own flag.
   const [intentHidden, setIntentHidden] = useState(false);
   const stormOutFiredRef = useRef(false);
+  const tutorFiredThisTurnRef = useRef(false);
   // v2.27: HIT ME AGAIN — chutzpah's reactive recoil power. While the
   // `cv2-p-hit-me-again` power is installed (mirrored on this flag so the
   // attack-resolution path doesn't have to walk `powers` on every swing),
@@ -5044,6 +5045,7 @@ export default function App() {
     // v2.26: chutzpah hidden-intent flag resets per combat.
     setIntentHidden(false);
     stormOutFiredRef.current = false;
+    tutorFiredThisTurnRef.current = false;
     // v2.27: chutzpah Hit Me Again — power install + charges reset.
     setHitMeAgainInstalled(false);
     setHitMeAgainCharges(0);
@@ -5341,6 +5343,46 @@ export default function App() {
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfChutzpah();
       pushLog(logBits.join(' · ') + `  →  📜 ${card.slot} staged`);
+      // v3.4.40 cycle 8 — Partial-Row Tutor. When staging completes a
+      // 2-of-3 setId match in the tray, search deck+discard for the
+      // missing third slot of the same setId and pull it free into hand.
+      // Fires once per turn; wit lane only.
+      if (lane === 'wit' && card.setId && !tutorFiredThisTurnRef.current) {
+        const post = { ...tray, [card.slot]: card };
+        const introSet = post.intro?.setId;
+        const subjectSet = post.subject?.setId;
+        const targetSet = post.target?.setId;
+        let missingSlot = null;
+        let matchSet = null;
+        if (introSet && subjectSet && introSet === subjectSet && !post.target) {
+          missingSlot = 'target'; matchSet = introSet;
+        } else if (introSet && targetSet && introSet === targetSet && !post.subject) {
+          missingSlot = 'subject'; matchSet = introSet;
+        } else if (subjectSet && targetSet && subjectSet === targetSet && !post.intro) {
+          missingSlot = 'intro'; matchSet = subjectSet;
+        }
+        if (missingSlot && matchSet) {
+          const findFn = c => c.setId === matchSet && c.slot === missingSlot;
+          let pulled = null;
+          setDeck(d => {
+            const i = d.findIndex(findFn);
+            if (i >= 0) { pulled = d[i]; return d.filter((_, ix) => ix !== i); }
+            return d;
+          });
+          if (!pulled) {
+            setDiscard(d => {
+              const i = d.findIndex(findFn);
+              if (i >= 0) { pulled = d[i]; return d.filter((_, ix) => ix !== i); }
+              return d;
+            });
+          }
+          if (pulled) {
+            setHand(h => [...h, pulled]);
+            tutorFiredThisTurnRef.current = true;
+            pushLog(`📜 the sentence finishes itself — ${pulled.name || pulled.phrase} pulled to hand.`);
+          }
+        }
+      }
       // v2.88: pass the slot so the tutorial advances on intro / subject
       // separately. Was a generic 'played-word' that conflated both.
       advanceTutorialStep(card.slot);
@@ -8253,6 +8295,7 @@ export default function App() {
     } else if (intentHidden) {
       setIntentHidden(false);
     }
+    tutorFiredThisTurnRef.current = false;
   }
 
   function applyEnemyIntent(intent) {

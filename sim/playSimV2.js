@@ -892,6 +892,7 @@ function runCombat(state, enemyId, telemetry) {
     let cast = false;
     // v2.9: cast cap = 1 per turn.
     let castsThisTurn = 0;
+    state.tutorFiredThisTurn = false;
     // v2.10: AI plays an annotation only when it has spare energy AND
     // an early opportunity (turn 1-3, against elites/bosses). Without
     // this gate, annotation steals turn-1 energy from defense + cast
@@ -1605,6 +1606,44 @@ function runCombat(state, enemyId, telemetry) {
           bumpTunnelOnStage(tray.subject);
           progressed = true;
           continue;
+        }
+      }
+      // v3.4.40 cycle 8 — Partial-Row Tutor. When 2-of-3 staged cards
+      // share a setId, search the deck and discard for the missing third
+      // card of the same row and pull it into hand for free. Converts
+      // the structural draw-luck problem into a strategic commitment
+      // (which row do I commit to?) and kills the hold-and-shop loop.
+      // wit-lane only; ONCE per turn; only fires when the 2 staged cards
+      // share setId AND the missing slot is empty.
+      if (state.lane === 'wit' && !state.tutorFiredThisTurn) {
+        const introSet = tray.intro?.setId;
+        const subjectSet = tray.subject?.setId;
+        const targetSet = tray.target?.setId;
+        let missingSlot = null;
+        let matchSet = null;
+        if (introSet && subjectSet && introSet === subjectSet && !tray.target) {
+          missingSlot = 'target'; matchSet = introSet;
+        } else if (introSet && targetSet && introSet === targetSet && !tray.subject) {
+          missingSlot = 'subject'; matchSet = introSet;
+        } else if (subjectSet && targetSet && subjectSet === targetSet && !tray.intro) {
+          missingSlot = 'intro'; matchSet = subjectSet;
+        }
+        if (missingSlot && matchSet) {
+          const findFn = c => c.setId === matchSet && c.slot === missingSlot;
+          let pulledIdx = state.deck.findIndex(findFn);
+          let pulledFrom = 'deck';
+          if (pulledIdx < 0) {
+            pulledIdx = state.discard.findIndex(findFn);
+            pulledFrom = 'discard';
+          }
+          if (pulledIdx >= 0) {
+            const pulled = pulledFrom === 'deck'
+              ? state.deck.splice(pulledIdx, 1)[0]
+              : state.discard.splice(pulledIdx, 1)[0];
+            state.hand.push(pulled);
+            state.tutorFiredThisTurn = true;
+            telemetry.partialRowTutorFires = (telemetry.partialRowTutorFires || 0) + 1;
+          }
         }
       }
       // Will compute these defense need vars below; stub them here so
@@ -3952,14 +3991,13 @@ function awardReward(state) {
       if (cards.length === 0) return null;
       const baseWeights = cards.map(c => {
         const slotW = SLOT_WEIGHTS[c.slot] || 10;
-        // v3.4.38 cycle 6: 0.2 was too flat — stalls climbed because no school
-        // built up enough density to power its own engine. Restore some cohesion
-        // (0.35) while keeping the new-school bonus (1.3) for first-of-school
-        // picks, so cross-school mixing still happens but mature decks
-        // still close combats.
+        // v3.4.41 cycle 10: With the partial-row tutor live, the school-mix
+        // problem is mostly addressed by hand turnover. Back to a clean
+        // 0.4 cohesion bias, no new-school bonus. The earlier 1.3 nudge
+        // was forcing the AI into mixed decks that couldn't close combats.
         const sCount = c.schoolId ? (schoolCounts[c.schoolId] || 0) : 0;
         const schoolMult = c.schoolId
-          ? (sCount === 0 ? 1.3 : 1 + sCount * 0.35)
+          ? 1 + sCount * 0.4
           : 1;
         return slotW * schoolMult;
       });
