@@ -765,7 +765,7 @@ const SYNERGY_CAPSTONE_CARDS = [
               threadScaling: 4, delayedMisstep: true },
     desc: 'Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.',
     flavor: 'Summary being a polite word for verdict.' },
-  { id: 'wv2-m-as-previously-stated', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
+  { id: 'wv2-m-as-previously-stated', name: 'Reliable Hearsay', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
     modifierKind: 'pre', phrase: 'as previously stated,', tags: ['academic'], stats: { wit: 1 },
     effects: { footnoteSelfOnStage: true },
     modifierEffect: { addsTag: 'continuing' },
