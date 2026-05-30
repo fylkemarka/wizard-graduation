@@ -304,6 +304,35 @@ const RELICS = [
     effect: { fftDefensiveDotPlus: 1 },
     desc: '+1 to every tick of every defensive DoT (block / Thorns aura) applied by a FFT.',
     flavor: 'Citation is, in a sense, armour. Or perhaps a brick wall.' },
+  // v3.4.56 (Alan) — universal lane-agnostic relics.
+  { id: 'r-thesaurus', name: 'Thesaurus', rarity: 'common',
+    effect: { permanentDrawBonus: 1 },
+    desc: '+1 card draw at the start of every turn.',
+    flavor: 'Same word, three flavours of regret.' },
+  { id: 'r-run-on-sentence', name: 'Run-on Sentence', rarity: 'common',
+    effect: { permanentEnergyBonus: 1 },
+    desc: '+1 Energy every turn (permanent).',
+    flavor: 'There is, properly speaking, no good place to stop, and so —' },
+  { id: 'r-novice-retort', name: 'Novice Retort', rarity: 'common',
+    effect: { onAcquire: { maxComposurePlus: 5 } },
+    desc: '+5 max Composure (applied when acquired).',
+    flavor: 'Stiffens the spine. Slightly. Repeatedly.' },
+  { id: 'r-words-of-comfort', name: 'Words of Comfort', rarity: 'common',
+    effect: { onCombatStart: { block: 7 } },
+    desc: 'At the start of every combat, gain 7 Block.',
+    flavor: 'Someone said something nice. It is hard to know what.' },
+  { id: 'r-epiphany', name: 'Epiphany', rarity: 'uncommon',
+    effect: { onAcquire: { upgradeRandomCards: 2 } },
+    desc: 'On acquire: upgrade 2 random cards in your deck.',
+    flavor: 'A small bell, ringing twice. The room feels different.' },
+  { id: 'r-thesis-statement', name: 'Thesis Statement', rarity: 'rare',
+    effect: { onAcquire: { upgradeRandomFFTRow: true } },
+    desc: 'On acquire: upgrade 1 random FFT row you own (all 3 cards).',
+    flavor: 'One sentence. Three citations. The room is yours.' },
+  { id: 'r-even-more-familiar', name: 'Even More Familiar', rarity: 'uncommon',
+    effect: { onAcquire: { upgradeFamiliar: true } },
+    desc: "On acquire: upgrade your familiar's bonus to Tier 2.",
+    flavor: 'It nods. You did not know it could nod.' },
 
   // ---- RARE / BOSS ----
   { id: 'r-inverted-hourglass', name: 'Inverted Hourglass', rarity: 'rare',
@@ -446,6 +475,8 @@ const FAMILIARS = [
     desc: 'At the start of every combat, draw 1 extra card.',
     flavor: 'It has read several of your books. Two of them.',
     bonus: { onCombatStart: { draw: 1 } },
+    bonusUpgrade: { onCombatStart: { draw: 2 } },
+    upgradeDesc: 'At the start of every combat, draw 2 extra cards.',
     card: { id: 'f-quoth', name: 'Quoth', cost: 0, type: 'skill', rarity: 'basic',
       effects: { draw: 2, exhaust: true },
       upgrade: { effects: { draw: 3, exhaust: true } },
@@ -460,6 +491,8 @@ const FAMILIARS = [
     // + added 1 draw, which is lane-agnostic (helps wit tray-completion
     // as much as jnsq survival).
     bonus: { onCombatStart: { block: 4, draw: 1 } },
+    bonusUpgrade: { onCombatStart: { block: 6, draw: 2 } },
+    upgradeDesc: 'At the start of every combat, gain 6 Block and draw 2.',
     // v3.3: familiar cards are lane-AGNOSTIC. Was a chutzpah-scaling
     // effect tied to dismissive/petty tags; now a skill that fires
     // immediately for any wizard.
@@ -474,6 +507,8 @@ const FAMILIARS = [
     desc: 'At the end of every combat you win, heal 3 HP.',
     flavor: 'It hums when you cook. It hums anyway.',
     bonus: { onCombatEnd: { heal: 3 } },
+    bonusUpgrade: { onCombatEnd: { heal: 5 } },
+    upgradeDesc: 'At the end of every combat you win, heal 5 HP.',
     card: { id: 'f-sip', name: 'Sip', cost: 0, type: 'skill', rarity: 'basic',
       effects: { hp: 2, energy: 1, exhaust: true },
       upgrade: { effects: { hp: 4, energy: 1, exhaust: true } },
@@ -485,6 +520,8 @@ const FAMILIARS = [
     desc: '+1 Energy on turn 1 of every combat.',
     flavor: 'Where there is a small space, there is a mouse. There is always a small space.',
     bonus: { onCombatStart: { energy: 1 } },
+    bonusUpgrade: { onCombatStart: { energy: 2 } },
+    upgradeDesc: '+2 Energy on turn 1 of every combat.',
     card: { id: 'f-scurry', name: 'Scurry', cost: 0, type: 'skill', rarity: 'basic',
       effects: { block: 4, draw: 1, exhaust: true },
       upgrade: { effects: { block: 6, draw: 1, exhaust: true } },
@@ -498,6 +535,8 @@ const FAMILIARS = [
     // v2.16: was flat +8 maxHp only (bottom-3 in two of three lanes).
     // Added end-of-combat heal so it actually scales across a run.
     bonus: { maxHp: 8, onCombatEnd: { heal: 2 } },
+    bonusUpgrade: { maxHp: 12, onCombatEnd: { heal: 3 } },
+    upgradeDesc: '+12 max HP. Heal 3 HP at the end of every combat you win.',
     card: { id: 'f-hoo', name: 'Hoo', cost: 1, type: 'skill', rarity: 'basic',
       effects: { draw: 2 },
       upgrade: { effects: { draw: 3 } },
@@ -514,6 +553,8 @@ const FAMILIARS = [
     // strong opening-hit absorb so the flavor stays ("survival pet") but
     // the math sits with other familiars.
     bonus: { maxHp: 6, firstHitReduction: 3 },
+    bonusUpgrade: { maxHp: 10, firstHitReduction: 5 },
+    upgradeDesc: '+10 max HP. The first incoming hit each combat does -5 damage.',
     // v3.3: lane-agnostic conversion (was jnsq-scaling effect).
     card: { id: 'f-clatter', name: 'Clatter', cost: 1, type: 'skill', rarity: 'basic',
       effects: { compDmg: 3, block: 3 },
@@ -528,6 +569,8 @@ const FAMILIARS = [
     // v2.14: 2/turn → 1/turn. Compounded too hard over long combats
     // (~58 HP equivalent over a full run); reduced to ~30 HP.
     bonus: { startOfTurnBlock: 1 },
+    bonusUpgrade: { startOfTurnBlock: 2 },
+    upgradeDesc: 'At the start of every turn, gain 2 Block.',
     card: { id: 'f-bristle', name: 'Bristle', cost: 1, type: 'skill', rarity: 'basic',
       effects: { block: 5, vulnerable: 1 },
       upgrade: { effects: { block: 7, vulnerable: 1 } },
@@ -539,6 +582,8 @@ const FAMILIARS = [
     desc: 'Whenever you defeat an enemy, heal 2 HP.',
     flavor: 'It has a collection. The collection has a collection.',
     bonus: { onEnemyDefeated: { heal: 2 } },
+    bonusUpgrade: { onEnemyDefeated: { heal: 4 } },
+    upgradeDesc: 'Whenever you defeat an enemy, heal 4 HP.',
     // v3.3: lane-agnostic conversion (was jnsq-scaling effect).
     card: { id: 'f-pilfer', name: 'Pilfer', cost: 1, type: 'skill', rarity: 'basic',
       effects: { compDmg: 4, draw: 1 },
@@ -554,6 +599,8 @@ const FAMILIARS = [
     // fast to matter past turn 1-2). Added +5 maxHp baseline so the
     // familiar earns its slot even on short fights.
     bonus: { maxHp: 5, startCombatVulnerable: 2 },
+    bonusUpgrade: { maxHp: 8, startCombatVulnerable: 3 },
+    upgradeDesc: '+8 max HP. At the start of every combat, apply 3 Vulnerable to the enemy.',
     // v3.3: lane-agnostic conversion (was chutzpah-scaling effect).
     card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'skill', rarity: 'basic',
       effects: { compDmg: 5, vulnerable: 1 },
@@ -568,6 +615,8 @@ const FAMILIARS = [
     // v2.14: poise 3 → 2 (was top-of-meta across all lanes at ~30% avg
     // win rate; trimmed to bring closer to ~22% mid-pack).
     bonus: { startCombatPoise: 2 },
+    bonusUpgrade: { startCombatPoise: 4 },
+    upgradeDesc: 'Start every combat with +4 Poise.',
     // v3.3: lane-agnostic conversion (was chutzpah-scaling effect).
     card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'skill', rarity: 'basic',
       effects: { compDmg: 4, exhaust: true },
@@ -3857,6 +3906,99 @@ export default function App() {
       + equipment.reduce((s, eq) => s + (eq.bonus?.permanentEnergyBonus || 0), 0)
       + effectSources().reduce((s, x) => s + (x.effect?.permanentEnergyBonus || 0), 0);
   };
+  // v3.4.56 — extra cards drawn per turn from relics / equipment.
+  // Read into the start-of-turn hand draw + initial combat draw.
+  const extraDrawPerTurn = () => {
+    return effectSources().reduce((s, x) => s + (x.effect?.permanentDrawBonus || 0), 0)
+         + equipment.reduce((s, eq) => s + (eq.bonus?.permanentDrawBonus || 0), 0);
+  };
+  // v3.4.56 — one-shot side effects when a relic is acquired (not on combat
+  // entry — those are handled by onCombatStart in the existing pipeline).
+  // Handles: maxComposurePlus, upgradeRandomCards, upgradeRandomFFTRow.
+  function applyRelicOnAcquire(relic) {
+    const on = relic?.effect?.onAcquire;
+    if (!on) return;
+    if (on.maxComposurePlus) {
+      const amt = on.maxComposurePlus;
+      setComposureMax(m => m + amt);
+      setComposure(c => c + amt);
+      pushLog(`📿 ${relic.name}: +${amt} max Composure.`);
+    }
+    if (on.upgradeRandomCards) {
+      const want = on.upgradeRandomCards;
+      // Look in deck + discard + hand. Skip cards already upgraded.
+      // Pick `want` random non-upgraded cards across all piles, then
+      // commit per-pile updates.
+      const buckets = [
+        { name: 'deck', list: deck, setter: setDeck },
+        { name: 'discard', list: discard, setter: setDiscard },
+        { name: 'hand', list: hand, setter: setHand },
+      ];
+      const eligible = [];
+      for (const b of buckets) {
+        b.list.forEach((c, i) => { if (!c.upgraded) eligible.push({ bucket: b.name, idx: i, card: c }); });
+      }
+      // Shuffle eligible and take first `want`.
+      const shuffled = shuffle(eligible).slice(0, want);
+      const upgradedNames = [];
+      for (const b of buckets) {
+        const picksInBucket = shuffled.filter(p => p.bucket === b.name);
+        if (picksInBucket.length === 0) continue;
+        const idxSet = new Set(picksInBucket.map(p => p.idx));
+        b.setter(prev => prev.map((c, i) => {
+          if (!idxSet.has(i)) return c;
+          const up = upgradeCard(c);
+          upgradedNames.push(up.name);
+          return up;
+        }));
+      }
+      if (upgradedNames.length > 0) {
+        pushLog(`📿 ${relic.name}: upgraded ${upgradedNames.join(', ')}.`);
+      } else {
+        pushLog(`📿 ${relic.name}: no eligible cards to upgrade.`);
+      }
+    }
+    if (on.upgradeFamiliar) {
+      if (!familiar) {
+        pushLog(`📿 ${relic.name}: no familiar to upgrade.`);
+      } else if (familiar.upgraded) {
+        pushLog(`📿 ${relic.name}: ${familiar.species} is already at Tier 2.`);
+      } else if (!familiar.bonusUpgrade) {
+        pushLog(`📿 ${relic.name}: ${familiar.species} has no Tier 2 (unknown familiar).`);
+      } else {
+        const before = familiar.bonus || {};
+        const after = familiar.bonusUpgrade || before;
+        const hpDelta = (after.maxHp || 0) - (before.maxHp || 0);
+        setFamiliar(f => f ? { ...f, bonus: f.bonusUpgrade || f.bonus, upgraded: true, desc: f.upgradeDesc || f.desc } : f);
+        if (hpDelta > 0) {
+          setMaxHp(m => m + hpDelta);
+          setHp(h => h + hpDelta);
+        }
+        pushLog(`📿 ${relic.name}: ${familiar.species} upgraded to Tier 2.`);
+      }
+    }
+    if (on.upgradeRandomFFTRow) {
+      // Find FFT rows the player owns at least one card of.
+      const owned = {};
+      for (const list of [deck, discard, hand, exiled]) {
+        for (const c of list) {
+          if (c.setId) owned[c.setId] = true;
+        }
+      }
+      const candidateRows = Object.keys(owned);
+      if (candidateRows.length === 0) {
+        pushLog(`📿 ${relic.name}: no FFT rows owned yet.`);
+      } else {
+        const pickedRow = candidateRows[Math.floor(Math.random() * candidateRows.length)];
+        const upgradeRowCard = (c) => (c.setId === pickedRow && !c.upgraded) ? upgradeCard(c) : c;
+        setDeck(prev => prev.map(upgradeRowCard));
+        setDiscard(prev => prev.map(upgradeRowCard));
+        setHand(prev => prev.map(upgradeRowCard));
+        const row = WIT_ROW_BY_ID[pickedRow];
+        pushLog(`📿 ${relic.name}: upgraded FFT row "${row?.name || pickedRow}" (all 3 cards).`);
+      }
+    }
+  }
 
   // ---------- TUTORIAL ----------
   // Scripted practice match. Reset player state, build a small fixed
@@ -4290,6 +4432,7 @@ export default function App() {
         setRelics(r => [...r, grantedRelic]);
         pushLog(`🛒 Strapped on: ${grantedRelic.name}.`);
         logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: grantedRelic.id, relicName: grantedRelic.name, rarity: grantedRelic.rarity, auto: true });
+        applyRelicOnAcquire(grantedRelic);
       }
       setStage('familiar-shop');
       return;
@@ -4371,6 +4514,7 @@ export default function App() {
       setRelics(r => [...r, offer]);
       pushLog(`🛒 Strapped on: ${offer.name}.`);
       logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: offer.id, relicName: offer.name, rarity: offer.rarity });
+      applyRelicOnAcquire(offer);
     } else if (kind === 'boon') {
       if (offer.apply === 'maxHpPlus10') {
         setMaxHp(m => m + 10);
@@ -5253,7 +5397,7 @@ export default function App() {
       // v2.13: jnsq +1 hand size at combat start (chaos dice need full
       // trays to roll). Real-play impact only — sim AI runs both ways.
       const jnsqBonus = selectedCharacter?.lane === 'jnsq' ? 1 : 0;
-      const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus + startDrawBonus + jnsqBonus);
+      const drawn = drawFromPiles(shuffle(fullDeck), [], HAND_SIZE + startHandBonus + startDrawBonus + jnsqBonus + extraDrawPerTurn());
       setDeck(drawn.deck);
       setHand(drawn.hand);
       setDiscard([]);
@@ -8313,7 +8457,7 @@ export default function App() {
     // v2.38: endTurnHand is hand minus any Misstep tokens that auto-played
     // above — those went to exile, not discard, and shouldn't recycle.
     const stagedDiscard = [...discard, ...endTurnHand];
-    const drawn = drawFromPiles(deck, stagedDiscard, HAND_SIZE);
+    const drawn = drawFromPiles(deck, stagedDiscard, HAND_SIZE + extraDrawPerTurn());
     let wDeck     = drawn.deck;
     let wDiscard  = drawn.discard;
     const wHand   = [...drawn.hand];
@@ -9197,6 +9341,7 @@ export default function App() {
       if (rareRelic) {
         setRelics(prev => [...prev, rareRelic]);
         pushLog(`📿 Boss relic claimed: ${rareRelic.name}.`);
+        applyRelicOnAcquire(rareRelic);
       }
       // v3.1.3 BUGFIX: tray cards staged at combat end were being LOST
       // forever — enterFight resets the tray on next combat. Alan's
@@ -9227,6 +9372,7 @@ export default function App() {
       if (r) {
         setRelics(prev => [...prev, r]);
         pushLog(`📿 Elite spoils: ${r.name}.`);
+        applyRelicOnAcquire(r);
       }
     }
     // v2.68: act-scaled rarity weights. Per playtest: Act 2 rewards
