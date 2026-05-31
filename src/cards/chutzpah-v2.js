@@ -628,18 +628,34 @@ const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot ===
 
 // =============================================================================
 // FFT ROW CARDS — REMOVED 2026-05-31. Chutzpah pivoted away from the FFT
-// system entirely (Animal Summoner engine — see project_wg_chutzpah_animal_summoner
-// memory). The 45 row cards across bluster / ballooning / ballistic schools
-// are gone. intro / subject / target pools are temporarily empty; lure cards
-// will repopulate them once the new engine lands.
+// system entirely (Animal Summoner engine).
 //
-// Gestures, modifiers, skills, and powers from the old chutzpah pool are
-// preserved transitionally. Some (Hit Me Again recoil, Synergy Capstone,
-// Not Listening) reference old Loudness / Tunnel Vision / Stake mechanics
-// being retired in a follow-up commit; they'll either be reframed for the
-// summoner engine or removed.
+// LURE CARDS — Animal Summoner slice 1 (2026-05-31). Each lure carries a
+// `summon` payload referencing an animalId in App.jsx's ANIMALS table. On
+// play, the lure is placed into the first empty stage slot. Over the next
+// `turnsToArrive` end-of-turn ticks, the lure transforms into its summoned
+// animal in that same slot, which then auto-attacks each end-of-turn until
+// its duration expires.
 // =============================================================================
-export const CHUTZPAH_V2 = [...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...HIT_ME_AGAIN_POWER, ...SYNERGY_CAPSTONE_MODIFIERS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS];
+const LURE_CARDS = [
+  { id: 'cv2-l-fish-food', name: 'Fish Food', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'basic', tier: 1,
+    summon: { animalId: 'salmon', turnsToArrive: 2 },
+    desc: 'Stage. A Salmon arrives in 2 turns. If you leave it for 2 more turns, a BEAR arrives.',
+    flavor: 'Smells of yesterday.' },
+  { id: 'cv2-l-birdseed', name: 'Birdseed', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'basic', tier: 1,
+    summon: { animalId: 'sparrow', turnsToArrive: 1 },
+    desc: 'Stage. A Sparrow arrives next turn.',
+    flavor: 'You scatter it like you mean it.' },
+  { id: 'cv2-l-cheese', name: 'Cheese', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'basic', tier: 1,
+    summon: { animalId: 'field-mouse', turnsToArrive: 1 },
+    desc: 'Stage. A Field Mouse arrives next turn.',
+    flavor: 'Aged. Slightly judgmental.' },
+];
+
+export const CHUTZPAH_V2 = [...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...HIT_ME_AGAIN_POWER, ...SYNERGY_CAPSTONE_MODIFIERS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS, ...LURE_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
   intro: [],
   subject: [],
@@ -648,4 +664,5 @@ export const CHUTZPAH_V2_BY_SLOT = {
   gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   power: [...HIT_ME_AGAIN_POWER],
   skill: [...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS.filter(c => c.slot === 'skill')],
+  lure: [...LURE_CARDS],
 };

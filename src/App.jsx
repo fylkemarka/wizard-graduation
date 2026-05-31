@@ -826,9 +826,12 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
   }
-  // Chutzpah starter additions removed 2026-05-31 with the Animal Summoner
-  // pivot. Punchline (Loudness consumer) and c-the-tutor (FFT-row tutor) no
-  // longer relevant. Lure cards will be added when the new engine lands.
+  // Chutzpah Animal Summoner (2026-05-31, slice 1) — starter lures.
+  if (lane === 'chutzpah') {
+    ids.push('cv2-l-fish-food');   // 2-turn → Salmon → 2-more-turn → Bear
+    ids.push('cv2-l-birdseed');    // 1-turn → Sparrow
+    ids.push('cv2-l-cheese');      // 1-turn → Field Mouse
+  }
   return ids;
 }
 
@@ -1134,6 +1137,69 @@ const ENEMIES = [
     ] },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
+
+// ─────────────────────────────────────────────────────────────────────
+// ANIMALS — Chutzpah Animal Summoner engine (slice 1, 2026-05-31)
+// ─────────────────────────────────────────────────────────────────────
+// Animals are summoned entities, not cards. They occupy a stage slot for
+// `duration` turns and attack at end of each player turn.
+//
+// Slot lifecycle:
+//   1. Player stages a LURE card in a slot. Slot becomes
+//      { kind: 'lure', card, turnsRemaining, animalId }.
+//   2. At end of each player turn, lure.turnsRemaining decrements. When it
+//      reaches 0, the lure transforms into an animal in that same slot:
+//      { kind: 'animal', animalId, durationRemaining, predatorProgress }.
+//   3. At end of each player turn, animal attacks the enemy (deals
+//      `attack` to `attackPool`), then duration decrements. When the
+//      animal's duration hits 0, the slot empties.
+//   4. PREDATOR CHAIN: if the animal has a `predatorChain`, predatorProgress
+//      increments at end-of-turn. When it reaches `turnsToTrigger`, the
+//      animal transforms into the predator (fresh duration).
+//
+// Slice-1 deferred: enemies attacking staged cards, three-of-a-kind, mixed
+// combos, adjacency restrictions, treats. See memory:
+// project_wg_chutzpah_animal_summoner for full design notes.
+const ANIMALS = {
+  salmon: {
+    name: 'Salmon',
+    icon: '🐟',
+    attack: 2,
+    attackPool: 'composure',
+    duration: 3,
+    predatorChain: { animalId: 'bear', turnsToTrigger: 2 },
+    flavor: 'Flops with surprising authority.',
+    desc: 'Attacks for 2 composure each turn. If left in slot 2 turns after arrival, transforms into a BEAR.',
+  },
+  sparrow: {
+    name: 'Sparrow',
+    icon: '🐦',
+    attack: 3,
+    attackPool: 'composure',
+    duration: 2,
+    flavor: "Pecks like it's making a point.",
+    desc: 'Attacks for 3 composure each turn for 2 turns.',
+  },
+  'field-mouse': {
+    name: 'Field Mouse',
+    icon: '🐭',
+    attack: 1,
+    attackPool: 'composure',
+    duration: 3,
+    onAttack: { draw: 1 },
+    flavor: 'A small contribution. Steady.',
+    desc: 'Attacks for 1 composure AND draws 1 card each turn for 3 turns.',
+  },
+  bear: {
+    name: 'Bear',
+    icon: '🐻',
+    attack: 5,
+    attackPool: 'composure',
+    duration: 3,
+    flavor: "He came for the salmon. He's staying for the rest of you.",
+    desc: 'Attacks for 5 composure each turn for 3 turns.',
+  },
+};
 
 // Equipment per slot with full tier ladders. `bonus` keys are read by the
 // combat loop at appropriate hooks (start-of-combat, damage calc, etc.).
@@ -3355,9 +3421,15 @@ function initialV2Tray(overrides = {}) {
 }
 
 // Rebuild the legacy mirror fields from the v2 slot truth. Called any time
-// we mutate intro / subject / target / modifiers.
+// we mutate intro / subject / target / modifiers. Chutzpah Animal Summoner
+// (2026-05-31): lure / animal envelopes can occupy intro/subject/target
+// instead of raw cards — skip them when computing wit stat totals so the
+// FFT damage formula doesn't see ghost stats.
+function isSummonEnvelope(v) {
+  return v && (v.kind === 'lure' || v.kind === 'animal');
+}
 function syncTrayLegacy(t) {
-  const cards = [t.intro, t.subject, ...(t.modifiers || [])].filter(Boolean);
+  const cards = [t.intro, t.subject, ...(t.modifiers || [])].filter(c => c && !isSummonEnvelope(c));
   const out = { chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [...cards] };
   for (const c of cards) {
     out.chutzpah += c.stats?.chutzpah || 0;
@@ -3366,7 +3438,8 @@ function syncTrayLegacy(t) {
     if (c.phrase) out.phrases.push(c.phrase);
     if (c.tags) out.tags.push(...c.tags);
   }
-  return { ...t, ...out, effectCard: t.target };
+  const targetCard = isSummonEnvelope(t.target) ? null : t.target;
+  return { ...t, ...out, effectCard: targetCard };
 }
 
 export default function App() {
@@ -5670,6 +5743,34 @@ export default function App() {
     if (card.slot === 'target' && card.effect?.requiresRage && !rageActive) {
       setEnergy(e => e + (card.cost || 0));
       pushLog(`🔥 ${card.phrase || card.name} needs RAGE — chutzpah isn't there yet.`);
+      return;
+    }
+
+    // Chutzpah Animal Summoner — lure cards stage into the first empty
+    // tray slot (intro → subject → target). Slot value becomes a
+    // { kind: 'lure', card, turnsRemaining, animalId } envelope rather than
+    // the raw card, so the end-of-turn tick + transform logic can find it.
+    if (card.slot === 'lure' && card.summon) {
+      const order = ['intro', 'subject', 'target'];
+      const firstEmpty = order.find(s => tray[s] == null);
+      if (!firstEmpty) {
+        setEnergy(e => e + (card.cost || 0));
+        pushLog(`🪱 No empty stage slot for ${card.name} — refunded.`);
+        return;
+      }
+      const lureEnvelope = {
+        kind: 'lure',
+        uid: card.uid,
+        cardId: card.id,
+        cardName: card.name,
+        card,
+        turnsRemaining: card.summon.turnsToArrive,
+        animalId: card.summon.animalId,
+      };
+      setTray(p => syncTrayLegacy({ ...p, [firstEmpty]: lureEnvelope }));
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      const animal = ANIMALS[card.summon.animalId];
+      pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(firstEmpty) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
       return;
     }
 
@@ -8580,6 +8681,78 @@ export default function App() {
     const killedByPowers = applyEndOfTurnPowerTriggers();
     if (killedByPowers) return;
 
+    // Chutzpah Animal Summoner end-of-turn tick (2026-05-31, slice 1).
+    // Process order:
+    //   a. ANIMALS act: attack the enemy, decrement duration, advance
+    //      predator-chain progress, transform to predator if chain completes,
+    //      empty the slot if duration reaches 0.
+    //   b. LURES tick: decrement turnsRemaining, transform into the
+    //      summoned animal in-place when it reaches 0. Newly arrived
+    //      animals wait until the NEXT end-of-turn to act.
+    if (selectedCharacter?.lane === 'chutzpah') {
+      const nextSlots = {};
+      let summonerKilledEnemy = false;
+      for (const slotName of ['intro', 'subject', 'target']) {
+        const slot = tray[slotName];
+        if (!slot) { nextSlots[slotName] = null; continue; }
+        if (slot.kind === 'animal') {
+          const animal = ANIMALS[slot.animalId];
+          if (!animal) { nextSlots[slotName] = null; continue; }
+          // Attack
+          if (animal.attackPool === 'composure') {
+            applyDamageToEnemyComposure(animal.attack);
+            pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} composure.`);
+          } else {
+            applyDamageToEnemyHp(animal.attack);
+            pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} HP.`);
+          }
+          if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
+          // Check if attack killed the enemy
+          if ((enemyComposure - animal.attack <= 0 && animal.attackPool === 'composure')
+              || (enemyHp - animal.attack <= 0 && animal.attackPool !== 'composure')) {
+            summonerKilledEnemy = true;
+          }
+          // Decrement duration and tick predator chain
+          const nextDuration = slot.durationRemaining - 1;
+          const nextPredator = (slot.predatorProgress || 0) + 1;
+          if (animal.predatorChain && nextPredator >= animal.predatorChain.turnsToTrigger) {
+            const newAnimalId = animal.predatorChain.animalId;
+            const newAnimal = ANIMALS[newAnimalId];
+            pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} attracts a ${newAnimal?.name || newAnimalId}!`);
+            nextSlots[slotName] = {
+              kind: 'animal',
+              animalId: newAnimalId,
+              durationRemaining: newAnimal?.duration || 3,
+              predatorProgress: 0,
+            };
+          } else if (nextDuration <= 0) {
+            pushLog(`${animal.icon} ${animal.name} departs.`);
+            nextSlots[slotName] = null;
+          } else {
+            nextSlots[slotName] = { ...slot, durationRemaining: nextDuration, predatorProgress: nextPredator };
+          }
+        } else if (slot.kind === 'lure') {
+          const nextTurns = slot.turnsRemaining - 1;
+          if (nextTurns <= 0) {
+            const animal = ANIMALS[slot.animalId];
+            pushLog(`${animal?.icon || '🐾'} ${animal?.name || slot.animalId} arrives!`);
+            nextSlots[slotName] = {
+              kind: 'animal',
+              animalId: slot.animalId,
+              durationRemaining: animal?.duration || 3,
+              predatorProgress: 0,
+            };
+          } else {
+            nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };
+          }
+        } else {
+          nextSlots[slotName] = slot;
+        }
+      }
+      setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
+      if (summonerKilledEnemy) return;
+    }
+
     // v2.10: annotation damageOnTurnEnd — composure tick at end of player turn.
     const annTurnEnd = annoFx('damageOnTurnEnd');
     if (annTurnEnd > 0) {
@@ -10357,6 +10530,7 @@ export default function App() {
       enemySkipNextAttack={enemySkipNextAttack}
       tutorFlash={tutorFlash}
       tutorArmed={tutorArmed}
+      animals={ANIMALS}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}

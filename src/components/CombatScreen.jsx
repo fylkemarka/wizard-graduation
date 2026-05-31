@@ -48,6 +48,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        tutorFlash = null,
                        tutorArmed = false,
+                       animals = {},
                        onOpenCompendium, onOpenDeckView }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
@@ -604,7 +605,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         combatTurn={combatTurn}
         pauseHeldActive={pauseHeldActive} enemy={enemy}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
-        wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows} />
+        wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
+        animals={animals} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
           played the "As Hewn-Greaves notes in his footnotes," skill and
@@ -825,12 +827,25 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        combatTurn = 1,
                        pauseHeldActive = false, enemy = null,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
-                       wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [] }) {
-  const intro = tray.intro;
-  const subject = tray.subject;
-  const target = tray.target || tray.effectCard;
+                       wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
+                       animals = {} }) {
+  // Chutzpah Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
+  // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
+  // / FFT detection only treats raw cards as content; envelopes are rendered
+  // separately as summon pills below.
+  const isSummonEnvelope = (v) => v && (v.kind === 'lure' || v.kind === 'animal');
+  const introCard = isSummonEnvelope(tray.intro) ? null : tray.intro;
+  const subjectCard = isSummonEnvelope(tray.subject) ? null : tray.subject;
+  const targetCard = isSummonEnvelope(tray.target) ? null : (tray.target || tray.effectCard);
+  const intro = introCard;
+  const subject = subjectCard;
+  const target = targetCard;
   const modifiers = tray.modifiers || [];
-  const anyStaged = intro || subject || target || modifiers.length > 0;
+  const summonIntro = isSummonEnvelope(tray.intro) ? tray.intro : null;
+  const summonSubject = isSummonEnvelope(tray.subject) ? tray.subject : null;
+  const summonTarget = isSummonEnvelope(tray.target) ? tray.target : null;
+  const anySummon = !!(summonIntro || summonSubject || summonTarget);
+  const anyStaged = intro || subject || target || modifiers.length > 0 || anySummon;
 
   // Compose sentence + damage preview when all 3 primary slots filled.
   const ready = !!(intro && subject && target);
@@ -1092,6 +1107,47 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         </div>
       );
     }
+    // Chutzpah Animal Summoner (2026-05-31, slice 1) — slot can hold a
+    // lure envelope (waiting to summon) or animal envelope (active hunter).
+    if (card.kind === 'lure') {
+      const animal = animals?.[card.animalId];
+      return (
+        <motion.button key={card.uid}
+          layout
+          initial={{ scale: 0.5, opacity: 0, y: 12 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+          title={`${card.cardName} — Lure. ${animal?.name || card.animalId} arrives in ${card.turnsRemaining} turn${card.turnsRemaining === 1 ? '' : 's'}.`}
+          className="px-3 py-2 rounded bg-moss-800 border border-moss-500 text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] cursor-help">
+          <span className="font-mono text-[10px] opacity-70">{slotName} · lure</span>
+          <span className="font-bold text-center">🪱 {card.cardName}</span>
+          <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
+            {animal?.icon || '🐾'} {animal?.name || card.animalId} in {card.turnsRemaining}t
+          </span>
+        </motion.button>
+      );
+    }
+    if (card.kind === 'animal') {
+      const animal = animals?.[card.animalId];
+      const predatorNote = animal?.predatorChain
+        ? ` · ${animals?.[animal.predatorChain.animalId]?.name || '?'} in ${animal.predatorChain.turnsToTrigger - (card.predatorProgress || 0)}t`
+        : '';
+      return (
+        <motion.button key={card.animalId + '-' + slotName}
+          layout
+          initial={{ scale: 0.5, opacity: 0, y: 12 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+          title={`${animal?.name || card.animalId} — ${animal?.desc || ''} ${card.durationRemaining} turn${card.durationRemaining === 1 ? '' : 's'} left.${predatorNote}`}
+          className="px-3 py-2 rounded bg-ember-800 border border-ember-500 text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] cursor-help">
+          <span className="font-mono text-[10px] opacity-70">{slotName} · animal</span>
+          <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
+          <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
+            {animal?.attack} 🎭 / turn · {card.durationRemaining}t left{predatorNote}
+          </span>
+        </motion.button>
+      );
+    }
     const contrib = cardContribution(card, slotName);
     // v3.3: surface FFT row affiliation on the staged pill so the
     // player can SEE which school/row each card belongs to mid-cast.
@@ -1201,15 +1257,19 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             </div>
           </div>
           <div className="text-[11px] font-quill italic text-parchment-100 leading-snug">
-            {ready
-              ? <span>"{sentence}"</span>
-              : !anyStaged
-                ? <span className="text-parchment-400">(empty — stage intro + subject + target to cast)</span>
-                : <span>
-                    {intro && <span>{intro.phrase} </span>}
-                    {subject && <span>{subject.phrase} </span>}
-                    {!target && <span className="text-parchment-400 not-italic">… (need a target to cast)</span>}
-                  </span>
+            {isChutzpah
+              ? (anySummon
+                  ? <span className="text-parchment-300">Your menagerie is on the case. Stage more lures, defend the slots.</span>
+                  : <span className="text-parchment-400">(empty — play a lure to summon an animal to a slot)</span>)
+              : ready
+                ? <span>"{sentence}"</span>
+                : !anyStaged
+                  ? <span className="text-parchment-400">(empty — stage intro + subject + target to cast)</span>
+                  : <span>
+                      {intro && <span>{intro.phrase} </span>}
+                      {subject && <span>{subject.phrase} </span>}
+                      {!target && <span className="text-parchment-400 not-italic">… (need a target to cast)</span>}
+                    </span>
             }
           </div>
           {Object.keys(tagCounts).length > 0 && (
@@ -1229,9 +1289,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             stays anchored to the right side regardless of how wide the
             slot pills get when staged. Pills shrink-min before wrapping. */}
         <div className="flex-1 flex flex-nowrap items-stretch gap-2 overflow-x-auto">
-        {slotPill(intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
-        {slotPill(subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
-        {slotPill(target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
+        {slotPill(tray.intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
+        {slotPill(tray.subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
+        {slotPill(tray.target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
         {modifiers.map(m => slotPill(m, 'modifier', { empty: '', filled: 'bg-gold-700 hover:bg-gold-600 border border-gold-400' }))}
         {modifiers.length < 2 && slotPill(null, modifiers.length === 0 ? 'modifier (optional)' : 'modifier 2 (optional)', { empty: 'border-gold-600 text-gold-500', filled: '' })}
         <div className="flex-1" />
@@ -1287,7 +1347,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             shares horizontal space with the slots + Predicted, instead
             of taking a full line below them. Tightens the combat
             screen's vertical footprint considerably. */}
-        <button onClick={onCast}
+        {!isChutzpah && (<button onClick={onCast}
           disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked}
           title={
             stakeBlocked ? `Target requires ${stakeRequired}+ HP staked.` :
@@ -1300,7 +1360,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
           }`}>
           ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
-        </button>
+        </button>)}
         {/* v3.4.77 (Alan): ALL IN stake UI pulled — see commit notes.
             Stake mechanic still has dead-but-harmless code in App.jsx
             and shared.js in case it returns as a Ballistic-school
