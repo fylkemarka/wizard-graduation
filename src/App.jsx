@@ -243,22 +243,26 @@ const CARDS = [
   // lane-agnostic (no `lane` field) so they appear in any wizard's
   // reward pool. Fire-and-forget chip damage that lets the player
   // pressure the enemy on turns where the big spell isn't ready.
-  { id: 'c-sharp-aside', name: 'Sharp Aside', cost: 0, type: 'skill', rarity: 'common',
+  { id: 'c-sharp-aside', name: 'Sharp Aside', nameByLane: { handler: 'Sharp Whistle' },
+    cost: 0, type: 'skill', rarity: 'common',
     effects: { compDmg: 4, exhaust: true },
     upgrade: { effects: { compDmg: 6, exhaust: true } },
     desc: '4 Composure damage. Exhaust.',
     flavor: 'A small remark with a quiet edge.' },
-  { id: 'c-cutting-remark', name: 'Cutting Remark', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-cutting-remark', name: 'Cutting Remark', nameByLane: { handler: 'Sharp Bark' },
+    cost: 1, type: 'skill', rarity: 'common',
     effects: { compDmg: 7 },
     upgrade: { effects: { compDmg: 10 } },
     desc: '7 Composure damage.',
     flavor: 'Pre-considered. Pre-felt.' },
-  { id: 'c-slip-word', name: 'Slip In A Word', cost: 0, type: 'skill', rarity: 'common',
+  { id: 'c-slip-word', name: 'Slip In A Word', nameByLane: { handler: 'Quiet Step' },
+    cost: 0, type: 'skill', rarity: 'common',
     effects: { compDmg: 3, block: 2, exhaust: true },
     upgrade: { effects: { compDmg: 5, block: 3, exhaust: true } },
     desc: '3 Composure damage. Gain 2 Block. Exhaust.',
     flavor: 'Between their sentences. Briefly. Lethally.' },
-  { id: 'c-crack-wise', name: 'Crack Wise', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-crack-wise', name: 'Crack Wise', nameByLane: { handler: 'Crack the Whip' },
+    cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { compDmg: 5, draw: 1 },
     upgrade: { effects: { compDmg: 7, draw: 1 } },
     desc: '5 Composure damage. Draw 1.',
@@ -336,7 +340,8 @@ const CARDS = [
     upgrade: { effects: { playerDmgMod: +0.15, draw: 1 } },
     desc: 'Increase your spell potency by 15% (stacks; caps at +50%). Each play this combat costs +1 energy more than the last.',
     flavor: 'You feel taller. It is, demonstrably, a feeling.' },
-  { id: 'c-dispel', name: 'Dispel', cost: 0, type: 'skill', rarity: 'uncommon',
+  { id: 'c-dispel', name: 'Dispel', nameByLane: { handler: 'Steady' },
+    cost: 0, type: 'skill', rarity: 'uncommon',
     effects: { enemyDmgMod: -0.15, playerDmgMod: +0.15, exhaust: true },
     upgrade: { effects: { enemyDmgMod: -0.30, playerDmgMod: +0.30, exhaust: true } },
     desc: 'Enemy attack −15%, your potency +15%. Exhaust.',
@@ -12556,7 +12561,7 @@ function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOp
                   </div>
                 </div>
               )}
-              <CardFullBody card={card} />
+              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
             </button>
           );
         })}
@@ -12604,7 +12609,7 @@ function CardLossOverlay({ notice, onDismiss }) {
           {cards.map((card, i) => (
             <div key={i}
               className="w-52 min-h-[280px] rounded-lg border-2 border-ember-500 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 relative">
-              <CardFullBody card={card} />
+              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-ember-700 font-display text-3xl tracking-widest font-bold transform -rotate-12 bg-parchment-50/90 px-3 py-1 rounded border-2 border-ember-700">
                   TAKEN
@@ -13059,7 +13064,7 @@ function CompendiumScreen({ onBack }) {
               <div className="parchment-card p-3 flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-widest text-gold-500">Showing {tierView.toUpperCase()}</div>
                 <div className="bg-parchment-50 text-ink-800 rounded p-2">
-                  <CardFullBody card={shown} />
+                  <CardFullBody card={shown} lane={selectedCharacter?.lane || null} />
                 </div>
                 <div className="text-[11px] text-parchment-300 italic">"{selectedCard.flavor || ''}"</div>
                 {selectedCard.setId && (() => {
@@ -13149,7 +13154,7 @@ function CardGrantScreen({ prompt, onDismiss }) {
         {cards.map((card, i) => (
           <div key={i}
             className={`w-52 min-h-[280px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 ${tint(card)}`}>
-            <CardFullBody card={card} />
+            <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
           </div>
         ))}
       </div>
@@ -14093,7 +14098,7 @@ function UpgradeCardScreen({ deck, onPick }) {
                 className="w-52 min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
                 {/* v3.1.4: full card body (Alan: "Study a Card screen
                     is still only showing stubs of cards. Show the whole card") */}
-                <CardFullBody card={card} />
+                <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
                 <div className="text-xs mt-auto pt-2 border-t border-ink-300 text-moss-700">
                   → <b>{upDispName}</b>{(() => {
                     if (upgraded.effect && card.effect) {
@@ -14199,7 +14204,7 @@ function ForgetTwoModal({ cards, onPick }) {
           {cards.map(card => (
             <button key={card.uid} onClick={() => onPick(card.uid)}
               className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-ember-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
-              <CardFullBody card={card} />
+              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
             </button>
           ))}
         </div>
@@ -14301,7 +14306,7 @@ function ForgetCardScreen({ deck, onPick }) {
           {deck.map(card => (
             <button key={card.uid} onClick={() => setPendingUid(card.uid)}
               className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
-              <CardFullBody card={card} />
+              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
             </button>
           ))}
         </div>
@@ -14359,7 +14364,7 @@ function UpgradePreviewCard({ card, label, tone }) {
     <div className="flex flex-col items-center gap-1">
       <div className={`text-xs uppercase tracking-widest ${labelColor}`}>{label}</div>
       <div className={`w-56 min-h-[18rem] rounded-lg border-2 p-3 bg-parchment-50 text-ink-800 ${border} flex flex-col gap-2`}>
-        <CardFullBody card={card} />
+        <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
       </div>
     </div>
   );

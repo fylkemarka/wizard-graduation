@@ -753,7 +753,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                   ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
-              <CardFullBody card={displayCard} costOverride={effCost} costPillClass={costPillClass} costTooltip={costTooltip} />
+              <CardFullBody card={displayCard} costOverride={effCost} costPillClass={costPillClass} costTooltip={costTooltip} lane={isHandler ? 'handler' : null} />
             </motion.button>
           );
         })}

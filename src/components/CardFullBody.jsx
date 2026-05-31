@@ -27,7 +27,7 @@ export const EFFECT_CHIP_RENDERERS = {
   energy:                  (v) => ({ icon: '⚡', label: `+${v} Energy`,              tone: 'text-gold-700'  }),
   poise:                   (v) => ({ icon: '🪶', label: `+${v} Poise`,               tone: 'text-iris-700'  }),
   composure:               (v) => ({ icon: '🎭', label: `+${v} Composure`,           tone: 'text-iris-700'  }),
-  compDmg:                 (v) => ({ icon: '🎭', label: `${v} Comp dmg`,             tone: 'text-iris-700'  }),
+  compDmg:                 (v, ctx) => ({ icon: '🎭', label: `${v} ${ctx?.lane === 'handler' ? 'Dmg' : 'Comp dmg'}`, tone: 'text-iris-700'  }),
   physDmg:                 (v) => ({ icon: '⚔',  label: `${v} Phys dmg`,             tone: 'text-ember-700' }),
   discardRandom:           (v) => ({ icon: '🗑', label: `Discard ${v}`,              tone: 'text-ember-700' }),
   returnDiscardToHand:     (v) => ({ icon: '↻',  label: `From discard: ${v}`,        tone: 'text-moss-700'  }),
@@ -39,7 +39,7 @@ export const EFFECT_CHIP_RENDERERS = {
   reflectNextHitAsComp:    ()  => ({ icon: '↩',  label: `Reflect next hit as Comp`,  tone: 'text-iris-700'  }),
   bracingArmed:            ()  => ({ icon: '🛡', label: `Brace: draw 3 if HP drops`, tone: 'text-iris-700'  }),
   blockFromComposure:      ()  => ({ icon: '🛡', label: `Block from ⅓ Comp`,         tone: 'text-iris-700'  }),
-  compDmgFromEnemyMissing: ()  => ({ icon: '🎭', label: `+1 Comp per missing Comp`,  tone: 'text-iris-700'  }),
+  compDmgFromEnemyMissing: (_, ctx) => ({ icon: '🎭', label: ctx?.lane === 'handler' ? `+1 Dmg per missing Comp` : `+1 Comp per missing Comp`, tone: 'text-iris-700'  }),
   nextCastBypassEff:       ()  => ({ icon: '🎯', label: `Next cast bypasses Eff`,    tone: 'text-ember-700' }),
   nextCastBonusEqualsLast: ()  => ({ icon: '↻',  label: `Next cast + last cast dmg`, tone: 'text-ember-700' }),
   nextCastDoubles:         ()  => ({ icon: '✕2', label: `Next cast resolves twice`,  tone: 'text-ember-700' }),
@@ -81,12 +81,18 @@ function slotPalette(slot) {
   }
 }
 
-export function CardFullBody({ card, costOverride, costPillClass, costTooltip }) {
-  const displayName = card.name || card.phrase || '';
-  // v3.3: Alan asked to drop flavor text from cards for now — only render
-  // `desc` (the mechanical description) when present. Flavor stays in the
-  // data files for future re-introduction but doesn't show in the card UI.
-  const displayDesc = card.desc || '';
+export function CardFullBody({ card, costOverride, costPillClass, costTooltip, lane }) {
+  // Handler doesn't have a "composure" mental model — for handler players
+  // (Alan, 2026-05-31), prefer the per-lane card name when present and
+  // swap "Composure damage" / "Comp dmg" phrasing in desc to plain
+  // "damage" / "Dmg". The substitution is render-only — the underlying
+  // card data is unchanged.
+  const displayName = (lane === 'handler' && card.nameByLane?.handler)
+    || card.name || card.phrase || '';
+  const rawDesc = card.desc || '';
+  const displayDesc = lane === 'handler'
+    ? rawDesc.replace(/Composure damage/gi, 'damage').replace(/Comp dmg/g, 'Dmg')
+    : rawDesc;
   const displayLabel = card.slot || card.type || '';
   const palette = slotPalette(card.slot);
   const dmgType = card.type === 'effect' || card.slot === 'target' ? card.effect?.damageType : null;
@@ -100,7 +106,7 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
     for (const [key, val] of Object.entries(card.effects)) {
       if (!val || key === 'exhaust') continue;
       const renderer = EFFECT_CHIP_RENDERERS[key];
-      if (renderer) effectChips.push({ key, ...renderer(val) });
+      if (renderer) effectChips.push({ key, ...renderer(val, { lane }) });
     }
   }
 
