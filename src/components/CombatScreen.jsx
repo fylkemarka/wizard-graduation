@@ -585,7 +585,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
         animals={animals} tutorArmed={tutorArmed}
-        shooPromptActive={shooPromptActive} onShooAnimal={onShooAnimal} />
+        shooPromptActive={shooPromptActive} onShooAnimal={onShooAnimal}
+        onPlayCard={onPlayCard} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
           played the "As Hewn-Greaves notes in his footnotes," skill and
@@ -659,10 +660,20 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           // Punchline / consumeLoudnessAsDamage live-damage preview removed
           // 2026-05-31 with the chutzpah → handler pivot (Loudness ripped).
           const displayCard = card;
+          // Lure cards in hand are draggable to a specific stage slot.
+          // dataTransfer carries the hand index; the slot's onDrop reads it
+          // and calls onPlayCard(handIdx, { targetSlot }) to land the lure
+          // in the chosen slot rather than the default first-empty.
+          const isLure = card.slot === 'lure' && playable;
           return (
             <motion.button key={card.uid}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+              draggable={isLure}
+              onDragStart={isLure ? (e) => {
+                e.dataTransfer.setData('text/plain', String(i));
+                e.dataTransfer.effectAllowed = 'move';
+              } : undefined}
               onClick={() => isFootnoteEligible ? onApplyFootnote(card.uid) : onPlayCard(i)}
               disabled={!(playable || isFootnoteEligible)}
               className={`w-[180px] h-72 shrink-0 rounded-lg border-2 p-2.5 text-left flex flex-col gap-1.5 shadow-lg transition-all ${
@@ -803,7 +814,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
                        animals = {}, tutorArmed = false,
-                       shooPromptActive = false, onShooAnimal = () => {} }) {
+                       shooPromptActive = false, onShooAnimal = () => {},
+                       onPlayCard = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
   // / FFT detection only treats raw cards as content; envelopes are rendered
@@ -1061,8 +1073,18 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
 
   const slotPill = (card, slotName, color) => {
     if (!card) {
+      // Empty slots are drop targets for hand lures. Dragover preventDefault
+      // is required by HTML5 DnD to mark the element as a valid drop zone.
       return (
-        <div className={`px-3 py-2 rounded border border-dashed ${color.empty} text-xs italic text-center opacity-60 min-w-[110px]`}>
+        <div
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const handIdxRaw = e.dataTransfer.getData('text/plain');
+            const handIdx = parseInt(handIdxRaw, 10);
+            if (!Number.isNaN(handIdx) && onPlayCard) onPlayCard(handIdx, { targetSlot: slotName });
+          }}
+          className={`px-3 py-2 rounded border border-dashed ${color.empty} text-xs italic text-center opacity-60 min-w-[110px] hover:opacity-100 hover:border-solid transition-all`}>
           {slotName}
         </div>
       );

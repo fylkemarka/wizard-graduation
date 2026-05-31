@@ -5633,7 +5633,7 @@ export default function App() {
     return c;
   }
 
-  function playCard(handIdx) {
+  function playCard(handIdx, opts = {}) {
     if (stage !== 'combat') return;
     const card = hand[handIdx];
     if (!card) return;
@@ -5707,14 +5707,23 @@ export default function App() {
     // with the chutzpah → handler pivot. No-op shim retained where called.
     const bumpTunnelVisionIfHandler = () => {};
 
-    // Handler Animal Summoner — lure cards stage into the first empty
-    // tray slot (intro → subject → target). Slot value becomes a
-    // { kind: 'lure', card, turnsRemaining, animalId } envelope rather than
-    // the raw card, so the end-of-turn tick + transform logic can find it.
+    // Handler Animal Summoner — lure cards stage into a specific tray slot.
+    // If opts.targetSlot is provided (drag-and-drop from hand to a slot) and
+    // that slot is empty, the lure lands there. Otherwise it falls back to
+    // the first empty slot (intro → subject → target). Slot value becomes
+    // a { kind: 'lure', card, turnsRemaining, animalId } envelope rather
+    // than the raw card so the end-of-turn tick + transform logic can find
+    // it. The adjacency mechanics (predator chain, cannibalism) make the
+    // slot choice meaningful — drag-and-drop gives the player control.
     if (card.slot === 'lure' && card.summon) {
       const order = ['intro', 'subject', 'target'];
-      const firstEmpty = order.find(s => tray[s] == null);
-      if (!firstEmpty) {
+      let targetSlot = null;
+      if (opts.targetSlot && order.includes(opts.targetSlot) && tray[opts.targetSlot] == null) {
+        targetSlot = opts.targetSlot;
+      } else {
+        targetSlot = order.find(s => tray[s] == null);
+      }
+      if (!targetSlot) {
         setEnergy(e => e + (card.cost || 0));
         pushLog(`🪱 No empty stage slot for ${card.name} — refunded.`);
         return;
@@ -5728,10 +5737,10 @@ export default function App() {
         turnsRemaining: card.summon.turnsToArrive,
         animalId: card.summon.animalId,
       };
-      setTray(p => syncTrayLegacy({ ...p, [firstEmpty]: lureEnvelope }));
+      setTray(p => syncTrayLegacy({ ...p, [targetSlot]: lureEnvelope }));
       setHand(h => h.filter((_, i) => i !== handIdx));
       const animal = ANIMALS[card.summon.animalId];
-      pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(firstEmpty) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+      pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlot) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
       return;
     }
 
