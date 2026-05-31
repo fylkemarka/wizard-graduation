@@ -45,7 +45,7 @@ const LURE_CARDS = [
   { id: 'cv2-l-tender-greens', name: 'Tender Greens', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'basic', tier: 1,
     summon: { animalIds: ['field-mouse', 'rabbit', 'young-buck'], turnsToArrive: 1, summonSet: 'tender-greens' },
-    desc: 'Stage. Next turn, a small animal arrives. (You will not know which.)',
+    desc: 'In 1T, summons a field mouse, rabbit, or young buck.',
     flavor: 'Lettuce, mostly. Whatever turns up will have to make do.' },
 ];
 
