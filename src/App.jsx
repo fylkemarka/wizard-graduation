@@ -869,10 +869,9 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
   }
-  // Handler Animal Summoner starter — lures + interplay cards.
+  // Handler Animal Summoner starter — Tender Greens lures only. Fish Food
+  // and Birdseed are reward-pool lures, not in the opening deck.
   if (lane === 'handler') {
-    ids.push('cv2-l-fish-food');        // 2-turn → Salmon → 2-more-turn → Bear
-    ids.push('cv2-l-birdseed');         // 1-turn → Sparrow
     ids.push('cv2-l-tender-greens');    // 1-turn → random of Mouse/Rabbit/Buck
     ids.push('cv2-l-tender-greens');    // second copy — chance at Mouse House row / Tender Greens bonus
     ids.push('c-shoo');                 // dismiss a summoned animal
