@@ -8681,11 +8681,14 @@ export default function App() {
         pushLog(`🪱 ${luresToRecycle.length === 1 ? 'Lure' : 'Lures'} → discard.`);
       }
       if (luresEaten.length > 0) {
-        // Eaten lures are CONSUMED, not cycled. Send them straight to
-        // exiled — same safety pattern as the recycle buffer: pushing into a
-        // captured snapshot of exiled here avoids the closure-vs-functional
-        // batching race the recycle path was hit by.
-        setExiled(ex => [...ex, ...luresEaten]);
+        // Eaten lures cycle to discard, same as transformed lures (Alan
+        // 2026-05-31: "You don't lose the birdseed card permanently. You
+        // just have to replay it now because the seed was eaten by the
+        // bird"). The bait is consumed in-fiction; the card resource is
+        // not. Same stagedDiscard buffer the transform path uses to dodge
+        // the closure-vs-functional batching race.
+        recycleToDiscard.push(...luresEaten);
+        pushLog(`🪱 Eaten ${luresEaten.length === 1 ? 'lure' : 'lures'} → discard.`);
       }
       if (summonerKilledEnemy) return;
     }
