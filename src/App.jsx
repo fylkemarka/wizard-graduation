@@ -898,7 +898,6 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     ids.push('cv2-l-tender-greens');    // 1-turn → random of Mouse/Rabbit/Buck
     ids.push('cv2-l-tender-greens');    // second copy — chance at Mouse House row / Tender Greens bonus
     ids.push('c-shoo');                 // dismiss a summoned animal
-    ids.push('c-whistle');              // swap two stage slots
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
     ids.push('c-buffet');               // next lure spreads across all empty slots (exhaust)
   }
@@ -8623,6 +8622,22 @@ export default function App() {
     pushLog(`👋 Shoo skill dismissed without picking an animal.`);
   }
 
+  // Feed-by-drop: drop a lure card onto a Feed slot on the Summoning Pitch
+  // to feed the animals of that group without summoning a new one. The lure
+  // card pays its energy cost, goes to discard, and adds its feedKey to the
+  // turn's ledger so matching animals don't starve at end-of-turn.
+  function feedAnimalsWithLure(handIdx, feedKey) {
+    const card = hand[handIdx];
+    if (!card || card.feedKey !== feedKey) return;
+    const cost = effectiveCardCost(card);
+    if (cost > energy) { pushLog(`Not enough energy to feed with ${card.name}.`); return; }
+    setEnergy(e => e - cost);
+    setHand(h => h.filter((_, i) => i !== handIdx));
+    setDiscard(d => [...d, { ...card, uid: uid() }]);
+    setLuresPlayedThisTurn(prev => [...prev, feedKey]);
+    pushLog(`🍴 ${card.name} consumed as feed — ${feedKey} animals topped up this turn.`);
+  }
+
   // Whistle click — first click picks slot 1; second click swaps slot 1 and
   // slot 2. Clicking the same slot twice cancels the prompt.
   function whistleClickSlot(slotName) {
@@ -9244,20 +9259,21 @@ export default function App() {
           nextSlots[slotName] = slot;
         }
       }
-      // STARVATION CHECK (variant 2: 2-turn grace period). Walk every
-      // animal slot in nextSlots. If a lure of matching feedKey was played
-      // this turn, reset turnsSinceFed to 0. Otherwise increment. At >= 3
-      // the animal leaves AT END OF TURN without firing its onExit (didn't
-      // complete its full duration). Mouse House spans clear together.
+      // STARVATION CHECK. Grace period per animal = duration - 1 turns
+      // (Alan: "Grace Period should be the standard number of turns an
+      // animal is summoned minus 1"). On the (duration)th unfed turn the
+      // animal leaves AT END OF TURN without firing its onExit. Mouse
+      // House spans clear together.
       const fedKeys = new Set(luresPlayedThisTurn);
       for (const slotName of SLOT_ORDER) {
         const slot = nextSlots[slotName];
         if (!slot || slot.kind !== 'animal') continue;
         const animal = ANIMALS[slot.animalId];
         if (!animal || !animal.feedKey) continue;
+        const threshold = animal.duration || 3; // grace+1 = duration
         const wasFed = fedKeys.has(animal.feedKey);
         const nextTurnsSinceFed = wasFed ? 0 : (slot.turnsSinceFed || 0) + 1;
-        if (nextTurnsSinceFed >= 3) {
+        if (nextTurnsSinceFed >= threshold) {
           pushLog(`${animal.icon} ${animal.name} starves and slips away. (No exit action.)`);
           if (slot.spans && slot.spans.length > 0) {
             for (const s of slot.spans) nextSlots[s] = null;
@@ -11060,6 +11076,7 @@ export default function App() {
       onCancelEatIt={cancelEatItPrompt}
       buffetArmed={buffetArmed}
       onCancelBuffet={() => { setBuffetArmed(false); pushLog(`🍽 Buffet dismissed.`); }}
+      onFeedAnimal={feedAnimalsWithLure}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}

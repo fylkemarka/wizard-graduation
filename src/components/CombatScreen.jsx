@@ -62,6 +62,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        onCancelEatIt = () => {},
                        buffetArmed = false,
                        onCancelBuffet = () => {},
+                       onFeedAnimal = () => {},
                        onOpenCompendium, onOpenDeckView }) {
   // Drag state — which empty stage slot is the dragged hand card currently
   // hovering over? Lives at this level so the hand-card's onDragEnd can
@@ -601,6 +602,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         treatPromptActive={treatPromptActive} onTreatClick={onTreatClick}
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
         onPlayCard={onPlayCard}
+        onFeedAnimal={onFeedAnimal}
         dragOverSlot={dragOverSlot} setDragOverSlot={setDragOverSlot} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
@@ -881,6 +883,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        treatPromptActive = false, onTreatClick = () => {},
                        eatItPromptActive = false, onEatItClick = () => {},
                        onPlayCard = () => {},
+                       onFeedAnimal = () => {},
                        dragOverSlot = null, setDragOverSlot = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
@@ -1275,14 +1278,17 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {(animal?.attack || 0) > 0
-              ? `${animal.attack} 🎭 / turn · ${card.durationRemaining}t left`
+              ? `${animal.attack} dmg / turn · ${card.durationRemaining}t left`
               : `(flops) · ${card.durationRemaining}t left`}
             {predatorNote}
           </span>
           {animal?.feedKey && (() => {
+            const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
+            const feedLabel = FEED_NAMES[animal.feedKey] || animal.feedKey;
+            const grace = Math.max(0, (animal.duration || 3) - 1);
             const fed = (luresPlayedThisTurn || []).includes(animal.feedKey);
             const t = card.turnsSinceFed || 0;
-            const willStarve = !fed && t >= 2; // would become 3 at end of turn
+            const willStarve = !fed && t >= grace;
             const tone = willStarve
               ? 'bg-ember-900 text-ember-200 border border-ember-500'
               : fed
@@ -1291,17 +1297,17 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   ? 'bg-gold-900 text-gold-200 border border-gold-500'
                   : 'bg-ink-700 text-parchment-300 border border-ink-500';
             const label = willStarve
-              ? '🥀 leaves end of turn'
+              ? `🥀 leaves end of turn`
               : fed
-                ? `🍴 fed (${animal.feedKey})`
+                ? `🍴 fed (${feedLabel})`
                 : t >= 1
-                  ? `⚠ hungry ${t}/2 (${animal.feedKey})`
-                  : `🍴 needs ${animal.feedKey}`;
+                  ? `⚠ hungry ${t}/${grace} (needs ${feedLabel})`
+                  : `🍴 needs ${feedLabel}`;
             return (
               <span className={`font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded text-center leading-tight ${tone}`}
                     title={willStarve
                       ? 'Will leave at end of turn without firing exit action.'
-                      : `Animal needs a matching lure (${animal.feedKey}) every turn. Tolerates 2 missed feeds; leaves on the 3rd.`}>
+                      : `Animal needs a ${feedLabel} every turn. Grace period: ${grace} missed feed${grace === 1 ? '' : 's'}. Leaves without exit action on the next miss after that.`}>
                 {label}
               </span>
             );
@@ -1486,6 +1492,51 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           {modifiers.map(m => slotPill(m, 'modifier', { empty: '', filled: 'bg-gold-700 hover:bg-gold-600 border border-gold-400' }))}
           {modifiers.length < 2 && slotPill(null, modifiers.length === 0 ? 'modifier (optional)' : 'modifier 2 (optional)', { empty: 'border-gold-600 text-gold-500', filled: '' })}
         </>)}
+        {/* Feed slots — one per hungry feedKey on the board. Drag a
+            matching lure from hand to satisfy this turn's feed without
+            summoning. Card pays cost, lands in discard, and the feedKey
+            is recorded for the end-of-turn starvation check. */}
+        {isHandler && (() => {
+          const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
+          const fedKeys = new Set(luresPlayedThisTurn || []);
+          const neededKeys = new Set();
+          for (const sn of ['intro', 'subject', 'target']) {
+            const slot = tray?.[sn];
+            if (slot?.kind !== 'animal') continue;
+            const animal = animals?.[slot.animalId];
+            if (!animal?.feedKey) continue;
+            if (fedKeys.has(animal.feedKey)) continue;
+            neededKeys.add(animal.feedKey);
+          }
+          if (neededKeys.size === 0) return null;
+          return [...neededKeys].map(fk => {
+            const feedName = FEED_NAMES[fk] || fk;
+            const isOver = dragOverSlot === `feed:${fk}`;
+            return (
+              <div key={`feed-${fk}`}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                onDragEnter={() => setDragOverSlot(`feed:${fk}`)}
+                onDragLeave={() => setDragOverSlot(s => s === `feed:${fk}` ? null : s)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverSlot(null);
+                  const handIdxRaw = e.dataTransfer.getData('text/plain');
+                  const handIdx = parseInt(handIdxRaw, 10);
+                  if (!Number.isNaN(handIdx) && onFeedAnimal) onFeedAnimal(handIdx, fk);
+                }}
+                className={`rounded text-xs italic text-center min-w-[140px] min-h-[120px] flex flex-col items-center justify-center transition-all duration-150 p-3 ${
+                  isOver
+                    ? 'bg-moss-700/70 border-4 border-moss-300 ring-4 ring-moss-400 text-parchment-50 scale-105 shadow-2xl not-italic'
+                    : 'border-2 border-dashed border-amber-500 text-amber-300 opacity-80'
+                }`}
+                title={`Drag a ${feedName} card here to feed your ${fk} animals this turn (consumes the card).`}>
+                <span className="font-bold uppercase tracking-widest text-xs opacity-90">🍴 Feed</span>
+                <span className="text-[11px] mt-1 not-italic font-mono">{feedName}</span>
+                {isOver && <span className="text-[10px] mt-1 not-italic font-mono">↓ drop to feed</span>}
+              </div>
+            );
+          });
+        })()}
         <div className="flex-1" />
         {ready && predicted && (
           <div className="text-right flex flex-col items-end gap-1">
@@ -1613,10 +1664,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           const parts = [];
           if (isShield) {
             totalBlock += atk;
-            parts.push(`+${atk} 🛡`);
+            parts.push(`+${atk} block`);
           } else {
             totalDmg += atk;
-            parts.push(`${atk} 🎭`);
+            parts.push(`${atk} dmg`);
           }
           if (isRabid && !isShield) {
             const r = Math.max(1, Math.round(atk * 0.2));
@@ -1640,9 +1691,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               <span key={i} className="text-parchment-200">{l}</span>
             ))}
             <span className="ml-auto text-[11px] text-parchment-100 font-bold">
-              Σ {totalDmg > 0 && <span className="text-iris-200">{totalDmg} 🎭</span>}
-              {totalBlock > 0 && <span className="text-moss-200 ml-1">+{totalBlock} 🛡</span>}
-              {totalDraw > 0 && <span className="text-moss-200 ml-1">+{totalDraw} 📥</span>}
+              Σ {totalDmg > 0 && <span className="text-iris-200">{totalDmg} dmg</span>}
+              {totalBlock > 0 && <span className="text-moss-200 ml-1">+{totalBlock} block</span>}
+              {totalDraw > 0 && <span className="text-moss-200 ml-1">+{totalDraw} draw</span>}
               {totalRecoil > 0 && <span className="text-ember-300 ml-1">-{totalRecoil} self</span>}
               {tacticId && <span className="ml-2 text-gold-200 italic">[{tray.tactic.name}]</span>}
             </span>
