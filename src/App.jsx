@@ -806,12 +806,10 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // ("Take That Tone Elsewhere") so the player can complete an FFT in
     // their first combat. Bluster-1 = +12 comp + 1 Pressure + pressureBonus
     // — immediately damaging AND teaches the Pressure mechanic.
-    // v3.4.71 (Alan) — the chutzpah starter previously included a bluster-2
-    // intro alongside the bluster-1 row, which read as a "stray" card (1/3
-    // of a row the player has no other components for). Replaced with a
-    // duplicate bluster-1 intro: player owns a full bluster-1 FFT plus a
-    // spare intro for cadence flexibility, no orphan partials.
-    introIds = ['cv2-i-bluster-1', 'cv2-i-bluster-1'];
+    // v3.4.74 (Alan) — dropped to a single intro. The duplicate read as
+    // redundant ("now I have two of the same intro"). Single intro matches
+    // the wit starter shape: one full bluster-1 row + Punchline finisher.
+    introIds = ['cv2-i-bluster-1'];
     subjectId = 'cv2-s-bluster-1';
     targetId  = 'cv2-t-bluster-1';
   } else {
