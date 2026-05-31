@@ -1183,12 +1183,17 @@ const ANIMALS = {
   salmon: {
     name: 'Salmon',
     icon: '🐟',
-    attack: 2,
+    // No attack, no defense — the salmon flops. Its job is to wait. The
+    // predator chain (see hidden field below) is the payoff for patience;
+    // surfaced ONLY when the bear actually arrives, not on the card or
+    // the slot pill. Discovery is the design.
+    attack: 0,
     attackPool: 'composure',
     duration: 3,
     predatorChain: { animalId: 'bear', turnsToTrigger: 2 },
+    hidePredatorChain: true,
     flavor: 'Flops with surprising authority.',
-    desc: 'Attacks for 2 composure each turn. If left in slot 2 turns after arrival, transforms into a BEAR.',
+    desc: 'Flops. Does nothing. Waits.',
   },
   sparrow: {
     name: 'Sparrow',
@@ -8613,7 +8618,9 @@ export default function App() {
           if (!animal) { nextSlots[slotName] = null; continue; }
           // Skip attack if the animal already acted this turn by eating a
           // lure in the pre-pass. Duration still ticks; flag clears below.
-          if (!slot.eatenThisTurn) {
+          // Also skip the attack pipeline entirely for 0-attack animals
+          // (e.g. Salmon, which flops and waits — see hidePredatorChain).
+          if (!slot.eatenThisTurn && animal.attack > 0) {
             if (animal.attackPool === 'composure') {
               applyDamageToEnemyComposure(animal.attack);
               pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} composure.`);

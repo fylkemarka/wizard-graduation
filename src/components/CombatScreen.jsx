@@ -1089,7 +1089,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     }
     if (card.kind === 'animal') {
       const animal = animals?.[card.animalId];
-      const predatorNote = animal?.predatorChain
+      // Predator-chain hint is hidden when the animal carries hidePredatorChain.
+      // Discovery of the chain (e.g. Salmon → Bear) is part of the design;
+      // surfacing "Bear in 2t" on the slot pill would spoil it.
+      const predatorNote = animal?.predatorChain && !animal?.hidePredatorChain
         ? ` · ${animals?.[animal.predatorChain.animalId]?.name || '?'} in ${animal.predatorChain.turnsToTrigger - (card.predatorProgress || 0)}t`
         : '';
       const shooArmed = shooPromptActive;
@@ -1111,7 +1114,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           <span className="font-mono text-[10px] opacity-70">{slotName} · animal{shooArmed ? ' · 👋 click to shoo' : ''}</span>
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
-            {animal?.attack} 🎭 / turn · {card.durationRemaining}t left{predatorNote}
+            {(animal?.attack || 0) > 0
+              ? `${animal.attack} 🎭 / turn · ${card.durationRemaining}t left`
+              : `(flops) · ${card.durationRemaining}t left`}
+            {predatorNote}
           </span>
         </motion.button>
       );
