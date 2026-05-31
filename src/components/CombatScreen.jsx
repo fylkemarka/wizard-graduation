@@ -1289,20 +1289,22 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             const fed = (luresPlayedThisTurn || []).includes(animal.feedKey);
             const t = card.turnsSinceFed || 0;
             const willStarve = !fed && t >= grace;
+            // Only show the badge when food matters THIS turn:
+            //   - fed → confirmation it's covered
+            //   - hungry (t >= 1) → reminder to feed soon
+            //   - willStarve → final warning before they leave
+            // Freshly-summoned, comfortably-fed animals don't show anything.
+            if (!fed && !willStarve && t < 1) return null;
             const tone = willStarve
               ? 'bg-ember-900 text-ember-200 border border-ember-500'
               : fed
                 ? 'bg-moss-900 text-moss-200 border border-moss-500'
-                : t >= 1
-                  ? 'bg-gold-900 text-gold-200 border border-gold-500'
-                  : 'bg-ink-700 text-parchment-300 border border-ink-500';
+                : 'bg-gold-900 text-gold-200 border border-gold-500';
             const label = willStarve
               ? `🥀 leaves end of turn`
               : fed
                 ? `🍴 fed (${feedLabel})`
-                : t >= 1
-                  ? `⚠ hungry ${t}/${grace} (needs ${feedLabel})`
-                  : `🍴 needs ${feedLabel}`;
+                : `⚠ hungry ${t}/${grace} (needs ${feedLabel})`;
             return (
               <span className={`font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded text-center leading-tight ${tone}`}
                     title={willStarve
