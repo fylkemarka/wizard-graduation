@@ -74,9 +74,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // v3.4.54 (Alan): physical damage to enemies removed altogether. Enemy
   // HP is no longer drained by any player card; hide the HP bar.
   const showHp = false;
-  const eff = enemy?.effectiveness || { handler: 1, wit: 1, jnsq: 1, physical: 1 };
-  const eff_label = (v) => v === 0 ? 'immune' : v >= 1.5 ? `×${v} susceptible` : v <= 0.5 ? `×${v} resistant` : `×${v}`;
-  const eff_color = (v) => v === 0 ? 'bg-ink-500 text-parchment-300' : v >= 1.5 ? 'bg-moss-700 text-parchment-50' : v <= 0.5 ? 'bg-ember-800 text-parchment-100' : 'bg-ink-600 text-parchment-200';
+  // effectiveness chip helpers removed 2026-05-31 with the per-lane
+  // effectiveness rip.
   // Hit-shake: re-key on every enemyHitFlash change so the animation
   // restarts even on rapid consecutive hits.
   const shakeClass = enemyHitFlash ? 'enemy-hit-shake' : '';
@@ -206,7 +205,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                   the Silk Wraith (or future phase-shifters) thins. */}
               {enemy?.phaseShifted && (
                 <span className="text-xs px-2 py-1 rounded uppercase tracking-widest font-bold font-mono bg-iris-900 border-2 border-iris-400 text-iris-200 animate-pulse"
-                  title="The enemy has shifted phase. Its effectiveness profile and per-turn behaviors have changed — check the lane chips below.">
+                  title="The enemy has shifted phase. Its per-turn behavior has changed.">
                   🕸 Thinned
                 </span>
               )}
@@ -314,14 +313,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               </div>
             );
           })()}
-          {/* v3.4.29 (Alan): single-line resistance chips — just symbol +
-              multiplier, no 'resistant/susceptible' suffix. Tooltip still
-              spells it out. Trims a full text row off the enemy panel. */}
-          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.handler ?? 1)}`} title={`Handler ${eff_label(eff.handler ?? 1)}`}>💪 ×{eff.handler ?? 1}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ ×{eff.wit ?? 1}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 ×{eff.jnsq ?? 1}</span>
-          {/* v3.4.54: physical effectiveness chip hidden — no card deals
-              physical damage to enemies anymore. */}
+          {/* Per-lane effectiveness chips removed 2026-05-31 with the
+              effectiveness-system rip. All multipliers are now 1.0 globally
+              so the chips were noise (and lying). */}
         </div>
         {/* v2.65: STATUS row — what YOU have done to the enemy this combat
             (and what they've done to you). Pulled out from the lane-chip
