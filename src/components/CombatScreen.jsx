@@ -785,7 +785,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        pauseHeldActive = false, enemy = null,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
-                       animals = {} }) {
+                       animals = {}, tutorArmed = false }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
   // / FFT detection only treats raw cards as content; envelopes are rendered
