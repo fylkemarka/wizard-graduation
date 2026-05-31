@@ -8722,7 +8722,7 @@ export default function App() {
     setTray(prev => {
       const next = { ...prev };
       let touched = false;
-      for (const sn of SLOT_ORDER) {
+      for (const sn of ['intro', 'subject', 'target']) {
         const slot = next[sn];
         if (slot?.kind !== 'animal') continue;
         const a = getAnimal(slot.animalId);
