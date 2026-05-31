@@ -47,7 +47,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        tutorFlash = null,
                        tutorArmed = false,
-                       animals = {},
+                       animals = {}, luresPlayedThisTurn = [],
                        shooPromptActive = false,
                        onShooAnimal = () => {},
                        onCancelShoo = () => {},
@@ -595,7 +595,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         pauseHeldActive={pauseHeldActive} enemy={enemy}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
-        animals={animals} tutorArmed={tutorArmed}
+        animals={animals} luresPlayedThisTurn={luresPlayedThisTurn} tutorArmed={tutorArmed}
         shooPromptActive={shooPromptActive} onShooAnimal={onShooAnimal}
         whistlePromptActive={whistlePromptActive} whistlePick1Slot={whistlePick1Slot} onWhistleClick={onWhistleClick}
         treatPromptActive={treatPromptActive} onTreatClick={onTreatClick}
@@ -875,7 +875,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        pauseHeldActive = false, enemy = null,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
-                       animals = {}, tutorArmed = false,
+                       animals = {}, luresPlayedThisTurn = [], tutorArmed = false,
                        shooPromptActive = false, onShooAnimal = () => {},
                        whistlePromptActive = false, whistlePick1Slot = null, onWhistleClick = () => {},
                        treatPromptActive = false, onTreatClick = () => {},
@@ -1279,6 +1279,33 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               : `(flops) · ${card.durationRemaining}t left`}
             {predatorNote}
           </span>
+          {animal?.feedKey && (() => {
+            const fed = (luresPlayedThisTurn || []).includes(animal.feedKey);
+            const t = card.turnsSinceFed || 0;
+            const willStarve = !fed && t >= 2; // would become 3 at end of turn
+            const tone = willStarve
+              ? 'bg-ember-900 text-ember-200 border border-ember-500'
+              : fed
+                ? 'bg-moss-900 text-moss-200 border border-moss-500'
+                : t >= 1
+                  ? 'bg-gold-900 text-gold-200 border border-gold-500'
+                  : 'bg-ink-700 text-parchment-300 border border-ink-500';
+            const label = willStarve
+              ? '🥀 leaves end of turn'
+              : fed
+                ? `🍴 fed (${animal.feedKey})`
+                : t >= 1
+                  ? `⚠ hungry ${t}/2 (${animal.feedKey})`
+                  : `🍴 needs ${animal.feedKey}`;
+            return (
+              <span className={`font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded text-center leading-tight ${tone}`}
+                    title={willStarve
+                      ? 'Will leave at end of turn without firing exit action.'
+                      : `Animal needs a matching lure (${animal.feedKey}) every turn. Tolerates 2 missed feeds; leaves on the 3rd.`}>
+                {label}
+              </span>
+            );
+          })()}
           {animal?.onExit && (() => {
             const parts = [];
             if (animal.onExit.damage > 0) parts.push(`${animal.onExit.damage} ${animal.onExit.damageType === 'physical' ? '⚔' : '🎭'}`);

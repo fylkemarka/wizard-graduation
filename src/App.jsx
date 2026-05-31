@@ -1218,6 +1218,7 @@ const ANIMALS = {
     attack: 0,
     attackPool: 'composure',
     duration: 3,
+    feedKey: 'fish',
     predatorChain: { animalId: 'bear', turnsToTrigger: 2 },
     hidePredatorChain: true,
     flavor: 'Flops with surprising authority.',
@@ -1229,6 +1230,7 @@ const ANIMALS = {
     attack: 5,
     attackPool: 'composure',
     duration: 2,
+    feedKey: 'bird',
     flavor: "Pecks like it's making a point.",
     desc: 'Attacks for 5 composure each turn for 2 turns.',
   },
@@ -1238,6 +1240,7 @@ const ANIMALS = {
     attack: 2,
     attackPool: 'composure',
     duration: 3,
+    feedKey: 'small-land',
     onAttack: { draw: 1 },
     onExit: { block: 3 },
     flavor: 'A small contribution. Steady.',
@@ -1249,10 +1252,8 @@ const ANIMALS = {
     attack: 2,
     attackPool: 'composure',
     duration: 3,
+    feedKey: 'small-land',
     onAttack: { draw: 1 },
-    // After 2 turns, a new Rabbit spawns in every adjacent empty slot, and
-    // the original Rabbit's stay is extended by 2 turns. Can trigger on
-    // BOTH sides if the original is in the center slot.
     adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
     flavor: 'There were always going to be more of them.',
     desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns.',
@@ -1263,6 +1264,7 @@ const ANIMALS = {
     attack: 5,
     attackPool: 'composure',
     duration: 2,
+    feedKey: 'small-land',
     onExit: { damage: 6, damageType: 'composure' },
     flavor: 'Bold. Brief. Largely correct.',
     desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 6 composure on exit.',
@@ -1273,6 +1275,7 @@ const ANIMALS = {
     attack: 4,
     attackPool: 'composure',
     duration: 3,
+    feedKey: 'bird',
     onExit: { applyWeak: 1, weakTurns: 1 },
     flavor: 'Arrived suddenly. The field mouse, presumably, is no longer a topic.',
     desc: 'Attacks for 4 composure each turn for 3 turns. Applies Weak 1 to the enemy on exit.',
@@ -1287,6 +1290,7 @@ const ANIMALS = {
     attack: 8,
     attackPool: 'composure',
     duration: 2,
+    feedKey: 'small-land',
     onAttackEffect: { applyVulnerable: 1 },
     flavor: 'They were, you realise, organising the whole time.',
     desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack.',
@@ -1297,6 +1301,7 @@ const ANIMALS = {
     attack: 9,
     attackPool: 'composure',
     duration: 3,
+    feedKey: 'fish',
     flavor: "He came for the salmon. He's staying for the rest of you.",
     desc: 'Attacks for 9 composure each turn for 3 turns.',
   },
@@ -3927,6 +3932,13 @@ export default function App() {
   // once (single card consumed; one envelope per slot). Cleared on lure
   // play. Exhausts when played.
   const [buffetArmed, setBuffetArmed] = useState(false);
+  // Feeding ledger — feedKeys of lures played THIS turn. Resets at end of
+  // turn (after the starvation check). Animals' turnsSinceFed counter
+  // increments on turns where no matching feedKey was played, resets to 0
+  // when one was. At turnsSinceFed >= 3 the animal leaves at end of turn
+  // WITHOUT firing its onExit. Variant 2 of the feeding design: 2-turn
+  // hunger grace period before starvation.
+  const [luresPlayedThisTurn, setLuresPlayedThisTurn] = useState([]);
   // v2.85: pick-one-of-two-to-forget. When an event/sidequest fires the
   // loseRandomCard effect, pre-pick two candidates and surface a modal
   // so the player chooses which one to lose (not silent + not pure RNG).
@@ -5537,6 +5549,7 @@ export default function App() {
     setTreatPromptActive(false);
     setEatItPromptActive(false);
     setBuffetArmed(false);
+    setLuresPlayedThisTurn([]);
     // v2.36: ACTUALLY— state. lastCastSnapshot starts null (no casts yet);
     // arguingBackThisTurn starts 0. Both never persist between combats.
     setLastCastSnapshot(null);
@@ -5920,6 +5933,8 @@ export default function App() {
       }
       setTray(p => syncTrayLegacy({ ...p, ...newSlots }));
       setHand(h => h.filter((_, i) => i !== handIdx));
+      // Record the feed type for the starvation check at end of turn.
+      if (card.feedKey) setLuresPlayedThisTurn(prev => [...prev, card.feedKey]);
       if (isNurture) {
         // Nurture consumed the card — push to discard immediately. The lure
         // skipped the envelope-recycle path so do it here.
@@ -9229,6 +9244,31 @@ export default function App() {
           nextSlots[slotName] = slot;
         }
       }
+      // STARVATION CHECK (variant 2: 2-turn grace period). Walk every
+      // animal slot in nextSlots. If a lure of matching feedKey was played
+      // this turn, reset turnsSinceFed to 0. Otherwise increment. At >= 3
+      // the animal leaves AT END OF TURN without firing its onExit (didn't
+      // complete its full duration). Mouse House spans clear together.
+      const fedKeys = new Set(luresPlayedThisTurn);
+      for (const slotName of SLOT_ORDER) {
+        const slot = nextSlots[slotName];
+        if (!slot || slot.kind !== 'animal') continue;
+        const animal = ANIMALS[slot.animalId];
+        if (!animal || !animal.feedKey) continue;
+        const wasFed = fedKeys.has(animal.feedKey);
+        const nextTurnsSinceFed = wasFed ? 0 : (slot.turnsSinceFed || 0) + 1;
+        if (nextTurnsSinceFed >= 3) {
+          pushLog(`${animal.icon} ${animal.name} starves and slips away. (No exit action.)`);
+          if (slot.spans && slot.spans.length > 0) {
+            for (const s of slot.spans) nextSlots[s] = null;
+          } else {
+            nextSlots[slotName] = null;
+          }
+        } else {
+          nextSlots[slotName] = { ...slot, turnsSinceFed: nextTurnsSinceFed };
+        }
+      }
+
       // Birds of a Feather self-exhaust: if the tactic is active AND three
       // animals of the SAME species are on the board after this tick, the
       // tactic card exhausts (→ exiled) and the slot clears.
@@ -9591,6 +9631,8 @@ export default function App() {
     setEnergy(wEnergy);
     // v2.9: reset per-turn cast cap.
     setCastsThisTurn(0);
+    // Handler feeding ledger — clear for next turn after starvation check ran.
+    setLuresPlayedThisTurn([]);
     // Stake reset removed 2026-05-31 (ALL IN ripped).
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
@@ -11002,6 +11044,7 @@ export default function App() {
       tutorFlash={tutorFlash}
       tutorArmed={tutorArmed}
       animals={ANIMALS}
+      luresPlayedThisTurn={luresPlayedThisTurn}
       shooPromptActive={shooPromptActive}
       onShooAnimal={shooAnimalFromSlot}
       onCancelShoo={cancelShooPrompt}

@@ -33,19 +33,19 @@ const STARTER_CARDS = [];
 // =============================================================================
 const LURE_CARDS = [
   { id: 'cv2-l-fish-food', name: 'Fish Food', cost: 1, type: 'lure', slot: 'lure',
-    lane: LANE, rarity: 'basic', tier: 1,
+    lane: LANE, rarity: 'basic', tier: 1, feedKey: 'fish',
     summon: { animalId: 'salmon', turnsToArrive: 2 },
-    desc: 'Stage. A Salmon arrives in 2 turns.',
+    desc: 'Stage. A Salmon arrives in 2 turns. Feeds: fish.',
     flavor: 'Smells of yesterday. The salmon, apparently, has no objections.' },
   { id: 'cv2-l-birdseed', name: 'Birdseed', cost: 1, type: 'lure', slot: 'lure',
-    lane: LANE, rarity: 'basic', tier: 1,
+    lane: LANE, rarity: 'basic', tier: 1, feedKey: 'bird',
     summon: { animalId: 'sparrow', turnsToArrive: 1 },
-    desc: 'Stage. A Sparrow arrives next turn.',
+    desc: 'Stage. A Sparrow arrives next turn. Feeds: birds.',
     flavor: 'You scatter it like you mean it.' },
   { id: 'cv2-l-tender-greens', name: 'Tender Greens', cost: 1, type: 'lure', slot: 'lure',
-    lane: LANE, rarity: 'basic', tier: 1,
+    lane: LANE, rarity: 'basic', tier: 1, feedKey: 'small-land',
     summon: { animalIds: ['field-mouse', 'rabbit', 'young-buck'], turnsToArrive: 1, summonSet: 'tender-greens' },
-    desc: 'In 1T, summons a field mouse, rabbit, or young buck.',
+    desc: 'In 1T, summons a field mouse, rabbit, or young buck. Feeds: small land animals.',
     flavor: 'Lettuce, mostly. Whatever turns up will have to make do.' },
 ];
 
