@@ -90,11 +90,13 @@ const CARDS = [
   // v3.4.73 (Alan) — chutzpah's guaranteed Loudness payoff. Every chutzpah
   // starter ships with one Punchline so the chip-build-then-spike loop
   // has a baseline outlet even before drafting the bluster-5 capstone.
-  // Exhaust so it can't be the only finisher you ever cast in a combat.
+  // v3.4.77 (Alan) — dropped exhaust. Early-game you cast for small chip
+  // at 1-2 Loudness; late-game you bank for bigger spikes. Reusability
+  // makes the card valuable from turn 1.
   { id: 'c-punchline', name: 'Punchline', cost: 1, type: 'skill', rarity: 'basic',
-    effects: { consumeLoudnessAsDamage: 2, exhaust: true },
-    upgrade: { effects: { consumeLoudnessAsDamage: 3, exhaust: true } },
-    desc: 'Consume all Loudness. Deal Loudness × 2 composure damage. Exhaust.',
+    effects: { consumeLoudnessAsDamage: 2 },
+    upgrade: { effects: { consumeLoudnessAsDamage: 3 } },
+    desc: 'Consume all Loudness. Deal Loudness × 2 composure damage.',
     flavor: "That's all I'm saying." },
 
   // ---- COMMON ----

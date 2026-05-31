@@ -656,11 +656,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             if (chutzEff !== 1.0) mods.push(`enemy chutz ×${chutzEff}`);
             if ((playerDmgMult || 1.0) !== 1.0) mods.push(`mult ×${(playerDmgMult || 1.0).toFixed(2)}`);
             const modStr = mods.length > 0 ? ` (Loudness ${loudness} × ${cLoud} × ${mods.join(' × ')})` : ` (Loudness ${loudness} × ${cLoud})`;
+            const exhaustSuffix = card.effects?.exhaust ? ' Exhaust.' : '';
             displayCard = {
               ...card,
               desc: loudness > 0
-                ? `Deal ${finalDmg} composure damage${modStr}. Clears Loudness. Exhaust.`
-                : `Deal Loudness × ${cLoud} composure damage. (No Loudness banked.) Exhaust.`,
+                ? `Deal ${finalDmg} composure damage${modStr}. Clears Loudness.${exhaustSuffix}`
+                : `Deal Loudness × ${cLoud} composure damage. (No Loudness banked.)${exhaustSuffix}`,
             };
           }
           return (
