@@ -10365,6 +10365,7 @@ export default function App() {
       loudness={loudness}
       enemySkipNextAttack={enemySkipNextAttack}
       tutorFlash={tutorFlash}
+      tutorArmed={tutorArmed}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}

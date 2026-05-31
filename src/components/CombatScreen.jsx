@@ -47,6 +47,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        notListeningCharges = 0, hitMeAgainCharges = 0,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        tutorFlash = null,
+                       tutorArmed = false,
                        onOpenCompendium, onOpenDeckView }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
@@ -138,7 +139,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <div className="text-xs uppercase tracking-widest text-gold-300 font-display">✨ The sentence finishes itself</div>
             <div className="text-lg font-display text-parchment-50 mt-1">
               <span className="text-iris-200">{tutorFlash.cardName}</span>
-              <span className="text-parchment-300 text-sm ml-2">pulled from {tutorFlash.fromPile} → hand</span>
+              <span className="text-parchment-300 text-sm ml-2">pulled from {tutorFlash.fromPile} → spell tray (ready to cast)</span>
             </div>
           </div>
         </div>
@@ -1154,11 +1155,19 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         <div className="flex flex-col gap-1 min-w-[180px] max-w-[280px]">
           <div className="flex justify-between items-center">
             <div className="text-[10px] uppercase tracking-widest text-iris-300 font-bold">📜 Spell Tray</div>
-            {tier > 0 && (
-              <div className={`text-[10px] font-bold font-mono ${tier === 3 ? 'text-ember-300' : tier === 2 ? 'text-iris-200' : 'text-parchment-300'}`}>
-                {tierLabel} ×{tierMult.toFixed(1)}
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {tutorArmed && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gold-700 text-parchment-50 border border-gold-400 animate-pulse cursor-help"
+                      title="The Tutor is armed. The next time you stage an intro AND a subject from the same FFT row, the matching target is pulled from your hand / deck / discard directly into the tray, ready to cast.">
+                  📚 TUTOR ARMED
+                </span>
+              )}
+              {tier > 0 && (
+                <div className={`text-[10px] font-bold font-mono ${tier === 3 ? 'text-ember-300' : tier === 2 ? 'text-iris-200' : 'text-parchment-300'}`}>
+                  {tierLabel} ×{tierMult.toFixed(1)}
+                </div>
+              )}
+            </div>
           </div>
           <div className="text-[11px] font-quill italic text-parchment-100 leading-snug">
             {ready
