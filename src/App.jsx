@@ -1006,7 +1006,12 @@ const ENEMIES = [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (pattern-wrong)' },
-      { kind: 'attack', value: 13, pool: 'composure', weight: 1, telegraph: '🎭 13 (PATTERN COMPLETE)' },
+      // v3.4.80 (Alan: "Pattern Maker hits way too hard on composure").
+      // 13 → 9 (post-scalar 11). Still the highest single-hit composure
+      // attack in the game; next-highest enemy is 8 (post-scalar 10). The
+      // pre-fix 13 scaled to 16 — over half the baseline 30 composure pool
+      // in one telegraph, which read as one-shot territory.
+      { kind: 'attack', value: 9, pool: 'composure', weight: 1, telegraph: '🎭 9 (PATTERN COMPLETE)' },
       // HP-side burst — the pattern lashes out physically.
       { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
     ] },
@@ -5718,25 +5723,36 @@ export default function App() {
           // already in your hand wouldn't qualify, which felt like a bug
           // ("why didn't my Tutor fire?"). Hand pull places it into the tray
           // for free, same as deck/discard — saving the target's energy cost.
-          const handIdx = hand.findIndex(findFn);
-          const deckIdx = deck.findIndex(findFn);
+          //
+          // v3.4.79 (Alan) — CRITICAL FIX: this block previously called
+          // setHand/setDeck/setDiscard with stale closure snapshots
+          // (e.g. `setHand(hand.filter(...))`). The just-staged card's own
+          // setHand on line 5699 uses a functional updater — React batches
+          // both, but the snapshot-based call here would clobber the
+          // functional update, leaving the staged card in hand. Net result:
+          // the player ended up with TWO copies of the staged intro after
+          // every Tutor fire. Fixed by switching to functional updaters
+          // that filter by card uid, immune to state-batching order.
+          const targetInHand = hand.find(findFn);
+          const targetInDeck = !targetInHand ? deck.find(findFn) : null;
+          const targetInDiscard = !targetInHand && !targetInDeck ? discard.find(findFn) : null;
           let pulled = null;
           let fromPile = null;
-          if (handIdx >= 0) {
-            pulled = hand[handIdx];
+          if (targetInHand) {
+            pulled = targetInHand;
             fromPile = 'hand';
-            setHand(hand.filter((_, i) => i !== handIdx));
-          } else if (deckIdx >= 0) {
-            pulled = deck[deckIdx];
+            const pulledUid = pulled.uid;
+            setHand(h => h.filter(c => c.uid !== pulledUid));
+          } else if (targetInDeck) {
+            pulled = targetInDeck;
             fromPile = 'deck';
-            setDeck(deck.filter((_, i) => i !== deckIdx));
-          } else {
-            const discardIdx = discard.findIndex(findFn);
-            if (discardIdx >= 0) {
-              pulled = discard[discardIdx];
-              fromPile = 'discard';
-              setDiscard(discard.filter((_, i) => i !== discardIdx));
-            }
+            const pulledUid = pulled.uid;
+            setDeck(d => d.filter(c => c.uid !== pulledUid));
+          } else if (targetInDiscard) {
+            pulled = targetInDiscard;
+            fromPile = 'discard';
+            const pulledUid = pulled.uid;
+            setDiscard(d => d.filter(c => c.uid !== pulledUid));
           }
           if (pulled) {
             // v3.4.65 (Alan): The Tutor places the target DIRECTLY IN THE
