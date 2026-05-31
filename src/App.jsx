@@ -5853,6 +5853,14 @@ export default function App() {
       }
       if (ge.draw) drawCards(ge.draw);
       if (ge.stripEnemyBlock)   { setEnemyBlock(b => Math.max(0, b - ge.stripEnemyBlock)); pushLog(`🛇 Stripped ${ge.stripEnemyBlock} enemy block.`); }
+      // v3.4.76 (Alan) — every chutzpah-lane gesture also adds 1 Loudness.
+      // Gestures are short bursts of physical assertion ("I am here, loudly"),
+      // so they feed the Bluster chip-then-spike loop without needing a tray
+      // commitment. Lets gesture-heavy turns still build toward a Punchline.
+      if (card.lane === 'chutzpah') {
+        setLoudness(n => n + 1);
+        pushLog(`📢 +1 Loudness (chutzpah gesture).`);
+      }
       // Exhaust by default — gestures are one-shot per acquisition.
       if (ge.exhaust !== false) setExiled(ex => [...ex, card]);
       else                      setDiscard(d => [...d, card]);
