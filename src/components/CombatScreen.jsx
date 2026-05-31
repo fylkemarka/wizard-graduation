@@ -10,6 +10,7 @@
 // components are pure-presentational. Each prop is declared explicitly
 // in the function signature so the prop surface is grep-friendly.
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText } from '../cards/shared.js';
 import { CardFullBody } from './CardFullBody.jsx';
@@ -62,6 +63,11 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        buffetArmed = false,
                        onCancelBuffet = () => {},
                        onOpenCompendium, onOpenDeckView }) {
+  // Drag state — which empty stage slot is the dragged hand card currently
+  // hovering over? Lives at this level so the hand-card's onDragEnd can
+  // clear it on cancelled drops. The slot pill (inside V2SpellTray) reads
+  // and writes via prop callbacks.
+  const [dragOverSlot, setDragOverSlot] = useState(null);
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -600,7 +606,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         whistlePromptActive={whistlePromptActive} whistlePick1Slot={whistlePick1Slot} onWhistleClick={onWhistleClick}
         treatPromptActive={treatPromptActive} onTreatClick={onTreatClick}
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
-        onPlayCard={onPlayCard} />
+        onPlayCard={onPlayCard}
+        dragOverSlot={dragOverSlot} setDragOverSlot={setDragOverSlot} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
           played the "As Hewn-Greaves notes in his footnotes," skill and
@@ -734,6 +741,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 e.dataTransfer.setData('text/plain', String(i));
                 e.dataTransfer.effectAllowed = 'move';
               } : undefined}
+              onDragEnd={isLure ? () => setDragOverSlot(null) : undefined}
               onClick={() => isFootnoteEligible ? onApplyFootnote(card.uid) : onPlayCard(i)}
               disabled={!(playable || isFootnoteEligible)}
               className={`w-[180px] h-72 shrink-0 rounded-lg border-2 p-2.5 text-left flex flex-col gap-1.5 shadow-lg transition-all ${
@@ -878,7 +886,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        whistlePromptActive = false, whistlePick1Slot = null, onWhistleClick = () => {},
                        treatPromptActive = false, onTreatClick = () => {},
                        eatItPromptActive = false, onEatItClick = () => {},
-                       onPlayCard = () => {} }) {
+                       onPlayCard = () => {},
+                       dragOverSlot = null, setDragOverSlot = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
   // / FFT detection only treats raw cards as content; envelopes are rendered
@@ -1140,27 +1149,37 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       // Whistle (slot swap can target empty slots — moves an animal into
       // empty space). Whistle takes precedence over the drop affordance
       // when active. Drag-and-drop preventDefault is required by HTML5 DnD.
+      // dragOverSlot drives a clear hover highlight so the player can see
+      // where the card will land before releasing.
       const whistleArmed = whistlePromptActive;
       const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
+      const isDragOver = dragOverSlot === slotName;
       return (
         <div
           onClick={whistleArmed ? () => onWhistleClick(slotName) : undefined}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+          onDragEnter={() => setDragOverSlot(slotName)}
+          onDragLeave={() => setDragOverSlot(s => s === slotName ? null : s)}
           onDrop={(e) => {
             e.preventDefault();
+            setDragOverSlot(null);
             const handIdxRaw = e.dataTransfer.getData('text/plain');
             const handIdx = parseInt(handIdxRaw, 10);
             if (!Number.isNaN(handIdx) && onPlayCard) onPlayCard(handIdx, { targetSlot: slotName });
           }}
           title={whistleArmed ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}` : undefined}
-          className={`px-3 py-2 rounded border border-dashed text-xs italic text-center min-w-[110px] transition-all ${
-            whistleArmed
-              ? (isWhistlePick1
-                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 text-gold-100 opacity-100 cursor-pointer'
-                  : 'border-gold-400 text-gold-200 opacity-100 cursor-pointer hover:bg-gold-900/50')
-              : `${color.empty} opacity-60 hover:opacity-100 hover:border-solid`
+          className={`rounded text-sm italic text-center min-w-[140px] min-h-[120px] flex flex-col items-center justify-center transition-all duration-150 ${
+            isDragOver
+              ? 'bg-moss-700/70 border-4 border-moss-300 ring-4 ring-moss-400 text-parchment-50 scale-105 shadow-2xl'
+              : whistleArmed
+                ? (isWhistlePick1
+                    ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 text-gold-100 opacity-100 cursor-pointer p-3'
+                    : 'border-2 border-dashed border-gold-400 text-gold-200 opacity-100 cursor-pointer hover:bg-gold-900/50 p-3')
+                : `border-2 border-dashed ${color.empty} opacity-70 hover:opacity-100 hover:border-solid p-3`
           }`}>
-          {slotName}{isWhistlePick1 ? ' · 🎶' : ''}
+          <span className="font-bold uppercase tracking-widest text-xs opacity-80">{slotName}</span>
+          {isDragOver && <span className="text-[10px] mt-1 not-italic font-mono">↓ drop here</span>}
+          {isWhistlePick1 && <span className="text-[10px] mt-1 not-italic">🎶</span>}
         </div>
       );
     }
