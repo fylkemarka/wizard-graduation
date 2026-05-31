@@ -3867,16 +3867,8 @@ export default function App() {
     const id = setTimeout(() => setTutorFlash(null), 5000);
     return () => clearTimeout(id);
   }, [tutorFlash]);
-  // v2.27: HIT ME AGAIN — handler's reactive recoil power. While the
-  // `cv2-p-hit-me-again` power is installed (mirrored on this flag so the
-  // attack-resolution path doesn't have to walk `powers` on every swing),
-  // each enemy hit landing on the player arms +1 to `hitMeAgainCharges`.
-  // The NEXT swing eats `charges` recoil before resolving its damage —
-  // for attack-multi, each swing both eats recoil AND arms a new charge,
-  // so the bleed snowballs. Charges never reset within a combat. Both
-  // reset to 0 / false in enterFight.
-  const [hitMeAgainInstalled, setHitMeAgainInstalled] = useState(false);
-  const [hitMeAgainCharges, setHitMeAgainCharges] = useState(0);
+  // HIT ME AGAIN reactive-recoil power ripped 2026-05-31 with the chutzpah
+  // → handler pivot. The card no longer exists in the pool.
   // v2.33: Stubborn Block was removed (Power that converted unspent energy
   // to carry-over Block — wit-flavored on a lane whose defensive identity is
   // "bill them for the hit," not "accumulate Block").
@@ -4322,8 +4314,8 @@ export default function App() {
       deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
     handler: {
-      hand: ['cv2-i-look', 'cv2-i-listen-pal', 'cv2-s-this-nonsense', 'cv2-t-stops-now', 'c-defend'],
-      deck: ['cv2-i-hey-now', 'cv2-s-your-attitude', 'cv2-t-is-over', 'c-compose'],
+      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'cv2-g-shove', 'c-defend'],
+      deck: ['cv2-k-square-up', 'c-defend', 'c-compose'],
     },
     jnsq: {
       hand: ['jv2-i-speaking-of', 'jv2-i-astrally', 'jv2-s-your-aura', 'jv2-t-wrong-color', 'c-defend'],
@@ -4405,9 +4397,11 @@ export default function App() {
       4: ['wv2-t-generous-error', 'wv2-t-in-summary', 'wv2-ann-thesis-expanded', 'c-bulwark', 'c-acuity'],
     },
     handler: {
-      2: ['cv2-t-bleeds-for-it', 'cv2-i-bring-it-on', 'cv2-g-slams-table', 'cv2-p-hit-me-again', 'c-amplify'],
-      3: ['cv2-t-bare-knuckles', 'cv2-m-say-again', 'cv2-i-once', 'cv2-g-headbutt', 'c-mend'],
-      4: ['cv2-t-and-im-not-done', 'c-iron-stomach', 'c-bulwark', 'c-acuity', 'c-clarity'],
+      // DEV_PRESETS for the Handler — Animal Summoner build (2026-05-31 pivot).
+      // Each tier seeds a deck representative of what the player can build to.
+      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-g-slams-table', 'cv2-g-shove', 'c-amplify'],
+      3: ['cv2-l-fish-food', 'cv2-l-cheese', 'cv2-g-pontificate', 'cv2-g-headbutt', 'c-mend'],
+      4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-g-pontificate', 'c-bulwark', 'c-acuity'],
     },
     jnsq: {
       2: ['jv2-t-third-tuesday', 'jv2-i-astrally', 'jv2-p-hold-my-drink', 'jv2-k-shouldnt-said-have-you-eaten', 'c-channel'],
@@ -5443,9 +5437,7 @@ export default function App() {
     setIntentHidden(false);
     stormOutFiredRef.current = false;
     tutorFiredThisTurnRef.current = false;
-    // v2.27: handler Hit Me Again — power install + charges reset.
-    setHitMeAgainInstalled(false);
-    setHitMeAgainCharges(0);
+    // Hit Me Again resets removed 2026-05-31 (power ripped).
     // v2.46: jnsq WON'T SHUT UP — commitment flag clears per combat. Per-
     // turn clear lives in endTurn (with the damage/dodge accounting).
     setWontShutUpArmed(false);
@@ -5682,11 +5674,7 @@ export default function App() {
     if (card.type === 'power') {
       setPowers(ps => [...ps, card]);
       setHand(h => h.filter((_, i) => i !== handIdx));
-      // v2.27: Hit Me Again — surface a fast-read flag so the per-swing
-      // attack-resolution doesn't walk `powers` every hit.
-      if (card.installPower?.id === 'hit-me-again' || card.id === 'cv2-p-hit-me-again') {
-        setHitMeAgainInstalled(true);
-      }
+      // Hit Me Again install hook removed 2026-05-31 (power ripped).
       // v2.47: DRUNKEN CONFIDENCE — telemetry-only install count. The read
       // path is `powers.some(p => p.installPower?.id === 'drunken-confidence')`
       // wherever the +50% cast bonus / +2 incoming penalty applies.
@@ -9335,28 +9323,13 @@ export default function App() {
       // (any damage > 0 reaching the player counts — block-absorbed still
       // counts per spec). Mutates local copies of enemy pools so the multi-
       // swing path doesn't lose state between swings.
-      let recoilWComp = enemyComposure;
-      let recoilCharges = hitMeAgainCharges;
-      let recoilTotal = 0;
+      // Hit Me Again recoil charge tracking ripped 2026-05-31. Power gone.
       // v3.3 Thorns: per-swing reflect from FFT-armed thorns charges.
       // Capture closure snapshot of starting charges, track used count
       // locally, flush state update once after the loop.
       const initialThorns = thornsCharges;
       let thornsUsed = 0;
       for (let i = 0; i < hits; i++) {
-        // Recoil fires BEFORE the swing's player-damage resolves.
-        // v3.4.54 (Alan): physical damage against enemies removed. Recoil
-        // now ALWAYS routes to composure, ignoring the prior enemyHpIsReal
-        // split.
-        if (hitMeAgainInstalled && recoilCharges > 0) {
-          const recoil = recoilCharges;
-          recoilWComp = Math.max(0, recoilWComp - recoil);
-          recoilTotal += recoil;
-          if (recoilWComp <= 0) {
-            // Enemy died to its own swing — stop here.
-            break;
-          }
-        }
         // v2.37: HOLD ON applies ONLY to the first swing of an attack/
         // attack-multi. swings 1..N use the unreduced `raw`.
         let remaining = (i === 0 && holdOnFirstSwingRaw != null) ? holdOnFirstSwingRaw : raw;
@@ -9465,22 +9438,9 @@ export default function App() {
             if (before > wHp) landed = true;
           }
         }
-        // Arm a new charge — the swing landed somewhere (block or pool).
-        // Per spec: "whether absorbed by block or hitting HP."
-        if (hitMeAgainInstalled && landed) recoilCharges += 1;
         if (wHp <= 0 || wComp <= 0) break;
       }
-      // Commit recoil + charge state.
-      if (hitMeAgainInstalled && recoilTotal > 0) {
-        setEnemyComposure(recoilWComp);
-        pushLog(`⚡ Hit me again recoils: -${recoilTotal} on ${enemy?.name || 'enemy'}.`);
-        if (recoilWComp <= 0) {
-          setTimeout(() => onEnemyDefeated(), 200);
-        }
-      }
-      if (hitMeAgainInstalled && recoilCharges !== hitMeAgainCharges) {
-        setHitMeAgainCharges(recoilCharges);
-      }
+      // Hit Me Again recoil commit removed 2026-05-31 (power ripped).
       // v3.3 Thorns flush: write back updated charge count.
       if (thornsUsed > 0) {
         setThornsCharges(t => ({ amount: t.amount, count: Math.max(0, t.count - thornsUsed) }));
@@ -10433,7 +10393,6 @@ export default function App() {
       wontShutUpArmed={wontShutUpArmed}
       staggerActive={staggerActive}
       notListeningCharges={notListeningCharges}
-      hitMeAgainCharges={hitMeAgainCharges}
       weaveStacks={weaveStacks}
       riposteCharge={riposteCharge}
       braceArmedDraw={braceArmedDraw}

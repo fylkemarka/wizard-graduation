@@ -43,7 +43,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        combatTurn = 1,
                        pauseHeld = false, pauseHeldActive = false,
                        wontShutUpArmed = false, staggerActive = false,
-                       notListeningCharges = 0, hitMeAgainCharges = 0,
+                       notListeningCharges = 0,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        tutorFlash = null,
                        tutorArmed = false,
@@ -543,7 +543,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="text-[9px] uppercase tracking-widest text-iris-300">📿 Powers</span>
             <div className="flex flex-wrap gap-x-1.5 gap-y-0 text-[11px] font-mono items-baseline">
               {powers.map((p, i) => {
-                const isHitMeAgain = p.installPower?.id === 'hit-me-again' || p.id === 'cv2-p-hit-me-again';
                 const isDrunken  = p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink';
                 const isBabbling = p.installPower?.id === 'babbling' || p.id === 'jv2-p-wait-and-another-thing';
                 return (
@@ -555,7 +554,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                       : `${p.desc}${p.flavor ? '\n\n' + p.flavor : ''}`}
                     className="text-iris-200 cursor-help">
                     {p.name}
-                    {isHitMeAgain && <span className="ml-0.5 text-ember-300">⚡{hitMeAgainCharges}</span>}
                     {isDrunken && <span className="ml-0.5 text-ember-300">🍺×1.5/+2</span>}
                     {isBabbling && <span className="ml-0.5 text-iris-300">🗯2×/60%{castsThisTurn === 1 && ' (2nd ready)'}</span>}
                   </span>
