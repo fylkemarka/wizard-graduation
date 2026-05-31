@@ -447,10 +447,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               </span>
             );
           })()}
-          {/* Chutzpah/jnsq conditional chips (only render when active) */}
-          {(isChutzpah || tunnelVision > 0 || rageActive) && (
+          {/* Tunnel Vision / RAGE chip — only renders if active. Was previously
+              always-on for chutzpah characters; now dormant under Animal
+              Summoner pivot. State stays for any residual gesture interaction. */}
+          {(tunnelVision > 0 || rageActive) && (
             <span className="text-[11px] text-ember-300 font-mono cursor-help"
-                  title={`Tunnel Vision (${tunnelVision}/5) — chutzpah RAGE meter. Every chutzpah-lane card you play adds +1. At the start of any turn where this hits 5+, you enter RAGE: +50% to all outgoing damage AND requiresRage cards (Bare Knuckles) become castable. Resets at the end of your RAGE turn.${rageActive ? '\n\nRAGE IS ACTIVE THIS TURN: spell damage ×1.5.' : ''}`}>🔥{tunnelVision}/5{rageActive && <span className="text-[10px] bg-ember-700 px-1 ml-0.5 rounded">RAGE</span>}</span>
+                  title={`Tunnel Vision (${tunnelVision}/5).`}>🔥{tunnelVision}/5{rageActive && <span className="text-[10px] bg-ember-700 px-1 ml-0.5 rounded">RAGE</span>}</span>
           )}
           {cornerTokens > 0 && (
             <span className="text-[11px] text-ember-300 font-mono"

@@ -88,17 +88,10 @@ const CARDS = [
     effects: { compDmg: 4 }, upgrade: { effects: { compDmg: 6 } },
     desc: 'Deal 4 composure damage.',
     flavor: 'Not the cleverest reply. Lands anyway.' },
-  // v3.4.73 (Alan) — chutzpah's guaranteed Loudness payoff. Every chutzpah
-  // starter ships with one Punchline so the chip-build-then-spike loop
-  // has a baseline outlet even before drafting the bluster-5 capstone.
-  // v3.4.77 (Alan) — dropped exhaust. Early-game you cast for small chip
-  // at 1-2 Loudness; late-game you bank for bigger spikes. Reusability
-  // makes the card valuable from turn 1.
-  { id: 'c-punchline', name: 'Punchline', cost: 1, type: 'skill', rarity: 'basic',
-    effects: { consumeLoudnessAsDamage: 2 },
-    upgrade: { effects: { consumeLoudnessAsDamage: 3 } },
-    desc: 'Consume all Loudness. Deal Loudness × 2 composure damage.',
-    flavor: "That's all I'm saying." },
+  // Punchline removed 2026-05-31 — chutzpah pivoted away from the Loudness
+  // mechanic with the Animal Summoner engine. No card now feeds or consumes
+  // Loudness. State machinery remains in place (dormant) until the new engine
+  // either repurposes or fully retires it.
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -5870,14 +5863,8 @@ export default function App() {
       }
       if (ge.draw) drawCards(ge.draw);
       if (ge.stripEnemyBlock)   { setEnemyBlock(b => Math.max(0, b - ge.stripEnemyBlock)); pushLog(`🛇 Stripped ${ge.stripEnemyBlock} enemy block.`); }
-      // v3.4.76 (Alan) — every chutzpah-lane gesture also adds 1 Loudness.
-      // Gestures are short bursts of physical assertion ("I am here, loudly"),
-      // so they feed the Bluster chip-then-spike loop without needing a tray
-      // commitment. Lets gesture-heavy turns still build toward a Punchline.
-      if (card.lane === 'chutzpah') {
-        setLoudness(n => n + 1);
-        pushLog(`📢 +1 Loudness (chutzpah gesture).`);
-      }
+      // +1 Loudness on chutzpah gestures removed 2026-05-31 — Loudness mechanic
+      // dormant under the Animal Summoner pivot. No consumers exist for it.
       // Exhaust by default — gestures are one-shot per acquisition.
       if (ge.exhaust !== false) setExiled(ex => [...ex, card]);
       else                      setDiscard(d => [...d, card]);
