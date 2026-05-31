@@ -10275,7 +10275,7 @@ export default function App() {
   // Card-grant modal sits on top of whatever stage triggered it — render
   // the modal as an overlay below.
 
-  if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS} onSelect={pickCharacter} onPractice={startTutorial} onLab={pickCharacterLab} />;
+  if (stage === 'character-select') return <CharacterSelectScreen characters={CHARACTERS.filter(c => c.lane !== 'jnsq')} onSelect={pickCharacter} onPractice={startTutorial} onLab={pickCharacterLab} />;
   if (stage === 'lab-deck-build')   return <LabDeckBuildScreen
     character={selectedCharacter} deck={deck}
     onAdd={labAddCard} onRemove={labRemoveCard}
