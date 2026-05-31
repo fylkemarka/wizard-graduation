@@ -8503,6 +8503,12 @@ export default function App() {
     const killedByPowers = applyEndOfTurnPowerTriggers();
     if (killedByPowers) return;
 
+    // Buffer for cards the rest of endTurn needs to fold into stagedDiscard.
+    // Used by the Handler lure-recycle path (and anything else that wants to
+    // recycle cards into the new discard without losing them to the
+    // subsequent setDiscard(wDiscard) overwrite).
+    const recycleToDiscard = [];
+
     // Handler Animal Summoner end-of-turn tick (2026-05-31, slice 1).
     // Process order:
     //   a. ANIMALS act: attack the enemy, decrement duration, advance
@@ -8578,7 +8584,12 @@ export default function App() {
       }
       setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
       if (luresToRecycle.length > 0) {
-        setDiscard(d => [...d, ...luresToRecycle]);
+        // Push into the shared recycle buffer instead of setDiscard — the
+        // end-of-turn refill block reads `discard` from closure and then
+        // overwrites it with setDiscard(wDiscard), which would clobber any
+        // setDiscard call we made here. Folding into stagedDiscard avoids
+        // the state-batching race entirely.
+        recycleToDiscard.push(...luresToRecycle);
         pushLog(`🪱 ${luresToRecycle.length === 1 ? 'Lure' : 'Lures'} → discard.`);
       }
       if (summonerKilledEnemy) return;
@@ -8781,7 +8792,7 @@ export default function App() {
     //      synchronously, then commit all related state in one pass.
     // v2.38: endTurnHand is hand minus any Misstep tokens that auto-played
     // above — those went to exile, not discard, and shouldn't recycle.
-    const stagedDiscard = [...discard, ...endTurnHand];
+    const stagedDiscard = [...discard, ...endTurnHand, ...recycleToDiscard];
     const drawn = drawFromPiles(deck, stagedDiscard, HAND_SIZE + extraDrawPerTurn());
     let wDeck     = drawn.deck;
     let wDiscard  = drawn.discard;
