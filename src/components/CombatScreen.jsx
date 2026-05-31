@@ -568,7 +568,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast}
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
         isChutzpah={isChutzpah} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
-        playerHp={hp}
+        playerHp={hp} playerMaxHp={maxHp}
+        tempHp={tempHp} rageActive={rageActive}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
         lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
@@ -770,7 +771,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 
 export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
                        isChutzpah = false, stakeAmount = 0, setStakeAmount = () => {},
-                       playerHp = 70,
+                       playerHp = 70, playerMaxHp = 70,
+                       tempHp = 0, rageActive = false,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
                        lastRoll = null, combatRolls = [], loudCount = 0,
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
@@ -796,8 +798,48 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   let crescendoPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage, riders, stakeBonus, loudBonus, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
-    predicted = { damage, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
+    const { damage: baseDamage, riders, stakeBonus, loudBonus, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
+    // v3.4.73 (Alan): predicted damage previously showed only the cast
+    // base from computeSpellDamage — but full FFT riders fire AFTER the
+    // base and can add huge amounts (Bluster-1's `bonus: 12`, pressure
+    // bonus, RAGE × 2, missing-HP scaling, consume-Pressure spike, etc.).
+    // Without baking these in, a player staging Bluster-1 saw "8 comp"
+    // and got hit for 21. Now Predicted shows the actual delivered total.
+    let damage = baseDamage;
+    const damageParts = [];
+    const fftPre = detectFFT(intro, subject, target);
+    if (fftPre.fft) {
+      const r = fftPre.fft.rider || {};
+      if (r.damageMult)  { damage = Math.round(damage * r.damageMult); damageParts.push(`× ${r.damageMult} (rider)`); }
+      if (r.bonus)       { damage += r.bonus; damageParts.push(`+${r.bonus} (FFT bonus)`); }
+      if (r.pressureBonus && (enemy?.pressure || 0) > 0) {
+        damage += enemy.pressure;
+        damageParts.push(`+${enemy.pressure} Pressure bonus`);
+      }
+      if (r.consumePressureMult && (enemy?.pressure || 0) > 0) {
+        const spike = enemy.pressure * r.consumePressureMult;
+        damage += spike;
+        damageParts.push(`+${spike} (Pressure ${enemy.pressure} × ${r.consumePressureMult})`);
+      }
+      if (r.rageDouble && rageActive) {
+        damage = Math.round(damage * 2);
+        damageParts.push(`× 2 RAGE`);
+      }
+      if (r.missingHpScaling) {
+        const missing = Math.max(0, playerMaxHp - playerHp);
+        const bonus = missing * r.missingHpScaling;
+        if (bonus > 0) {
+          damage += bonus;
+          damageParts.push(`+${bonus} missing-HP scaling`);
+        }
+      }
+      if (r.consumeTempHpAsDamage && tempHp > 0) {
+        const bonus = Math.round(tempHp * r.consumeTempHpAsDamage);
+        damage += bonus;
+        damageParts.push(`+${bonus} (Temp HP ${tempHp} × ${r.consumeTempHpAsDamage})`);
+      }
+    }
+    predicted = { damage, baseDamage, damageParts, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
     // v3.4.21 (Alan): preview the FFT-tier rider that will fire on cast.
     // Most specific match wins (full → partial → same-school). Each tier
     // surfaces its rider as readable chips under the Predicted damage so
@@ -1128,9 +1170,14 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   : sapped
                   ? `Sapped ×${(playerDmgMult ?? 1).toFixed(2)} — you are Weakened.`
                   : '';
+                const partsTooltip = (predicted.damageParts && predicted.damageParts.length > 0)
+                  ? `Base cast: ${predicted.baseDamage}\n${predicted.damageParts.map(p => '  ' + p).join('\n')}\nFinal: ${predicted.damage}`
+                  : '';
+                const baseTitle = ampTitle || `Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`;
+                const fullTitle = partsTooltip ? `${baseTitle}\n\n${partsTooltip}` : baseTitle;
                 return (
-                  <div className={`text-2xl font-bold font-mono ${color} ${ampTitle ? 'cursor-help' : ''}`}
-                       title={ampTitle || `Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`}>
+                  <div className={`text-2xl font-bold font-mono ${color} cursor-help`}
+                       title={fullTitle}>
                     {amped && <span className="text-xs mr-1">🩸</span>}
                     {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'block' ? '🛡 block' : mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
                     {predicted.stakeBonus > 0 && (
