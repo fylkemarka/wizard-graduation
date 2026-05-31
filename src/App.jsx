@@ -1222,6 +1222,8 @@ const ANIMALS = {
     hidePredatorChain: true,
     flavor: 'Flops with surprising authority.',
     desc: 'Flops. Does nothing. Waits.',
+    // T2 upgrade: bear arrives one turn faster.
+    upgrade: { predatorChain: { animalId: 'bear', turnsToTrigger: 1 } },
   },
   sparrow: {
     name: 'Sparrow',
@@ -1232,6 +1234,7 @@ const ANIMALS = {
     feedKey: 'bird',
     flavor: "Pecks like it's making a point.",
     desc: 'Attacks for 5 composure each turn for 2 turns.',
+    upgrade: { attack: 7, duration: 3 },
   },
   'field-mouse': {
     name: 'Field Mouse',
@@ -1244,6 +1247,21 @@ const ANIMALS = {
     onExit: { block: 3 },
     flavor: 'A small contribution. Steady.',
     desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block on exit.',
+    upgrade: { attack: 3, onExit: { block: 5 } },
+    elite: 'mecha-mouse', // 3.5% chance at summon
+  },
+  // Elite (3.5% summon chance) — 50% better numbers on every effect.
+  'mecha-mouse': {
+    name: 'Mecha-Mouse',
+    icon: '🦾',
+    attack: 3,
+    attackPool: 'composure',
+    duration: 3,
+    feedKey: 'small-land',
+    onAttack: { draw: 1 },
+    onExit: { block: 5 }, // 3 × 1.5 = 4.5 → 5
+    flavor: 'The field mouse has been upgraded. Considerably.',
+    desc: 'Elite Field Mouse. 3 composure + draw per turn for 3 turns. +5 Block on exit.',
   },
   rabbit: {
     name: 'Rabbit',
@@ -1256,6 +1274,21 @@ const ANIMALS = {
     adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
     flavor: 'There were always going to be more of them.',
     desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns.',
+    upgrade: { attack: 3, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
+    elite: 'bonzai-bunaroo',
+  },
+  'bonzai-bunaroo': {
+    name: 'Bonzai Bunaroo',
+    icon: '🥋',
+    attack: 3,
+    attackPool: 'composure',
+    duration: 3,
+    feedKey: 'small-land',
+    onAttack: { draw: 1 },
+    // 50% more spawn extension: 2 → 3.
+    adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 },
+    flavor: 'Disciplined. Smaller. Hits harder than it has any right to.',
+    desc: 'Elite Rabbit. 3 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns.',
   },
   'young-buck': {
     name: 'Young Buck',
@@ -1267,6 +1300,19 @@ const ANIMALS = {
     onExit: { damage: 6, damageType: 'composure' },
     flavor: 'Bold. Brief. Largely correct.',
     desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 6 composure on exit.',
+    upgrade: { attack: 6, duration: 3, onExit: { damage: 8, damageType: 'composure' } },
+    elite: 'james-deer',
+  },
+  'james-deer': {
+    name: 'James Deer',
+    icon: '🕶️',
+    attack: 8, // 5 × 1.5 = 7.5 → 8
+    attackPool: 'composure',
+    duration: 2,
+    feedKey: 'small-land',
+    onExit: { damage: 9, damageType: 'composure' }, // 6 × 1.5 = 9
+    flavor: 'Looks the room over slowly. The room looks worse for it.',
+    desc: 'Elite Young Buck. 8 composure / turn for 2 turns. 9 composure kick on exit.',
   },
   hawk: {
     name: 'Hawk',
@@ -1278,6 +1324,7 @@ const ANIMALS = {
     onExit: { applyWeak: 1, weakTurns: 1 },
     flavor: 'Arrived suddenly. The field mouse, presumably, is no longer a topic.',
     desc: 'Attacks for 4 composure each turn for 3 turns. Applies Weak 1 to the enemy on exit.',
+    upgrade: { attack: 6, onExit: { applyWeak: 2, weakTurns: 1 } },
   },
   // Mouse House — formed when all three slots hold Field Mice. The mice
   // combine into one Mouse House in the center slot (subject); the
@@ -1293,6 +1340,7 @@ const ANIMALS = {
     onAttackEffect: { applyVulnerable: 1 },
     flavor: 'They were, you realise, organising the whole time.',
     desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack.',
+    upgrade: { attack: 10, duration: 3 },
   },
   bear: {
     name: 'Bear',
@@ -1302,6 +1350,7 @@ const ANIMALS = {
     duration: 3,
     feedKey: 'fish',
     flavor: "He came for the salmon. He's staying for the rest of you.",
+    upgrade: { attack: 11, duration: 4 },
     desc: 'Attacks for 9 composure each turn for 3 turns.',
   },
 };
@@ -3938,6 +3987,29 @@ export default function App() {
   // WITHOUT firing its onExit. Variant 2 of the feeding design: 2-turn
   // hunger grace period before starvation.
   const [luresPlayedThisTurn, setLuresPlayedThisTurn] = useState([]);
+  // upgradedAnimals — species IDs that have been trained to T2 at an Inn.
+  // getAnimal(id) reads this set and merges getAnimal(id).upgrade when present
+  // so all downstream stat reads see the upgraded values. Persists across
+  // combats within a run (set is run-wide state, not per-combat).
+  const [upgradedAnimals, setUpgradedAnimals] = useState(() => new Set());
+  const getAnimal = (id) => {
+    const base = getAnimal(id);
+    if (!base) return base;
+    if (upgradedAnimals.has(id) && base.upgrade) {
+      return { ...base, ...base.upgrade };
+    }
+    return base;
+  };
+  // effectiveAnimals — precomputed merged table passed to UI so the
+  // CombatScreen / slot pills see the upgraded stats too. Recomputes when
+  // the upgradedAnimals set changes.
+  const effectiveAnimals = (() => {
+    const out = {};
+    for (const [id, def] of Object.entries(ANIMALS)) {
+      out[id] = (upgradedAnimals.has(id) && def.upgrade) ? { ...def, ...def.upgrade } : def;
+    }
+    return out;
+  })();
   // v2.85: pick-one-of-two-to-forget. When an event/sidequest fires the
   // loseRandomCard effect, pre-pick two candidates and surface a modal
   // so the player chooses which one to lose (not silent + not pure RNG).
@@ -5905,7 +5977,14 @@ export default function App() {
           let resolvedId = featherSpecies
             || card.summon.animalId
             || (card.summon.animalIds ? card.summon.animalIds[Math.floor(Math.random() * card.summon.animalIds.length)] : null);
-          const animal = ANIMALS[resolvedId];
+          // 3.5% elite roll on instant Nurture summons too.
+          const baseForRoll = ANIMALS[resolvedId];
+          if (baseForRoll?.elite && Math.random() < 0.035) {
+            resolvedId = baseForRoll.elite;
+            const eliteDef = ANIMALS[resolvedId];
+            pushLog(`✨ Rare summon! ${eliteDef?.icon} ${eliteDef?.name} arrives instead of a ${baseForRoll.name}.`);
+          }
+          const animal = getAnimal(resolvedId);
           newSlots[s] = {
             kind: 'animal',
             animalId: resolvedId,
@@ -5947,7 +6026,7 @@ export default function App() {
       if (targetSlots.length === 1 && !isNurture) {
         if (card.summon.animalId || featherSpecies) {
           const animalId = featherSpecies || card.summon.animalId;
-          const animal = ANIMALS[animalId];
+          const animal = getAnimal(animalId);
           pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. ${animal?.icon || ''} ${animal?.name || animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
         } else {
           pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. Something arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
@@ -7855,7 +7934,7 @@ export default function App() {
         const slot = tray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
         if (slot.eatenThisTurn) continue;
-        const animal = ANIMALS[slot.animalId];
+        const animal = getAnimal(slot.animalId);
         if (!animal || (animal.attack || 0) <= 0) continue;
         let atk = animal.attack;
         if (isRabid) atk = Math.round(atk * 1.5);
@@ -8610,7 +8689,7 @@ export default function App() {
     if (!shooPromptActive) return;
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'animal') return;
-    const animal = ANIMALS[slot.animalId];
+    const animal = getAnimal(slot.animalId);
     pushLog(`👋 Shoo! ${animal?.icon || ''} ${animal?.name || slot.animalId} departs.`);
     setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
     setShooPromptActive(false);
@@ -8672,7 +8751,7 @@ export default function App() {
     if (!treatPromptActive) return;
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'animal') return;
-    const animal = ANIMALS[slot.animalId];
+    const animal = getAnimal(slot.animalId);
     setTray(p => syncTrayLegacy({ ...p, [slotName]: { ...slot, durationRemaining: (slot.durationRemaining || 0) + 1 } }));
     setTreatPromptActive(false);
     pushLog(`🍖 Treat — ${animal?.name || slot.animalId} stays one more turn.`);
@@ -8693,7 +8772,7 @@ export default function App() {
     if (!eatItPromptActive) return;
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'lure') return;
-    const animal = ANIMALS[slot.animalId];
+    const animal = getAnimal(slot.animalId);
     pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} arrives now.`);
     if (slot.card) setDiscard(d => [...d, { ...slot.card, uid: uid() }]);
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
@@ -8985,7 +9064,7 @@ export default function App() {
           if (!neighbor || neighbor.kind !== 'animal') continue;
           if (neighbor.animalId !== lureSlot.animalId) continue;
           // Match — the neighbor animal eats this lure.
-          const animal = ANIMALS[neighbor.animalId];
+          const animal = getAnimal(neighbor.animalId);
           pushLog(`${animal?.icon || '🐾'} ${animal?.name || neighbor.animalId} jumps over and eats the ${lureSlot.cardName || 'lure'}!`);
           if (lureSlot.card) luresEaten.push({ ...lureSlot.card, uid: uid() });
           // Move the animal into the lure's slot, marked as having acted.
@@ -9009,7 +9088,7 @@ export default function App() {
         if (!slot || slot.kind !== 'animal') continue;
         if (slot.animalId !== 'field-mouse') continue;
         if (Math.random() >= 0.1) continue;
-        const hawk = ANIMALS['hawk'];
+        const hawk = getAnimal('hawk');
         pushLog(`🦅 A Hawk swoops in and snatches the Field Mouse — its turn is forfeited.`);
         workingTray[slotName] = {
           kind: 'animal',
@@ -9028,7 +9107,7 @@ export default function App() {
       // doesn't attack on the turn it formed; starts hitting next turn.
       const allFieldMice = SLOT_ORDER.every(s => workingTray[s]?.kind === 'animal' && workingTray[s].animalId === 'field-mouse');
       if (allFieldMice) {
-        const mh = ANIMALS['mouse-house'];
+        const mh = getAnimal('mouse-house');
         pushLog(`🏠 The mice combine into a MOUSE HOUSE — it spans two slots.`);
         workingTray.intro = {
           kind: 'animal',
@@ -9083,7 +9162,7 @@ export default function App() {
           continue;
         }
         if (slot.kind === 'animal') {
-          const animal = ANIMALS[slot.animalId];
+          const animal = getAnimal(slot.animalId);
           if (!animal) { nextSlots[slotName] = null; continue; }
           // Skip attack if the animal already acted this turn by eating a
           // lure / being snatched by a Hawk (eatenThisTurn flag), or for
@@ -9138,7 +9217,7 @@ export default function App() {
           // Predator chain (Salmon → Bear): in-place transform, fresh duration.
           if (animal.predatorChain && nextPredator >= animal.predatorChain.turnsToTrigger) {
             const newAnimalId = animal.predatorChain.animalId;
-            const newAnimal = ANIMALS[newAnimalId];
+            const newAnimal = getAnimal(newAnimalId);
             pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} attracts a ${newAnimal?.name || newAnimalId}!`);
             nextSlots[slotName] = {
               kind: 'animal',
@@ -9156,7 +9235,7 @@ export default function App() {
             const slotIdx = SLOT_ORDER.indexOf(slotName);
             const neighborIdxs = [slotIdx - 1, slotIdx + 1].filter(n => n >= 0 && n < SLOT_ORDER.length);
             const spawnId = animal.adjacentSpawn.animalId;
-            const spawnAnimal = ANIMALS[spawnId];
+            const spawnAnimal = getAnimal(spawnId);
             let spawned = 0;
             for (const ni of neighborIdxs) {
               const ns = SLOT_ORDER[ni];
@@ -9238,7 +9317,19 @@ export default function App() {
                 ? slot.animalIds[Math.floor(Math.random() * slot.animalIds.length)]
                 : slot.animalId;
             }
-            const animal = ANIMALS[resolvedAnimalId];
+            // 3.5% elite-summon roll. If the chosen species has an elite
+            // variant (mecha-mouse, bonzai-bunaroo, james-deer), there's a
+            // small chance the summon arrives as the upgraded form.
+            const baseForRoll = ANIMALS[resolvedAnimalId];
+            if (baseForRoll?.elite && Math.random() < 0.035) {
+              const eliteId = baseForRoll.elite;
+              const eliteDef = ANIMALS[eliteId];
+              if (eliteDef) {
+                pushLog(`✨ Rare summon! ${eliteDef.icon} ${eliteDef.name} arrives instead of a ${baseForRoll.name}.`);
+                resolvedAnimalId = eliteId;
+              }
+            }
+            const animal = getAnimal(resolvedAnimalId);
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
             // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
@@ -9268,7 +9359,7 @@ export default function App() {
       for (const slotName of SLOT_ORDER) {
         const slot = nextSlots[slotName];
         if (!slot || slot.kind !== 'animal') continue;
-        const animal = ANIMALS[slot.animalId];
+        const animal = getAnimal(slot.animalId);
         if (!animal || !animal.feedKey) continue;
         const threshold = animal.duration || 3; // grace+1 = duration
         const wasFed = fedKeys.has(animal.feedKey);
@@ -10481,6 +10572,23 @@ export default function App() {
     // Elite enemies grant a choice of 3 T1 FFT rows; bosses grant 3 T2
     // rows. Each row is a bundle — picking adds all 3 cards at once.
     const isEliteOrBoss = enemy.tier === 'elite' || enemy.tier === 'boss';
+    // Handler — lure reward on elite/boss kill. Three random lures from the
+    // pool; player picks one (or skips). Standalone lure-pool flavor that
+    // doesn't bias against drafting interplay cards in normal rewards.
+    if (lane === 'handler' && isEliteOrBoss) {
+      const lurePool = HANDLER_V2_BY_SLOT.lure || [];
+      const lureChoices = shuffle([...lurePool]).slice(0, 3).map(c => ({ ...c }));
+      logEvent('combat.reward_offer', {
+        playerLane: lane,
+        offerKind: 'handler-lures',
+        offered: lureChoices.map(c => ({ id: c.id, name: c.name })),
+        enemyId: enemy.id, enemyTier: enemy.tier,
+      });
+      setRewardChoices(lureChoices);
+      setRewardRowChoices([]);
+      setStage('reward');
+      return;
+    }
     // Wit-only FFT-row bundle reward (handler retired FFT 2026-05-31).
     const laneRowsTable = lane === 'wit' ? WIT_ROWS : null;
     if (laneRowsTable && isEliteOrBoss) {
@@ -10739,6 +10847,11 @@ export default function App() {
       setStage('card-grant');
       return;
     }
+    if (kind === 'train-animal') {
+      logEvent('rest.train_animal.open', {});
+      setStage('train-animal');
+      return;
+    }
     if (kind === 'upgrade-spell') {
       // v3.4.15 — bump a complete FFT row's three cards in one go.
       // Wit-only; the rest screen gates the button. Picker lists the
@@ -10820,6 +10933,21 @@ export default function App() {
   // v3.4.15 — Upgrade-Spell handler. Walks every pile, upgrades every
   // card whose setId matches the chosen row. Multiple copies all upgrade.
   // Already-upgraded cards are no-ops (upgradeCard returns them unchanged).
+  function pickAnimalToTrain(animalId) {
+    if (animalId == null) {
+      logEvent('train_animal.cancel', {});
+      setStage('rest');
+      return;
+    }
+    if (!ANIMALS[animalId]?.upgrade) return;
+    setUpgradedAnimals(prev => new Set([...prev, animalId]));
+    const def = ANIMALS[animalId];
+    pushLog(`📚 You spend the evening training. ${def?.icon || ''} ${def?.name} is now T2 — stronger, smarter, hungrier.`);
+    logEvent('train_animal.confirm', { animalId });
+    setRestNode(null);
+    returnToMap();
+  }
+
   function pickSpellToUpgrade(rowId) {
     if (rowId === null) {
       logEvent('upgrade_spell.cancel', { deckSize: deck.length });
@@ -10956,8 +11084,9 @@ export default function App() {
     onConfirm={craftingConfirm}
   />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
-  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit'} />;
+  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit'} isHandler={selectedCharacter?.lane === 'handler'} upgradedAnimals={upgradedAnimals} animals={ANIMALS} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
+  if (stage === 'train-animal') return <TrainAnimalScreen animals={ANIMALS} upgradedAnimals={upgradedAnimals} onPick={pickAnimalToTrain} />;
   if (stage === 'upgrade-spell') return <UpgradeSpellScreen
     hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray}
     onPick={pickSpellToUpgrade} />;
@@ -11059,7 +11188,7 @@ export default function App() {
       enemySkipNextAttack={enemySkipNextAttack}
       tutorFlash={tutorFlash}
       tutorArmed={tutorArmed}
-      animals={ANIMALS}
+      animals={effectiveAnimals}
       luresPlayedThisTurn={luresPlayedThisTurn}
       shooPromptActive={shooPromptActive}
       onShooAnimal={shooAnimalFromSlot}
@@ -13800,7 +13929,10 @@ function EquipmentEffectBreakdown({ equipment }) {
   );
 }
 
-function RestScreen({ onChoose, hasFFTRows = false }) {
+function RestScreen({ onChoose, hasFFTRows = false, isHandler = false, upgradedAnimals = new Set(), animals = {} }) {
+  // Handler: "Train an animal" is available when there's at least one
+  // species not yet upgraded that has an upgrade defined.
+  const hasTrainable = isHandler && Object.entries(animals).some(([id, def]) => def.upgrade && !upgradedAnimals.has(id));
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
       <h2 className="font-display text-3xl text-moss-300">A Rest Site</h2>
@@ -13811,9 +13943,55 @@ function RestScreen({ onChoose, hasFFTRows = false }) {
         {hasFFTRows && (
           <button onClick={() => onChoose('upgrade-spell')} className="btn btn-gold">Rehearse a spell — upgrade all 3 cards of one FFT row</button>
         )}
+        {hasTrainable && (
+          <button onClick={() => onChoose('train-animal')} className="btn btn-gold">Train an animal — bump a species from T1 to T2</button>
+        )}
         <button onClick={() => onChoose('forget')}  className="btn btn-iris">Forget a card — remove one from your deck</button>
         <button onClick={() => onChoose('reflect')} className="btn btn-ember">Reflect — gain a random Passing Thought (one-shot)</button>
       </div>
+    </div>
+  );
+}
+
+function TrainAnimalScreen({ animals, upgradedAnimals, onPick }) {
+  const eligible = Object.entries(animals)
+    .filter(([id, def]) => def.upgrade && !upgradedAnimals.has(id) && !def.name?.includes('elite-only'))
+    .map(([id, def]) => ({ id, def }));
+  return (
+    <div className="min-h-screen flex flex-col p-6 gap-4 max-w-3xl mx-auto">
+      <div className="text-center">
+        <h2 className="font-display text-4xl text-gold-300">Train an Animal</h2>
+        <p className="text-base text-parchment-300 italic mt-1">Pick one species. From now on, summons of that animal arrive stronger.</p>
+      </div>
+      <div className="parchment-card p-3">
+        {eligible.length === 0 ? (
+          <div className="text-sm italic text-parchment-400">Every animal you've met has already been trained. Pick another option.</div>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {eligible.map(({ id, def }) => {
+              const before = def;
+              const after = { ...def, ...def.upgrade };
+              const changes = [];
+              if (after.attack !== before.attack) changes.push(`Atk ${before.attack} → ${after.attack}`);
+              if (after.duration !== before.duration) changes.push(`Duration ${before.duration} → ${after.duration}`);
+              if (before.onExit?.block !== after.onExit?.block) changes.push(`Exit Block ${before.onExit?.block || 0} → ${after.onExit?.block || 0}`);
+              if (before.onExit?.damage !== after.onExit?.damage) changes.push(`Exit Dmg ${before.onExit?.damage || 0} → ${after.onExit?.damage || 0}`);
+              if (before.onExit?.applyWeak !== after.onExit?.applyWeak) changes.push(`Exit Weak ${before.onExit?.applyWeak || 0} → ${after.onExit?.applyWeak || 0}`);
+              if (before.adjacentSpawn?.extendSelfTurns !== after.adjacentSpawn?.extendSelfTurns) changes.push(`Spawn extend ${before.adjacentSpawn?.extendSelfTurns} → ${after.adjacentSpawn?.extendSelfTurns}`);
+              if (before.predatorChain?.turnsToTrigger !== after.predatorChain?.turnsToTrigger) changes.push(`Chain ${before.predatorChain?.turnsToTrigger}T → ${after.predatorChain?.turnsToTrigger}T`);
+              return (
+                <button key={id} onClick={() => onPick(id)}
+                  className="w-56 text-left rounded-lg border-2 border-gold-500 bg-ink-700 hover:bg-ink-600 hover:scale-[1.02] transition p-4 flex flex-col gap-1">
+                  <div className="font-display text-xl text-parchment-50">{def.icon} {def.name}</div>
+                  <div className="text-[11px] italic text-parchment-300">{def.flavor}</div>
+                  <div className="text-[12px] text-gold-300 mt-1 leading-tight">{changes.join(' · ')}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <button onClick={() => onPick(null)} className="btn btn-ink self-center">Back to rest</button>
     </div>
   );
 }
