@@ -900,12 +900,11 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       if (mixed) mixedPreview = { kind: 'mixed', label: `Mixed-school ${mixed.name}`, rider: mixed };
     }
   }
-  // v2.11: requirements + caps for ALL IN. v2.13 nerfed cap from
-  // /3 → /4 (keeps "I bleed for damage" without uncapped spirals).
-  const stakeMax = Math.max(0, Math.floor(playerHp / 4));
-  const stakeRequired = target?.effect?.requiresStake || 0;
-  const stakeBlocked = ready && stakeRequired > 0 && stakeAmount < stakeRequired;
-  const stakeNudge = (delta) => setStakeAmount(Math.max(0, Math.min(stakeMax, stakeAmount + delta)));
+  // v3.4.77 — ALL IN stake mechanic pulled. The variables stayed
+  // referenced elsewhere; stubbed to defaults so the rest of the
+  // component compiles unchanged.
+  const stakeBlocked = false;
+  const stakeRequired = 0;
   // v2.12: jnsq CHAOS DICE — auto-roll when a forceRoll modifier or
   // alwaysRolls target is staged; otherwise opt-in via toggle.
   const forcedRoll = ready && (
@@ -1189,16 +1188,13 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                 const partsTooltip = (predicted.damageParts && predicted.damageParts.length > 0)
                   ? `Base cast: ${predicted.baseDamage}\n${predicted.damageParts.map(p => '  ' + p).join('\n')}\nFinal: ${predicted.damage}`
                   : '';
-                const baseTitle = ampTitle || `Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.stakeBonus ? `, +${predicted.stakeBonus} from stake` : ''}${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`;
+                const baseTitle = ampTitle || `Tier ${tier} × ${tierMult.toFixed(1)} multiplier${predicted.predatorBonus ? `, +${predicted.predatorBonus} predator (enemy debuffed)` : ''}`;
                 const fullTitle = partsTooltip ? `${baseTitle}\n\n${partsTooltip}` : baseTitle;
                 return (
                   <div className={`text-2xl font-bold font-mono ${color} cursor-help`}
                        title={fullTitle}>
                     {amped && <span className="text-xs mr-1">🩸</span>}
                     {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'block' ? '🛡 block' : mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
-                    {predicted.stakeBonus > 0 && (
-                      <span className="text-xs text-ember-300 ml-1">(+{predicted.stakeBonus})</span>
-                    )}
                     {predicted.predatorBonus > 0 && (
                       <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
                     )}
@@ -1238,66 +1234,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           }`}>
           ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
         </button>
-        {/* v3.0 cycle 5: ALL IN / CHAOS DICE moved up to share the slot
-            row with CAST. They're lane-exclusive (only one shows at a
-            time) so giving them their own line was wasted vertical
-            space. The math row + enemy-state row below stay basis-full
-            (full damage chain + status chips need their own line). */}
-        {isChutzpah && (() => {
-          const stakeMultsList = [tray.intro, tray.subject, tray.target, ...tray.modifiers]
-            .map(c => c?.stakeMultiplier || c?.effect?.stakeMultiplier || 0)
-            .filter(m => m > 0);
-          const stakeMult = stakeMultsList.length > 0 ? Math.max(...stakeMultsList) : 1.5;
-          const stakeAutoDouble = tray.modifiers.some(m => m?.modifierEffect?.stakeAutoDouble);
-          const evBonus = stakeAmount > 0
-            ? Math.ceil(stakeAmount * stakeMult) * (stakeAutoDouble ? 2 : 1)
-            : 0;
-          const remainingPool = ready && enemy
-            ? (mathBreakdown?.dmgType === 'physical' ? enemy.currentHp : enemy.currentComp)
-            : 0;
-          const wouldKill = ready && predicted && remainingPool > 0
-            && predicted.damage >= remainingPool;
-          const stakeKills = ready && predicted && remainingPool > 0
-            && stakeAmount === 0
-            && (predicted.damage + Math.ceil(1 * stakeMult)) >= remainingPool;
-          return (
-            <div className={`flex items-center gap-1 ml-2 px-2 py-1 rounded border-2 ${
-              wouldKill ? 'border-moss-500 bg-moss-900 bg-opacity-30' :
-              stakeKills ? 'border-gold-500 bg-gold-900 bg-opacity-30 animate-pulse' :
-              'border-ember-500 bg-ember-900 bg-opacity-30'
-            }`}
-                 title={`Spend HP for bonus damage. ×${stakeMult.toFixed(1)} damage per HP${stakeAutoDouble ? ' (×2 from "not even half kidding")' : ''}. Capped at ¼ of current HP. ${ready ? '' : '(stage a target to see EV)'}`}>
-              <span className="text-[10px] uppercase tracking-wider text-ember-300 font-bold">🩸 ALL IN</span>
-              <button onClick={() => stakeNudge(-1)} disabled={stakeAmount <= 0}
-                className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount > 0 ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>−</button>
-              <span className={`font-mono text-sm font-bold ${stakeAmount > 0 ? 'text-ember-200' : 'text-parchment-400'} w-12 text-center`}>
-                {stakeAmount > 0 ? `-${stakeAmount} HP` : '—'}
-              </span>
-              <button onClick={() => stakeNudge(1)} disabled={stakeAmount >= stakeMax}
-                className={`w-6 h-6 rounded text-xs font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+</button>
-              <button onClick={() => stakeNudge(2)} disabled={stakeAmount + 3 > stakeMax}
-                className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount + 3 <= stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>+3</button>
-              <button onClick={() => setStakeAmount(stakeMax)} disabled={stakeAmount === stakeMax}
-                className={`px-1.5 h-6 rounded text-[10px] font-bold ${stakeAmount < stakeMax ? 'bg-ember-700 text-parchment-50 hover:bg-ember-600' : 'bg-ink-700 text-parchment-500 cursor-not-allowed'}`}>MAX</button>
-              {evBonus > 0 && (
-                <span className="ml-1 text-[11px] font-mono text-ember-200 font-bold">
-                  → <span className="text-ember-100">+{evBonus} dmg</span>
-                  <span className="text-parchment-400"> (×{stakeMult.toFixed(1)}{stakeAutoDouble ? ' · auto-2×' : ''})</span>
-                </span>
-              )}
-              {stakeKills && (
-                <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-gold-600 text-ink-900">
-                  ⚔ stake to kill
-                </span>
-              )}
-              {stakeRequired > 0 && (
-                <span className={`ml-1 text-[10px] font-bold uppercase ${stakeBlocked ? 'text-ember-300' : 'text-moss-300'}`}>
-                  req {stakeRequired}+
-                </span>
-              )}
-            </div>
-          );
-        })()}
+        {/* v3.4.77 (Alan): ALL IN stake UI pulled — see commit notes.
+            Stake mechanic still has dead-but-harmless code in App.jsx
+            and shared.js in case it returns as a Ballistic-school
+            feature later. */}
         {isJnsq && ready && (
           <div className="flex items-center gap-1 ml-2 px-2 py-1 rounded border border-moss-500 bg-moss-900 bg-opacity-30"
                title="Roll a 1d6 on this cast. Modifies damage and adds side effects per the outcome.">
@@ -1426,10 +1366,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           {predicted.insultBonus > 0 && (<>
             <span className="text-parchment-500">+</span>
             <span className="text-iris-300" title="Insult-hit.">🎯+{predicted.insultBonus}</span>
-          </>)}
-          {predicted.stakeBonus > 0 && (<>
-            <span className="text-parchment-500">+</span>
-            <span className="text-ember-300" title="ALL IN.">🩸+{predicted.stakeBonus}</span>
           </>)}
           {/* v3.4.74 (Alan): surface FFT rider bonuses (Bluster pressure,
               consume spike, RAGE × 2, missing-HP scaling, Pop Off Temp HP,

@@ -6215,16 +6215,8 @@ export default function App() {
     // words in the same turn would re-arm if a second cast were possible,
     // but the cast cap is 1/turn so this is mostly a sanity reset.
     if (target.effect?.loudScaling) setLoudCount(0);
-    // v2.11: deduct HP for stake immediately on cast. Refund (if any)
-    // happens after damage lands.
-    if (stakeAmount > 0) {
-      setHp(h => Math.max(1, h - stakeAmount));
-      pushLog(`💢 ALL IN: -${stakeAmount} HP → +${stakeBonus || 0} dmg`);
-      logEvent('chutzpah.stake', {
-        stakeAmount, bonusDamage: stakeBonus || 0,
-        enemyId: enemy?.id, enemyTier: enemy?.tier,
-      });
-    }
+    // v3.4.77 — ALL IN mechanic pulled. stakeAmount stays at 0 (state
+    // declared but no UI to change it); HP-deduction + log line gone.
 
     // Read-the-Room pierce + enemy effectiveness still applies.
     const eff = target.effect || {};
@@ -6895,17 +6887,9 @@ export default function App() {
       else                              after = applyDamageToEnemyComposure(dmg);
       setNextCastDoubles(false);
     }
-    // v2.11: stake refund (from "and I mean it." target). Half the
-    // staked HP comes back when the cast lands non-zero damage.
-    if (sideEffects.stakeRefundHalf && stakeAmount > 0 && dmg > 0) {
-      const refund = Math.floor(stakeAmount / 2);
-      if (refund > 0) {
-        setHp(h => Math.min(maxHp, h + refund));
-        pushLog(`💚 +${refund} HP (stake refund).`);
-      }
-    }
-    // Reset stake — consumed by this cast.
-    if (stakeAmount > 0) setStakeAmount(0);
+    // v3.4.77 — ALL IN stake-refund + post-cast reset gone. stakeAmount
+    // is always 0 (no UI to set it); the cards that triggered refunds
+    // are also out of the pool.
     // v2.15: BURST card exiles the annotation it cashed in.
     if (cashedTurns > 0) {
       setEnemy(e => e ? { ...e, annotation: null } : e);
