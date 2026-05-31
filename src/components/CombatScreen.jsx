@@ -1736,6 +1736,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             if (ex.applyWeak > 0) {
               parts.push(`Weak ${ex.applyWeak} on exit`);
             }
+            if (ex.healComp > 0) {
+              parts.push(`+${ex.healComp} comp on exit`);
+            }
+            if (ex.healHp > 0) {
+              parts.push(`+${ex.healHp} HP on exit`);
+            }
           }
           lines.push(`${animal.icon} ${animal.name}: ${parts.join(' · ')}${atkMult > 1 ? ` (×${atkMult})` : ''}`);
         }

@@ -1249,10 +1249,10 @@ const ANIMALS = {
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
-    onExit: { block: 3 },
+    onExit: { block: 3, healComp: 1 },
     flavor: 'A small contribution. Steady.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block on exit.',
-    upgrade: { attack: 3, onExit: { block: 5 } },
+    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block and +1 Composure on exit.',
+    upgrade: { attack: 3, onExit: { block: 5, healComp: 2 } },
     elite: 'mecha-mouse', // 3.5% chance at summon
   },
   // Elite (3.5% summon chance) — 50% better numbers on every effect.
@@ -1264,9 +1264,9 @@ const ANIMALS = {
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
-    onExit: { block: 5 }, // 3 × 1.5 = 4.5 → 5
+    onExit: { block: 5, healComp: 2 }, // 3 × 1.5 = 4.5 → 5
     flavor: 'The field mouse has been upgraded. Considerably.',
-    desc: 'Elite Field Mouse. 3 composure + draw per turn for 3 turns. +5 Block on exit.',
+    desc: 'Elite Field Mouse. 3 composure + draw per turn for 3 turns. +5 Block and +2 Composure on exit.',
   },
   rabbit: {
     name: 'Rabbit',
@@ -1276,10 +1276,11 @@ const ANIMALS = {
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
+    onExit: { healComp: 1 },
     adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
     flavor: 'There were always going to be more of them.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns.',
-    upgrade: { attack: 3, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
+    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +1 Composure on exit.',
+    upgrade: { attack: 3, onExit: { healComp: 2 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
     elite: 'bonzai-bunaroo',
   },
   'bonzai-bunaroo': {
@@ -1290,10 +1291,11 @@ const ANIMALS = {
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
+    onExit: { healComp: 2 },
     // 50% more spawn extension: 2 → 3.
     adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 },
     flavor: 'Disciplined. Smaller. Hits harder than it has any right to.',
-    desc: 'Elite Rabbit. 3 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns.',
+    desc: 'Elite Rabbit. 3 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +2 Composure on exit.',
   },
   'young-buck': {
     name: 'Young Buck',
@@ -1302,10 +1304,10 @@ const ANIMALS = {
     attackPool: 'composure',
     duration: 2,
     feedKey: 'small-land',
-    onExit: { damage: 6, damageType: 'composure' },
+    onExit: { damage: 6, damageType: 'composure', healHp: 1 },
     flavor: 'Bold. Brief. Largely correct.',
-    desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 6 composure on exit.',
-    upgrade: { attack: 6, duration: 3, onExit: { damage: 8, damageType: 'composure' } },
+    desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 6 composure and heals 1 HP on exit.',
+    upgrade: { attack: 6, duration: 3, onExit: { damage: 8, damageType: 'composure', healHp: 2 } },
     elite: 'james-deer',
   },
   'james-deer': {
@@ -1315,9 +1317,9 @@ const ANIMALS = {
     attackPool: 'composure',
     duration: 2,
     feedKey: 'small-land',
-    onExit: { damage: 9, damageType: 'composure' }, // 6 × 1.5 = 9
+    onExit: { damage: 9, damageType: 'composure', healHp: 2 }, // 6 × 1.5 = 9; heal 1 × 1.5 → 2
     flavor: 'Looks the room over slowly. The room looks worse for it.',
-    desc: 'Elite Young Buck. 8 composure / turn for 2 turns. 9 composure kick on exit.',
+    desc: 'Elite Young Buck. 8 composure / turn for 2 turns. 9 composure kick and 2 HP heal on exit.',
   },
   hawk: {
     name: 'Hawk',
@@ -9109,6 +9111,14 @@ export default function App() {
         if (fx.applyWeak > 0) {
           applyExpiringWeak(fx.applyWeak);
           pushLog(`${animal.icon} ${animal.name} parting screech — Weak ${fx.applyWeak} on enemy.`);
+        }
+        if (fx.healComp > 0) {
+          setComposure(c => Math.min(composureMax, c + fx.healComp));
+          pushLog(`${animal.icon} ${animal.name} nuzzles you on the way out — +${fx.healComp} composure.`);
+        }
+        if (fx.healHp > 0) {
+          setHp(h => Math.min(maxHp, h + fx.healHp));
+          pushLog(`${animal.icon} ${animal.name} leaves you with a kindness — +${fx.healHp} HP.`);
         }
       };
 
