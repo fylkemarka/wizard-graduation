@@ -87,6 +87,15 @@ const CARDS = [
     effects: { compDmg: 4 }, upgrade: { effects: { compDmg: 6 } },
     desc: 'Deal 4 composure damage.',
     flavor: 'Not the cleverest reply. Lands anyway.' },
+  // v3.4.73 (Alan) — chutzpah's guaranteed Loudness payoff. Every chutzpah
+  // starter ships with one Punchline so the chip-build-then-spike loop
+  // has a baseline outlet even before drafting the bluster-5 capstone.
+  // Exhaust so it can't be the only finisher you ever cast in a combat.
+  { id: 'c-punchline', name: 'Punchline', cost: 1, type: 'skill', rarity: 'basic',
+    effects: { consumeLoudnessAsDamage: 2, exhaust: true },
+    upgrade: { effects: { consumeLoudnessAsDamage: 3, exhaust: true } },
+    desc: 'Consume all Loudness. Deal Loudness × 2 composure damage. Exhaust.',
+    flavor: "That's all I'm saying." },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -228,7 +237,7 @@ const CARDS = [
   // row systems built.
   { id: 'c-the-tutor', name: 'The Tutor', cost: 3, type: 'skill', rarity: 'common',
     effects: { tutorArmNextSentence: true, exhaust: true },
-    desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your deck or discard and placed directly in the spell tray, ready to cast. Exhaust.',
+    desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your hand, deck, or discard and placed directly in the spell tray, ready to cast. Exhaust.',
     flavor: 'They never stopped grading you. They never will.' },
   // ---- Powers (rest of combat) ----
   { id: 'c-subject-matter-expert', name: 'Subject Matter Expert', cost: 2, type: 'power', rarity: 'uncommon',
@@ -797,11 +806,12 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // ("Take That Tone Elsewhere") so the player can complete an FFT in
     // their first combat. Bluster-1 = +12 comp + 1 Pressure + pressureBonus
     // — immediately damaging AND teaches the Pressure mechanic.
-    // v3.4.70 — chutzpah pool no longer has generic intros/subjects/targets
-    // (per Alan), so the second intro slot is filled by the bluster-2 intro
-    // instead of a "basic" pool pick. Player gets 2 intros (bluster-1 +
-    // bluster-2), 1 subject, 1 target — same shape as wit's starter.
-    introIds = ['cv2-i-bluster-1', 'cv2-i-bluster-2'];
+    // v3.4.71 (Alan) — the chutzpah starter previously included a bluster-2
+    // intro alongside the bluster-1 row, which read as a "stray" card (1/3
+    // of a row the player has no other components for). Replaced with a
+    // duplicate bluster-1 intro: player owns a full bluster-1 FFT plus a
+    // spare intro for cadence flexibility, no orphan partials.
+    introIds = ['cv2-i-bluster-1', 'cv2-i-bluster-1'];
     subjectId = 'cv2-s-bluster-1';
     targetId  = 'cv2-t-bluster-1';
   } else {
@@ -824,6 +834,11 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // v3.4.10 (Alan): one-shot, non-exhausting damage card replaces the
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
+  }
+  if (lane === 'chutzpah') {
+    // v3.4.73 (Alan) — Punchline ensures the Bluster chip-then-spike loop
+    // has a baseline finisher before the player drafts bluster-5.
+    ids.push('c-punchline');
   }
   return ids;
 }
@@ -5694,10 +5709,19 @@ export default function App() {
         const subjectSet = post.subject?.setId;
         if (introSet && subjectSet && introSet === subjectSet && !post.target) {
           const findFn = c => c.setId === introSet && c.slot === 'target';
+          // v3.4.72 (Alan) — Tutor now also checks hand. Previously a target
+          // already in your hand wouldn't qualify, which felt like a bug
+          // ("why didn't my Tutor fire?"). Hand pull places it into the tray
+          // for free, same as deck/discard — saving the target's energy cost.
+          const handIdx = hand.findIndex(findFn);
           const deckIdx = deck.findIndex(findFn);
           let pulled = null;
           let fromPile = null;
-          if (deckIdx >= 0) {
+          if (handIdx >= 0) {
+            pulled = hand[handIdx];
+            fromPile = 'hand';
+            setHand(hand.filter((_, i) => i !== handIdx));
+          } else if (deckIdx >= 0) {
             pulled = deck[deckIdx];
             fromPile = 'deck';
             setDeck(deck.filter((_, i) => i !== deckIdx));
@@ -7567,6 +7591,17 @@ export default function App() {
     if (fx.compDmg) {
       applyDamageToEnemyComposure(fx.compDmg);
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
+    }
+    // v3.4.73 (Alan) — Punchline-style payoff for chutzpah. Eats current
+    // Loudness × mult as composure damage, then clears Loudness. Mirrors
+    // the bluster-5 FFT capstone but available as a colorless skill so
+    // every chutzpah starter has guaranteed access to the spike payoff.
+    if (fx.consumeLoudnessAsDamage && loudness > 0) {
+      const mult = fx.consumeLoudnessAsDamage;
+      const dmg = loudness * mult;
+      applyDamageToEnemyComposure(dmg);
+      logBits.push(`📢 PUNCHLINE: ${loudness} Loudness × ${mult} = ${dmg} comp dmg`);
+      setLoudness(0);
     }
     // v3.4.19 — tutor a card by slot. Walks the deck for the first
     // matching slot and pulls it into hand. Random draws stay random
