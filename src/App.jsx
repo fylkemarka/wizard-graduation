@@ -11080,7 +11080,7 @@ export default function App() {
   // combat — at which point the forget modal "popped over" the combat
   // screen. Lifting the overlays out of the stage routing fixes that.
   const appOverlays = <>
-    {forgetTwoPrompt && <ForgetTwoModal cards={forgetTwoPrompt.cards} onPick={resolveForgetTwoChoice} />}
+    {forgetTwoPrompt && <ForgetTwoModal cards={forgetTwoPrompt.cards} onPick={resolveForgetTwoChoice} lane={selectedCharacter?.lane || null} />}
     {chaosRollFlash && <ChaosRollFlash flash={chaosRollFlash} onDismiss={() => setChaosRollFlash(null)} />}
   </>;
   const stageContent = (() => {
@@ -11128,8 +11128,8 @@ export default function App() {
     onOpenDeck={() => { setDeckViewOpen(true); logEvent(TE.DECKVIEW_OPEN, { source: 'reward' }); }}
     deckViewOpen={deckViewOpen}
     deck={deck} hand={hand} discard={discard} exiled={exiled} tray={tray}
-    onCloseDeck={() => setDeckViewOpen(false)} />;
-  if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} />;
+    onCloseDeck={() => setDeckViewOpen(false)} lane={selectedCharacter?.lane || null} />;
+  if (stage === 'card-grant') return <CardGrantScreen prompt={cardGrantPrompt} onDismiss={dismissCardGrant} lane={selectedCharacter?.lane || null} />;
   if (stage === 'material-choose') return <MaterialChooseScreen prompt={materialChoices} onPick={claimMaterial} onSkip={skipMaterial} />;
   if (stage === 'skill-event') return <SkillEventScreen event={activeSkillEvent} skills={skills} onChoose={resolveSkillChoice} />;
   if (stage === 'sidequest-node') {
@@ -11158,12 +11158,12 @@ export default function App() {
   />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit'} isHandler={selectedCharacter?.lane === 'handler'} upgradedAnimals={upgradedAnimals} animals={ANIMALS} />;
-  if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
+  if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} lane={selectedCharacter?.lane || null} />;
   if (stage === 'train-animal') return <TrainAnimalScreen animals={ANIMALS} upgradedAnimals={upgradedAnimals} onPick={pickAnimalToTrain} />;
   if (stage === 'upgrade-spell') return <UpgradeSpellScreen
     hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray}
     onPick={pickSpellToUpgrade} />;
-  if (stage === 'forget')  return <ForgetCardScreen deck={deck} onPick={pickCardToForget} />;
+  if (stage === 'forget')  return <ForgetCardScreen deck={deck} onPick={pickCardToForget} lane={selectedCharacter?.lane || null} />;
   // Floating menu button (☰) + overlay. Only renders on play stages.
   // Save & Quit only allowed when stage === 'map' (combat / mid-event
   // state isn't safe to serialize). Give Up always available.
@@ -11306,7 +11306,7 @@ export default function App() {
                 hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
     <DeckView open={deckViewOpen} onClose={() => setDeckViewOpen(false)}
               hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray} />
-    <CardLossOverlay notice={cardLossNotice} onDismiss={() => setCardLossNotice(null)} />
+    <CardLossOverlay notice={cardLossNotice} onDismiss={() => setCardLossNotice(null)} lane={selectedCharacter?.lane || null} />
     {labRepeatPrompt && <LabRepeatPromptModal
       enemyName={labRepeatPrompt.enemyName}
       onYes={labRepeatYes} onNo={labRepeatNo} />}
@@ -12464,7 +12464,7 @@ function Legend({ glyph, label }) {
 
 
 function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOpen, onCloseDeck,
-                       deck = [], hand = [], discard = [], exiled = [], tray = null }) {
+                       deck = [], hand = [], discard = [], exiled = [], tray = null, lane = null }) {
   // v3.4.15 — FFT row reward variant. Bosses bump T2 (already applied
   // to the cards before they reach this screen). Click a row → grant
   // all 3 cards.
@@ -12565,7 +12565,7 @@ function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOp
                   </div>
                 </div>
               )}
-              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
+              <CardFullBody card={card} lane={lane || null} />
             </button>
           );
         })}
@@ -12595,7 +12595,7 @@ function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOp
 // in-log line was easy to miss — Alan playtest: "it's confusing to be
 // waiting on a card in your draw that you don't know you've lost." This
 // pauses combat until the player clicks Acknowledged.
-function CardLossOverlay({ notice, onDismiss }) {
+function CardLossOverlay({ notice, onDismiss, lane = null }) {
   if (!notice) return null;
   const { source, cards } = notice;
   return (
@@ -12613,7 +12613,7 @@ function CardLossOverlay({ notice, onDismiss }) {
           {cards.map((card, i) => (
             <div key={i}
               className="w-52 min-h-[280px] rounded-lg border-2 border-ember-500 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 relative">
-              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
+              <CardFullBody card={card} lane={lane || null} />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-ember-700 font-display text-3xl tracking-widest font-bold transform -rotate-12 bg-parchment-50/90 px-3 py-1 rounded border-2 border-ember-700">
                   TAKEN
@@ -13068,7 +13068,7 @@ function CompendiumScreen({ onBack }) {
               <div className="parchment-card p-3 flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-widest text-gold-500">Showing {tierView.toUpperCase()}</div>
                 <div className="bg-parchment-50 text-ink-800 rounded p-2">
-                  <CardFullBody card={shown} lane={selectedCharacter?.lane || null} />
+                  <CardFullBody card={shown} lane={lane || null} />
                 </div>
                 <div className="text-[11px] text-parchment-300 italic">"{selectedCard.flavor || ''}"</div>
                 {selectedCard.setId && (() => {
@@ -13142,7 +13142,7 @@ function MaterialGainOverlay({ material, onDismiss }) {
   );
 }
 
-function CardGrantScreen({ prompt, onDismiss }) {
+function CardGrantScreen({ prompt, onDismiss, lane = null }) {
   if (!prompt) return null;
   const { cards, title } = prompt;
   const tint = (card) =>
@@ -13158,7 +13158,7 @@ function CardGrantScreen({ prompt, onDismiss }) {
         {cards.map((card, i) => (
           <div key={i}
             className={`w-52 min-h-[280px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 ${tint(card)}`}>
-            <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
+            <CardFullBody card={card} lane={lane || null} />
           </div>
         ))}
       </div>
@@ -14069,7 +14069,7 @@ function TrainAnimalScreen({ animals, upgradedAnimals, onPick }) {
   );
 }
 
-function UpgradeCardScreen({ deck, onPick }) {
+function UpgradeCardScreen({ deck, onPick, lane = null }) {
   // Show NON-upgraded cards. v2 sentence cards are upgradable via the
   // auto-derived path in upgradeCard(), so the eligibility check now
   // accepts either an explicit `upgrade` field OR a v2 `slot` field.
@@ -14102,7 +14102,7 @@ function UpgradeCardScreen({ deck, onPick }) {
                 className="w-52 min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
                 {/* v3.1.4: full card body (Alan: "Study a Card screen
                     is still only showing stubs of cards. Show the whole card") */}
-                <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
+                <CardFullBody card={card} lane={lane || null} />
                 <div className="text-xs mt-auto pt-2 border-t border-ink-300 text-moss-700">
                   → <b>{upDispName}</b>{(() => {
                     if (upgraded.effect && card.effect) {
@@ -14140,6 +14140,7 @@ function UpgradeCardScreen({ deck, onPick }) {
           after={pendingUpgraded}
           onConfirm={() => { const uid = pendingUid; setPendingUid(null); onPick(uid); }}
           onCancel={() => setPendingUid(null)}
+          lane={lane}
         />
       )}
     </div>
@@ -14194,7 +14195,7 @@ function ChaosRollFlash({ flash, onDismiss }) {
 // loseRandomCard — instead of silently dropping a random card, the
 // player sees two candidates and explicitly chooses which to forget.
 // No back button: the consequence has to land.
-function ForgetTwoModal({ cards, onPick }) {
+function ForgetTwoModal({ cards, onPick, lane = null }) {
   return (
     <div className="fixed inset-0 bg-ink-900 bg-opacity-85 flex items-center justify-center z-50 p-6">
       <div className="parchment-card-strong p-6 max-w-3xl w-full flex flex-col gap-4">
@@ -14208,7 +14209,7 @@ function ForgetTwoModal({ cards, onPick }) {
           {cards.map(card => (
             <button key={card.uid} onClick={() => onPick(card.uid)}
               className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-ember-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
-              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
+              <CardFullBody card={card} lane={lane || null} />
             </button>
           ))}
         </div>
@@ -14292,7 +14293,7 @@ function UpgradeSpellScreen({ hand, deck, discard, exiled, tray, onPick }) {
   );
 }
 
-function ForgetCardScreen({ deck, onPick }) {
+function ForgetCardScreen({ deck, onPick, lane = null }) {
   const [pendingUid, setPendingUid] = useState(null);
   const pendingCard = pendingUid ? deck.find(c => c.uid === pendingUid) : null;
   return (
@@ -14310,7 +14311,7 @@ function ForgetCardScreen({ deck, onPick }) {
           {deck.map(card => (
             <button key={card.uid} onClick={() => setPendingUid(card.uid)}
               className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
-              <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
+              <CardFullBody card={card} lane={lane || null} />
             </button>
           ))}
         </div>
@@ -14338,16 +14339,16 @@ function ForgetCardScreen({ deck, onPick }) {
 // Side-by-side "before / after" card preview that locks the upgrade-at-
 // rest decision behind an explicit confirm step. Renders a full-screen
 // dim overlay so the choice is unambiguous.
-function UpgradeConfirmModal({ before, after, onConfirm, onCancel }) {
+function UpgradeConfirmModal({ before, after, onConfirm, onCancel, lane = null }) {
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center p-6">
       <div className="parchment-card-strong p-6 max-w-3xl w-full flex flex-col gap-4 border-2 border-gold-500">
         <h3 className="font-display text-3xl text-gold-300 text-center">Confirm upgrade?</h3>
         <p className="text-base text-parchment-200 italic text-center">You can study only one card at this rest. Make sure this is the one.</p>
         <div className="flex gap-4 justify-center items-stretch flex-wrap">
-          <UpgradePreviewCard card={before} label="Current" tone="ink" />
+          <UpgradePreviewCard card={before} label="Current" tone="ink" lane={lane} />
           <div className="self-center font-display text-4xl text-gold-400 px-2">→</div>
-          <UpgradePreviewCard card={after} label="Upgraded" tone="moss" />
+          <UpgradePreviewCard card={after} label="Upgraded" tone="moss" lane={lane} />
         </div>
         <div className="flex gap-3 justify-center mt-2">
           <button onClick={onConfirm} className="btn btn-gold text-lg px-8 py-3">Confirm upgrade</button>
@@ -14361,14 +14362,14 @@ function UpgradeConfirmModal({ before, after, onConfirm, onCancel }) {
 // Detail card-face used inside the upgrade confirm modal. Same shape as
 // the hand-card display but slightly larger and always-bright (the
 // modal sits over a dimmed backdrop).
-function UpgradePreviewCard({ card, label, tone }) {
+function UpgradePreviewCard({ card, label, tone, lane = null }) {
   const border = tone === 'moss' ? 'border-moss-500' : 'border-ink-500';
   const labelColor = tone === 'moss' ? 'text-moss-300' : 'text-parchment-300';
   return (
     <div className="flex flex-col items-center gap-1">
       <div className={`text-xs uppercase tracking-widest ${labelColor}`}>{label}</div>
       <div className={`w-56 min-h-[18rem] rounded-lg border-2 p-3 bg-parchment-50 text-ink-800 ${border} flex flex-col gap-2`}>
-        <CardFullBody card={card} lane={selectedCharacter?.lane || null} />
+        <CardFullBody card={card} lane={lane || null} />
       </div>
     </div>
   );
