@@ -14,7 +14,7 @@
 //   - Flavor: italic at the bottom
 //   - Tags: tiny single line, last
 import { WIT_ROW_BY_ID, WIT_SAME_SCHOOL_BONUSES } from '../cards/wit-v2-rows.js';
-import { CHUTZPAH_ROW_BY_ID, CHUTZPAH_SAME_SCHOOL_BONUSES } from '../cards/chutzpah-v2-rows.js';
+// chutzpah row imports removed 2026-05-31 — FFT system retired for chutzpah.
 
 export const EFFECT_CHIP_RENDERERS = {
   // Numeric / classic
@@ -104,13 +104,10 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
     }
   }
 
-  // v3.4.71 — lane-aware row + school lookup so chutzpah cards display
-  // their row banner / school name same as wit cards.
-  const row = card.setId ? (WIT_ROW_BY_ID[card.setId] || CHUTZPAH_ROW_BY_ID[card.setId]) : null;
+  // Wit-only row + school lookup (chutzpah retired FFT 2026-05-31).
+  const row = card.setId ? WIT_ROW_BY_ID[card.setId] : null;
   const tierName = card.schoolId
-    ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name
-       || CHUTZPAH_SAME_SCHOOL_BONUSES[card.schoolId]?.name
-       || card.schoolId)
+    ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name || card.schoolId)
     : null;
 
   // Resonance tag fallback for legacy v1 effect cards (no v2 tags).

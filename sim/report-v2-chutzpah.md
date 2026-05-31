@@ -12,23 +12,23 @@ N = **25** runs simulated with a greedy v2 AI.
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-hedgehog**: 4 runs · 0 wins (0.0%)
-- **fam-rabbit**: 2 runs · 0 wins (0.0%)
-- **fam-snake**: 2 runs · 0 wins (0.0%)
-- **fam-cat**: 2 runs · 0 wins (0.0%)
-- **fam-mouse**: 1 runs · 0 wins (0.0%)
 - **fam-crow**: 2 runs · 0 wins (0.0%)
-- **fam-beetle**: 4 runs · 0 wins (0.0%)
-- **fam-raven**: 5 runs · 0 wins (0.0%)
+- **fam-rabbit**: 4 runs · 0 wins (0.0%)
+- **fam-raven**: 4 runs · 0 wins (0.0%)
 - **fam-owl**: 1 runs · 0 wins (0.0%)
-- **fam-toad**: 2 runs · 0 wins (0.0%)
+- **fam-mouse**: 2 runs · 0 wins (0.0%)
+- **fam-toad**: 3 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 2 runs · 0 wins (0.0%)
+- **fam-cat**: 4 runs · 0 wins (0.0%)
+- **fam-snake**: 2 runs · 0 wins (0.0%)
+- **fam-beetle**: 1 runs · 0 wins (0.0%)
 
 ## Cast distribution
 - Total casts: 0
 - Tier 1 (COHERENT): 0 (0.0%)
 - Tier 2 (RESONANT): 0 (0.0%)
 - Tier 3 (DEVASTATING): 0 (0.0%)
-- Holds (turn ended without cast — tray persists): 721 (100.0%)
+- Holds (turn ended without cast — tray persists): 700 (100.0%)
 
 ## Chutzpah TUNNEL VISION (v2.24)
 - Total RAGE triggers: 0
@@ -203,13 +203,13 @@ N = **25** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 29.64
+- Avg turns / combat: 28.72
 - Avg damage / run: 0
-- Mean final deck size: 2.4
+- Mean final deck size: 2.6
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e2-silk-wraith (Silk Wraith): 10
-- e2-loom-familiar (Loom Familiar): 9
-- e2-hollow-weaver (Hollow Weaver): 6
+- e2-hollow-weaver (Hollow Weaver): 11
+- e2-loom-familiar (Loom Familiar): 7
+- e2-silk-wraith (Silk Wraith): 7

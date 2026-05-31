@@ -15,7 +15,7 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
-import { CHUTZPAH_ROWS, CHUTZPAH_ROW_BY_ID, CHUTZPAH_SAME_SCHOOL_BONUSES, CHUTZPAH_PARTIAL_ROW_BONUSES } from '../cards/chutzpah-v2-rows.js';
+// chutzpah row imports removed 2026-05-31 — FFT system retired for chutzpah.
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
@@ -707,13 +707,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           overlay; shows owned rows + their canonical phrase + rider on
           hover. Hidden when no set-tagged cards have been collected. */}
       {(() => {
-        // v3.4.71 — generalized FFT Progress for any lane with rows.
-        const laneRows = isWit ? WIT_ROWS
-                      : isChutzpah ? CHUTZPAH_ROWS
-                      : null;
-        const laneBonuses = isWit ? WIT_SAME_SCHOOL_BONUSES
-                         : isChutzpah ? CHUTZPAH_SAME_SCHOOL_BONUSES
-                         : null;
+        // Wit-only FFT Progress (chutzpah retired FFT 2026-05-31).
+        const laneRows = isWit ? WIT_ROWS : null;
+        const laneBonuses = isWit ? WIT_SAME_SCHOOL_BONUSES : null;
         if (!laneRows || laneRows.length === 0) return null;
         const trayCards = [tray?.intro, tray?.subject, tray?.target, ...(tray?.modifiers || [])].filter(Boolean);
         const allCards = [...hand, ...deck, ...discard, ...exiled, ...trayCards];
@@ -1097,11 +1093,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     const contrib = cardContribution(card, slotName);
     // v3.3: surface FFT row affiliation on the staged pill so the
     // player can SEE which school/row each card belongs to mid-cast.
-    const row = card.setId ? (WIT_ROW_BY_ID[card.setId] || CHUTZPAH_ROW_BY_ID[card.setId]) : null;
+    const row = card.setId ? WIT_ROW_BY_ID[card.setId] : null;
     const tierName = card.schoolId
-      ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name
-         || CHUTZPAH_SAME_SCHOOL_BONUSES[card.schoolId]?.name
-         || card.schoolId)
+      ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name || card.schoolId)
       : null;
     return (
       <motion.button key={card.uid}

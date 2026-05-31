@@ -13,10 +13,8 @@
 import { useMemo } from 'react';
 import { CardFullBody } from './CardFullBody.jsx';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES } from '../cards/wit-v2-rows.js';
-import { CHUTZPAH_ROWS, CHUTZPAH_SAME_SCHOOL_BONUSES } from '../cards/chutzpah-v2-rows.js';
 
 const WIT_TIER_ORDER = ['slowburn', 'thorns', 'crescendo'];
-const CHUTZPAH_TIER_ORDER = ['bluster', 'ballooning', 'ballistic'];
 const SLOT_ORDER = ['intro', 'subject', 'target', 'modifier', 'gesture', 'annotation', 'skill', 'power'];
 
 function locationLabel(loc) {
@@ -55,17 +53,12 @@ export function DeckView({ open, onClose, hand = [], deck = [], discard = [], ex
     rowGroups[c.setId].push(c);
   }
 
-  // Group: tier → list of rows with progress > 0. Lane-aware: pulls from
-  // both wit AND chutzpah row tables so chutzpah players see Bluster /
-  // Ballooning / Ballistic groupings, not just wit's schools.
-  const ALL_ROWS = [...WIT_ROWS, ...CHUTZPAH_ROWS];
-  const ALL_TIERS = { ...WIT_SAME_SCHOOL_BONUSES, ...CHUTZPAH_SAME_SCHOOL_BONUSES };
-  const ALL_TIER_ORDER = [...WIT_TIER_ORDER, ...CHUTZPAH_TIER_ORDER];
+  // Group: tier → list of rows with progress > 0. Wit-only since chutzpah
+  // retired FFT 2026-05-31 (Animal Summoner pivot).
   const rowsByTier = {};
-  for (const tier of ALL_TIER_ORDER) rowsByTier[tier] = [];
-  for (const row of ALL_ROWS) {
+  for (const tier of WIT_TIER_ORDER) rowsByTier[tier] = [];
+  for (const row of WIT_ROWS) {
     if (rowGroups[row.id] && rowGroups[row.id].length > 0) {
-      if (!rowsByTier[row.schoolId]) rowsByTier[row.schoolId] = [];
       rowsByTier[row.schoolId].push(row);
     }
   }
@@ -109,8 +102,8 @@ export function DeckView({ open, onClose, hand = [], deck = [], discard = [], ex
           </div>
         </div>
 
-        {ALL_TIER_ORDER.map(schoolId => {
-          const tier = ALL_TIERS[schoolId];
+        {WIT_TIER_ORDER.map(schoolId => {
+          const tier = WIT_SAME_SCHOOL_BONUSES[schoolId];
           const rows = rowsByTier[schoolId];
           if (!rows || rows.length === 0) return null;
           return (

@@ -627,61 +627,23 @@ const SYNERGY_CAPSTONE_TARGETS  = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 
 const SYNERGY_CAPSTONE_MODIFIERS = SYNERGY_CAPSTONE_CARDS.filter(c => c.slot === 'modifier');
 
 // =============================================================================
-// FFT ROW CARDS — three cards (intro / subject / target) per row × 15 rows.
-// Placeholder phrases keyed to the row name; Alan will write the final
-// canonical phrases later. Each card carries the setId/setSlot/schoolId tags
-// that detectFFT() reads to fire the Fully Formed Thought rider.
+// FFT ROW CARDS — REMOVED 2026-05-31. Chutzpah pivoted away from the FFT
+// system entirely (Animal Summoner engine — see project_wg_chutzpah_animal_summoner
+// memory). The 45 row cards across bluster / ballooning / ballistic schools
+// are gone. intro / subject / target pools are temporarily empty; lure cards
+// will repopulate them once the new engine lands.
+//
+// Gestures, modifiers, skills, and powers from the old chutzpah pool are
+// preserved transitionally. Some (Hit Me Again recoil, Synergy Capstone,
+// Not Listening) reference old Loudness / Tunnel Vision / Stake mechanics
+// being retired in a follow-up commit; they'll either be reframed for the
+// summoner engine or removed.
 // =============================================================================
-const ROW_CARDS = [];
-function pushRowTriple(rowId, schoolId, introPhrase, subjectPhrase, targetPhrase) {
-  ROW_CARDS.push(
-    { id: `cv2-i-${rowId}`, slot: 'intro', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-      phrase: introPhrase, tags: ['demanding', 'direct'], stats: { chutzpah: 1 },
-      setId: rowId, setSlot: 'intro', schoolId,
-      flavor: 'A starting move.' },
-    { id: `cv2-s-${rowId}`, slot: 'subject', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'word',
-      phrase: subjectPhrase, tags: ['demanding'], stats: { chutzpah: 1 },
-      setId: rowId, setSlot: 'subject', schoolId,
-      flavor: 'The middle of the line.' },
-    { id: `cv2-t-${rowId}`, slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'effect',
-      phrase: targetPhrase, tags: ['demanding', 'threatening'],
-      effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure' },
-      setId: rowId, setSlot: 'target', schoolId,
-      flavor: 'The cap. The bill.' },
-  );
-}
-// Bluster (5 rows)
-pushRowTriple('bluster-1',  'bluster',    'Listen pal,',                          'take that tone',              'elsewhere.');
-pushRowTriple('bluster-2',  'bluster',    'Buddy,',                                "don't walk away",             'from me.');
-pushRowTriple('bluster-3',  'bluster',    'Look,',                                 "who do you think",            "you're talking to?");
-pushRowTriple('bluster-4',  'bluster',    'Frankly,',                              "I'm done",                    'being polite.');
-pushRowTriple('bluster-5',  'bluster',    'Now',                                   'you listen',                  'here.');
-// Ballooning (5 rows)
-pushRowTriple('ballooning-1','ballooning', 'I,',                                   'frankly, am bigger',          'than this implies.');
-pushRowTriple('ballooning-2','ballooning', 'It was,',                              'at least,',                   'three of them.');
-pushRowTriple('ballooning-3','ballooning', "I've got",                             'plenty more',                 'where that came from.');
-pushRowTriple('ballooning-4','ballooning', 'Speaking from authority,',             "I'd already",                 'won.');
-pushRowTriple('ballooning-5','ballooning', 'And THIS',                             'is what',                     'it was all for.');
-// Ballistic (5 rows)
-pushRowTriple('ballistic-1', 'ballistic',  'Buddy,',                               'I am going',                  'OFF.');
-pushRowTriple('ballistic-2', 'ballistic',  'Listen carefully,',                    'we are off',                  'the RAILS now.');
-pushRowTriple('ballistic-3', 'ballistic',  'I can',                                'no longer see',               'the room.');
-pushRowTriple('ballistic-4', 'ballistic',  'I, in point of fact,',                 'have nothing',                'left to lose.');
-pushRowTriple('ballistic-5', 'ballistic',  'Pal,',                                 'this is officially',          'scorched earth.');
-
-// v3.4.70 (Alan): "Remove all generic (not part of a row) intro,
-// subject, and effect cards from the chutzpah deck." The only
-// intro/subject/target cards in the playable pool are now row-tagged
-// (the 45 ROW_CARDS). Modifiers, gestures, skills, and powers stay.
-// Mechanic-specific intro/subject/target (Saying It Louder, Smell
-// Weakness, Synergy Capstone targets, Unique RAGE/Doubling-Down/
-// Storm-Out targets) are EXCLUDED — they were generic too. Easy to
-// re-add later by extending the exports below.
-export const CHUTZPAH_V2 = [...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...HIT_ME_AGAIN_POWER, ...SYNERGY_CAPSTONE_MODIFIERS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS, ...ROW_CARDS];
+export const CHUTZPAH_V2 = [...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...HIT_ME_AGAIN_POWER, ...SYNERGY_CAPSTONE_MODIFIERS, ...NOT_LISTENING_SKILL_ABSORB, ...NOT_LISTENING_SKILL, ...STARTER_CARDS];
 export const CHUTZPAH_V2_BY_SLOT = {
-  intro: ROW_CARDS.filter(c => c.slot === 'intro'),
-  subject: ROW_CARDS.filter(c => c.slot === 'subject'),
-  target: ROW_CARDS.filter(c => c.slot === 'target'),
+  intro: [],
+  subject: [],
+  target: [],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],
   gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   power: [...HIT_ME_AGAIN_POWER],

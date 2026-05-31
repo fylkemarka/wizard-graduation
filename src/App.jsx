@@ -42,8 +42,9 @@ import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, WIT_ROW_BY_ID, detectFFT, registerRows } from './cards/wit-v2-rows.js';
-import { CHUTZPAH_ROWS, CHUTZPAH_ROW_BY_ID, CHUTZPAH_SAME_SCHOOL_BONUSES, CHUTZPAH_PARTIAL_ROW_BONUSES } from './cards/chutzpah-v2-rows.js';
-registerRows(CHUTZPAH_ROW_BY_ID);
+// chutzpah-v2-rows.js removed 2026-05-31 — FFT pivot retired chutzpah's row
+// system. Animal Summoner engine is the new direction (see
+// project_wg_chutzpah_animal_summoner memory). FFT system is wit-only.
 import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
@@ -804,16 +805,13 @@ function buildStarterDeckForLane(lane, startingRow = null) {
       targetId  = 'wv2-t-fabric-starter';
     }
   } else if (lane === 'chutzpah') {
-    // v3.4.69 — seed the chutzpah starter with a full Bluster-1 row
-    // ("Take That Tone Elsewhere") so the player can complete an FFT in
-    // their first combat. Bluster-1 = +12 comp + 1 Pressure + pressureBonus
-    // — immediately damaging AND teaches the Pressure mechanic.
-    // v3.4.74 (Alan) — dropped to a single intro. The duplicate read as
-    // redundant ("now I have two of the same intro"). Single intro matches
-    // the wit starter shape: one full bluster-1 row + Punchline finisher.
-    introIds = ['cv2-i-bluster-1'];
-    subjectId = 'cv2-s-bluster-1';
-    targetId  = 'cv2-t-bluster-1';
+    // 2026-05-31 — chutzpah pivoted from FFT to Animal Summoner engine.
+    // The bluster-1 row cards no longer exist. Starter is transitional
+    // until lure cards land. No intro/subject/target — just utility +
+    // gestures + defends so the character is at least loadable.
+    introIds = [];
+    subjectId = undefined;
+    targetId  = undefined;
   } else {
     introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
     subjectId = basics(pool.subject)[0]?.id;
@@ -835,11 +833,9 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
   }
-  if (lane === 'chutzpah') {
-    // v3.4.73 (Alan) — Punchline ensures the Bluster chip-then-spike loop
-    // has a baseline finisher before the player drafts bluster-5.
-    ids.push('c-punchline');
-  }
+  // Chutzpah starter additions removed 2026-05-31 with the Animal Summoner
+  // pivot. Punchline (Loudness consumer) and c-the-tutor (FFT-row tutor) no
+  // longer relevant. Lure cards will be added when the new engine lands.
   return ids;
 }
 
@@ -3180,13 +3176,11 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   // bundles from elite/boss combat. `opts.excludeSpellPieces` is true on
   // every combat-reward call.
   const isSpellPieceSlot = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
-  // v3.4.78 (Alan) — generalized to any lane with FFT rows. Wit + chutzpah
-  // both have row systems; their spell-piece rewards should only offer
-  // setId-tagged cards so every offered intro/subject/target progresses
-  // an existing or new FFT row.
-  const LANES_WITH_ROWS = ['wit', 'chutzpah'];
+  // Wit-only — its spell-piece rewards only offer setId-tagged cards so every
+  // offered intro/subject/target progresses an existing or new FFT row.
+  // Chutzpah retired FFT 2026-05-31 (Animal Summoner pivot).
   const setTaggedOnly = (c) => {
-    if (!LANES_WITH_ROWS.includes(lane)) return true;
+    if (lane !== 'wit') return true;
     if (!isSpellPieceSlot(c)) return true;
     return !!c.setId;
   };
@@ -4050,7 +4044,7 @@ export default function App() {
       setDiscard(prev => prev.map(upgradeRowCard));
       setHand(prev => prev.map(upgradeRowCard));
       setExiled(prev => prev.map(upgradeRowCard));
-      const row = WIT_ROW_BY_ID[setId] || CHUTZPAH_ROW_BY_ID[setId];
+      const row = WIT_ROW_BY_ID[setId];
       pushLog(`📜 Upgraded FFT row "${row?.name || setId}" (all 3 cards).`);
     } else {
       pushLog(`📜 No FFT row upgraded (skipped).`);
@@ -4139,7 +4133,7 @@ export default function App() {
         setDeck(prev => prev.map(upgradeRowCard));
         setDiscard(prev => prev.map(upgradeRowCard));
         setHand(prev => prev.map(upgradeRowCard));
-        const row = WIT_ROW_BY_ID[pickedRow] || CHUTZPAH_ROW_BY_ID[pickedRow];
+        const row = WIT_ROW_BY_ID[pickedRow];
         pushLog(`📿 ${relic.name}: upgraded FFT row "${row?.name || pickedRow}" (all 3 cards).`);
       }
     }
@@ -9726,11 +9720,9 @@ export default function App() {
         salvaged: gathered.length === 0,
       };
       // v3.4.64 — if player owns at least one FFT row, offer an FFT row
-      // upgrade choice BEFORE crafting. Lane-aware via per-lane row table.
-      // v3.4.68 — generalized to chutzpah (uses CHUTZPAH_ROW_BY_ID).
-      const laneRowTable = selectedCharacter?.lane === 'wit' ? WIT_ROW_BY_ID
-                        : selectedCharacter?.lane === 'chutzpah' ? CHUTZPAH_ROW_BY_ID
-                        : null;
+      // upgrade choice BEFORE crafting. Wit-only (chutzpah retired FFT
+      // 2026-05-31; jnsq doesn't have row content built yet).
+      const laneRowTable = selectedCharacter?.lane === 'wit' ? WIT_ROW_BY_ID : null;
       if (laneRowTable) {
         const owned = {};
         const fullDeckCheck = [...hand, ...discard, ...exiled, ...trayCards];
@@ -9795,12 +9787,8 @@ export default function App() {
     // Elite enemies grant a choice of 3 T1 FFT rows; bosses grant 3 T2
     // rows. Each row is a bundle — picking adds all 3 cards at once.
     const isEliteOrBoss = enemy.tier === 'elite' || enemy.tier === 'boss';
-    // v3.4.68 — generalized FFT-row bundle reward: wit OR chutzpah (jnsq
-    // when its rows land). Each lane has its own ROWS table; we pick from
-    // the lane's pool, biased toward partials.
-    const laneRowsTable = lane === 'wit' ? WIT_ROWS
-                       : lane === 'chutzpah' ? CHUTZPAH_ROWS
-                       : null;
+    // Wit-only FFT-row bundle reward (chutzpah retired FFT 2026-05-31).
+    const laneRowsTable = lane === 'wit' ? WIT_ROWS : null;
     if (laneRowsTable && isEliteOrBoss) {
       // Pick 3 rows the player doesn't already fully own.
       const ownedRowSlots = {};
@@ -10144,7 +10132,7 @@ export default function App() {
       setStage('rest');
       return;
     }
-    const row = WIT_ROW_BY_ID[rowId] || CHUTZPAH_ROW_BY_ID[rowId];
+    const row = WIT_ROW_BY_ID[rowId];
     if (!row) return;
     // Count bumps via a side-effecting helper, but run it OUTSIDE the
     // setState updaters (closure-snapshot pattern). Per the React
@@ -10274,7 +10262,7 @@ export default function App() {
     onConfirm={craftingConfirm}
   />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
-  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit' || selectedCharacter?.lane === 'chutzpah'} />;
+  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit'} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
   if (stage === 'upgrade-spell') return <UpgradeSpellScreen
     hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray}
@@ -13305,16 +13293,14 @@ function UpgradeSpellScreen({ hand, deck, discard, exiled, tray, onPick }) {
     byRow[c.setId].cards.push(c);
   }
   // Eligible: at least 3 slots filled (a complete row) AND at least one
-  // card in the row is still unupgraded. Lane-aware: pulls from both
-  // wit AND chutzpah row tables so chutzpah players can rehearse Bluster/
-  // Ballooning/Ballistic FFTs at the inn.
-  const ALL_ROWS = [...WIT_ROWS, ...CHUTZPAH_ROWS];
-  const eligibleRows = ALL_ROWS.filter(r => {
+  // card in the row is still unupgraded. Wit-only since chutzpah retired
+  // FFT 2026-05-31.
+  const eligibleRows = WIT_ROWS.filter(r => {
     const own = byRow[r.id];
     if (!own || own.slots.size < 3) return false;
     return own.cards.some(c => !c.upgraded);
   });
-  const allOwnedRows = ALL_ROWS.filter(r => byRow[r.id]?.slots.size === 3);
+  const allOwnedRows = WIT_ROWS.filter(r => byRow[r.id]?.slots.size === 3);
   return (
     <div className="min-h-screen flex flex-col p-6 gap-4 max-w-5xl mx-auto">
       <div className="text-center">
