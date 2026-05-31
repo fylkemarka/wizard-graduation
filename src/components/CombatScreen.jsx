@@ -496,7 +496,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           // v3.4.67 — Chutzpah school chips.
           if (tempHp > 0) chips.push(<span key="thp" className="text-gold-300 cursor-help" title={`Ballooning Temp HP: absorbs HP damage BEFORE your real HP. Expires after ${tempHpTurns} more turn${tempHpTurns > 1 ? 's' : ''}; any unused Temp HP is lost.`}>🎈 {tempHp} Temp HP × {tempHpTurns}t</span>);
           if (playerIncomingMult > 1.0) chips.push(<span key="sv" className="text-ember-300 cursor-help" title="Self-Vulnerable — incoming enemy damage to you is amplified. Decays back to neutral.">🩸 YOU VULN</span>);
-          if (loudness > 0) chips.push(<span key="ld" className="text-ember-300 cursor-help" title={`Bluster Loudness: ${loudness} stack${loudness > 1 ? 's' : ''} banked. Punchline (skill, 1E) deals ${loudness * 2} dmg now. Finisher FFTs (Now You Listen Here ×4 = ${loudness * 4} dmg / Scorched Earth ×3 = ${loudness * 3} dmg) consume for a bigger spike.`}>📢 {loudness} Loudness</span>);
+          if (loudness > 0) {
+            const _chutzEff = enemy?.effectiveness?.chutzpah ?? 1.0;
+            const _pdm = playerDmgMult || 1.0;
+            const _pl = (m) => Math.max(0, Math.round(loudness * m * _chutzEff * _pdm));
+            chips.push(<span key="ld" className="text-ember-300 cursor-help" title={`Bluster Loudness: ${loudness} stack${loudness > 1 ? 's' : ''} banked. After enemy chutz-effectiveness (×${_chutzEff}) and player dmg mult (×${_pdm.toFixed(2)}): Punchline (skill, 1E) = ${_pl(2)} dmg · Now You Listen Here (×4) = ${_pl(4)} · Scorched Earth (×3) = ${_pl(3)}.`}>📢 {loudness} Loudness</span>);
+          }
           if (buckets.stripBlock) chips.push(<span key="sb" className="cursor-help" title={`At the start of each of your next ${buckets.stripBlock.turns} turn${buckets.stripBlock.turns > 1 ? 's' : ''}, strip ${buckets.stripBlock.amount} of the enemy's Block.`}>🛇 strip {buckets.stripBlock.amount}/turn × {buckets.stripBlock.turns}t</span>);
           if (buckets.weak) chips.push(<span key="w" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.weak.turns} turn${buckets.weak.turns > 1 ? 's' : ''}, apply +${buckets.weak.amount} Weak (-25% attack per stack).`}>💢 Weak +{buckets.weak.amount}/turn × {buckets.weak.turns}t</span>);
           if (buckets.vuln) chips.push(<span key="v" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.vuln.turns} turn${buckets.vuln.turns > 1 ? 's' : ''}, apply +${buckets.vuln.amount} Vulnerable (+25% spell potency per stack).`}>🩸 Vuln +{buckets.vuln.amount}/turn × {buckets.vuln.turns}t</span>);
@@ -637,6 +642,27 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           const costTooltip = escalated
             ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).`
             : undefined;
+          // v3.4.75 (Alan) — Punchline & other Loudness-consume cards show
+          // their LIVE damage on the card face, including enemy chutzpah
+          // effectiveness, enemy Vulnerable, player Weak, and any other
+          // playerDmgMult shifts. Player should never have to math.
+          let displayCard = card;
+          const cLoud = card.effects?.consumeLoudnessAsDamage;
+          if (cLoud) {
+            const baseDmg = (loudness || 0) * cLoud;
+            const chutzEff = enemy?.effectiveness?.chutzpah ?? 1.0;
+            const finalDmg = Math.max(0, Math.round(baseDmg * chutzEff * (playerDmgMult || 1.0)));
+            const mods = [];
+            if (chutzEff !== 1.0) mods.push(`enemy chutz ×${chutzEff}`);
+            if ((playerDmgMult || 1.0) !== 1.0) mods.push(`mult ×${(playerDmgMult || 1.0).toFixed(2)}`);
+            const modStr = mods.length > 0 ? ` (Loudness ${loudness} × ${cLoud} × ${mods.join(' × ')})` : ` (Loudness ${loudness} × ${cLoud})`;
+            displayCard = {
+              ...card,
+              desc: loudness > 0
+                ? `Deal ${finalDmg} composure damage${modStr}. Clears Loudness. Exhaust.`
+                : `Deal Loudness × ${cLoud} composure damage. (No Loudness banked.) Exhaust.`,
+            };
+          }
           return (
             <motion.button key={card.uid}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
@@ -650,7 +676,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                   ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
-              <CardFullBody card={card} costOverride={effCost} costPillClass={costPillClass} costTooltip={costTooltip} />
+              <CardFullBody card={displayCard} costOverride={effCost} costPillClass={costPillClass} costTooltip={costTooltip} />
             </motion.button>
           );
         })}

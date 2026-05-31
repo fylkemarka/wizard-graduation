@@ -7591,14 +7591,20 @@ export default function App() {
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
     }
     // v3.4.73 (Alan) — Punchline-style payoff for chutzpah. Eats current
-    // Loudness × mult as composure damage, then clears Loudness. Mirrors
-    // the bluster-5 FFT capstone but available as a colorless skill so
-    // every chutzpah starter has guaranteed access to the spike payoff.
+    // Loudness × mult as composure damage, then clears Loudness.
+    // v3.4.75 (Alan) — incorporate buffs and enemy statuses. The cast is
+    // chutzpah-flavored, so apply enemy effectiveness vs chutzpah + the
+    // shared playerDmgMult (carries enemy Vulnerable / player Weak / etc).
     if (fx.consumeLoudnessAsDamage && loudness > 0) {
       const mult = fx.consumeLoudnessAsDamage;
-      const dmg = loudness * mult;
-      applyDamageToEnemyComposure(dmg);
-      logBits.push(`📢 PUNCHLINE: ${loudness} Loudness × ${mult} = ${dmg} comp dmg`);
+      const baseDmg = loudness * mult;
+      const chutzEff = enemy?.effectiveness?.chutzpah ?? 1.0;
+      const finalDmg = Math.max(0, Math.round(baseDmg * chutzEff * playerDmgMult));
+      applyDamageToEnemyComposure(finalDmg);
+      logBits.push(`📢 PUNCHLINE: ${loudness} Loudness × ${mult} = ${baseDmg}`
+        + (chutzEff !== 1.0 ? ` × ${chutzEff} chutz-eff` : '')
+        + (playerDmgMult !== 1.0 ? ` × ${playerDmgMult.toFixed(2)} mult` : '')
+        + ` → ${finalDmg} comp dmg`);
       setLoudness(0);
     }
     // v3.4.19 — tutor a card by slot. Walks the deck for the first
