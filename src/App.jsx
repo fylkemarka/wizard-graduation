@@ -3641,11 +3641,12 @@ export default function App() {
   // v2.13: per-combat cast counter (resets at combat enter).
   // Used by Thesis-expanded annotation's bonusSpellDamagePerCast scaling.
   const [castsThisCombat, setCastsThisCombat] = useState(0);
-  // v2.11: handler ALL IN — per-cast HP wager. Player commits 0-N HP
-  // before casting; bonus damage = N × 1.5 (plus per-card multipliers).
-  // Cap at floor(hp/3) so the stake alone can't be lethal. Reset on
-  // cast, turn end, and combat enter.
-  const [stakeAmount, setStakeAmount] = useState(0);
+  // ALL IN (stakeAmount) ripped 2026-05-31 with the chutzpah → handler
+  // pivot. computeSpellDamage in shared.js still accepts a stakeAmount in
+  // its context object (legacy field), so we pass a constant 0 at call
+  // sites instead of carrying state.
+  const stakeAmount = 0;
+  const setStakeAmount = () => {};
   // v2.12: jnsq CHAOS DICE — per-cast optional 1d6 roll that modifies
   // damage and adds side effects per a fixed outcome table. rollOptIn is
   // the toggle for the next cast; lastRoll is the most recent result
@@ -3843,23 +3844,9 @@ export default function App() {
   // turn 2 after first endTurn, etc.). Used by UI displays and any
   // remaining turn-aware riders.
   const [combatTurn, setCombatTurn] = useState(1);
-  // v2.25: handler DOUBLING DOWN — per-turn "corner tokens" counter.
-  // +1 per handler target with `doubleDown: true` that resolves a CAST
-  // (not fizzled). At end of player turn, if the enemy is still alive,
-  // the player takes cornerTokens * 2 unblocked HP damage — the bill for
-  // bravado that didn't close the deal. Resets to 0 every turn (after the
-  // damage tick fires).
-  const [cornerTokens, setCornerTokens] = useState(0);
-  // loudCount (SAYING IT LOUDER) ripped 2026-05-31 with the chutzpah →
-  // handler pivot.
-  // v2.26: handler STORMING OUT — when a stormOut target casts, the enemy's
-  // next intent is HIDDEN from the UI (we don't render the telegraph). The
-  // flag persists through ONE upcoming player turn (the intent rolled during
-  // the storm-out endTurn), then clears at the END of THAT turn's endTurn so
-  // the next intent reveals normally. `stormOutFiredRef` is the cross-closure
-  // signal so the immediate storm-out endTurn doesn't clear its own flag.
-  const [intentHidden, setIntentHidden] = useState(false);
-  const stormOutFiredRef = useRef(false);
+  // DOUBLING DOWN (cornerTokens), STORMING OUT (intentHidden +
+  // stormOutFiredRef), SAYING IT LOUDER (loudCount) all ripped 2026-05-31
+  // with the chutzpah → handler pivot. No card feeds them any more.
   const tutorFiredThisTurnRef = useRef(false);
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
@@ -5373,7 +5360,6 @@ export default function App() {
     setAmplifyPlaysThisCombat(0);
     setCastsThisTurn(0);
     setCastsThisCombat(0);
-    setStakeAmount(0);
     setRollOptIn(false);
     setLastRoll(null);
     setCombatRolls([]);
@@ -5430,12 +5416,8 @@ export default function App() {
     setPendingMissteps([]);
     // v2.39: combat turn counter reset to 1.
     setCombatTurn(1);
-    // v2.25: handler corner-token counter resets per combat.
-    setCornerTokens(0);
-    // loudCount reset removed 2026-05-31.
-    // v2.26: handler hidden-intent flag resets per combat.
-    setIntentHidden(false);
-    stormOutFiredRef.current = false;
+    // cornerTokens / intentHidden / stormOutFiredRef resets removed
+    // 2026-05-31 (handler mechanics ripped).
     tutorFiredThisTurnRef.current = false;
     // Hit Me Again resets removed 2026-05-31 (power ripped).
     // v2.46: jnsq WON'T SHUT UP — commitment flag clears per combat. Per-
@@ -6369,18 +6351,8 @@ export default function App() {
     setCastsThisCombat(c => c + 1);
     // requiresRage safety-net removed 2026-05-31 with RAGE rip.
     const rageMissing = false;
-    // v2.26: STORMING OUT — if the target carries stormOut, every remaining
-    // energy point AT CAST TIME (after the card's own cost was paid on stage)
-    // converts to +bonusPerEnergy damage. The energy burns to zero, the turn
-    // ends immediately after damage resolves, and the next intent is hidden.
-    const stormOut = !!target.effect?.stormOut;
-    const stormOutBonusPerEnergy = target.effect?.bonusPerEnergy || 0;
-    const stormOutEnergySpent = stormOut ? energy : 0;
-    if (stormOut && stormOutBonusPerEnergy > 0 && stormOutEnergySpent > 0) {
-      const bonus = stormOutEnergySpent * stormOutBonusPerEnergy;
-      dmg += bonus;
-      pushLog(`🚪 STORM OUT — spent ${stormOutEnergySpent} Energy → +${bonus} dmg.`);
-    }
+    // STORM OUT mechanic ripped 2026-05-31 (handler ALL IN family gone).
+    const stormOut = false;
 
     // Compose + log the full sentence.
     const sentence = composeSpellText(intro, subject, target, modifiers);
@@ -7021,15 +6993,7 @@ export default function App() {
       pushLog(`🩸 -${sideEffects.selfHpCost} HP (self)`);
     }
 
-    // v2.25: DOUBLING DOWN — bank a corner token when a handler target
-    // with `doubleDown: true` resolves a cast. The token bills at end of
-    // turn if the enemy is still alive. Counted on RAGE-missing casts too
-    // — the cast still resolved (just at half damage), so the bravado
-    // happened and the bill comes due.
-    if (target.effect?.doubleDown) {
-      setCornerTokens(n => n + 1);
-      pushLog(`🏚 Backed into a corner: +1 token.`);
-    }
+    // DOUBLING DOWN (doubleDown / cornerTokens) ripped 2026-05-31.
 
     // v2.38: SAYING SOMETHING WRONG — queue a delayed Misstep token. The
     // rider fires on every successful cast of the target (including
@@ -7132,19 +7096,7 @@ export default function App() {
     applyPowerTriggers('onEffectCardPlayed');
     advanceTutorialStep('cast-spell');
 
-    // v2.26: STORMING OUT — burn all remaining energy, hide the next intent,
-    // and end the turn IMMEDIATELY. The bonus damage was already applied
-    // above; here we close out the turn so no further actions, no block
-    // phase, no end-of-turn-draw bonuses fire. The endTurn flow still runs
-    // its normal sequence (enemy intent, debuff decay, refill hand) — the
-    // ONLY thing we skip is the player's chance to keep acting.
-    if (stormOut) {
-      setEnergy(0);
-      setIntentHidden(true);
-      stormOutFiredRef.current = true;
-      pushLog(`🚪 Storm out. Door slams. You don't see what comes next.`);
-      setTimeout(() => endTurn(), 0);
-    }
+    // STORM OUT post-cast turn-end-immediately path removed 2026-05-31.
   }
 
   function castStagedSpell() {
@@ -7160,12 +7112,7 @@ export default function App() {
 
     // v2 path: intro + subject + target all filled → sentence-engine cast.
     if (t.intro && t.subject && t.target) {
-      // v2.11: target may require a minimum stake (e.g. "is a big mistake. Huge.")
-      const required = t.target.effect?.requiresStake || 0;
-      if (required > 0 && stakeAmount < required) {
-        pushLog(`🎯 ${t.target.phrase || t.target.name} requires ${required}+ HP staked.`);
-        return;
-      }
+      // requiresStake gate removed 2026-05-31 (ALL IN ripped).
       // v2.12: target may require a prior 6 ("is the cosmic recoil.").
       const reqRoll = t.target.effect?.requiresPriorRoll || 0;
       if (reqRoll > 0 && !combatRolls.includes(reqRoll)) {
@@ -8457,18 +8404,7 @@ export default function App() {
     });
 
     // RAGE turn-end reset removed 2026-05-31 (machinery ripped).
-    // v2.25: DOUBLING DOWN billing. If the player landed any handler
-    // doubleDown casts this turn and the enemy is still alive, eat
-    // cornerTokens × 2 unblocked HP. Reset tokens either way.
-    if (cornerTokens > 0) {
-      const enemyAlive = enemy && enemyComposure > 0 && enemyHp > 0;
-      if (enemyAlive) {
-        const dmg = cornerTokens * 2;
-        setHp(h => Math.max(0, h - dmg));
-        pushLog(`🏚 Backed into a corner: -${dmg} HP (didn't close the deal).`);
-      }
-      setCornerTokens(0);
-    }
+    // DOUBLING DOWN endTurn billing removed 2026-05-31 (cornerTokens ripped).
     // v2.48: AWKWARD PAUSE — at end of turn, graduate pauseHeld (this turn's
     // skill-armed flag) into pauseHeldActive (the doubling bank for NEXT
     // turn's cast). The tray already persists (v2.1), so the doubling is
@@ -8955,9 +8891,7 @@ export default function App() {
     setEnergy(wEnergy);
     // v2.9: reset per-turn cast cap.
     setCastsThisTurn(0);
-    // v2.11: forget uncommitted stakes at turn boundary.
-    setStakeAmount(0);
-    // loudCount turn reset removed 2026-05-31.
+    // Stake reset removed 2026-05-31 (ALL IN ripped).
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
     // v2.39: OPENING STATEMENT — bump the combat-turn counter. The first
@@ -9064,14 +8998,7 @@ export default function App() {
     // v2.26: storm-out intent-hiding lifecycle. If THIS endTurn was the one
     // triggered by the storm-out cast itself, the ref is true — the intent
     // we just rolled is the one we want to hide for the upcoming turn, so
-    // leave intentHidden true and just consume the ref. The NEXT endTurn
-    // (after the player has played their hidden-intent turn) finds ref=false
-    // and clears the flag — the intent rolled there reveals normally.
-    if (stormOutFiredRef.current) {
-      stormOutFiredRef.current = false;
-    } else if (intentHidden) {
-      setIntentHidden(false);
-    }
+    // STORM OUT intentHidden carry-over flag removed 2026-05-31.
     tutorFiredThisTurnRef.current = false;
   }
 
@@ -10357,11 +10284,9 @@ export default function App() {
       castPreview={previewCastDamage()}
       castsThisTurn={castsThisTurn} maxCastsPerTurn={MAX_CASTS_PER_TURN}
       isHandler={selectedCharacter?.lane === 'handler'}
-      stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
       isJnsq={selectedCharacter?.lane === 'jnsq'}
       rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
       lastRoll={lastRoll} combatRolls={combatRolls}
-      cornerTokens={cornerTokens} intentHidden={intentHidden}
       longThread={longThread}
       wordsBank={wordsBank}
       crescendoBuildup={crescendoBuildup}

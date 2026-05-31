@@ -26,9 +26,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
                        castsThisTurn, maxCastsPerTurn,
-                       isHandler, stakeAmount, setStakeAmount,
+                       isHandler,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
-                       cornerTokens, intentHidden,
                        longThread = 0, isWit = false, wordsBank = 0,
                        crescendoBuildup = 0, crescendoBuildupRows = [],
                        scheduledEffects = [], thornsCharges = null,
@@ -241,12 +240,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         <div className="flex gap-2 items-center flex-wrap">
           <div key={`intent-${intentTick}`}
                className="intent-flash px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700 cursor-help"
-               title={intentHidden
-                 ? "You stormed out — you didn't see what they're winding up. Reveals next turn."
-                 : (intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.')}>
+               title={intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.'}>
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
             <div className="text-lg">
-              {intentHidden ? <span className="text-parchment-50">🌫 ???</span> : (() => {
+              {(() => {
                 const { display, reduced, amplified, rawValue, effValue } = intentDisplay(enemyIntent);
                 const color = reduced ? 'text-moss-300' : amplified ? 'text-ember-300' : 'text-parchment-50';
                 const tooltip = reduced
@@ -449,10 +446,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           })()}
           {/* Tunnel Vision / RAGE chip removed 2026-05-31 with the
               chutzpah → handler pivot. State/UI fully ripped. */}
-          {cornerTokens > 0 && (
-            <span className="text-[11px] text-ember-300 font-mono"
-                  title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: ${cornerTokens * 2} unblocked HP if enemy alive.`}>🏚{cornerTokens}</span>
-          )}
           {(pauseHeld || pauseHeldActive) && (
             <span className="text-[11px] text-amber-200 font-mono"
                   title={pauseHeldActive ? `Awkward Pause — next cast doubles staged jnsq stats.` : `Paused — graduates at end of turn.`}>🤫{pauseHeldActive ? '×2' : ''}</span>
@@ -578,7 +571,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           the spell fizzles. */}
       <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast}
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
-        isHandler={isHandler} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
+        isHandler={isHandler}
         playerHp={hp} playerMaxHp={maxHp}
         tempHp={tempHp}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
@@ -782,7 +775,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 }
 
 export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
-                       isHandler = false, stakeAmount = 0, setStakeAmount = () => {},
+                       isHandler = false,
                        playerHp = 70, playerMaxHp = 70,
                        tempHp = 0,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
@@ -823,7 +816,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   let crescendoPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage: baseDamage, riders, stakeBonus, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
+    const { damage: baseDamage, riders, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
     // v3.4.73 (Alan): predicted damage previously showed only the cast
     // base from computeSpellDamage — but full FFT riders fire AFTER the
     // base and can add huge amounts (Bluster-1's `bonus: 12`, pressure
@@ -879,7 +872,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       damage = Math.round(damage * (playerDmgMult || 1.0));
       if (damage !== before) damageParts.push(`× ${(playerDmgMult || 1.0).toFixed(2)} (Vuln/Weak mult)`);
     }
-    predicted = { damage, baseDamage, damageParts, riders, stakeBonus: stakeBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
+    predicted = { damage, baseDamage, damageParts, riders, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
     // v3.4.21 (Alan): preview the FFT-tier rider that will fire on cast.
     // Most specific match wins (full → partial → same-school). Each tier
     // surfaces its rider as readable chips under the Predicted damage so
