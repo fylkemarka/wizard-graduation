@@ -10123,7 +10123,7 @@ export default function App() {
       setStage('rest');
       return;
     }
-    const row = WIT_ROW_BY_ID[rowId];
+    const row = WIT_ROW_BY_ID[rowId] || CHUTZPAH_ROW_BY_ID[rowId];
     if (!row) return;
     // Count bumps via a side-effecting helper, but run it OUTSIDE the
     // setState updaters (closure-snapshot pattern). Per the React
@@ -10253,7 +10253,7 @@ export default function App() {
     onConfirm={craftingConfirm}
   />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
-  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} isWit={selectedCharacter?.lane === 'wit'} />;
+  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit' || selectedCharacter?.lane === 'chutzpah'} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} />;
   if (stage === 'upgrade-spell') return <UpgradeSpellScreen
     hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray}
@@ -13099,7 +13099,7 @@ function EquipmentEffectBreakdown({ equipment }) {
   );
 }
 
-function RestScreen({ onChoose, isWit = false }) {
+function RestScreen({ onChoose, hasFFTRows = false }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
       <h2 className="font-display text-3xl text-moss-300">A Rest Site</h2>
@@ -13107,7 +13107,7 @@ function RestScreen({ onChoose, isWit = false }) {
       <div className="flex flex-col gap-2 w-full">
         <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — restore 30% HP and Composure</button>
         <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
-        {isWit && (
+        {hasFFTRows && (
           <button onClick={() => onChoose('upgrade-spell')} className="btn btn-gold">Rehearse a spell — upgrade all 3 cards of one FFT row</button>
         )}
         <button onClick={() => onChoose('forget')}  className="btn btn-iris">Forget a card — remove one from your deck</button>
@@ -13283,13 +13283,16 @@ function UpgradeSpellScreen({ hand, deck, discard, exiled, tray, onPick }) {
     byRow[c.setId].cards.push(c);
   }
   // Eligible: at least 3 slots filled (a complete row) AND at least one
-  // card in the row is still unupgraded.
-  const eligibleRows = WIT_ROWS.filter(r => {
+  // card in the row is still unupgraded. Lane-aware: pulls from both
+  // wit AND chutzpah row tables so chutzpah players can rehearse Bluster/
+  // Ballooning/Ballistic FFTs at the inn.
+  const ALL_ROWS = [...WIT_ROWS, ...CHUTZPAH_ROWS];
+  const eligibleRows = ALL_ROWS.filter(r => {
     const own = byRow[r.id];
     if (!own || own.slots.size < 3) return false;
     return own.cards.some(c => !c.upgraded);
   });
-  const allOwnedRows = WIT_ROWS.filter(r => byRow[r.id]?.slots.size === 3);
+  const allOwnedRows = ALL_ROWS.filter(r => byRow[r.id]?.slots.size === 3);
   return (
     <div className="min-h-screen flex flex-col p-6 gap-4 max-w-5xl mx-auto">
       <div className="text-center">
@@ -13311,7 +13314,12 @@ function UpgradeSpellScreen({ hand, deck, discard, exiled, tray, onPick }) {
             const copies = own.cards.length;
             const upgradedCount = own.cards.filter(c => c.upgraded).length;
             const schoolColor = row.schoolId === 'slowburn' ? 'text-emerald-300'
-              : row.schoolId === 'thorns' ? 'text-rose-300' : 'text-amber-300';
+              : row.schoolId === 'thorns' ? 'text-rose-300'
+              : row.schoolId === 'crescendo' ? 'text-amber-300'
+              : row.schoolId === 'bluster' ? 'text-ember-300'
+              : row.schoolId === 'ballooning' ? 'text-sky-300'
+              : row.schoolId === 'ballistic' ? 'text-rose-400'
+              : 'text-amber-300';
             return (
               <button key={row.id} onClick={() => onPick(row.id)}
                       className="text-left rounded-lg border-2 border-gold-500 bg-ink-700 hover:bg-ink-600 hover:scale-[1.01] transition p-4 flex flex-col gap-1">
