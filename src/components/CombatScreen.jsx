@@ -1292,18 +1292,24 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           {animal?.feedKey && (() => {
             const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
             const feedLabel = FEED_NAMES[animal.feedKey] || animal.feedKey;
-            const fedThisTurn = (luresPlayedThisTurn || []).includes(animal.feedKey);
             const feedReceived = !!card.feedReceived;
             const dur = card.durationRemaining;
-            // Three mutually-exclusive states (Alan, 2026-05-31):
-            //   1. fedThisTurn → green "fed (X)" confirmation.
+            // Three mutually-exclusive states (Alan, 2026-05-31). The badge
+            // is a pure function of this slot's own dur + feedReceived — the
+            // global luresPlayedThisTurn ledger is NOT consulted, because
+            // feeding only credits animals at dur===2 (per Alan, this turn's
+            // feeding should not show up as "fed" on other animals sharing
+            // the same feedKey).
+            //   1. dur === 2 && feedReceived → green "fed (X)" confirmation
+            //      (must have just been set this turn since dur=3 last turn
+            //      had no feed window).
             //   2. dur === 2 && !feedReceived → red "feed now" urgent.
             //   3. dur === 1 → yellow "leaves end of turn" notice.
-            // Anything else (animal in middle of a healthy stay) → no badge.
+            // Anything else (mid-stay, freshly-summoned) → no badge.
             let label = null;
             let tone = null;
             let title = null;
-            if (fedThisTurn) {
+            if (dur === 2 && feedReceived) {
               label = `🍴 fed (${feedLabel})`;
               tone = 'bg-moss-900 text-moss-200 border border-moss-500';
               title = `${animal.name} is satisfied — ${feedLabel} consumed this turn.`;
@@ -1705,10 +1711,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             parts.push(`Vuln ${animal.onAttackEffect.applyVulnerable}`);
           }
           // Exit-bonus preview: if this is the animal's LAST turn (duration 1
-          // ticking to 0) AND it'll have feedReceived, surface the onExit
-          // damage / block / weak in the per-animal line and the total.
-          const fedNow = (luresPlayedThisTurn || []).includes(animal.feedKey);
-          const willHaveFeed = !animal.feedKey || slot.feedReceived || fedNow;
+          // ticking to 0) AND it carries feedReceived (set when fed during
+          // its dur=2 turn), surface the onExit damage / block / weak in the
+          // per-animal line and the total.
+          const willHaveFeed = !animal.feedKey || slot.feedReceived;
           if (slot.durationRemaining === 1 && willHaveFeed && animal.onExit) {
             const ex = animal.onExit;
             if (ex.damage > 0) {

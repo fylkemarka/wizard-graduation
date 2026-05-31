@@ -8714,14 +8714,17 @@ export default function App() {
     setHand(h => h.filter((_, i) => i !== handIdx));
     setDiscard(d => [...d, { ...card, uid: uid() }]);
     setLuresPlayedThisTurn(prev => [...prev, feedKey]);
-    // Stamp every matching on-board animal with feedReceived=true so the
-    // exit bonus is unlocked AND further feeding is unnecessary.
+    // Stamp ONLY animals on their make-or-break turn (durationRemaining===2)
+    // with feedReceived=true. Earlier-in-stay animals don't get free credit
+    // from this turn's feeding — they'll need their own feed next turn when
+    // their counter hits 2 (Alan, 2026-05-31).
     setTray(prev => {
       const next = { ...prev };
       let touched = false;
       for (const sn of ['intro', 'subject', 'target']) {
         const slot = next[sn];
         if (slot?.kind !== 'animal') continue;
+        if (slot.durationRemaining !== 2) continue;
         const a = getAnimal(slot.animalId);
         if (a?.feedKey === feedKey) {
           next[sn] = { ...slot, feedReceived: true };
