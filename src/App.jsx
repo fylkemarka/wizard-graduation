@@ -70,8 +70,8 @@ const CARDS = [
   // =============================================================================
   // ---- BASIC (starter) ----
   { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
-    effects: { block: 5 }, upgrade: { effects: { block: 8 } },
-    desc: 'Gain 5 Block (vs physical attacks).' },
+    effects: { block: 8 }, upgrade: { effects: { block: 11 } },
+    desc: 'Gain 8 Block (vs physical attacks).' },
   // v2.9: starter Poise card. Defends against composure (🎭) attacks
   // which Block can't touch. Every starter deck gets one of these
   // alongside Defend so the player has both shields from turn 1.
