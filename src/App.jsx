@@ -9170,7 +9170,11 @@ export default function App() {
       // Pre-pass: TENDER GREENS ROW BONUS. If every slot holds an animal
       // summoned via Tender Greens (summonSet === 'tender-greens') AND the
       // bonus hasn't already fired for the current row composition, fire it:
-      // each animal's duration +1 AND each animal's next attack doubles.
+      // each animal's NEXT ATTACK DOUBLES. (Alan, 2026-05-31: dropped the
+      // legacy +1 duration extension — it silently offset the feeding-tick
+      // and confused players who had just fed an animal expecting it to
+      // tick toward exit. The big-burst attack is the real reward; the
+      // duration extension fought the feeding mechanic for the spotlight.)
       // tenderGreensRowBonusFired marker on each envelope prevents re-fire
       // for the same row; when an animal leaves or the set changes, the
       // bonus is available again on the next full row.
@@ -9178,12 +9182,11 @@ export default function App() {
       const allTenderGreens = slotEntries.every(s => s && s.kind === 'animal' && s.summonSet === 'tender-greens');
       const allAlreadyFired = allTenderGreens && slotEntries.every(s => s.tenderGreensRowBonusFired);
       if (allTenderGreens && !allAlreadyFired) {
-        pushLog(`🥬 TENDER GREENS row complete — every animal stays one more turn AND its next attack doubles.`);
+        pushLog(`🥬 TENDER GREENS row complete — every animal's next attack doubles.`);
         for (const slotName of SLOT_ORDER) {
           const s = workingTray[slotName];
           workingTray[slotName] = {
             ...s,
-            durationRemaining: (s.durationRemaining || 0) + 1,
             nextAttackMult: 2,
             tenderGreensRowBonusFired: true,
           };
