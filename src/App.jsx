@@ -3175,8 +3175,13 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   // bundles from elite/boss combat. `opts.excludeSpellPieces` is true on
   // every combat-reward call.
   const isSpellPieceSlot = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
+  // v3.4.78 (Alan) — generalized to any lane with FFT rows. Wit + chutzpah
+  // both have row systems; their spell-piece rewards should only offer
+  // setId-tagged cards so every offered intro/subject/target progresses
+  // an existing or new FFT row.
+  const LANES_WITH_ROWS = ['wit', 'chutzpah'];
   const setTaggedOnly = (c) => {
-    if (lane !== 'wit') return true;
+    if (!LANES_WITH_ROWS.includes(lane)) return true;
     if (!isSpellPieceSlot(c)) return true;
     return !!c.setId;
   };
