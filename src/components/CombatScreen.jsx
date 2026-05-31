@@ -28,14 +28,13 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        castsThisTurn, maxCastsPerTurn,
                        isHandler, stakeAmount, setStakeAmount,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
-                       tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
+                       cornerTokens, intentHidden,
                        longThread = 0, isWit = false, wordsBank = 0,
                        crescendoBuildup = 0, crescendoBuildupRows = [],
                        scheduledEffects = [], thornsCharges = null,
                        mirrorReflectCharges = null,
                        tempHp = 0, tempHpTurns = 0,
                        playerIncomingMult = 1.0, enemyPressure = 0,
-                       loudness = 0,
                        enemySkipNextAttack = false, enemyAnnotation = null,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
@@ -448,20 +447,11 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               </span>
             );
           })()}
-          {/* Tunnel Vision / RAGE chip — only renders if active. Was previously
-              always-on for handler characters; now dormant under Animal
-              Summoner pivot. State stays for any residual gesture interaction. */}
-          {(tunnelVision > 0 || rageActive) && (
-            <span className="text-[11px] text-ember-300 font-mono cursor-help"
-                  title={`Tunnel Vision (${tunnelVision}/5).`}>🔥{tunnelVision}/5{rageActive && <span className="text-[10px] bg-ember-700 px-1 ml-0.5 rounded">RAGE</span>}</span>
-          )}
+          {/* Tunnel Vision / RAGE chip removed 2026-05-31 with the
+              chutzpah → handler pivot. State/UI fully ripped. */}
           {cornerTokens > 0 && (
             <span className="text-[11px] text-ember-300 font-mono"
                   title={`Backed Into A Corner — ${cornerTokens} token${cornerTokens === 1 ? '' : 's'}. End of turn: ${cornerTokens * 2} unblocked HP if enemy alive.`}>🏚{cornerTokens}</span>
-          )}
-          {loudCount > 0 && (
-            <span className="text-[11px] text-ember-300 font-mono"
-                  title={`Saying it Louder — ${loudCount} demanding word${loudCount === 1 ? '' : 's'} staged.`}>📢{loudCount}</span>
           )}
           {(pauseHeld || pauseHeldActive) && (
             <span className="text-[11px] text-amber-200 font-mono"
@@ -497,7 +487,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           const mirrorCap = mirrorReflectCharges?.capPerHit || 0;
           const hasAny = Object.keys(buckets).length > 0 || annRed > 0 || enemySkipNextAttack
                         || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0 || mirrorCount > 0
-                        || tempHp > 0 || playerIncomingMult > 1.0 || loudness > 0;
+                        || tempHp > 0 || playerIncomingMult > 1.0;
           if (!hasAny) return null;
           const chips = [];
           if (enemySkipNextAttack) chips.push(<span key="skip" className="text-gold-300 cursor-help" title="The enemy's next attack will be fully skipped.">🤐 SKIP NEXT</span>);
@@ -518,12 +508,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           // v3.4.67 — Handler school chips.
           if (tempHp > 0) chips.push(<span key="thp" className="text-gold-300 cursor-help" title={`Ballooning Temp HP: absorbs HP damage BEFORE your real HP. Expires after ${tempHpTurns} more turn${tempHpTurns > 1 ? 's' : ''}; any unused Temp HP is lost.`}>🎈 {tempHp} Temp HP × {tempHpTurns}t</span>);
           if (playerIncomingMult > 1.0) chips.push(<span key="sv" className="text-ember-300 cursor-help" title="Self-Vulnerable — incoming enemy damage to you is amplified. Decays back to neutral.">🩸 YOU VULN</span>);
-          if (loudness > 0) {
-            const _chutzEff = enemy?.effectiveness?.handler ?? 1.0;
-            const _pdm = playerDmgMult || 1.0;
-            const _pl = (m) => Math.max(0, Math.round(loudness * m * _chutzEff * _pdm));
-            chips.push(<span key="ld" className="text-ember-300 cursor-help" title={`Bluster Loudness: ${loudness} stack${loudness > 1 ? 's' : ''} banked. After enemy chutz-effectiveness (×${_chutzEff}) and player dmg mult (×${_pdm.toFixed(2)}): Punchline (skill, 1E) = ${_pl(2)} dmg · Now You Listen Here (×4) = ${_pl(4)} · Scorched Earth (×3) = ${_pl(3)}.`}>📢 {loudness} Loudness</span>);
-          }
           if (buckets.stripBlock) chips.push(<span key="sb" className="cursor-help" title={`At the start of each of your next ${buckets.stripBlock.turns} turn${buckets.stripBlock.turns > 1 ? 's' : ''}, strip ${buckets.stripBlock.amount} of the enemy's Block.`}>🛇 strip {buckets.stripBlock.amount}/turn × {buckets.stripBlock.turns}t</span>);
           if (buckets.weak) chips.push(<span key="w" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.weak.turns} turn${buckets.weak.turns > 1 ? 's' : ''}, apply +${buckets.weak.amount} Weak (-25% attack per stack).`}>💢 Weak +{buckets.weak.amount}/turn × {buckets.weak.turns}t</span>);
           if (buckets.vuln) chips.push(<span key="v" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.vuln.turns} turn${buckets.vuln.turns > 1 ? 's' : ''}, apply +${buckets.vuln.amount} Vulnerable (+25% spell potency per stack).`}>🩸 Vuln +{buckets.vuln.amount}/turn × {buckets.vuln.turns}t</span>);
@@ -598,9 +582,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
         isHandler={isHandler} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
         playerHp={hp} playerMaxHp={maxHp}
-        tempHp={tempHp} rageActive={rageActive} loudness={loudness}
+        tempHp={tempHp}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
-        lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
+        lastRoll={lastRoll} combatRolls={combatRolls}
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
         combatTurn={combatTurn}
         pauseHeldActive={pauseHeldActive} enemy={enemy}
@@ -666,27 +650,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).`
             : undefined;
           // v3.4.75 (Alan) — Punchline & other Loudness-consume cards show
-          // their LIVE damage on the card face, including enemy handler
-          // effectiveness, enemy Vulnerable, player Weak, and any other
-          // playerDmgMult shifts. Player should never have to math.
-          let displayCard = card;
-          const cLoud = card.effects?.consumeLoudnessAsDamage;
-          if (cLoud) {
-            const baseDmg = (loudness || 0) * cLoud;
-            const chutzEff = enemy?.effectiveness?.handler ?? 1.0;
-            const finalDmg = Math.max(0, Math.round(baseDmg * chutzEff * (playerDmgMult || 1.0)));
-            const mods = [];
-            if (chutzEff !== 1.0) mods.push(`enemy chutz ×${chutzEff}`);
-            if ((playerDmgMult || 1.0) !== 1.0) mods.push(`mult ×${(playerDmgMult || 1.0).toFixed(2)}`);
-            const modStr = mods.length > 0 ? ` (Loudness ${loudness} × ${cLoud} × ${mods.join(' × ')})` : ` (Loudness ${loudness} × ${cLoud})`;
-            const exhaustSuffix = card.effects?.exhaust ? ' Exhaust.' : '';
-            displayCard = {
-              ...card,
-              desc: loudness > 0
-                ? `Deal ${finalDmg} composure damage${modStr}. Clears Loudness.${exhaustSuffix}`
-                : `Deal Loudness × ${cLoud} composure damage. (No Loudness banked.)${exhaustSuffix}`,
-            };
-          }
+          // Punchline / consumeLoudnessAsDamage live-damage preview removed
+          // 2026-05-31 with the chutzpah → handler pivot (Loudness ripped).
+          const displayCard = card;
           return (
             <motion.button key={card.uid}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
@@ -820,9 +786,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
                        isHandler = false, stakeAmount = 0, setStakeAmount = () => {},
                        playerHp = 70, playerMaxHp = 70,
-                       tempHp = 0, rageActive = false, loudness = 0,
+                       tempHp = 0,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
-                       lastRoll = null, combatRolls = [], loudCount = 0,
+                       lastRoll = null, combatRolls = [],
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
                        combatTurn = 1,
                        pauseHeldActive = false, enemy = null,
@@ -859,7 +825,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   let crescendoPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage: baseDamage, riders, stakeBonus, loudBonus, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, loudCount, playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
+    const { damage: baseDamage, riders, stakeBonus, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { stakeAmount, playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
     // v3.4.73 (Alan): predicted damage previously showed only the cast
     // base from computeSpellDamage — but full FFT riders fire AFTER the
     // base and can add huge amounts (Bluster-1's `bonus: 12`, pressure
@@ -882,15 +848,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         damage += spike;
         damageParts.push(`+${spike} (Pressure ${enemy.pressure} × ${r.consumePressureMult})`);
       }
-      if (r.consumeLoudnessMult && loudness > 0) {
-        const spike = loudness * r.consumeLoudnessMult;
-        damage += spike;
-        damageParts.push(`+${spike} (Loudness ${loudness} × ${r.consumeLoudnessMult}) — PUNCHLINE`);
-      }
-      if (r.rageDouble && rageActive) {
-        damage = Math.round(damage * 2);
-        damageParts.push(`× 2 RAGE`);
-      }
+      // consumeLoudnessMult + rageDouble preview chips removed 2026-05-31
+      // with the chutzpah → handler pivot.
       if (r.missingHpScaling) {
         const missing = Math.max(0, playerMaxHp - playerHp);
         const bonus = missing * r.missingHpScaling;
@@ -922,10 +881,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       damage = Math.round(damage * (playerDmgMult || 1.0));
       if (damage !== before) damageParts.push(`× ${(playerDmgMult || 1.0).toFixed(2)} (Vuln/Weak mult)`);
     }
-    // v3.4.76 (Alan) — preview Loudness gain on handler Bluster casts so
-    // the player sees +N Loudness alongside the damage number.
-    const loudnessGain = fftPre.fft?.rider?.addLoudness || 0;
-    predicted = { damage, baseDamage, damageParts, loudnessGain, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
+    predicted = { damage, baseDamage, damageParts, riders, stakeBonus: stakeBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
     // v3.4.21 (Alan): preview the FFT-tier rider that will fire on cast.
     // Most specific match wins (full → partial → same-school). Each tier
     // surfaces its rider as readable chips under the Predicted damage so
@@ -1076,12 +1032,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const bonus = cur * rider.consumePressureMult;
       chips.push(cur > 0 ? `🔥 Consume ${cur} Pressure × ${rider.consumePressureMult} = +${bonus}` : `🔥 Consume Pressure × ${rider.consumePressureMult}`);
     }
-    if (rider.addLoudness) chips.push(`📢 +${rider.addLoudness} Loudness`);
-    if (rider.consumeLoudnessMult) {
-      const cur = loudness || 0;
-      const bonus = cur * rider.consumeLoudnessMult;
-      chips.push(cur > 0 ? `📢 PUNCHLINE: ${cur} × ${rider.consumeLoudnessMult} = +${bonus}` : `📢 Punchline × ${rider.consumeLoudnessMult}`);
-    }
+    // addLoudness + consumeLoudnessMult rider chips removed 2026-05-31.
     if (rider.addTempHp) chips.push(`🎈 +${rider.addTempHp.amount} Temp HP × ${rider.addTempHp.turns}t`);
     if (rider.consumeTempHpAsDamage) {
       const cur = tempHp || 0;
@@ -1089,13 +1040,13 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       chips.push(cur > 0 ? `🎈 Pop ${cur} Temp HP × ${rider.consumeTempHpAsDamage} = +${bonus}` : `🎈 Pop Temp HP × ${rider.consumeTempHpAsDamage}`);
     }
     if (rider.selfVulnerable) chips.push(`🩸 YOU Vuln ${rider.selfVulnerable.amount} × ${rider.selfVulnerable.turns}t`);
-    if (rider.rageDouble) chips.push(rageActive ? `💥 RAGE × 2 (active!)` : `💥 RAGE × 2 (if in RAGE)`);
+    // rageDouble rider chip removed 2026-05-31 (RAGE machinery ripped).
     if (rider.missingHpScaling) {
       const missing = Math.max(0, (maxHp || 0) - (hp || 0));
       const bonus = missing * rider.missingHpScaling;
       chips.push(bonus > 0 ? `🩸 +${bonus} from missing HP` : `🩸 +N × missing HP`);
     }
-    if (rider.addTunnelVision) chips.push(`🔥 +${rider.addTunnelVision} Tunnel Vision`);
+    // addTunnelVision rider chip removed 2026-05-31.
     return chips;
   }
 
@@ -1331,12 +1282,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                         🎯+{predicted.insultBonus}
                       </span>
                     )}
-                    {predicted.loudnessGain > 0 && (
-                      <span className="text-xs text-ember-300 ml-1 inline-block"
-                        title={`This cast will add +${predicted.loudnessGain} Loudness (new total: ${loudness + predicted.loudnessGain}). Spend it later with a finisher.`}>
-                        📢+{predicted.loudnessGain}
-                      </span>
-                    )}
+                    {/* loudnessGain badge removed 2026-05-31. */}
                   </div>
                 );
               })()}
@@ -1482,10 +1428,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             <span className="text-parchment-500">+</span>
             <span className="text-iris-300 font-bold" title={`Tag-resonance bonus.`}>✦{mathBreakdown.tagBonus}</span>
           </>)}
-          {predicted.loudBonus > 0 && (<>
-            <span className="text-parchment-500">+</span>
-            <span className="text-ember-300" title="Saying-it-Louder.">📢+{predicted.loudBonus}</span>
-          </>)}
+          {/* loudBonus chip removed 2026-05-31. */}
           {predicted.predatorBonus > 0 && (<>
             <span className="text-parchment-500">+</span>
             <span className="text-ember-300" title="Predator rider.">🩸+{predicted.predatorBonus}</span>

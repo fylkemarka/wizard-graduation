@@ -3711,15 +3711,9 @@ export default function App() {
   const setBracingArmed             = makeTriggerSetter('bracingArmed');
   const [hpAtTurnStart, setHpAtTurnStart] = useState(0);             // D-4 support — capture at turn start, compare at end
   const [lastCastDamage, setLastCastDamage] = useState(0);           // O-1 support — captured per cast
-  // v2.24: handler TUNNEL VISION meter. Fills +1 per handler-lane card
-  // played (intro/subject/modifier/target — anywhere staging completes).
-  // At >= 5 at start of your turn, you enter RAGE for that turn:
-  // playerDmgMult +0.5 (channeled through adjustPlayerDmg so it interacts
-  // with the existing Weak/Strengthened plumbing) and RAGE-only cards
-  // (Bare Knuckles) become castable. At end of RAGE turn, reset meter to
-  // 0 and restore the +0.5 bonus.
-  const [tunnelVision, setTunnelVision] = useState(0);
-  const [rageActive, setRageActive] = useState(false);
+  // Tunnel Vision / RAGE machinery ripped 2026-05-31 with the chutzpah →
+  // handler pivot. Handler combat is now Animal Summoner (lures + animals),
+  // not a chip-and-spike rage meter.
   // v2.34: wit LONG THREAD — consecutive-turn scaling counter. Ticks +1
   // at end of every player turn where the player cast a wit Effect (target)
   // AND took zero unblocked HP damage. Block-absorbed hits DON'T break
@@ -3759,14 +3753,9 @@ export default function App() {
   // damage absorbed by THIS card's block contribution. Stores the block
   // snapshot right after the card was played + the heal cap (5).
   const [complimentSnap, setComplimentSnap] = useState(null);
-  // v3.4.67 — Handler schools state.
-  //   Bluster: loudness counter (chip+finisher). Persists all combat.
-  //   Ballooning: tempHp + tempHpExpiresOnTurn. Decays at start of player
-  //     turn once the marker passes. Damage routing: incoming →
-  //     block → tempHp → HP/Comp.
-  //   Ballistic: playerIncomingMult — multiplier on incoming damage to
-  //     player. Self-Vulnerable raises it. Decays per turn.
-  const [loudness, setLoudness] = useState(0);
+  // Defensive temp-HP buffer (formerly Ballooning school; kept as
+  // a generic incoming-damage buffer that some events/relics could feed).
+  // Loudness state ripped 2026-05-31 with the chutzpah → handler pivot.
   const [tempHp, setTempHp] = useState(0);
   const [tempHpTurns, setTempHpTurns] = useState(0);
   const [playerIncomingMult, setPlayerIncomingMult] = useState(1.0);
@@ -3861,12 +3850,8 @@ export default function App() {
   // bravado that didn't close the deal. Resets to 0 every turn (after the
   // damage tick fires).
   const [cornerTokens, setCornerTokens] = useState(0);
-  // v2.29: handler SAYING IT LOUDER — per-turn counter of handler word
-  // cards (intro/subject/modifier) carrying the 'demanding' tag. Reset at
-  // the start of every player turn. Read by `loudScaling` targets to add
-  // +loudCount * 3 to spell damage. The combo path is: stack as many
-  // demanding-tagged words into one turn as possible, then fire I SAID.
-  const [loudCount, setLoudCount] = useState(0);
+  // loudCount (SAYING IT LOUDER) ripped 2026-05-31 with the chutzpah →
+  // handler pivot.
   // v2.26: handler STORMING OUT — when a stormOut target casts, the enemy's
   // next intent is HIDDEN from the UI (we don't render the telegraph). The
   // flag persists through ONE upcoming player turn (the intent rolled during
@@ -5404,9 +5389,7 @@ export default function App() {
     setPendingTriggers({});
     setHpAtTurnStart(hp);
     setLastCastDamage(0);
-    // v2.24: handler tunnel-vision meter and RAGE state reset per combat.
-    setTunnelVision(0);
-    setRageActive(false);
+    // Tunnel Vision / RAGE resets removed 2026-05-31 (machinery ripped).
     // v2.34: wit LONG THREAD — meter + per-turn flags reset per combat.
     setLongThread(0);
     // v3.3: FFT strategy resets per combat.
@@ -5424,8 +5407,7 @@ export default function App() {
     setNextCardFree(false);
     setEnemySkipNextTurn(false);
     setComplimentSnap(null);
-    // v3.4.67 — handler school state resets per combat.
-    setLoudness(0);
+    // Handler defensive temp-HP buffer resets per combat.
     setTempHp(0);
     setTempHpTurns(0);
     setPlayerIncomingMult(1.0);
@@ -5456,8 +5438,7 @@ export default function App() {
     setCombatTurn(1);
     // v2.25: handler corner-token counter resets per combat.
     setCornerTokens(0);
-    // v2.29: handler saying-it-louder counter resets per combat (and per turn).
-    setLoudCount(0);
+    // loudCount reset removed 2026-05-31.
     // v2.26: handler hidden-intent flag resets per combat.
     setIntentHidden(false);
     stormOutFiredRef.current = false;
@@ -5724,27 +5705,9 @@ export default function App() {
       return;
     }
 
-    // v2.24: tunnel-vision +1 helper. Bumps the meter when a handler-lane
-    // card lands a successful stage. Does NOT fire on refunds — the staging
-    // outcome (replace, success) calls this AFTER the new card is committed.
-    const bumpTunnelVisionIfHandler = () => {
-      if (card.lane === 'handler') setTunnelVision(n => n + 1);
-      // v2.29: saying-it-louder. Handler word cards (intro/subject/modifier)
-      // with the 'demanding' tag are the repetition beats. Targets don't
-      // count — they consume loudCount, they don't add to it.
-      if (card.lane === 'handler'
-          && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
-          && (card.tags || []).includes('demanding')) {
-        setLoudCount(n => n + 1);
-      }
-    };
-    // v2.24: target-side guard. "Bare knuckles." (and any future card with
-    // `requiresRage: true`) is castable only while RAGE is active.
-    if (card.slot === 'target' && card.effect?.requiresRage && !rageActive) {
-      setEnergy(e => e + (card.cost || 0));
-      pushLog(`🔥 ${card.phrase || card.name} needs RAGE — handler isn't there yet.`);
-      return;
-    }
+    // bumpTunnelVisionIfHandler + requiresRage gate removed 2026-05-31
+    // with the chutzpah → handler pivot. No-op shim retained where called.
+    const bumpTunnelVisionIfHandler = () => {};
 
     // Handler Animal Summoner — lure cards stage into the first empty
     // tray slot (intro → subject → target). Slot value becomes a
@@ -6254,8 +6217,7 @@ export default function App() {
       discardSize: discard.length,
       deckSize: deck.length + hand.length + discard.length + exiled.length,
       missingHpFrac: maxHp > 0 ? (maxHp - hp) / maxHp : 0,
-      stakeAmount, // v2.11: handler ALL IN
-      loudCount, // v2.29: handler SAYING IT LOUDER
+      stakeAmount, // v2.11: handler ALL IN (legacy, retained for shared.js call)
       // v2.30: handler SMELL WEAKNESS — predator rider reads enemy debuff state
       playerDmgMult, enemyDmgMult,
       // v2.34: wit LONG THREAD — threadScaling targets read this for +N × LT
@@ -6273,7 +6235,7 @@ export default function App() {
       // v2.50: BABBLING 2nd-cast flag — doubleOnSecondCast targets fire here.
       isSecondCast: ctxIsSecondCast,
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, loudBonus, predatorBonus, threadBonus, footnoteBonus, insultBonus, insultMatches, insultMatchedTags } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, predatorBonus, threadBonus, footnoteBonus, insultBonus, insultMatches, insultMatchedTags } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.48: AWKWARD PAUSE — compute the doubling delta for telemetry by
     // re-running the formula WITHOUT the doubling. Only when actually paused.
@@ -6293,14 +6255,7 @@ export default function App() {
       });
       setPauseHeldActive(false);
     }
-    // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
-    if (loudBonus > 0) {
-      pushLog(`📢 SAID IT LOUDER ×${loudCount} → +${loudBonus} dmg`);
-      logEvent('handler.loud', {
-        loudCount, bonusDamage: loudBonus,
-        enemyId: enemy?.id, enemyTier: enemy?.tier,
-      });
-    }
+    // SAYING IT LOUDER block removed 2026-05-31.
     // v2.30: SMELL WEAKNESS — surface the predator rider when it fired.
     if (predatorBonus > 0) {
       pushLog(`🩸 PREDATOR — enemy debuffed → +${predatorBonus} dmg`);
@@ -6346,10 +6301,7 @@ export default function App() {
     if (target.lane === 'wit') {
       setCastWitEffectThisTurn(true);
     }
-    // Reset loudCount — the cast consumes the build-up. Future demanding
-    // words in the same turn would re-arm if a second cast were possible,
-    // but the cast cap is 1/turn so this is mostly a sanity reset.
-    if (target.effect?.loudScaling) setLoudCount(0);
+    // loudCount reset on loudScaling cast removed 2026-05-31.
     // v3.4.77 — ALL IN mechanic pulled. stakeAmount stays at 0 (state
     // declared but no UI to change it); HP-deduction + log line gone.
 
@@ -6427,15 +6379,8 @@ export default function App() {
     const annPerCast = annoFx('bonusSpellDamagePerCast');
     if (annPerCast > 0) dmg += annPerCast * castsThisCombat;
     setCastsThisCombat(c => c + 1);
-    // v2.24: RAGE-only target safety net — if a requiresRage target made it
-    // to cast time without RAGE active (e.g. the rage turn ended while the
-    // card was staged), half-damage + exile-on-resolve. Staging is the
-    // primary gate; this is the fallback.
-    const rageMissing = !!target.effect?.requiresRage && !rageActive;
-    if (rageMissing) {
-      dmg = Math.round(dmg * 0.5);
-      pushLog(`🔥 ${target.phrase || target.name} fired without RAGE — half damage, exiled.`);
-    }
+    // requiresRage safety-net removed 2026-05-31 with RAGE rip.
+    const rageMissing = false;
     // v2.26: STORMING OUT — if the target carries stormOut, every remaining
     // energy point AT CAST TIME (after the card's own cost was paid on stage)
     // converts to +bonusPerEnergy damage. The energy burns to zero, the turn
@@ -6547,19 +6492,8 @@ export default function App() {
         pushLog(`🔥 Pressure spike: ${enemy.pressure} × ${rider.consumePressureMult} = +${bonus} damage. Pressure cleared.`);
         setEnemy(e => e ? { ...e, pressure: 0 } : e);
       }
-      // v3.4.75 — Bluster's new Chip + Loud Finisher. Eat all Loudness for
-      // damage × N, then clear. The finisher (bluster-5 / ballistic-5)
-      // is the only way to cash in.
-      if (rider.consumeLoudnessMult && loudness > 0) {
-        const bonus = loudness * rider.consumeLoudnessMult;
-        dmg += bonus;
-        pushLog(`📢 PUNCHLINE: ${loudness} Loudness × ${rider.consumeLoudnessMult} = +${bonus} damage. Loudness cleared.`);
-        setLoudness(0);
-      }
-      if (rider.rageDouble && rageActive) {
-        dmg = Math.round(dmg * 2);
-        pushLog(`💥 RAGE × 2 on Ballistic cast.`);
-      }
+      // consumeLoudnessMult + rageDouble riders removed 2026-05-31 with
+      // chutzpah → handler pivot. Both were chutzpah-school finisher hooks.
       if (rider.missingHpScaling) {
         const missing = Math.max(0, maxHp - hp);
         const bonus = missing * rider.missingHpScaling;
@@ -6914,11 +6848,7 @@ export default function App() {
         setEnemy(e => e ? { ...e, pressure: (e.pressure || 0) + rider.addPressure } : e);
         pushLog(`🔥 +${rider.addPressure} Pressure on enemy.`);
       }
-      // v3.4.75 — Bluster Loudness stack.
-      if (rider.addLoudness) {
-        setLoudness(n => n + rider.addLoudness);
-        pushLog(`📢 +${rider.addLoudness} Loudness (saved for the punchline).`);
-      }
+      // addLoudness rider removed 2026-05-31 (Loudness mechanic ripped).
       if (rider.addTempHp) {
         const { amount, turns } = rider.addTempHp;
         setTempHp(t => t + amount);
@@ -6931,10 +6861,7 @@ export default function App() {
         setPlayerIncomingMultTurns(t => Math.max(t, turns));
         pushLog(`🩸 Self-Vuln +${amount} for ${turns} turn${turns > 1 ? 's' : ''}.`);
       }
-      if (rider.addTunnelVision) {
-        setTunnelVision(tv => tv + rider.addTunnelVision);
-        pushLog(`🔥 +${rider.addTunnelVision} Tunnel Vision.`);
-      }
+      // addTunnelVision rider removed 2026-05-31.
       // v3.4.42 — Thorns/Crescendo redesign riders.
       // mirrorReflectCharges: N enemy hits each reflect 100% of damage taken,
       // capped per hit. Stored as a count-based charge that the attack
@@ -7703,23 +7630,8 @@ export default function App() {
       applyDamageToEnemyComposure(fx.compDmg);
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
     }
-    // v3.4.73 (Alan) — Punchline-style payoff for handler. Eats current
-    // Loudness × mult as composure damage, then clears Loudness.
-    // v3.4.75 (Alan) — incorporate buffs and enemy statuses. The cast is
-    // handler-flavored, so apply enemy effectiveness vs handler + the
-    // shared playerDmgMult (carries enemy Vulnerable / player Weak / etc).
-    if (fx.consumeLoudnessAsDamage && loudness > 0) {
-      const mult = fx.consumeLoudnessAsDamage;
-      const baseDmg = loudness * mult;
-      const chutzEff = enemy?.effectiveness?.handler ?? 1.0;
-      const finalDmg = Math.max(0, Math.round(baseDmg * chutzEff * playerDmgMult));
-      applyDamageToEnemyComposure(finalDmg);
-      logBits.push(`📢 PUNCHLINE: ${loudness} Loudness × ${mult} = ${baseDmg}`
-        + (chutzEff !== 1.0 ? ` × ${chutzEff} chutz-eff` : '')
-        + (playerDmgMult !== 1.0 ? ` × ${playerDmgMult.toFixed(2)} mult` : '')
-        + ` → ${finalDmg} comp dmg`);
-      setLoudness(0);
-    }
+    // consumeLoudnessAsDamage (Punchline-style payoff) removed 2026-05-31
+    // with the chutzpah → handler pivot. Loudness mechanic ripped entirely.
     // v3.4.19 — tutor a card by slot. Walks the deck for the first
     // matching slot and pulls it into hand. Random draws stay random
     // for general draw events; tutoring is the deliberate "I'm
@@ -8065,13 +7977,7 @@ export default function App() {
       setEnemy(e => e ? { ...e, dot: { damage: d.damage, turnsRemaining: d.turns, total: d.turns } } : e);
       logBits.push(`🩸 Bleed ${d.damage}/turn × ${d.turns}`);
     }
-    // v2.24: tunnel-vision pump from card side effects (Foaming at the mouth,).
-    // Pushes the handler RAGE meter without requiring the card to be played
-    // as a particular slot — the effect itself is what fills.
-    if (fx.tunnelVision) {
-      setTunnelVision(n => n + fx.tunnelVision);
-      logBits.push(`🔥 +${fx.tunnelVision} Tunnel`);
-    }
+    // fx.tunnelVision handler removed 2026-05-31.
     // Reveal enemy's next intent. Jnsq "the next thing you'll do".
     if (fx.revealNextIntent) {
       // Pre-roll the upcoming intent and store it for UI display.
@@ -8562,15 +8468,7 @@ export default function App() {
       piles: pilesSnapshot(),
     });
 
-    // v2.24: RAGE turn ending — reset meter + undo the +0.5 potency bump.
-    // We check this BEFORE the multiplier-drift block so the restore-to-1
-    // doesn't double-count with the natural drift.
-    if (rageActive) {
-      adjustPlayerDmg(-0.5);
-      setTunnelVision(0);
-      setRageActive(false);
-      pushLog(`🔥 Rage dissipates.`);
-    }
+    // RAGE turn-end reset removed 2026-05-31 (machinery ripped).
     // v2.25: DOUBLING DOWN billing. If the player landed any handler
     // doubleDown casts this turn and the enemy is still alive, eat
     // cornerTokens × 2 unblocked HP. Reset tokens either way.
@@ -9071,8 +8969,7 @@ export default function App() {
     setCastsThisTurn(0);
     // v2.11: forget uncommitted stakes at turn boundary.
     setStakeAmount(0);
-    // v2.29: reset saying-it-louder counter at turn boundary.
-    setLoudCount(0);
+    // loudCount turn reset removed 2026-05-31.
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
     // v2.39: OPENING STATEMENT — bump the combat-turn counter. The first
@@ -9153,15 +9050,7 @@ export default function App() {
       });
     }
 
-    // v2.24: RAGE entry. If the handler TUNNEL VISION meter is at 5+
-    // entering the new player turn, flip into RAGE: +50% potency for
-    // this turn. The bonus is applied to playerDmgMult (clamped at 1.5)
-    // and rolled back at the top of the next endTurn call.
-    if (tunnelVision >= 5 && !rageActive) {
-      adjustPlayerDmg(+0.5);
-      setRageActive(true);
-      pushLog(`🔥 RAGE — handler unleashed (+50% damage).`);
-    }
+    // RAGE entry on turn start removed 2026-05-31 (machinery ripped).
 
     // 6. New intent. Track what just fired and force a switch if the
     // enemy has already done the same kind twice in a row — saves the
@@ -10512,9 +10401,7 @@ export default function App() {
       isJnsq={selectedCharacter?.lane === 'jnsq'}
       rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
       lastRoll={lastRoll} combatRolls={combatRolls}
-      tunnelVision={tunnelVision} rageActive={rageActive}
       cornerTokens={cornerTokens} intentHidden={intentHidden}
-      loudCount={loudCount}
       longThread={longThread}
       wordsBank={wordsBank}
       crescendoBuildup={crescendoBuildup}
@@ -10526,7 +10413,6 @@ export default function App() {
       tempHpTurns={tempHpTurns}
       playerIncomingMult={playerIncomingMult}
       enemyPressure={enemy?.pressure || 0}
-      loudness={loudness}
       enemySkipNextAttack={enemySkipNextAttack}
       tutorFlash={tutorFlash}
       tutorArmed={tutorArmed}
