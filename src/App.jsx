@@ -1365,24 +1365,24 @@ const ANIMALS = {
     name: 'The Long Hare',
     icon: '🐇',
     attack: 8,
-    attackPool: 'hp',
+    attackPool: 'composure',
     duration: 2,
     onAttackEffect: { applyWeak: 1 },
     turnGrant: { poise: 5 },
     onExit: { healComp: 4 },
     flavor: 'It is many. It is one. It is, frankly, late.',
-    desc: 'Attacks for 8 HP and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 4 Composure on exit.',
+    desc: 'Attacks for 8 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 4 Composure on exit.',
   },
   mccloven: {
     name: 'McCloven',
     icon: '🦌',
     attack: 10,
-    attackPool: 'hp',
+    attackPool: 'composure',
     duration: 2,
     turnGrant: { block: 5 },
     onExit: { healHp: 5 },
     flavor: 'A great cloven thing has, by collective vote, decided.',
-    desc: 'Attacks for 10 HP each turn for 2 turns. Grants 5 Block per turn. Heals 5 HP on exit.',
+    desc: 'Attacks for 10 composure each turn for 2 turns. Grants 5 Block per turn. Heals 5 HP on exit.',
   },
   bear: {
     name: 'Bear',
@@ -3779,6 +3779,9 @@ export default function App() {
   // Used to anti-repetition the next roll: if both are the same kind,
   // the next rollIntent excludes that kind. Reset per combat.
   const [lastIntentKinds, setLastIntentKinds] = useState([]);
+  // Loom Familiar steal-cap counter (Alan, 2026-05-31): max 2 discard-hand
+  // intents per combat, never two turns in a row. Reset per combat.
+  const [enemyDiscardCount, setEnemyDiscardCount] = useState(0);
   // Increments every time a new intent rolls. Used as a render key so
   // the intent box flashes empty-then-back even when the new intent is
   // the same KIND as the previous (e.g. Block after Block) — was hard
@@ -5629,6 +5632,7 @@ export default function App() {
     setPierceNextCast(false);
     setBoostNextHandlerCast(0);
     setLastIntentKinds([]);
+    setEnemyDiscardCount(0);
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
     setPeekedNextIntent(null);
@@ -9980,6 +9984,13 @@ export default function App() {
     setLastIntentKinds(newHistory);
     const exclude = (newHistory.length === 2 && newHistory[0] === newHistory[1])
       ? [newHistory[0]] : [];
+    // Loom Familiar steal-cap (Alan, 2026-05-31): never two discard-hand
+    // turns in a row; cap at 2 per combat. Excluding the kind from the
+    // roll cleanly removes it from the pool.
+    const justFiredDiscard = justFiredKind === 'discard-hand';
+    if (enemy?.id === 'e2-loom-familiar' && (justFiredDiscard || enemyDiscardCount >= 2)) {
+      if (!exclude.includes('discard-hand')) exclude.push('discard-hand');
+    }
     if (enemy) {
       // v2.7: if a peeked intent is queued (from "the next thing you'll do"),
       // it locks the next intent — the peek is honest.
@@ -10458,6 +10469,7 @@ export default function App() {
         }
         setHand(handCopy);
         setDiscard(d => [...d, ...idxs]);
+        setEnemyDiscardCount(c => c + 1);
         pushLog(`👹 ${e.name}: 🗑 you lose ${n} card${n === 1 ? '' : 's'} (${idxs.map(c => c.name || c.phrase || '?').join(', ')}).`);
         // v3.2: surface the taken cards visually. The log line alone gets
         // missed — Alan playtest: "When loom familiar takes a card,
