@@ -4301,7 +4301,7 @@ export default function App() {
       deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
     handler: {
-      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'cv2-g-shove', 'c-defend'],
+      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'cv2-k-square-up', 'c-defend'],
       deck: ['cv2-k-square-up', 'c-defend', 'c-compose'],
     },
     jnsq: {
@@ -4386,9 +4386,9 @@ export default function App() {
     handler: {
       // DEV_PRESETS for the Handler — Animal Summoner build (2026-05-31 pivot).
       // Each tier seeds a deck representative of what the player can build to.
-      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-g-slams-table', 'cv2-g-shove', 'c-amplify'],
-      3: ['cv2-l-fish-food', 'cv2-l-cheese', 'cv2-g-pontificate', 'cv2-g-headbutt', 'c-mend'],
-      4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-g-pontificate', 'c-bulwark', 'c-acuity'],
+      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'cv2-k-square-up', 'c-amplify'],
+      3: ['cv2-l-fish-food', 'cv2-l-cheese', 'cv2-l-birdseed', 'cv2-k-square-up', 'c-mend'],
+      4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-l-cheese', 'c-bulwark', 'c-acuity'],
     },
     jnsq: {
       2: ['jv2-t-third-tuesday', 'jv2-i-astrally', 'jv2-p-hold-my-drink', 'jv2-k-shouldnt-said-have-you-eaten', 'c-channel'],
@@ -8513,6 +8513,7 @@ export default function App() {
     //      animals wait until the NEXT end-of-turn to act.
     if (selectedCharacter?.lane === 'handler') {
       const nextSlots = {};
+      const luresToRecycle = []; // lure cards returned to discard on transform
       let summonerKilledEnemy = false;
       for (const slotName of ['intro', 'subject', 'target']) {
         const slot = tray[slotName];
@@ -8558,6 +8559,10 @@ export default function App() {
           if (nextTurns <= 0) {
             const animal = ANIMALS[slot.animalId];
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || slot.animalId} arrives!`);
+            // Lure card cycles back to discard so it can be redrawn (no exhaust).
+            // The animal entity replaces it in the stage slot — the entity is
+            // not a card; it's pure state with no need to be in any pile.
+            if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: slot.animalId,
@@ -8572,6 +8577,10 @@ export default function App() {
         }
       }
       setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
+      if (luresToRecycle.length > 0) {
+        setDiscard(d => [...d, ...luresToRecycle]);
+        pushLog(`🪱 ${luresToRecycle.length === 1 ? 'Lure' : 'Lures'} → discard.`);
+      }
       if (summonerKilledEnemy) return;
     }
 
