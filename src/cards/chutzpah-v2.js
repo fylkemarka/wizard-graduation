@@ -525,8 +525,8 @@ const STARTER_CARDS = [
   { id: 'cv2-k-square-up', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'skill',
     name: 'Square Up', phrase: 'Square Up',
     tags: ['threatening', 'direct'],
-    effects: { block: 4, loseHp: 1, exhaust: true },
-    desc: 'Lose 1 HP. Gain 4 Block. Exhaust.',
+    effects: { block: 7, loseHp: 1, exhaust: true },
+    desc: 'Lose 1 HP. Gain 7 Block. Exhaust.',
     flavor: 'You take a step closer. The room rearranges itself slightly.' },
   // Shove — small gesture that bypasses the tray.
   { id: 'cv2-g-shove', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
