@@ -3988,12 +3988,12 @@ export default function App() {
   // hunger grace period before starvation.
   const [luresPlayedThisTurn, setLuresPlayedThisTurn] = useState([]);
   // upgradedAnimals — species IDs that have been trained to T2 at an Inn.
-  // getAnimal(id) reads this set and merges getAnimal(id).upgrade when present
+  // getAnimal(id) reads this set and merges ANIMALS[id].upgrade when present
   // so all downstream stat reads see the upgraded values. Persists across
   // combats within a run (set is run-wide state, not per-combat).
   const [upgradedAnimals, setUpgradedAnimals] = useState(() => new Set());
   const getAnimal = (id) => {
-    const base = getAnimal(id);
+    const base = ANIMALS[id];
     if (!base) return base;
     if (upgradedAnimals.has(id) && base.upgrade) {
       return { ...base, ...base.upgrade };
