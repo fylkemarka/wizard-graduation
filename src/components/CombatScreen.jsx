@@ -1261,7 +1261,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         ? `🍖 Click to extend ${animal?.name || 'animal'} by 1 turn.`
         : whistleArmed
         ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}.`
-        : `${animal?.name || card.animalId} — ${animal?.desc || ''} ${card.durationRemaining} turn${card.durationRemaining === 1 ? '' : 's'} left.${predatorNote}`;
+        : (() => {
+            const shownDur = Math.max(0, (card.durationRemaining || 0) - 1);
+            return `${animal?.name || card.animalId} — ${animal?.desc || ''} ${shownDur} turn${shownDur === 1 ? '' : 's'} left.${predatorNote}`;
+          })();
       const armedLabel = shooArmed ? ' · 👋 click to shoo'
                        : treatArmed ? ' · 🍖 click to treat'
                        : whistleArmed ? (isWhistlePick1 ? ' · 🎶' : ' · 🎶 click to swap')
@@ -1285,8 +1288,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {(animal?.attack || 0) > 0
-              ? `${animal.attack} dmg / turn · ${card.durationRemaining}t left`
-              : `(flops) · ${card.durationRemaining}t left`}
+              ? `${animal.attack} dmg / turn · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`
+              : `(flops) · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`}
             {predatorNote}
           </span>
           {animal?.feedKey && (() => {
