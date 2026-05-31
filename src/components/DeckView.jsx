@@ -53,7 +53,7 @@ export function DeckView({ open, onClose, hand = [], deck = [], discard = [], ex
     rowGroups[c.setId].push(c);
   }
 
-  // Group: tier → list of rows with progress > 0. Wit-only since chutzpah
+  // Group: tier → list of rows with progress > 0. Wit-only since handler
   // retired FFT 2026-05-31 (Animal Summoner pivot).
   const rowsByTier = {};
   for (const tier of WIT_TIER_ORDER) rowsByTier[tier] = [];

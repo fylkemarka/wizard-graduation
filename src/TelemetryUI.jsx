@@ -100,7 +100,7 @@ export function TelemetryBadge() {
               onChange={(e) => setLabelDraft(e.target.value)}
               onBlur={commitLabel}
               onKeyDown={(e) => { if (e.key === 'Enter') { commitLabel(); e.currentTarget.blur(); } }}
-              placeholder='e.g. "chutzpah build #3"'
+              placeholder='e.g. "handler build #3"'
               style={{
                 width: '100%',
                 padding: '4px 6px',

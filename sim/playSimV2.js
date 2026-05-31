@@ -13,7 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { WIT_V2, WIT_V2_BY_SLOT } from '../src/cards/wit-v2.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from '../src/cards/wit-v2-rows.js';
-import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from '../src/cards/chutzpah-v2.js';
+import { HANDLER_V2, HANDLER_V2_BY_SLOT } from '../src/cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from '../src/cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/cards/shared.js';
 
@@ -30,29 +30,29 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/ca
 // thematic defaults (Pratchett-bureaucratic / vain / pedantic etc.).
 const ENEMIES = [
   // Act 1 — Thread Path (the countryside)
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 22, hp: 999, tier: 'normal', atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 20, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 }, insultVulnerabilities: ['observational', 'ironic'] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 24, hp: 999, tier: 'normal', atk: 7, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty'] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 40, hp: 999, tier: 'elite',  atk: 9, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
-  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 40, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['petty', 'observational'] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 55, hp: 999, tier: 'boss',   atk: 8, effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 }, insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'] },
-  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 22, hp: 999, tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'observational'] },
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 22, hp: 999, tier: 'normal', atk: 8, effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
+  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 20, hp: 999, tier: 'normal', atk: 7, effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 }, insultVulnerabilities: ['observational', 'ironic'] },
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 24, hp: 999, tier: 'normal', atk: 7, effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty'] },
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 40, hp: 999, tier: 'elite',  atk: 9, effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
+  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 40, hp: 999, tier: 'elite',  atk: 7, effectiveness: { handler: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['petty', 'observational'] },
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 55, hp: 999, tier: 'boss',   atk: 8, effectiveness: { handler: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 }, insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'] },
+  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 22, hp: 999, tier: 'normal', atk: 6, effectiveness: { handler: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'observational'] },
   // Act 2 — Forge Path (the mines and caves)
-  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 18, hp: 10,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['petty'] },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 28, hp: 22,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 45, hp: 28,  tier: 'elite',  atk: 10,effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 50, hp: 50,  tier: 'boss',   atk: 9, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty', 'absurd'] },
-  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 26, hp: 14, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['academic', 'petty'] },
+  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 18, hp: 10,  tier: 'normal', atk: 6, effectiveness: { handler: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { handler: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['petty'] },
+  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 28, hp: 22,  tier: 'elite',  atk: 8, effectiveness: { handler: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 45, hp: 28,  tier: 'elite',  atk: 10,effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 50, hp: 50,  tier: 'boss',   atk: 9, effectiveness: { handler: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty', 'absurd'] },
+  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 26, hp: 14, tier: 'normal', atk: 7, effectiveness: { handler: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['academic', 'petty'] },
   // Act 3 — Staff Path (the deep forest, final act)
-  { id: 'e1-acolyte',       act: 3, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
-  { id: 'e1-imp',           act: 3, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'sarcastic'] },
-  { id: 'e1-shrine-rat',    act: 3, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 }, insultVulnerabilities: [] },
-  { id: 'e1-tutor',         act: 3, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { chutzpah: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 }, insultVulnerabilities: ['absurd', 'ironic'] },
-  { id: 'e1-thicket',       act: 3, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e1-boss-thornlord',act: 3, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'] },
-  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['academic', 'observational'] },
+  { id: 'e1-acolyte',       act: 3, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { handler: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
+  { id: 'e1-imp',           act: 3, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'sarcastic'] },
+  { id: 'e1-shrine-rat',    act: 3, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 }, insultVulnerabilities: [] },
+  { id: 'e1-tutor',         act: 3, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { handler: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 }, insultVulnerabilities: ['absurd', 'ironic'] },
+  { id: 'e1-thicket',       act: 3, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { handler: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
+  { id: 'e1-boss-thornlord',act: 3, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { handler: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'] },
+  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { handler: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['academic', 'observational'] },
 ];
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
@@ -80,8 +80,8 @@ const HAND_SIZE = 6;
 const INTER_ACT_HEAL_RATIO = 0.35; // v2.22: 0.55 → 0.35 (live-play attrition fix)
 const MAX_COMBAT_TURNS = 30;  // safety net
 
-const LANE_POOL = { wit: WIT_V2, chutzpah: CHUTZPAH_V2, jnsq: JNSQ_V2 };
-const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, chutzpah: CHUTZPAH_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
+const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
+const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
 
 // =============================================================================
 // 2. HELPERS
@@ -246,10 +246,10 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
     }
   }
   // v2.29: detect if a loudScaling target ("I SAID.") is in hand. If so,
-  // bias toward chutzpah cards carrying the 'demanding' tag in same-school
+  // bias toward handler cards carrying the 'demanding' tag in same-school
   // slot picks — each demanding word adds +3 to the eventual cast for free.
   const hasLoudTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier')
-    && state.hand.some(c => c.lane === 'chutzpah' && c.effect?.loudScaling);
+    && state.hand.some(c => c.lane === 'handler' && c.effect?.loudScaling);
   // v2.30: detect if a predator target ("comes apart in your hands.") is in
   // hand. If so, strongly bias toward debuff-applying word cards in this
   // slot pick — applying Vuln/Weak BEFORE the cast arms the +6 predator
@@ -257,7 +257,7 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
   // (vulnerable: 1 on stage); other intros/subjects with effects.vulnerable
   // or effects.weak also qualify.
   const hasPredatorTarget = (slot === 'intro' || slot === 'subject' || slot === 'modifier')
-    && state.hand.some(c => c.lane === 'chutzpah' && (c.effect?.predator || 0) > 0);
+    && state.hand.some(c => c.lane === 'handler' && (c.effect?.predator || 0) > 0);
   // v2.42: detect if a pierceVulnerableInsult wit target is in hand AND the
   // current enemy has a non-empty insultVulnerabilities list. If so, bias
   // toward cards whose tags overlap with the vulns list — each matched tag
@@ -273,19 +273,19 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
     const c = state.hand[i];
     if (c.slot !== slot) continue;
     if ((c.cost || 0) > energyLeft) continue;
-    // v2.24: prefer chutzpah-lane cards when the rage meter is climbing.
+    // v2.24: prefer handler-lane cards when the rage meter is climbing.
     // Skip cards that require rage when rage isn't active (gates Bare Knuckles).
     if (c.effect?.requiresRage) continue;
     const tier = c.tier || 1;
     const stat = c.stats?.[c.lane] || 0;
     // v2.24: bias toward tunnel-vision-pumping cards while meter is low,
-    // and toward chutzpah cards in general while we're close to 5.
+    // and toward handler cards in general while we're close to 5.
     let score = tier * 10 + stat;
-    if (state.lane === 'chutzpah') {
+    if (state.lane === 'handler') {
       if (c.effects?.tunnelVision && (state.tunnelVision || 0) < 5) score += 5;
-      if (c.lane === 'chutzpah' && (state.tunnelVision || 0) >= 4 && (state.tunnelVision || 0) < 5) score += 4;
+      if (c.lane === 'handler' && (state.tunnelVision || 0) >= 4 && (state.tunnelVision || 0) < 5) score += 4;
     }
-    // v2.29: when an I SAID. finisher is in hand, demanding-tagged chutzpah
+    // v2.29: when an I SAID. finisher is in hand, demanding-tagged handler
     // words break ties WITHIN tier. Keep the cmp against bestTier*10+bestStat
     // so this doesn't override the existing tier-first preference.
     // v2.53: bumped from +3 to +7 so demanding-tagged words ALSO outscore
@@ -295,13 +295,13 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
     // the stack on cast. +7 lifts demanding tier-1 words above non-demanding
     // tier-2 baselines when an I SAID. target is in hand and committed.
     let effectiveStat = stat;
-    if (hasLoudTarget && c.lane === 'chutzpah' && (c.tags || []).includes('demanding')) {
+    if (hasLoudTarget && c.lane === 'handler' && (c.tags || []).includes('demanding')) {
       effectiveStat = stat + 7;
     }
     // v2.30: when a predator target is in hand, bias toward debuff-appliers
     // (vulnerable or weak) staged BEFORE the cast. The bonus is +6 flat —
     // larger than the loud-bonus per-card +3 — so the bias is stronger.
-    if (hasPredatorTarget && c.lane === 'chutzpah'
+    if (hasPredatorTarget && c.lane === 'handler'
         && (c.effects?.vulnerable || c.effects?.weak)) {
       effectiveStat = effectiveStat + 5;
     }
@@ -374,7 +374,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
       const dmgType = c.effect?.damageType || 'composure';
       const eff = enemy.effectiveness || {};
-      const enemyMult = (dmgType === 'physical') ? (eff.physical ?? 1.0) : (eff[c.effect?.scaleBy || c.lane || 'chutzpah'] ?? 1.0);
+      const enemyMult = (dmgType === 'physical') ? (eff.physical ?? 1.0) : (eff[c.effect?.scaleBy || c.lane || 'handler'] ?? 1.0);
       const predicted = preview.damage * enemyMult * (state.playerDmgMult || 1);
       const remaining = dmgType === 'physical' ? enemy.currentHp : enemy.currentComp;
       // v2.33: gate loosened 1.1 → 0.8 because at 1.0 the preview excludes
@@ -383,10 +383,10 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       // v2.53: loosened further 0.8 → 0.65.
       // v3.0 cycle 3: on RAGE turns, drop the gate to 0.40 — RAGE itself
       // adds +0.5× damage (so preview understates) AND RAGE is the "going
-      // in" moment of chutzpah identity. Doubling Down should fire here
+      // in" moment of handler identity. Doubling Down should fire here
       // even when not certain to kill — that IS the commit. Pairs with
       // creator-agent's note about the Hit Me Again / RAGE monoculture:
-      // binding doubleDown to RAGE gives chutzpah a second decision tree.
+      // binding doubleDown to RAGE gives handler a second decision tree.
       const dDownGate = rageActive ? 0.40 : 0.65;
       if (predicted < remaining * dDownGate) continue;
     }
@@ -416,7 +416,7 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
       const preview = computeSpellDamage(tray.intro, tray.subject, c, [], preCtx);
       const dmgType = c.effect?.damageType || 'composure';
       const eff = enemy.effectiveness || {};
-      const enemyMult = (dmgType === 'physical') ? (eff.physical ?? 1.0) : (eff[c.effect?.scaleBy || c.lane || 'chutzpah'] ?? 1.0);
+      const enemyMult = (dmgType === 'physical') ? (eff.physical ?? 1.0) : (eff[c.effect?.scaleBy || c.lane || 'handler'] ?? 1.0);
       // bonusPerEnergy is paid out from energy LEFT at cast time. After this
       // target stages (cost paid), the cast burns `energyAfterStage` energy.
       const bonus = energyAfterStage * (c.effect?.bonusPerEnergy || 0);
@@ -634,9 +634,9 @@ function pickBestModifier(state, energyLeft, tier, bossFight, loudTargetStaged =
     if (me.rider?.vulnerable) score += me.rider.vulnerable * 3;
     if (me.stripEnemyBlock && bossFight) score += me.stripEnemyBlock * 2;
     // v2.29: if a loudScaling target is already staged AND this modifier is
-    // chutzpah-lane with the 'demanding' tag, stacking it adds +3 to the
+    // handler-lane with the 'demanding' tag, stacking it adds +3 to the
     // pending cast (more than a small damageMult, less than a tier3Payoff).
-    if (loudTargetStaged && c.lane === 'chutzpah' && (c.tags || []).includes('demanding')) {
+    if (loudTargetStaged && c.lane === 'handler' && (c.tags || []).includes('demanding')) {
       score += 5;
     }
     // v2.44: speaking-of-which has no damage value of its own; its job is
@@ -676,7 +676,7 @@ function runCombat(state, enemyId, telemetry) {
   state.nextCastDamageMult = 1.0;
   state.nextCastDoubles = false;
   state.lastCastDamage = 0;
-  // v2.24: chutzpah TUNNEL VISION + RAGE state — per combat.
+  // v2.24: handler TUNNEL VISION + RAGE state — per combat.
   state.tunnelVision = 0;
   state.rageActive = false;
   // v2.34: wit LONG THREAD — per-combat meter + per-turn flags.
@@ -707,13 +707,13 @@ function runCombat(state, enemyId, telemetry) {
     }
     state._patiencePeak = 0;
   };
-  // v2.25: chutzpah DOUBLING DOWN — per-turn corner-token counter.
+  // v2.25: handler DOUBLING DOWN — per-turn corner-token counter.
   // Bumped on cast when target has `doubleDown: true`. Bills 2 unblocked
   // HP per token at end of turn if the enemy is still alive. Resets each
   // turn either way (after billing).
   state.cornerTokens = 0;
-  // v2.29: chutzpah SAYING IT LOUDER — per-turn counter of demanding-tagged
-  // chutzpah words staged this turn. Read by loudScaling targets for +3
+  // v2.29: handler SAYING IT LOUDER — per-turn counter of demanding-tagged
+  // handler words staged this turn. Read by loudScaling targets for +3
   // dmg per louder say. Reset per turn (below) and per combat (here).
   state.loudCount = 0;
   // v2.26: STORMING OUT — hidden-intent flag. Sim AI doesn't peek at intents
@@ -872,7 +872,7 @@ function runCombat(state, enemyId, telemetry) {
     }
     // v2.9: start-of-turn block from familiar (e.g. Hedgehog).
     if (fb.startOfTurnBlock) state.block += fb.startOfTurnBlock;
-    // v2.24: chutzpah RAGE entry check. If TUNNEL VISION >= 5, this turn
+    // v2.24: handler RAGE entry check. If TUNNEL VISION >= 5, this turn
     // is a RAGE turn — +50% potency bonus applied to playerDmgMult, with
     // a track flag so end-of-turn knows to roll it back.
     if (!state.rageActive && (state.tunnelVision || 0) >= 5) {
@@ -1065,15 +1065,15 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
-    // v2.33: Tunnel-Vision skill HOLD — chutzpah lane only. When TUNNEL VISION
-    // is at 4+ (one chutzpah-card stage away from triggering RAGE), playing
+    // v2.33: Tunnel-Vision skill HOLD — handler lane only. When TUNNEL VISION
+    // is at 4+ (one handler-card stage away from triggering RAGE), playing
     // SKILL cards this turn wastes the impending +50% damage window because
-    // skills don't stage chutzpah words (no tunnel-vision bump) AND they
+    // skills don't stage handler words (no tunnel-vision bump) AND they
     // consume the turn's action economy that should be feeding the rage spike.
     // Suppresses Sorry-what specifically — defensive skills (Defend/Mend/
     // cleanse) still play through because they're hit-prevention and the
     // RAGE bonus doesn't matter if we're KO'd.
-    const tvSkillHold = state.lane === 'chutzpah'
+    const tvSkillHold = state.lane === 'handler'
       && (state.tunnelVision || 0) >= 4
       && !state.rageActive;
 
@@ -1482,7 +1482,7 @@ function runCombat(state, enemyId, telemetry) {
     // v3.0 cycle 5 EXPERIMENT (REVERTED): tried a two-pass planner that
     // reserved cast-cost energy before defensive plays. Per the human-
     // divergence agent's call ("expected to lift casts/turn from 0.38 →
-    // 0.7"). Empirically NET NEGATIVE: wit 2%→0%, chutzpah 14%→7%,
+    // 0.7"). Empirically NET NEGATIVE: wit 2%→0%, handler 14%→7%,
     // jnsq 0%→4%. Lifting cast cadence at the cost of defense made the
     // sim die to HP attrition before its spells landed. The agent's
     // theory ("cast cadence is the limiter") was wrong for THIS sim AI
@@ -1533,8 +1533,8 @@ function runCombat(state, enemyId, telemetry) {
       }
     };
     const bumpTunnelOnStage = (card) => {
-      if (card?.lane === 'chutzpah') state.tunnelVision = (state.tunnelVision || 0) + 1;
-      if (card?.lane === 'chutzpah'
+      if (card?.lane === 'handler') state.tunnelVision = (state.tunnelVision || 0) + 1;
+      if (card?.lane === 'handler'
           && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
           && (card.tags || []).includes('demanding')) {
         state.loudCount = (state.loudCount || 0) + 1;
@@ -2020,10 +2020,10 @@ function runCombat(state, enemyId, telemetry) {
     if (tray.intro && tray.subject && tray.target && castsThisTurn < maxCastsThisTurn) {
       const isSecondCast = castsThisTurn === 1; // v2.49: babbling 2nd cast flag
       castsThisTurn++;
-      // v2.11: chutzpah ALL IN heuristic. Stake to close the kill when
+      // v2.11: handler ALL IN heuristic. Stake to close the kill when
       // affordable; never stake at low HP or for overkill.
       let stake = 0;
-      if (state.lane === 'chutzpah' && state.hp >= 30) {
+      if (state.lane === 'handler' && state.hp >= 30) {
         // Pre-roll the spell damage WITHOUT stake to estimate gap.
         const preCtx = {
           discardSize: state.discard.length,
@@ -2047,7 +2047,7 @@ function runCombat(state, enemyId, telemetry) {
         const required = tray.target.effect?.requiresStake || 0;
         const max = Math.floor(state.hp / 4); // v2.13: tighter cap
         if (gap > 0 && gap <= 20) {
-          // Default 1:1 stake multiplier; chutzpah staking is best on
+          // Default 1:1 stake multiplier; handler staking is best on
           // bigger gaps where the +damage actually closes the kill.
           stake = Math.min(Math.ceil(gap), max);
         }
@@ -2494,7 +2494,7 @@ function runCombat(state, enemyId, telemetry) {
       if (result.sideEffects.selfComposureCost) state.composure = Math.max(0, state.composure - result.sideEffects.selfComposureCost);
       if (result.sideEffects.selfHpCost) state.hp = Math.max(0, state.hp - result.sideEffects.selfHpCost);
 
-      // v2.25: DOUBLING DOWN — bank a corner token when a chutzpah
+      // v2.25: DOUBLING DOWN — bank a corner token when a handler
       // doubleDown target resolved a cast. The bill comes due at end of
       // turn if the enemy is still alive.
       if (tray.target.effect?.doubleDown) {
@@ -2611,7 +2611,7 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.andImNotDoneTotalDamage = (telemetry.andImNotDoneTotalDamage || 0) + dmg;
       }
       // v2.41: wit SYNERGY CAPSTONE — "is, in summary, the inescapable
-      // conclusion." Mirrors the chutzpah capstone telemetry. Counts every
+      // conclusion." Mirrors the handler capstone telemetry. Counts every
       // resolved cast where the in-summary target landed plus the total
       // damage. The three riders (threadScaling, openingBonus, delayedMisstep)
       // tick their own existing telemetry (threadBonus rolled into footnote
@@ -4053,7 +4053,7 @@ const SIM_FAMILIARS = [
 ];
 
 function simRun(forcedLane = null) {
-  const lane = forcedLane || pickRandom(['wit', 'chutzpah', 'jnsq']);
+  const lane = forcedLane || pickRandom(['wit', 'handler', 'jnsq']);
   const familiar = pickRandom(SIM_FAMILIARS);
   const fb = familiar.bonus || {};
   const maxHp = STARTING_MAX_HP + (fb.maxHpBonus || 0);
@@ -4070,27 +4070,27 @@ function simRun(forcedLane = null) {
     castsAttempted: 0, fizzles: 0, holds: 0, totalDamageDealt: 0,
     tier1Casts: 0, tier2Casts: 0, tier3Casts: 0,
     combatTurns: 0, combatCount: 0,
-    // v2.24: chutzpah tunnel-vision / rage telemetry.
+    // v2.24: handler tunnel-vision / rage telemetry.
     rageTriggers: 0, bareKnucklesCasts: 0, bareKnucklesMisfires: 0,
-    // v2.25: chutzpah doubling-down telemetry.
+    // v2.25: handler doubling-down telemetry.
     doubleDownCasts: 0, cornerTokenBills: 0, cornerTokenDamage: 0,
-    // v2.26: chutzpah storm-out telemetry.
+    // v2.26: handler storm-out telemetry.
     stormOutCasts: 0, stormOutEnergySpent: 0,
-    // v2.27: chutzpah hit-me-again telemetry.
+    // v2.27: handler hit-me-again telemetry.
     hitMeAgainInstalls: 0, hitMeAgainRecoilTotal: 0, hitMeAgainKills: 0,
     // v2.33: stubborn-block REMOVED.
-    // v2.29: chutzpah saying-it-louder telemetry. iSaidCasts counts the
+    // v2.29: handler saying-it-louder telemetry. iSaidCasts counts the
     // number of "I SAID." casts; loudCountSum accumulates the loudCount
     // observed on each such cast so we can compute mean stack-size.
     iSaidCasts: 0, loudCountSum: 0, loudBonusSum: 0,
-    // v2.30: chutzpah smell-weakness telemetry. predatorTriggers counts
+    // v2.30: handler smell-weakness telemetry. predatorTriggers counts
     // casts where the +N bonus actually fired (enemy was Vuln/Weak at cast),
     // predatorBonusTotal aggregates the +damage across the run.
     predatorTriggers: 0, predatorBonusTotal: 0,
     // v2.31: synergy capstone — AND-IM-NOT-DONE casts + total damage. Rare-
     // tier so the per-run count is expected to be 0-2 most runs.
     andImNotDoneCasts: 0, andImNotDoneTotalDamage: 0,
-    // v2.41: wit SYNERGY CAPSTONE casts + total damage. Mirrors chutzpah cap.
+    // v2.41: wit SYNERGY CAPSTONE casts + total damage. Mirrors handler cap.
     inSummaryCasts: 0, inSummaryTotalDamage: 0,
     // v2.33: NOT LISTENING refactored to a SKILL. notListeningSkillCasts =
     // how many times the "Sorry — what?" skill was played; notListeningAbsorbs
@@ -4324,7 +4324,7 @@ function aggregate(results) {
       lossesByAct[r.actsCleared || 0]++;
     }
   }
-  const byLane = { wit: [], chutzpah: [], jnsq: [] };
+  const byLane = { wit: [], handler: [], jnsq: [] };
   for (const r of results) byLane[r.lane].push(r);
   const laneStats = {};
   for (const lane of Object.keys(byLane)) {
@@ -4573,45 +4573,45 @@ function buildReport(agg) {
   lines.push(`- Tier 3 (DEVASTATING): ${agg.tier3Casts} (${pct(agg.tier3Casts/tot)})`);
   lines.push(`- Holds (turn ended without cast — tray persists): ${agg.totalHolds} (${pct(agg.totalHolds / (agg.totalCasts + agg.totalHolds))})`);
   lines.push('');
-  lines.push(`## Chutzpah TUNNEL VISION (v2.24)`);
+  lines.push(`## Handler TUNNEL VISION (v2.24)`);
   lines.push(`- Total RAGE triggers: ${agg.rageTriggers}`);
   lines.push(`- Runs with at least one RAGE turn: ${agg.rageTriggerRuns} / ${agg.N} (${pct(agg.rageTriggerRuns / agg.N)})`);
   lines.push(`- Bare Knuckles casts: ${agg.bareKnucklesCasts} (misfires: ${agg.bareKnucklesMisfires})`);
   lines.push('');
-  lines.push(`## Chutzpah DOUBLING DOWN (v2.25)`);
+  lines.push(`## Handler DOUBLING DOWN (v2.25)`);
   lines.push(`- Total double-down casts: ${agg.doubleDownCasts}`);
   lines.push(`- Runs with at least one double-down cast: ${agg.doubleDownRuns} / ${agg.N} (${pct(agg.doubleDownRuns / agg.N)})`);
   lines.push(`- Corner-token bills (enemy survived → -HP): ${agg.cornerTokenBills}`);
   lines.push(`- HP lost to corner-tokens: ${agg.cornerTokenDamage}`);
   lines.push(`- Runs KO'd by corner-tokens: ${agg.cornerTokenKOs}`);
   lines.push('');
-  lines.push(`## Chutzpah STORMING OUT (v2.26)`);
+  lines.push(`## Handler STORMING OUT (v2.26)`);
   lines.push(`- Storm Out casts: ${agg.stormOutCasts} (avg energy spent: ${agg.stormOutCasts > 0 ? (agg.stormOutEnergySpent / agg.stormOutCasts).toFixed(2) : '0.00'})`);
   lines.push(`- Runs with at least one Storm Out: ${agg.stormOutRuns} / ${agg.N} (${pct(agg.stormOutRuns / agg.N)})`);
   lines.push('');
-  lines.push(`## Chutzpah HIT ME AGAIN (v2.27)`);
+  lines.push(`## Handler HIT ME AGAIN (v2.27)`);
   lines.push(`- Hit Me Again installs: ${agg.hitMeAgainInstalls} (runs: ${agg.hitMeAgainInstallRuns} / ${agg.N}, ${pct(agg.hitMeAgainInstallRuns / agg.N)})`);
   lines.push(`- Total recoil damage to enemies: ${agg.hitMeAgainRecoilTotal}`);
   lines.push(`- Enemies killed by their own recoil: ${agg.hitMeAgainKills}`);
   lines.push(`- Avg recoil per install: ${agg.hitMeAgainInstalls > 0 ? (agg.hitMeAgainRecoilTotal / agg.hitMeAgainInstalls).toFixed(1) : '0.0'}`);
   lines.push('');
-  lines.push(`## Chutzpah SAYING IT LOUDER (v2.29)`);
+  lines.push(`## Handler SAYING IT LOUDER (v2.29)`);
   lines.push(`- "I SAID." casts: ${agg.iSaidCasts} (runs: ${agg.iSaidRuns} / ${agg.N}, ${pct(agg.iSaidRuns / agg.N)})`);
   lines.push(`- Avg loudCount per cast: ${agg.iSaidCasts > 0 ? (agg.loudCountSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
   lines.push(`- Avg bonus damage per cast: ${agg.iSaidCasts > 0 ? (agg.loudBonusSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
   lines.push(`- Total bonus damage from louder: ${agg.loudBonusSum}`);
   lines.push('');
-  lines.push(`## Chutzpah SMELL WEAKNESS (v2.30)`);
+  lines.push(`## Handler SMELL WEAKNESS (v2.30)`);
   lines.push(`- Predator triggers (cast hit while enemy debuffed): ${agg.predatorTriggers} (runs: ${agg.predatorRuns} / ${agg.N}, ${pct(agg.predatorRuns / agg.N)})`);
   lines.push(`- Total bonus damage from predator: ${agg.predatorBonusTotal}`);
   lines.push(`- Avg bonus per trigger: ${agg.predatorTriggers > 0 ? (agg.predatorBonusTotal / agg.predatorTriggers).toFixed(2) : '0.00'}`);
   lines.push('');
-  lines.push(`## Chutzpah SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)`);
+  lines.push(`## Handler SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)`);
   lines.push(`- Capstone casts: ${agg.andImNotDoneCasts} (runs: ${agg.andImNotDoneRuns} / ${agg.N}, ${pct(agg.andImNotDoneRuns / agg.N)})`);
   lines.push(`- Total capstone damage: ${agg.andImNotDoneTotalDamage}`);
   lines.push(`- Avg damage per capstone cast: ${agg.andImNotDoneCasts > 0 ? (agg.andImNotDoneTotalDamage / agg.andImNotDoneCasts).toFixed(2) : '0.00'}`);
   lines.push('');
-  lines.push(`## Chutzpah NOT LISTENING — "Sorry — what?" SKILL (v2.33)`);
+  lines.push(`## Handler NOT LISTENING — "Sorry — what?" SKILL (v2.33)`);
   lines.push(`- Skill casts: ${agg.notListeningSkillCasts} (runs: ${agg.notListeningSkillRuns} / ${agg.N}, ${pct(agg.notListeningSkillRuns / agg.N)})`);
   lines.push(`- Total debuff absorbs: ${agg.notListeningAbsorbs}`);
   lines.push(`- Avg absorbs per skill cast: ${agg.notListeningSkillCasts > 0 ? (agg.notListeningAbsorbs / agg.notListeningSkillCasts).toFixed(2) : '0.00'}`);
@@ -4777,14 +4777,14 @@ if (isMain) {
   const N = parseInt(process.argv[2] || '50', 10);
   // v2.12: optional lane filter as 3rd arg (--lane=wit or just `wit`).
   const laneArg = (process.argv[3] || '').replace(/^--lane=/, '').toLowerCase();
-  const forcedLane = ['wit', 'chutzpah', 'jnsq'].includes(laneArg) ? laneArg : null;
+  const forcedLane = ['wit', 'handler', 'jnsq'].includes(laneArg) ? laneArg : null;
   console.log(`Running ${N} v2 playtests${forcedLane ? ` (lane=${forcedLane})` : ''}…`);
   const results = [];
   // v2.53: when no lane filter is supplied, force ROUND-ROBIN across the
   // three lanes so the aggregate report has balanced per-lane telemetry
   // (previously the random picker would skew the distribution and dilute
-  // per-lane signal — chutzpah/wit cards' triggers got under-counted).
-  const LANE_ROTATION = ['chutzpah', 'wit', 'jnsq'];
+  // per-lane signal — handler/wit cards' triggers got under-counted).
+  const LANE_ROTATION = ['handler', 'wit', 'jnsq'];
   for (let i = 0; i < N; i++) {
     const lane = forcedLane || LANE_ROTATION[i % LANE_ROTATION.length];
     results.push(simRun(lane));

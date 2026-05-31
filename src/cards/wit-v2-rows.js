@@ -246,7 +246,7 @@ export const WIT_RIDER_KEYS = [
 
 export const WIT_ROW_BY_ID = Object.fromEntries(WIT_ROWS.map(r => [r.id, r]));
 
-// Lane-aware row lookup. The default is wit; callers can pass a chutzpah
+// Lane-aware row lookup. The default is wit; callers can pass a handler
 // or jnsq row table to make detectFFT find rows in the right pool.
 // v3.4.67 — registry pattern. Each lane registers its row table here so
 // detectFFT can resolve setIds across lanes without imports.

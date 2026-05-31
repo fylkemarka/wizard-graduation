@@ -418,7 +418,7 @@ const TARGETS = [
   // token can be paid off for 1 Energy (discard, exhaust) or it auto-plays
   // at end of that turn for 3 HP self-damage and exhausts. The Pratchettian
   // beat is the long pause between the assertion and the realising-you-
-  // were-wrong; mechanically it's the wit version of chutzpah's corner
+  // were-wrong; mechanically it's the wit version of handler's corner
   // tokens — bravado that has to be reckoned with later.
   { id: 'wv2-t-saying-something-wrong', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, I am afraid, where you said something rather wrong.', tags: ['academic', 'cutting'],
@@ -1015,7 +1015,7 @@ const BUFF_CARDS = [
     desc: 'Counts as a FFT of a random Crescendo spell in your hand or discard. Exhaust.',
     flavor: 'The voice carries. You let it.' },
   // v3.4.66 (Alan): The Tutor is now wizard-agnostic — moved to the
-  // colorless CARDS array in App.jsx so chutzpah and jnsq can also
+  // colorless CARDS array in App.jsx so handler and jnsq can also
   // draft it. Will become useful for those lanes once their FFT row
   // systems are built out.
 ];

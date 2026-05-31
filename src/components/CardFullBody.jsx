@@ -14,7 +14,7 @@
 //   - Flavor: italic at the bottom
 //   - Tags: tiny single line, last
 import { WIT_ROW_BY_ID, WIT_SAME_SCHOOL_BONUSES } from '../cards/wit-v2-rows.js';
-// chutzpah row imports removed 2026-05-31 — FFT system retired for chutzpah.
+// handler row imports removed 2026-05-31 — FFT system retired for handler.
 
 export const EFFECT_CHIP_RENDERERS = {
   // Numeric / classic
@@ -104,7 +104,7 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
     }
   }
 
-  // Wit-only row + school lookup (chutzpah retired FFT 2026-05-31).
+  // Wit-only row + school lookup (handler retired FFT 2026-05-31).
   const row = card.setId ? WIT_ROW_BY_ID[card.setId] : null;
   const tierName = card.schoolId
     ? (WIT_SAME_SCHOOL_BONUSES[card.schoolId]?.name || card.schoolId)
@@ -170,9 +170,9 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip })
       )}
 
       {/* Stat chips — lane stats inline */}
-      {((card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq)) || (card.footnotes > 0)) && (
+      {((card.stats && (card.stats.handler || card.stats.wit || card.stats.jnsq)) || (card.footnotes > 0)) && (
         <div className="flex gap-1 flex-wrap text-xs font-mono">
-          {card.stats?.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+          {card.stats?.handler ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.handler}</span> : null}
           {(card.stats?.wit || card.footnotes > 0) ? (
             <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">
               ✨ {(card.stats?.wit || 0) + (card.footnotes || 0)}{card.footnotes > 0 ? ` ${'*'.repeat(Math.min(3, card.footnotes))}` : ''}

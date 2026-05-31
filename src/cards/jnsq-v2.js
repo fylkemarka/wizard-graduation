@@ -222,7 +222,7 @@ const TARGETS = [
     flavor: 'Cannot be argued with. Can be felt.' },
   // ---- Common (5) ----
   // v2.9: jnsq common bases bumped (was 2/2/5/5/6 avg 4 — significantly
-  // below chutzpah's avg 6, which combined with act-2's jnsq×0.5 made the
+  // below handler's avg 6, which combined with act-2's jnsq×0.5 made the
   // lane unviable). New avg matches the other two lanes.
   { id: 'jv2-t-wrong-color', slot: 'target', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'effect',
     phrase: 'is the wrong color.', tags: ['absurd'],

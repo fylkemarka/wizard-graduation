@@ -15,7 +15,7 @@ import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText
 import { CardFullBody } from './CardFullBody.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
-// chutzpah row imports removed 2026-05-31 — FFT system retired for chutzpah.
+// handler row imports removed 2026-05-31 — FFT system retired for handler.
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
@@ -26,7 +26,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
                        castsThisTurn, maxCastsPerTurn,
-                       isChutzpah, stakeAmount, setStakeAmount,
+                       isHandler, stakeAmount, setStakeAmount,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
                        tunnelVision, rageActive, cornerTokens, intentHidden, loudCount,
                        longThread = 0, isWit = false, wordsBank = 0,
@@ -56,7 +56,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // v3.4.54 (Alan): physical damage to enemies removed altogether. Enemy
   // HP is no longer drained by any player card; hide the HP bar.
   const showHp = false;
-  const eff = enemy?.effectiveness || { chutzpah: 1, wit: 1, jnsq: 1, physical: 1 };
+  const eff = enemy?.effectiveness || { handler: 1, wit: 1, jnsq: 1, physical: 1 };
   const eff_label = (v) => v === 0 ? 'immune' : v >= 1.5 ? `×${v} susceptible` : v <= 0.5 ? `×${v} resistant` : `×${v}`;
   const eff_color = (v) => v === 0 ? 'bg-ink-500 text-parchment-300' : v >= 1.5 ? 'bg-moss-700 text-parchment-50' : v <= 0.5 ? 'bg-ember-800 text-parchment-100' : 'bg-ink-600 text-parchment-200';
   // Hit-shake: re-key on every enemyHitFlash change so the animation
@@ -211,7 +211,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 🕸 +1 comp/turn
               </span>
             )}
-            {/* v3.4.67 — Chutzpah Pressure chip. Bluster casts stack
+            {/* v3.4.67 — Handler Pressure chip. Bluster casts stack
                 Pressure on the enemy; Bluster cards with pressureBonus get
                 +Pressure flat damage; capstones consume Pressure × N. */}
             {enemyPressure > 0 && (
@@ -301,7 +301,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {/* v3.4.29 (Alan): single-line resistance chips — just symbol +
               multiplier, no 'resistant/susceptible' suffix. Tooltip still
               spells it out. Trims a full text row off the enemy panel. */}
-          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.chutzpah ?? 1)}`} title={`Chutzpah ${eff_label(eff.chutzpah ?? 1)}`}>💪 ×{eff.chutzpah ?? 1}</span>
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.handler ?? 1)}`} title={`Handler ${eff_label(eff.handler ?? 1)}`}>💪 ×{eff.handler ?? 1}</span>
           <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.wit ?? 1)}`} title={`Wit ${eff_label(eff.wit ?? 1)}`}>✨ ×{eff.wit ?? 1}</span>
           <span className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${eff_color(eff.jnsq ?? 1)}`} title={`Jnsq ${eff_label(eff.jnsq ?? 1)}`}>🌀 ×{eff.jnsq ?? 1}</span>
           {/* v3.4.54: physical effectiveness chip hidden — no card deals
@@ -449,7 +449,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             );
           })()}
           {/* Tunnel Vision / RAGE chip — only renders if active. Was previously
-              always-on for chutzpah characters; now dormant under Animal
+              always-on for handler characters; now dormant under Animal
               Summoner pivot. State stays for any residual gesture interaction. */}
           {(tunnelVision > 0 || rageActive) && (
             <span className="text-[11px] text-ember-300 font-mono cursor-help"
@@ -515,11 +515,11 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           if (thornsSchedule && thornsSchedule.length > 0) chips.push(<span key="ts" className="cursor-help" title={`Thorns ramping schedule: incoming attacks reflect by these values, one per turn, in order.`}>🌹 ramp [{thornsSchedule.join(',')}]</span>);
           if ((thornsCharges?.count || 0) > 0) chips.push(<span key="tc" className="cursor-help" title={`Thorns charges: ${thornsCharges.count} enemy hit${thornsCharges.count > 1 ? 's' : ''} reflect ${thornsCharges.amount} composure damage each.`}>🌹 reflect {thornsCharges.amount} × {thornsCharges.count} hits</span>);
           if (mirrorCount > 0) chips.push(<span key="mr" title={`Mirror reflect: next ${mirrorCount} enemy hit${mirrorCount > 1 ? 's' : ''} each reflect 100% of damage taken (cap ${mirrorCap} per hit).`} className="text-iris-200 cursor-help">🪞 mirror × {mirrorCount} (cap {mirrorCap})</span>);
-          // v3.4.67 — Chutzpah school chips.
+          // v3.4.67 — Handler school chips.
           if (tempHp > 0) chips.push(<span key="thp" className="text-gold-300 cursor-help" title={`Ballooning Temp HP: absorbs HP damage BEFORE your real HP. Expires after ${tempHpTurns} more turn${tempHpTurns > 1 ? 's' : ''}; any unused Temp HP is lost.`}>🎈 {tempHp} Temp HP × {tempHpTurns}t</span>);
           if (playerIncomingMult > 1.0) chips.push(<span key="sv" className="text-ember-300 cursor-help" title="Self-Vulnerable — incoming enemy damage to you is amplified. Decays back to neutral.">🩸 YOU VULN</span>);
           if (loudness > 0) {
-            const _chutzEff = enemy?.effectiveness?.chutzpah ?? 1.0;
+            const _chutzEff = enemy?.effectiveness?.handler ?? 1.0;
             const _pdm = playerDmgMult || 1.0;
             const _pl = (m) => Math.max(0, Math.round(loudness * m * _chutzEff * _pdm));
             chips.push(<span key="ld" className="text-ember-300 cursor-help" title={`Bluster Loudness: ${loudness} stack${loudness > 1 ? 's' : ''} banked. After enemy chutz-effectiveness (×${_chutzEff}) and player dmg mult (×${_pdm.toFixed(2)}): Punchline (skill, 1E) = ${_pl(2)} dmg · Now You Listen Here (×4) = ${_pl(4)} · Scorched Earth (×3) = ${_pl(3)}.`}>📢 {loudness} Loudness</span>);
@@ -596,7 +596,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           the spell fizzles. */}
       <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast}
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
-        isChutzpah={isChutzpah} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
+        isHandler={isHandler} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
         playerHp={hp} playerMaxHp={maxHp}
         tempHp={tempHp} rageActive={rageActive} loudness={loudness}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
@@ -666,14 +666,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).`
             : undefined;
           // v3.4.75 (Alan) — Punchline & other Loudness-consume cards show
-          // their LIVE damage on the card face, including enemy chutzpah
+          // their LIVE damage on the card face, including enemy handler
           // effectiveness, enemy Vulnerable, player Weak, and any other
           // playerDmgMult shifts. Player should never have to math.
           let displayCard = card;
           const cLoud = card.effects?.consumeLoudnessAsDamage;
           if (cLoud) {
             const baseDmg = (loudness || 0) * cLoud;
-            const chutzEff = enemy?.effectiveness?.chutzpah ?? 1.0;
+            const chutzEff = enemy?.effectiveness?.handler ?? 1.0;
             const finalDmg = Math.max(0, Math.round(baseDmg * chutzEff * (playerDmgMult || 1.0)));
             const mods = [];
             if (chutzEff !== 1.0) mods.push(`enemy chutz ×${chutzEff}`);
@@ -711,7 +711,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           overlay; shows owned rows + their canonical phrase + rider on
           hover. Hidden when no set-tagged cards have been collected. */}
       {(() => {
-        // Wit-only FFT Progress (chutzpah retired FFT 2026-05-31).
+        // Wit-only FFT Progress (handler retired FFT 2026-05-31).
         const laneRows = isWit ? WIT_ROWS : null;
         const laneBonuses = isWit ? WIT_SAME_SCHOOL_BONUSES : null;
         if (!laneRows || laneRows.length === 0) return null;
@@ -818,7 +818,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 }
 
 export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
-                       isChutzpah = false, stakeAmount = 0, setStakeAmount = () => {},
+                       isHandler = false, stakeAmount = 0, setStakeAmount = () => {},
                        playerHp = 70, playerMaxHp = 70,
                        tempHp = 0, rageActive = false, loudness = 0,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
@@ -829,7 +829,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
                        animals = {} }) {
-  // Chutzpah Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
+  // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
   // / FFT detection only treats raw cards as content; envelopes are rendered
   // separately as summon pills below.
@@ -922,7 +922,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       damage = Math.round(damage * (playerDmgMult || 1.0));
       if (damage !== before) damageParts.push(`× ${(playerDmgMult || 1.0).toFixed(2)} (Vuln/Weak mult)`);
     }
-    // v3.4.76 (Alan) — preview Loudness gain on chutzpah Bluster casts so
+    // v3.4.76 (Alan) — preview Loudness gain on handler Bluster casts so
     // the player sees +N Loudness alongside the damage number.
     const loudnessGain = fftPre.fft?.rider?.addLoudness || 0;
     predicted = { damage, baseDamage, damageParts, loudnessGain, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
@@ -1065,7 +1065,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (rider.draw) chips.push(`📥 +${rider.draw} draw`);
     if (rider.energy) chips.push(`⚡ +${rider.energy} energy`);
     if (rider.longThreadPerm) chips.push(`🧵 +${rider.longThreadPerm} thread`);
-    // v3.4.71 — chutzpah school riders.
+    // v3.4.71 — handler school riders.
     if (rider.addPressure) chips.push(`🔥 +${rider.addPressure} Pressure`);
     if (rider.pressureBonus) {
       const cur = enemy?.pressure || 0;
@@ -1107,7 +1107,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         </div>
       );
     }
-    // Chutzpah Animal Summoner (2026-05-31, slice 1) — slot can hold a
+    // Handler Animal Summoner (2026-05-31, slice 1) — slot can hold a
     // lure envelope (waiting to summon) or animal envelope (active hunter).
     if (card.kind === 'lure') {
       const animal = animals?.[card.animalId];
@@ -1257,7 +1257,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             </div>
           </div>
           <div className="text-[11px] font-quill italic text-parchment-100 leading-snug">
-            {isChutzpah
+            {isHandler
               ? (anySummon
                   ? <span className="text-parchment-300">Your menagerie is on the case. Stage more lures, defend the slots.</span>
                   : <span className="text-parchment-400">(empty — play a lure to summon an animal to a slot)</span>)
@@ -1347,7 +1347,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             shares horizontal space with the slots + Predicted, instead
             of taking a full line below them. Tightens the combat
             screen's vertical footprint considerably. */}
-        {!isChutzpah && (<button onClick={onCast}
+        {!isHandler && (<button onClick={onCast}
           disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked}
           title={
             stakeBlocked ? `Target requires ${stakeRequired}+ HP staked.` :

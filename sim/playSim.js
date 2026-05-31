@@ -24,34 +24,34 @@ const CARDS = [
   { id: 'w-respect', name: 'With all due respect,', cost: 0, type: 'word', rarity: 'basic',
     stats: { wit: 1 }, tags: ['formal', 'sarcastic'] },
   { id: 'w-frankly', name: 'Frankly,', cost: 0, type: 'word', rarity: 'basic',
-    stats: { chutzpah: 1 }, tags: ['dismissive', 'sarcastic'] },
+    stats: { handler: 1 }, tags: ['dismissive', 'sarcastic'] },
   { id: 'w-erm', name: 'Erm…', cost: 0, type: 'word', rarity: 'basic',
     stats: { jnsq: 1 }, tags: ['chaotic'] },
   // ---- WORD COMMON ----
   { id: 'w-actually', name: 'Actually,', cost: 0, type: 'word', rarity: 'common',
-    stats: { wit: 1, chutzpah: 1 }, tags: ['sarcastic', 'dismissive'] },
+    stats: { wit: 1, handler: 1 }, tags: ['sarcastic', 'dismissive'] },
   { id: 'w-look-here', name: 'Look here,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 2 }, tags: ['booming', 'threatening'] },
+    stats: { handler: 2 }, tags: ['booming', 'threatening'] },
   { id: 'w-suppose', name: 'Suppose, hypothetically,', cost: 1, type: 'word', rarity: 'common',
     stats: { wit: 3 }, tags: ['academic', 'rhetorical'] },
   { id: 'w-mutters', name: 'Mutters dark Latin', cost: 0, type: 'word', rarity: 'common',
     stats: { jnsq: 2 }, tags: ['mystical', 'chaotic'] },
   { id: 'w-stares', name: 'Stares', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 1, jnsq: 1 }, tags: ['threatening', 'theatrical'] },
+    stats: { handler: 1, jnsq: 1 }, tags: ['threatening', 'theatrical'] },
   { id: 'w-footnote', name: 'A Lengthy Footnote', cost: 1, type: 'word', rarity: 'common',
     stats: { wit: 2, jnsq: 1 }, tags: ['academic', 'rhetorical'] },
   // ---- WORD UNCOMMON ----
   { id: 'w-rhetorical', name: 'A Rhetorical Question', cost: 1, type: 'word', rarity: 'uncommon',
     stats: { wit: 4 }, tags: ['rhetorical', 'academic'] },
   { id: 'w-thundering', name: 'Thundering Aside', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 4 }, tags: ['booming', 'formal'] },
+    stats: { handler: 4 }, tags: ['booming', 'formal'] },
   { id: 'w-non-sequitur', name: 'Non Sequitur', cost: 1, type: 'word', rarity: 'uncommon',
     stats: { jnsq: 4 }, tags: ['absurd', 'chaotic'] },
   { id: 'w-dramatic-pause', name: 'Dramatic Pause', cost: 0, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 1, wit: 1, jnsq: 1 }, tags: ['theatrical', 'mystical'],
+    stats: { handler: 1, wit: 1, jnsq: 1 }, tags: ['theatrical', 'mystical'],
     effects: { draw: 1 } },
   { id: 'w-corner-them', name: 'Corner Them', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 3 }, tags: ['threatening', 'dismissive'],
+    stats: { handler: 3 }, tags: ['threatening', 'dismissive'],
     effects: { loseHp: 2 } },
   // Cycle 4 batch 2: word-pool depth for wit and jnsq resonance chains.
   { id: 'w-allegedly', name: 'Allegedly,', cost: 0, type: 'word', rarity: 'common',
@@ -73,15 +73,15 @@ const CARDS = [
   { id: 'w-by-moonlight', name: 'By moonlight,', cost: 1, type: 'word', rarity: 'uncommon',
     stats: { jnsq: 3 }, tags: ['mystical', 'chaotic'] },
   { id: 'w-bruise-it-out', name: 'Bruise it out,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 2 }, tags: ['threatening', 'dismissive'],
+    stats: { handler: 2 }, tags: ['threatening', 'dismissive'],
     effects: { heal: 2 } },
-  // Cycle 4 batch 5: three new chutzpah words (lane was 6, now 9).
+  // Cycle 4 batch 5: three new handler words (lane was 6, now 9).
   { id: 'w-point-of-fact', name: 'In point of fact,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 1 }, tags: ['dismissive', 'formal'] },
+    stats: { handler: 1 }, tags: ['dismissive', 'formal'] },
   { id: 'w-as-policy', name: 'As a matter of policy,', cost: 0, type: 'word', rarity: 'common',
-    stats: { chutzpah: 2 }, tags: ['dismissive', 'threatening'] },
+    stats: { handler: 2 }, tags: ['dismissive', 'threatening'] },
   { id: 'w-misunderstand', name: 'You misunderstand,', cost: 1, type: 'word', rarity: 'uncommon',
-    stats: { chutzpah: 3 }, tags: ['dismissive', 'sarcastic'] },
+    stats: { handler: 3 }, tags: ['dismissive', 'sarcastic'] },
   // Cycle 5 batch 1: three new jnsq words (lane was 6, now 9).
   { id: 'w-mind-chickens', name: 'Mind the chickens,', cost: 0, type: 'word', rarity: 'common',
     stats: { jnsq: 1 }, tags: ['absurd', 'chaotic'] },
@@ -99,7 +99,7 @@ const CARDS = [
     effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure',
               resonatesWith: ['rhetorical', 'academic', 'formal'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-bluster', name: 'Bluster', cost: 1, type: 'effect', rarity: 'basic',
-    effect: { scaleBy: 'chutzpah', base: 2, multiplier: 2, damageType: 'composure',
+    effect: { scaleBy: 'handler', base: 2, multiplier: 2, damageType: 'composure',
               resonatesWith: ['booming', 'threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-bewilder', name: 'Bewilder', cost: 1, type: 'effect', rarity: 'basic',
     effect: { scaleBy: 'jnsq', base: 2, multiplier: 2, damageType: 'composure',
@@ -109,24 +109,24 @@ const CARDS = [
     effect: { scaleBy: 'wit', base: 4, multiplier: 2, damageType: 'composure',
               resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-intimidate', name: 'Intimidate', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 4, multiplier: 2, damageType: 'composure',
+    effect: { scaleBy: 'handler', base: 4, multiplier: 2, damageType: 'composure',
               rider: { weak: 1 }, resonatesWith: ['threatening', 'booming'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-misdirect', name: 'Misdirect', cost: 1, type: 'effect', rarity: 'common',
     effect: { scaleBy: 'jnsq', base: 4, multiplier: 2, damageType: 'composure',
               rider: { vulnerable: 1 }, resonatesWith: ['chaotic', 'absurd'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-strike', name: 'Strike', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 6, multiplier: 1, damageType: 'composure',
+    effect: { scaleBy: 'handler', base: 6, multiplier: 1, damageType: 'composure',
               resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
   // ---- EFFECT UNCOMMON ----
   { id: 'e-refute', name: 'Refute', cost: 2, type: 'effect', rarity: 'uncommon',
     effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-cutting-remark', name: 'A Cutting Remark', cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
+    effect: { scaleBy: 'handler', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['dismissive', 'petty'], resonanceBonus: { perTag: 2 } } },
-  // Cycle 4 batch 5: chutzpah engine card. +1 draw after cast, modest dmg.
+  // Cycle 4 batch 5: handler engine card. +1 draw after cast, modest dmg.
   { id: 'e-press-the-point', name: 'Press the Point', cost: 1, type: 'effect', rarity: 'common',
-    effect: { scaleBy: 'chutzpah', base: 3, multiplier: 2, damageType: 'composure',
+    effect: { scaleBy: 'handler', base: 3, multiplier: 2, damageType: 'composure',
               drawAfterCast: 1,
               resonatesWith: ['dismissive', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
   // Cycle 5 batch 1: jnsq engine card (mirror of Press the Point).
@@ -154,7 +154,7 @@ const CARDS = [
     effect: { scaleBy: 'jnsq', base: 8, multiplier: 3, damageType: 'composure',
               resonatesWith: ['chaotic', 'mystical', 'absurd'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-dont-hold-back', name: 'Don\'t Hold Back', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'composure',
+    effect: { scaleBy: 'handler', base: 5, multiplier: 2, damageType: 'composure',
               loseHpOnPlay: 8, hpThresholdDouble: 40,
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-polymath', name: 'Polymath', cost: 2, type: 'effect', rarity: 'rare',
@@ -177,7 +177,7 @@ const CARDS = [
     effect: { scaleBy: 'jnsq', base: 11, multiplier: 3, damageType: 'physical',
               resonatesWith: ['mystical'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-sword-logic', name: 'Sword Logic', cost: 1, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 5, multiplier: 2, damageType: 'physical',
+    effect: { scaleBy: 'handler', base: 5, multiplier: 2, damageType: 'physical',
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-throw-the-book', name: 'Throw the Book', cost: 1, type: 'effect', rarity: 'common',
     effect: { scaleBy: 'wit', base: 4, multiplier: 1, damageType: 'physical',
@@ -190,14 +190,14 @@ const CARDS = [
     effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure',
               resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 3 } } },
   { id: 'e-coup-de-grace', name: 'Coup de Grâce', cost: 2, type: 'effect', rarity: 'rare',
-    effect: { scaleBy: 'chutzpah', base: 14, multiplier: 3, damageType: 'composure', exhaust: true,
+    effect: { scaleBy: 'handler', base: 14, multiplier: 3, damageType: 'composure', exhaust: true,
               resonatesWith: ['dismissive', 'formal'], resonanceBonus: { perTag: 3 } } },
   { id: 'e-paradox', name: 'A Functional Paradox', cost: 2, type: 'effect', rarity: 'rare',
     effect: { scaleBy: 'jnsq', base: 6, multiplier: 4, damageType: 'composure',
               rider: { vulnerable: 2 }, resonatesWith: ['absurd', 'mystical'], resonanceBonus: { perTag: 3 } } },
   // ---- ARCHETYPE-COMMITTING CARDS (cycle 4) ----
   { id: 'e-go-for-the-throat', name: 'Go For The Throat', cost: 1, type: 'effect', rarity: 'uncommon',
-    effect: { scaleBy: 'chutzpah', base: 8, multiplier: 3, damageType: 'composure',
+    effect: { scaleBy: 'handler', base: 8, multiplier: 3, damageType: 'composure',
               loseHpOnPlay: 3,
               resonatesWith: ['threatening', 'dismissive'], resonanceBonus: { perTag: 2 } } },
   { id: 'e-cantrip-roulette', name: 'Cantrip Roulette', cost: 1, type: 'effect', rarity: 'uncommon',
@@ -214,7 +214,7 @@ const CARDS = [
               tacticTags: ['formal', 'academic'],
               resonatesWith: ['formal', 'rhetorical'], resonanceBonus: { perTag: 1 } } },
   { id: 'e-calmly-explain',  name: 'Calmly Explain',  cost: 2, type: 'effect', rarity: 'uncommon',
-    effect: { sway: true, swayTarget: 'chutzpah', tactic: 'logic',
+    effect: { sway: true, swayTarget: 'handler', tactic: 'logic',
               tacticTags: ['rhetorical', 'academic'],
               resonatesWith: ['rhetorical', 'academic'], resonanceBonus: { perTag: 1 } } },
   { id: 'e-loom-over-them',  name: 'Loom Over Them',  cost: 2, type: 'effect', rarity: 'uncommon',
@@ -246,7 +246,7 @@ const CARDS = [
   { id: 'c-warding', name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, vulnerable: 1 } },
   { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon',
-    effects: { heal: 5, boostNextChutzpahCast: 0.5 } },
+    effects: { heal: 5, boostNextHandlerCast: 0.5 } },
   { id: 'c-read-the-room', name: 'Read the Room', cost: 0, type: 'skill', rarity: 'uncommon',
     effects: { pierceNextCast: true, exhaust: true } },
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
@@ -287,16 +287,16 @@ const CARDS_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 // cycle 2 batch 1 audit.
 const STARTER_DECK = [
   'w-respect',                // wit ingredient
-  'w-frankly',                // chutzpah ingredient
+  'w-frankly',                // handler ingredient
   'e-persuade',               // basic wit attack
-  'e-bluster',                // basic chutzpah attack
+  'e-bluster',                // basic handler attack
   'c-channel',                // utility
   'c-defend', 'c-defend',     // block
 ];
 // Same pool the player's Starting Picks screen samples — two cards
 // added to the deck before the first map loads.
 const STARTING_PICKS_POOL = [
-  'w-frankly', 'e-strike',    // chutzpah pair
+  'w-frankly', 'e-strike',    // handler pair
   'w-respect', 'e-convince',  // wit pair
   'w-erm',     'e-bewilder',  // jnsq pair (the branch-out)
 ];
@@ -305,28 +305,28 @@ const STARTING_PICKS_POOL = [
 const ENEMIES = [
   // ACT 1
   { id: 'e1-acolyte', act: 4, name: 'Lost Acolyte', composureMax: 20, hpMax: 18, tier: 'normal',
-    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 5, weight: 1 },
       { kind: 'attack', value: 3, weight: 2 },
     ] },
   { id: 'e1-imp', act: 4, name: 'Pact Imp', composureMax: 18, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { handler: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2 },
       { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
   { id: 'e1-shrine-rat', act: 4, name: 'Shrine Rat Pack', composureMax: 16, hpMax: 12, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 4, weight: 1 },
       { kind: 'attack', value: 5, weight: 2 },
     ] },
   { id: 'e1-tutor', act: 4, name: 'Stern Tutor', composureMax: 32, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
@@ -334,14 +334,14 @@ const ENEMIES = [
       { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
     ] },
   { id: 'e1-thicket', act: 4, name: 'Living Thicket', composureMax: 55, hpMax: 38, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 9, weight: 2 },
       { kind: 'vulnerable', value: 1, weight: 1 },
     ] },
   { id: 'e1-boss-thornlord', act: 4, name: 'The Thornlord', composureMax: 100, hpMax: 120, tier: 'boss',
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { handler: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 15, weight: 2 },
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, riders: { vulnerable: 1 } },
@@ -350,21 +350,21 @@ const ENEMIES = [
     ] },
   // ACT 2
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 22, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 2, riders: { weak: 1 } },
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 18, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { handler: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3 },
       { kind: 'block',  value: 6, weight: 1 },
       { kind: 'vulnerable', value: 1, weight: 2 },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 24, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 2 },
       { kind: 'block',  value: 8, weight: 2 },
@@ -372,21 +372,21 @@ const ENEMIES = [
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 34, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 1.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1 },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 38, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'block',  value: 8, weight: 2, riders: { weak: 1 } },
       { kind: 'attack', value: 7, weight: 2, riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 1 },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 52, hpMax: 999, tier: 'boss',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    effectiveness: { handler: 1.0, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2 },
@@ -395,42 +395,42 @@ const ENEMIES = [
     ] },
   // ACT 3
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.6, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 5, weight: 3 },
       { kind: 'block',  value: 8, weight: 1 },
       { kind: 'attack', value: 7, weight: 1 },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 26, hpMax: 26, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, riders: { weak: 1 } },
       { kind: 'attack-multi', value: 2, count: 4, weight: 1 },
       { kind: 'weak',   value: 1, weight: 1 },
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 35, hpMax: 22, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.6, jnsq: 0.6, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 6, weight: 3 },
       { kind: 'attack', value: 8, weight: 1 },
       { kind: 'block',  value: 5, weight: 1 },
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 40, hpMax: 40, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 0.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 9, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'block',  value: 10, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1 },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 75, hpMax: 50, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.6, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 0.6, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1 },
       { kind: 'attack', value: 14, weight: 1 },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 78, hpMax: 75, tier: 'boss',
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { handler: 0.7, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1 },
@@ -439,35 +439,35 @@ const ENEMIES = [
     ] },
   // ACT 4
   { id: 'e4-apprentice-shade', act: 3, name: "Apprentice's Shade", composureMax: 42, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 },
+    effectiveness: { handler: 1.5, wit: 1.0, jnsq: 0.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 10, weight: 3 },
       { kind: 'block',  value: 10, weight: 2 },
       { kind: 'attack', value: 8, weight: 2, riders: { weak: 1 } },
     ] },
   { id: 'e4-failed-initiate', act: 3, name: 'Failed Initiate', composureMax: 38, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     behaviors: [
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1 },
       { kind: 'weak',   value: 2, weight: 1 },
     ] },
   { id: 'e4-mirror-past', act: 3, name: 'Mirror of the Past', composureMax: 44, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 0.7, wit: 1.5, jnsq: 1.0, physical: 0.5 },
+    effectiveness: { handler: 0.7, wit: 1.5, jnsq: 1.0, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'vulnerable', value: 2, weight: 2 },
       { kind: 'block',  value: 8, weight: 1, riders: { weak: 1 } },
     ] },
   { id: 'e4-forgotten-master', act: 3, name: 'The Forgotten Master', composureMax: 55, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { handler: 0.7, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2, riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1 },
     ] },
   { id: 'e4-test-wraith', act: 3, name: 'The Test Wraith', composureMax: 50, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.0, wit: 0.5, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { handler: 1.0, wit: 0.5, jnsq: 1.5, physical: 0.5 },
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, riders: { weak: 1, vulnerable: 1 } },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1 },
@@ -475,7 +475,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 4, weight: 1 },
     ] },
   { id: 'e4-boss-headmasters-hat', act: 3, name: "The Headmaster's Hat", composureMax: 88, hpMax: 999, tier: 'boss',
-    effectiveness: { chutzpah: 1.0, wit: 1.5, jnsq: 0.5, physical: 0.4 },
+    effectiveness: { handler: 1.0, wit: 1.5, jnsq: 0.5, physical: 0.4 },
     behaviors: [
       { kind: 'attack', value: 12, weight: 2 },
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, riders: { weak: 1 } },
@@ -496,11 +496,11 @@ const ACTS = [
 // --- MATERIALS ---
 const MATERIAL_TEMPLATES = {
   staff: [
-    { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', stats: { chutzpah: 3 } },
-    { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', stats: { chutzpah: 4, loseHp: 3 } },
-    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', stats: { chutzpah: 2, defense: 2 } },
-    { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', stats: { chutzpah: 3, chance: 1, jnsq: 1 } },
-    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', stats: { chutzpah: 2, dot: 3 } },
+    { id: 'mat-maple',    name: 'Maple Wood',  slot: 'staff', stats: { handler: 3 } },
+    { id: 'mat-rosewood', name: 'Rosewood',    slot: 'staff', stats: { handler: 4, loseHp: 3 } },
+    { id: 'mat-cedar',    name: 'Cedar',       slot: 'staff', stats: { handler: 2, defense: 2 } },
+    { id: 'mat-madrone',  name: 'Madrone',     slot: 'staff', stats: { handler: 3, chance: 1, jnsq: 1 } },
+    { id: 'mat-hemlock',  name: 'Hemlock',     slot: 'staff', stats: { handler: 2, dot: 3 } },
   ],
   robes: [
     { id: 'mat-linen',       name: 'Linen Thread', slot: 'robes', stats: { defense: 4 } },
@@ -585,10 +585,10 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
   const meta = { slot, materialId: material.id, quality, skill };
 
   if (slot === 'staff') {
-    const baseAtk = mult(8 + (matStats.chutzpah || 0) * 2);
-    const multAtk = mult(2 + (matStats.chutzpah || 0));
+    const baseAtk = mult(8 + (matStats.handler || 0) * 2);
+    const multAtk = mult(2 + (matStats.handler || 0));
     const resonatesWith = [];
-    if ((matStats.chutzpah || 0) >= 3) resonatesWith.push('booming');
+    if ((matStats.handler || 0) >= 3) resonatesWith.push('booming');
     if ((matStats.loseHp || 0)   >= 1) resonatesWith.push('threatening');
     if ((matStats.defense || 0)  >= 1) resonatesWith.push('formal');
     if ((matStats.jnsq || 0)     >= 1) resonatesWith.push('absurd');
@@ -596,7 +596,7 @@ function buildCraftedEquipment({ slot, material, quality, skill }) {
     if ((matStats.chance || 0)   >= 1) resonatesWith.push('chaotic');
     if (resonatesWith.length === 0)    resonatesWith.push('dismissive');
     const effect = {
-      scaleBy: 'chutzpah', base: baseAtk, multiplier: multAtk, damageType: 'composure',
+      scaleBy: 'handler', base: baseAtk, multiplier: multAtk, damageType: 'composure',
       resonatesWith: Array.from(new Set(resonatesWith)),
       resonanceBonus: { perTag: Math.max(2, Math.round(3 * q)) },
     };
@@ -680,7 +680,7 @@ function combatStart(state, enemyId) {
     enemyIntent: rollIntent(enemy),
     lastIntentKinds: [],
     powers: [],
-    tray: { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false },
+    tray: { handler: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false },
     turn: 0,
     // Per-combat stats
     fizzles: 0,
@@ -762,7 +762,7 @@ function stageWord(state, combat, handIdx) {
   const card = state.hand[handIdx];
   state.energy -= card.cost;
   const stats = card.stats || {};
-  combat.tray.chutzpah += (stats.chutzpah || 0);
+  combat.tray.handler += (stats.handler || 0);
   combat.tray.wit      += (stats.wit      || 0);
   combat.tray.jnsq     += (stats.jnsq     || 0);
   combat.tray.tags = [...combat.tray.tags, ...(card.tags || [])];
@@ -781,7 +781,7 @@ function stageEffect(state, combat, handIdx) {
 
 function applySideEffects(state, combat, fx) {
   if (fx.pierceNextCast) combat.pierceNextCast = true;
-  if (fx.boostNextChutzpahCast) combat.boostNextChutzpahCast = fx.boostNextChutzpahCast;
+  if (fx.boostNextHandlerCast) combat.boostNextHandlerCast = fx.boostNextHandlerCast;
   if (fx.block)      state.block += fx.block;
   if (fx.vulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * fx.vulnerable);
   if (fx.weak)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * fx.weak);
@@ -837,7 +837,7 @@ function castSpell(state, combat) {
       if (w.effects?.exhaust) state.exiled.push(w); else state.discard.push(w);
     }
     if (eff.exhaust) state.exiled.push(card); else state.discard.push(card);
-    combat.tray = { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
+    combat.tray = { handler: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
     return;
   }
   // Insult: model as 60% chance to land for landDamage*0.7 (accounts
@@ -861,12 +861,12 @@ function castSpell(state, combat) {
       if (w.effects?.exhaust) state.exiled.push(w); else state.discard.push(w);
     }
     if (eff.exhaust) state.exiled.push(card); else state.discard.push(card);
-    combat.tray = { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
+    combat.tray = { handler: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
     return;
   }
   const stat = eff.scaleBy || 'wit';
   const trayVal = eff.sumAllStats
-    ? (combat.tray.chutzpah || 0) + (combat.tray.wit || 0) + (combat.tray.jnsq || 0)
+    ? (combat.tray.handler || 0) + (combat.tray.wit || 0) + (combat.tray.jnsq || 0)
     : (combat.tray[stat] || 0);
   let dmg = (eff.base || 0) + trayVal * (eff.multiplier || 0);
   const dmgType = eff.damageType || 'composure';
@@ -878,10 +878,10 @@ function castSpell(state, combat) {
   else                        dmg = Math.round(dmg * eff_mult);
   // Don't-Hold-Back threshold doubler.
   if (eff.hpThresholdDouble && state.hp < eff.hpThresholdDouble) dmg *= 2;
-  // Iron-Stomach chutzpah boost (consumed by the next chutzpah cast).
-  if (combat.boostNextChutzpahCast > 0 && stat === 'chutzpah') {
-    dmg = Math.round(dmg * (1 + combat.boostNextChutzpahCast));
-    combat.boostNextChutzpahCast = 0;
+  // Iron-Stomach handler boost (consumed by the next handler cast).
+  if (combat.boostNextHandlerCast > 0 && stat === 'handler') {
+    dmg = Math.round(dmg * (1 + combat.boostNextHandlerCast));
+    combat.boostNextHandlerCast = 0;
   }
   const rWith = eff.resonatesWith || [];
   const perTag = eff.resonanceBonus?.perTag || 0;
@@ -920,7 +920,7 @@ function castSpell(state, combat) {
   if (eff.exhaust) state.exiled.push(card); else state.discard.push(card);
 
   // Clear tray.
-  combat.tray = { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
+  combat.tray = { handler: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: true };
 
   // onEffectCardPlayed power triggers.
   for (const p of combat.powers) {
@@ -1010,23 +1010,23 @@ function aiTurn(state, combat) {
     // is ≤0.6 (we'd otherwise hit at half damage).
     if (!combat.pierceNextCast) {
       const eff = combat.enemy?.effectiveness || {};
-      const bestForUs = Math.max(eff.chutzpah ?? 1, eff.wit ?? 1, eff.jnsq ?? 1);
+      const bestForUs = Math.max(eff.handler ?? 1, eff.wit ?? 1, eff.jnsq ?? 1);
       if (bestForUs <= 0.6) {
         const pierceIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.pierceNextCast);
         if (pierceIdx >= 0) { playSkillOrPower(state, combat, pierceIdx); continue; }
       }
     }
-    // Cycle 4 batch 3: Iron Stomach — heal + next chutzpah cast boost.
-    // Play it when we're committed to chutzpah and the boost isn't already
-    // active. The heal also helps with chutzpah's self-damage burn.
-    if (!combat.boostNextChutzpahCast) {
+    // Cycle 4 batch 3: Iron Stomach — heal + next handler cast boost.
+    // Play it when we're committed to handler and the boost isn't already
+    // active. The heal also helps with handler's self-damage burn.
+    if (!combat.boostNextHandlerCast) {
       const allCards = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
-      const chutzpahDeck = allCards.filter(c =>
-        (c.type === 'word' && c.stats?.chutzpah) ||
-        (c.type === 'effect' && c.effect?.scaleBy === 'chutzpah')
+      const handlerDeck = allCards.filter(c =>
+        (c.type === 'word' && c.stats?.handler) ||
+        (c.type === 'effect' && c.effect?.scaleBy === 'handler')
       ).length;
-      if (chutzpahDeck >= 4) {
-        const isIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.boostNextChutzpahCast);
+      if (handlerDeck >= 4) {
+        const isIdx = state.hand.findIndex(c => c.type === 'skill' && c.cost <= state.energy && c.effects?.boostNextHandlerCast);
         if (isIdx >= 0) { playSkillOrPower(state, combat, isIdx); continue; }
       }
     }
@@ -1051,9 +1051,9 @@ function aiTurn(state, combat) {
       combat.fizzles++;
       // staged words go to discard
       for (const w of combat.tray.words) state.discard.push(w);
-      combat.tray = { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false };
+      combat.tray = { handler: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false };
     } else {
-      combat.tray = { chutzpah: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false };
+      combat.tray = { handler: 0, wit: 0, jnsq: 0, tags: [], words: [], effectCard: null, effectFiredThisTurn: false };
     }
     // endOfTurn power triggers
     for (const p of combat.powers) {
@@ -1144,10 +1144,10 @@ function pickCast(state, combat) {
     }
 
     // Simulate the predicted damage with these words staged.
-    const previewTray = { chutzpah: combat.tray.chutzpah, wit: combat.tray.wit, jnsq: combat.tray.jnsq, tags: [...combat.tray.tags] };
+    const previewTray = { handler: combat.tray.handler, wit: combat.tray.wit, jnsq: combat.tray.jnsq, tags: [...combat.tray.tags] };
     for (const w of wordObjs) {
       const s = w.stats || {};
-      previewTray.chutzpah += s.chutzpah || 0;
+      previewTray.handler += s.handler || 0;
       previewTray.wit      += s.wit      || 0;
       previewTray.jnsq     += s.jnsq     || 0;
       previewTray.tags     = [...previewTray.tags, ...(w.tags || [])];
@@ -1240,7 +1240,7 @@ function makeRunState() {
   // archetype paths instead of always-jnsq. Each lane has equal
   // probability — simulates a player making a one-archetype call.
   const deck = STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() }));
-  const lanes = ['chutzpah', 'wit', 'jnsq'];
+  const lanes = ['handler', 'wit', 'jnsq'];
   const pickedLane = lanes[Math.floor(Math.random() * lanes.length)];
   const laneIds = STARTING_PICKS_POOL.filter(id => {
     const c = CARDS_BY_ID[id];
@@ -1361,7 +1361,7 @@ function simAct(state, act, runStats) {
                + (st.vuln    || 0) * 3;
         }
         if (slot === 'staff') {
-          return (st.chutzpah || 0) * 2
+          return (st.handler || 0) * 2
                + (st.loseHp   || 0) * -0.5   // small penalty (cost)
                + (st.defense  || 0) * 1
                + (st.dot      || 0) * 1.5
@@ -1474,10 +1474,10 @@ function aiPickReward(state, candidates) {
   const physicalInDeck = allCards.filter(c => c.type === 'effect' && c.effect?.damageType === 'physical').length;
 
   // Compute the deck's "thesis" — which stat is it leaning into?
-  const statTotals = { chutzpah: 0, wit: 0, jnsq: 0 };
+  const statTotals = { handler: 0, wit: 0, jnsq: 0 };
   for (const c of allCards) {
     if (c.type === 'word' && c.stats) {
-      statTotals.chutzpah += c.stats.chutzpah || 0;
+      statTotals.handler += c.stats.handler || 0;
       statTotals.wit      += c.stats.wit      || 0;
       statTotals.jnsq     += c.stats.jnsq     || 0;
     }
@@ -1505,7 +1505,7 @@ function aiPickReward(state, candidates) {
     if (card.rarity === 'rare')     s += 6;
     if (card.rarity === 'uncommon') s += 3;
     // Physical effects when we're short on them — capped at 2 so we
-    // don't crowd out wit/chutzpah picks that matter at bosses.
+    // don't crowd out wit/handler picks that matter at bosses.
     if (card.type === 'effect' && card.effect?.damageType === 'physical') {
       if (physicalInDeck < 1)      s += 12;
       else if (physicalInDeck < 2) s += 5;
@@ -1590,16 +1590,16 @@ function simRun() {
 
 // Classify a deck's archetype by stat-weight + physical presence.
 // Returns one of:
-//   wit / chutzpah / jnsq         — committed verbal lane (≥1.5× over runner-up)
+//   wit / handler / jnsq         — committed verbal lane (≥1.5× over runner-up)
 //   physical                       — 4+ physical-damage Effects (the "punchy" build)
-//   wit-physical / chutzpah-physical / jnsq-physical — hybrid: dominant verbal + ≥3 physical
+//   wit-physical / handler-physical / jnsq-physical — hybrid: dominant verbal + ≥3 physical
 //   sampler                        — no committed lane (lane tools are too spread)
 function classifyDeckArchetype(cards) {
-  const stats = { chutzpah: 0, wit: 0, jnsq: 0 };
+  const stats = { handler: 0, wit: 0, jnsq: 0 };
   let physical = 0;
   for (const c of cards) {
     if (c.type === 'word' && c.stats) {
-      stats.chutzpah += c.stats.chutzpah || 0;
+      stats.handler += c.stats.handler || 0;
       stats.wit      += c.stats.wit      || 0;
       stats.jnsq     += c.stats.jnsq     || 0;
     }
@@ -1782,7 +1782,7 @@ function buildReport(agg) {
   lines.push(`- Fizzle rate: ${pct(agg.fizzleRate)}`);
   lines.push('');
   lines.push(`## Deck archetypes (lane bucketing)`);
-  const ARCH_ORDER = ['wit', 'chutzpah', 'jnsq', 'physical', 'wit-physical', 'chutzpah-physical', 'jnsq-physical', 'sampler'];
+  const ARCH_ORDER = ['wit', 'handler', 'jnsq', 'physical', 'wit-physical', 'handler-physical', 'jnsq-physical', 'sampler'];
   const counts = agg.archetypeCounts || {};
   const wins = agg.archetypeWins || {};
   const sorted = ARCH_ORDER.filter(a => counts[a]).concat(Object.keys(counts).filter(a => !ARCH_ORDER.includes(a)));

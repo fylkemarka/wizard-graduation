@@ -2,7 +2,7 @@
 //
 // MVP5: Verbal combat. Cards are word-fragments and effect-seals; you
 // build up a spell by playing words that contribute stat points across
-// three traits (Chutzpah / Wit / Jnsq), then play an Effect card to
+// three traits (Handler / Wit / Jnsq), then play an Effect card to
 // fire the spell against the enemy's Composure (or, for physical
 // effects, their HP). Enemies have per-stat `effectiveness` —
 // multipliers, with 0 meaning "completely immune to this kind of
@@ -10,7 +10,7 @@
 // unchanged; physical damage from enemies still hits HP.
 //
 // Card shapes:
-//   - WORD   ({ stats: { chutzpah?, wit?, jnsq? }, phrase: '...' }) —
+//   - WORD   ({ stats: { handler?, wit?, jnsq? }, phrase: '...' }) —
 //            contributes stat points to the spell tray for this turn.
 //            May also carry `effects` for an on-play side-bonus.
 //   - EFFECT ({ effect: { scaleBy, base, multiplier, damageType,
@@ -22,7 +22,7 @@
 //
 // Effect dispatcher keys recognised at on-play time:
 //   block / draw / vulnerable / weak / energy / hp / exhaust   (skill side)
-//   stats: { chutzpah, wit, jnsq }                             (word)
+//   stats: { handler, wit, jnsq }                             (word)
 //   effect: { ... }                                            (effect-seal)
 //
 // Power trigger hooks:
@@ -42,10 +42,10 @@ import { motion } from 'framer-motion';
 import { logEvent, logError, getStats, exportAllSessions, clearTelemetry, TelemetryEvents as TE } from './telemetry.js';
 import { WIT_V2, WIT_V2_BY_SLOT } from './cards/wit-v2.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, WIT_ROW_BY_ID, detectFFT, registerRows } from './cards/wit-v2-rows.js';
-// chutzpah-v2-rows.js removed 2026-05-31 — FFT pivot retired chutzpah's row
-// system. Animal Summoner engine is the new direction (see
-// project_wg_chutzpah_animal_summoner memory). FFT system is wit-only.
-import { CHUTZPAH_V2, CHUTZPAH_V2_BY_SLOT } from './cards/chutzpah-v2.js';
+// handler-v2-rows.js removed 2026-05-31 — Handler (formerly Handler)
+// pivoted away from the FFT system entirely. Animal Summoner engine is
+// the new direction. FFT system is wit-only.
+import { HANDLER_V2, HANDLER_V2_BY_SLOT } from './cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
 import { CardFullBody } from './components/CardFullBody.jsx';
@@ -55,15 +55,15 @@ import { DeckView } from './components/DeckView.jsx';
 import { ReadingRoom } from './components/ReadingRoom.jsx';
 
 // v2 card-pool lookup table keyed by lane.
-const LANE_POOL = { wit: WIT_V2, chutzpah: CHUTZPAH_V2, jnsq: JNSQ_V2 };
-const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, chutzpah: CHUTZPAH_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
-const ALL_V2_CARDS = [...WIT_V2, ...CHUTZPAH_V2, ...JNSQ_V2];
+const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
+const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
+const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2];
 
 // =============================================================================
 // 1. DATA
 // =============================================================================
 const CARDS = [
-  // v2 sentence-engine cards: imported from src/cards/{wit,chutzpah,jnsq}-v2.js.
+  // v2 sentence-engine cards: imported from src/cards/{wit,handler,jnsq}-v2.js.
   ...ALL_V2_CARDS,
 
   // =============================================================================
@@ -88,7 +88,7 @@ const CARDS = [
     effects: { compDmg: 4 }, upgrade: { effects: { compDmg: 6 } },
     desc: 'Deal 4 composure damage.',
     flavor: 'Not the cleverest reply. Lands anyway.' },
-  // Punchline removed 2026-05-31 — chutzpah pivoted away from the Loudness
+  // Punchline removed 2026-05-31 — handler pivoted away from the Loudness
   // mechanic with the Animal Summoner engine. No card now feeds or consumes
   // Loudness. State machinery remains in place (dormant) until the new engine
   // either repurposes or fully retires it.
@@ -121,13 +121,13 @@ const CARDS = [
   { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { draw: 3, exhaust: true }, upgrade: { effects: { draw: 4, exhaust: true } },
     desc: 'Draw 3 cards. Exhaust.' },
-  // Cycle 4 batch 3: chutzpah sustain + next-cast boost. Pairs with
+  // Cycle 4 batch 3: handler sustain + next-cast boost. Pairs with
   // Don't Hold Back / Go For The Throat / Corner Them — heal the chip
-  // damage your own deck inflicts, then go big on the next chutzpah cast.
-  { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'chutzpah',
-    effects: { heal: 5, boostNextChutzpahCast: 0.5 },
-    upgrade: { effects: { heal: 8, boostNextChutzpahCast: 0.5 } },
-    desc: 'Heal 5 HP. Your next Chutzpah Effect this turn deals +50% damage.',
+  // damage your own deck inflicts, then go big on the next handler cast.
+  { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { heal: 5, boostNextHandlerCast: 0.5 },
+    upgrade: { effects: { heal: 8, boostNextHandlerCast: 0.5 } },
+    desc: 'Heal 5 HP. Your next Handler Effect this turn deals +50% damage.',
     flavor: 'You\'ve digested worse. You\'ll digest this.' },
   // Cycle 3: resistance-pierce tech card. The committed deck's answer
   // to a hostile matchup — your next Effect ignores the enemy's
@@ -229,7 +229,7 @@ const CARDS = [
     flavor: 'Brief. Unrehearsed. The room exhales.' },
   // v3.4.66 (Alan) — The Tutor, moved from wit-v2.js to colorless so all
   // wizards can draft it. Currently only meaningful for wit (FFT rows
-  // exist); becomes useful for chutzpah/jnsq when those lanes get their
+  // exist); becomes useful for handler/jnsq when those lanes get their
   // row systems built.
   { id: 'c-the-tutor', name: 'The Tutor', cost: 3, type: 'skill', rarity: 'common',
     effects: { tutorArmNextSentence: true, exhaust: true },
@@ -556,7 +556,7 @@ const FAMILIARS = [
     bonus: { onCombatStart: { block: 4, draw: 1 } },
     bonusUpgrade: { onCombatStart: { block: 6, draw: 2 } },
     upgradeDesc: 'At the start of every combat, gain 6 Block and draw 2.',
-    // v3.3: familiar cards are lane-AGNOSTIC. Was a chutzpah-scaling
+    // v3.3: familiar cards are lane-AGNOSTIC. Was a handler-scaling
     // effect tied to dismissive/petty tags; now a skill that fires
     // immediately for any wizard.
     card: { id: 'f-stare', name: 'Indifferent Stare', cost: 1, type: 'skill', rarity: 'basic',
@@ -664,7 +664,7 @@ const FAMILIARS = [
     bonus: { maxHp: 5, startCombatVulnerable: 2 },
     bonusUpgrade: { maxHp: 8, startCombatVulnerable: 3 },
     upgradeDesc: '+8 max HP. At the start of every combat, apply 3 Vulnerable to the enemy.',
-    // v3.3: lane-agnostic conversion (was chutzpah-scaling effect).
+    // v3.3: lane-agnostic conversion (was handler-scaling effect).
     card: { id: 'f-coil', name: 'Coil', cost: 1, type: 'skill', rarity: 'basic',
       effects: { compDmg: 5, vulnerable: 1 },
       upgrade: { effects: { compDmg: 7, vulnerable: 2 } },
@@ -680,7 +680,7 @@ const FAMILIARS = [
     bonus: { startCombatPoise: 2 },
     bonusUpgrade: { startCombatPoise: 4 },
     upgradeDesc: 'Start every combat with +4 Poise.',
-    // v3.3: lane-agnostic conversion (was chutzpah-scaling effect).
+    // v3.3: lane-agnostic conversion (was handler-scaling effect).
     card: { id: 'f-bolt', name: 'Bolt', cost: 0, type: 'skill', rarity: 'basic',
       effects: { compDmg: 4, exhaust: true },
       upgrade: { effects: { compDmg: 6, exhaust: true } },
@@ -717,14 +717,14 @@ const MISSTEP_TOKEN = {
   flavor: 'A sentence you said two turns ago. It has, in the meantime, ripened.',
 };
 
-// 11-card starter. One word per stat (chutzpah / wit / jnsq), one
+// 11-card starter. One word per stat (handler / wit / jnsq), one
 // composure effect per stat (Bluster / Persuade / Bewilder), Spark for
 // a guaranteed physical option against verbal-immune enemies, Channel
 // for tempo/draw cycling, and three Defends. The starter word tags
 // (formal / sarcastic / dismissive / chaotic) intentionally overlap
 // with the basic effects' widened resonance lists so resonance can
 // fire even before the player picks up reward cards.
-// Slim, neutral starter — covers Chutzpah and Wit shallowly so the
+// Slim, neutral starter — covers Handler and Wit shallowly so the
 // player doesn't feel "already well-rounded" before deck-building begins.
 // Jnsq is intentionally NOT here — it's the branch-out direction the
 // player opens via the Starting Picks screen at game start (or via
@@ -748,7 +748,7 @@ function buildStarterDeckForLane(lane, startingRow = null) {
   // stats: 1 (down from 2); commons carry 2. Basic targets carry mult 2
   // (down from common's 3) so each step of the upgrade ladder is visible.
   // Basic-rarity skills + gestures in each lane pool are exactly the
-  // v2.95 lane-specific starter cards (Square Up/Shove for chutzpah,
+  // v2.95 lane-specific starter cards (Square Up/Shove for handler,
   // Page-Mark/Aside for wit, Rhubarb/Stagger for jnsq).
   const laneStarters = [
     ...basics(pool.skill || []),
@@ -797,8 +797,8 @@ function buildStarterDeckForLane(lane, startingRow = null) {
       subjectId = 'wv2-s-boucle-starter';
       targetId  = 'wv2-t-fabric-starter';
     }
-  } else if (lane === 'chutzpah') {
-    // 2026-05-31 — chutzpah pivoted from FFT to Animal Summoner engine.
+  } else if (lane === 'handler') {
+    // 2026-05-31 — handler pivoted from FFT to Animal Summoner engine.
     // The bluster-1 row cards no longer exist. Starter is transitional
     // until lure cards land. No intro/subject/target — just utility +
     // gestures + defends so the character is at least loadable.
@@ -826,8 +826,8 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
   }
-  // Chutzpah Animal Summoner (2026-05-31, slice 1) — starter lures.
-  if (lane === 'chutzpah') {
+  // Handler Animal Summoner (2026-05-31, slice 1) — starter lures.
+  if (lane === 'handler') {
     ids.push('cv2-l-fish-food');   // 2-turn → Salmon → 2-more-turn → Bear
     ids.push('cv2-l-birdseed');    // 1-turn → Sparrow
     ids.push('cv2-l-cheese');      // 1-turn → Field Mouse
@@ -852,7 +852,7 @@ const STARTER_DECK = buildStarterDeckForLane('wit');
 const ENEMIES = [
   // ===== ACT 3 — The Staff Path (the deep forest, final act) =====
   { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 25, hpMax: 18, tier: 'normal',
-    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic', // Wants someone to explain what they're doing here.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
@@ -860,8 +860,8 @@ const ENEMIES = [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
     ] },
   { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 23, hpMax: 999, tier: 'normal',
-    // v2.4: chutzpah 0.7 → 1.0 (less hostile to chutzpah in act 1).
-    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 },
+    // v2.4: handler 0.7 → 1.0 (less hostile to handler in act 1).
+    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'threat', // Bullies fold the moment you don't.
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -871,7 +871,7 @@ const ENEMIES = [
   { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 20, hpMax: 12, tier: 'normal',
     // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
     // partly because Shrine Rat and Thicket were freebies for it.
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
     softSpot: 'threat', // Bigger predator energy = scatter.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
@@ -883,10 +883,10 @@ const ENEMIES = [
   // show, both. The bureaucracy is unclear on the matter.
   { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather (recently inanimate)',
     composureMax: 45, hpMax: 32, tier: 'normal',
-    // failure mode: mystical mishap (transformation). Chutzpah 0.6 —
+    // failure mode: mystical mishap (transformation). Handler 0.6 —
     // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
     // wound. Physical 1.0 — he is also wood, axe him.
-    effectiveness: { chutzpah: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic', // Point out that he is a staff. He is, technically, aware.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (the staff turns)' },
@@ -895,7 +895,7 @@ const ENEMIES = [
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
     ] },
   { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 40, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     softSpot: 'logic', // Will argue the methodology over the outcome.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -906,7 +906,7 @@ const ENEMIES = [
   { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 69, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
@@ -914,10 +914,10 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
     ] },
   { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 119, hpMax: 115, tier: 'boss',
-    // v2.16: was killing 182/500 chutzpah runs. First pass 0.7→0.85
-    // overcorrected (chutzpah jumped to 41%). Settled at 0.75: still
-    // a chutzpah-hostile boss, just not a trap.
-    effectiveness: { chutzpah: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 },
+    // v2.16: was killing 182/500 handler runs. First pass 0.7→0.85
+    // overcorrected (handler jumped to 41%). Settled at 0.75: still
+    // a handler-hostile boss, just not a trap.
+    effectiveness: { handler: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 },
     softSpot: 'flattery', // Apex predator; flatter the apex.
     insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
@@ -929,7 +929,7 @@ const ENEMIES = [
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     // v2.96: signature mechanic = Weave debt. Each "weave" intent stacks
     // +N on the player; ending a turn without casting fires ALL stacks as
@@ -943,7 +943,7 @@ const ENEMIES = [
       { kind: 'attack', value: 4, pool: 'composure', weight: 1, telegraph: '🎭 4 (half-thought)' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 25, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
+    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
       // v2.9.2: silk-thread cuts now hit harder + composure-pool option.
@@ -953,7 +953,7 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
     // into your hand and pulls a card it "needs to weave with." Forces
@@ -976,7 +976,7 @@ const ENEMIES = [
   // Pratchett-tone with parenthetical bureaucratic annotations.
   { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
     composureMax: 28, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 },
     // failure mode: refusal. 50 years on the same hem. Wit can't
     // out-argue him (heard every version); jnsq breaks his focus.
     softSpot: 'confusion',
@@ -987,7 +987,7 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 50, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
       // v3.4.53 (Alan: "Pattern-Maker hits too hard, BARELY beat it"). With
@@ -1008,7 +1008,7 @@ const ENEMIES = [
       { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     softSpot: 'threat', // The vow of silence has limits.
     behaviors: [
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -1019,7 +1019,7 @@ const ENEMIES = [
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 69, hpMax: 999, tier: 'boss',
-    effectiveness: { chutzpah: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 },
+    effectiveness: { handler: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     behaviors: [
@@ -1031,9 +1031,9 @@ const ENEMIES = [
 
   // ===== ACT 2 — The Forge Path (the mines and caves) =====
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 28, hpMax: 12, tier: 'normal',
-    // v2.4: sharpened from flat-low to chutzpah-favored. Geodes hate
+    // v2.4: sharpened from flat-low to handler-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
-    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
@@ -1041,7 +1041,7 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 23, hpMax: 14, tier: 'normal',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -1050,22 +1050,22 @@ const ENEMIES = [
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 28, hpMax: 12, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
-    effectiveness: { chutzpah: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
       { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (carapace)' },
     ] },
-  // v2.17: rogue wizard — chutzpah-punisher. Tried to forge a ring of
+  // v2.17: rogue wizard — handler-punisher. Tried to forge a ring of
   // three metals; the ring forged him. The metal absorbs direct threat.
   { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C. (alloyed)',
     composureMax: 33, hpMax: 14, tier: 'normal',
-    // failure mode: transformation. Chutzpah resist 0.6 — you can't
+    // failure mode: transformation. Handler resist 0.6 — you can't
     // bully someone whose identity is partly an iron ring. Jnsq 1.3
     // because absurdity disrupts the alloy. Physical 1.0 — he is, after
     // all, also metal.
-    effectiveness: { chutzpah: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 },
+    effectiveness: { handler: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 },
     softSpot: 'confusion',
     behaviors: [
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (alloyed strike)' },
@@ -1075,7 +1075,7 @@ const ENEMIES = [
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 35, hpMax: 22, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
-    effectiveness: { chutzpah: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -1086,9 +1086,9 @@ const ENEMIES = [
       { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (RULING)' },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 57, hpMax: 28, tier: 'elite',
-    // v2.4: chutzpah-favored. The Devourer responds to direct threat
+    // v2.4: handler-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
-    effectiveness: { chutzpah: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
@@ -1099,10 +1099,10 @@ const ENEMIES = [
       { kind: 'attack', value: 18, weight: 1, telegraph: '⚔ 18 (DEVOUR)' },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 63, hpMax: 50, tier: 'boss',
-    // v2.4: Anvil flipped from chutzpah-resist to chutzpah-favored. It's
+    // v2.4: Anvil flipped from handler-resist to handler-favored. It's
     // a forging boss — it understands direct demands. Jnsq is now the
     // softer side (0.7); wit stays neutral.
-    effectiveness: { chutzpah: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 },
+    effectiveness: { handler: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
@@ -1118,7 +1118,7 @@ const ENEMIES = [
   // Block without ever being in danger.
   // ===== SIDEQUEST ENEMIES — gated by sidequest combat nodes =====
   { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 75, hpMax: 999, tier: 'elite',
-    effectiveness: { chutzpah: 0.5, wit: 0.5, jnsq: 1.5, physical: 0 },
+    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.5, physical: 0 },
     softSpot: 'logic',
     insultVulnerabilities: ['dismissive', 'absurd'], // Pedant; absurdity destabilizes him most.
     behaviors: [
@@ -1129,7 +1129,7 @@ const ENEMIES = [
     ] },
 
   { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 30, hpMax: 999, tier: 'normal',
-    effectiveness: { chutzpah: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
+    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic',
     behaviors: [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (gentle)' },
@@ -1139,7 +1139,7 @@ const ENEMIES = [
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
 // ─────────────────────────────────────────────────────────────────────
-// ANIMALS — Chutzpah Animal Summoner engine (slice 1, 2026-05-31)
+// ANIMALS — Handler Animal Summoner engine (slice 1, 2026-05-31)
 // ─────────────────────────────────────────────────────────────────────
 // Animals are summoned entities, not cards. They occupy a stage slot for
 // `duration` turns and attack at end of each player turn.
@@ -2586,8 +2586,8 @@ const SIDEQUESTS_BY_ACT = (() => {
 //
 // Stat semantics by slot (buildCraftedEquipment consumes these):
 //   STAFF (one-shot Effect card):
-//     chutzpah → base + multiplier (always primary)
-//     loseHp   → loseHpOnPlay on the cast (Chutzpah lever)
+//     handler → base + multiplier (always primary)
+//     loseHp   → loseHpOnPlay on the cast (Handler lever)
 //     defense  → rider Block AND equipment bonus.damageReduction
 //     dot      → rider Weak on cast + 'threatening' resonance
 //     chance   → 50% bonus Vuln vs 50% self-Weak (Jnsq gamble)
@@ -2608,7 +2608,7 @@ const SIDEQUESTS_BY_ACT = (() => {
 //     draw     → +N Draw every turn
 //     vuln     → applies N enemy Vulnerable every turn
 const MATERIAL_TEMPLATES = {
-  // v3.3 — staff material `power` stat (was chutzpah). Lane-agnostic.
+  // v3.3 — staff material `power` stat (was handler). Lane-agnostic.
   // Each staff scales off the player's OWN lane at craft time (see
   // buildCraftedEquipment) — a wit-wizard's Maple Staff scales off wit,
   // a jnsq-wizard's off jnsq, etc.
@@ -2831,7 +2831,7 @@ const CRAFT_LABEL = { whittling: 'Whittling', weaving: 'Weaving', smithing: 'Smi
 // commits the player to a specific voice + a specific (future) card pool.
 // For now the only mechanical effect is that supply-shop offers are
 // weighted toward the chosen lane's existing cards. When v2 pools ship
-// (see design/{WIT,CHUTZPAH,JNSQ}_V2_DESIGN.md), this field will switch
+// (see design/{WIT,HANDLER,JNSQ}_V2_DESIGN.md), this field will switch
 // the player's draw pool entirely.
 const CHARACTERS = [
   {
@@ -2845,13 +2845,13 @@ const CHARACTERS = [
     tagPalette: ['academic', 'dismissive', 'observational', 'ironic', 'cutting'],
   },
   {
-    id: 'chutzpah-bruiser',
+    id: 'handler-bruiser',
     name: 'The Handler',
-    lane: 'chutzpah',
+    lane: 'handler',
     voice: 'Jack Burton / Walter Sobchak',
     title: 'graduates by refusing to leave the room',
     desc: 'Spells land because they will not be talked over. Volume is a kind of intelligence. So is staying.',
-    poolDoc: 'design/CHUTZPAH_V2_DESIGN.md',
+    poolDoc: 'design/HANDLER_V2_DESIGN.md',
     tagPalette: ['demanding', 'threatening', 'dismissive', 'swaggering', 'direct'],
   },
   {
@@ -3221,7 +3221,7 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   // utility cards (no `lane` field) qualify.
   // v2.99.3: DEFENSIVE — if `lane` is null (caller couldn't read the
   // active character), REJECT lane-specific cards instead of allowing
-  // all. The prior shape was a bleed source: a wit player saw chutzpah
+  // all. The prior shape was a bleed source: a wit player saw handler
   // cards if selectedCharacter was briefly unset (e.g. a render race
   // around startRun's clear+set sequence). Fail-safe means "no lane
   // info → only lane-agnostic c-* cards", never wrong-lane offers.
@@ -3237,7 +3237,7 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   const isSpellPieceSlot = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
   // Wit-only — its spell-piece rewards only offer setId-tagged cards so every
   // offered intro/subject/target progresses an existing or new FFT row.
-  // Chutzpah retired FFT 2026-05-31 (Animal Summoner pivot).
+  // Handler retired FFT 2026-05-31 (Animal Summoner pivot).
   const setTaggedOnly = (c) => {
     if (lane !== 'wit') return true;
     if (!isSpellPieceSlot(c)) return true;
@@ -3406,13 +3406,13 @@ const STAGE_SLOT_BONUS = {
 const INTER_ACT_HEAL_RATIO = 0.35; // v2.22: was 0.55 — too generous; 0.25 was too harsh. 0.35 lands middle.
 
 // v2 tray initial state. The intro/subject/target/modifiers fields are the
-// primary truth. Legacy fields (chutzpah/wit/jnsq totals, tags, words array,
+// primary truth. Legacy fields (handler/wit/jnsq totals, tags, words array,
 // effectCard) are computed mirrors kept populated for back-compat reads
 // scattered through the older codebase (previewSway, certain log paths).
 function initialV2Tray(overrides = {}) {
   return {
     intro: null, subject: null, target: null, modifiers: [],
-    chutzpah: 0, wit: 0, jnsq: 0,
+    handler: 0, wit: 0, jnsq: 0,
     phrases: [], tags: [], words: [],
     effectCard: null,
     effectFiredThisTurn: false,
@@ -3421,7 +3421,7 @@ function initialV2Tray(overrides = {}) {
 }
 
 // Rebuild the legacy mirror fields from the v2 slot truth. Called any time
-// we mutate intro / subject / target / modifiers. Chutzpah Animal Summoner
+// we mutate intro / subject / target / modifiers. Handler Animal Summoner
 // (2026-05-31): lure / animal envelopes can occupy intro/subject/target
 // instead of raw cards — skip them when computing wit stat totals so the
 // FFT damage formula doesn't see ghost stats.
@@ -3430,9 +3430,9 @@ function isSummonEnvelope(v) {
 }
 function syncTrayLegacy(t) {
   const cards = [t.intro, t.subject, ...(t.modifiers || [])].filter(c => c && !isSummonEnvelope(c));
-  const out = { chutzpah: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [...cards] };
+  const out = { handler: 0, wit: 0, jnsq: 0, phrases: [], tags: [], words: [...cards] };
   for (const c of cards) {
-    out.chutzpah += c.stats?.chutzpah || 0;
+    out.handler += c.stats?.handler || 0;
     out.wit      += c.stats?.wit      || 0;
     out.jnsq     += c.stats?.jnsq     || 0;
     if (c.phrase) out.phrases.push(c.phrase);
@@ -3590,9 +3590,9 @@ export default function App() {
   // Read the Room — next Effect this turn ignores enemy effectiveness
   // multiplier. Set true on play, consumed by castStagedSpell.
   const [pierceNextCast, setPierceNextCast] = useState(false);
-  // Iron Stomach — next chutzpah cast this turn deals +N%. Number, not bool
-  // (e.g., 0.5 = +50%). Consumed only when a chutzpah-scaling cast fires.
-  const [boostNextChutzpahCast, setBoostNextChutzpahCast] = useState(0);
+  // Iron Stomach — next handler cast this turn deals +N%. Number, not bool
+  // (e.g., 0.5 = +50%). Consumed only when a handler-scaling cast fires.
+  const [boostNextHandlerCast, setBoostNextHandlerCast] = useState(0);
   // Visceral feedback — short-lived state flipped when the enemy takes
   // damage. The CombatScreen reads these and applies the hit-shake
   // class + renders damage-number floaters.
@@ -3641,7 +3641,7 @@ export default function App() {
   // v2.13: per-combat cast counter (resets at combat enter).
   // Used by Thesis-expanded annotation's bonusSpellDamagePerCast scaling.
   const [castsThisCombat, setCastsThisCombat] = useState(0);
-  // v2.11: chutzpah ALL IN — per-cast HP wager. Player commits 0-N HP
+  // v2.11: handler ALL IN — per-cast HP wager. Player commits 0-N HP
   // before casting; bonus damage = N × 1.5 (plus per-card multipliers).
   // Cap at floor(hp/3) so the stake alone can't be lethal. Reset on
   // cast, turn end, and combat enter.
@@ -3711,7 +3711,7 @@ export default function App() {
   const setBracingArmed             = makeTriggerSetter('bracingArmed');
   const [hpAtTurnStart, setHpAtTurnStart] = useState(0);             // D-4 support — capture at turn start, compare at end
   const [lastCastDamage, setLastCastDamage] = useState(0);           // O-1 support — captured per cast
-  // v2.24: chutzpah TUNNEL VISION meter. Fills +1 per chutzpah-lane card
+  // v2.24: handler TUNNEL VISION meter. Fills +1 per handler-lane card
   // played (intro/subject/modifier/target — anywhere staging completes).
   // At >= 5 at start of your turn, you enter RAGE for that turn:
   // playerDmgMult +0.5 (channeled through adjustPlayerDmg so it interacts
@@ -3759,7 +3759,7 @@ export default function App() {
   // damage absorbed by THIS card's block contribution. Stores the block
   // snapshot right after the card was played + the heal cap (5).
   const [complimentSnap, setComplimentSnap] = useState(null);
-  // v3.4.67 — Chutzpah schools state.
+  // v3.4.67 — Handler schools state.
   //   Bluster: loudness counter (chip+finisher). Persists all combat.
   //   Ballooning: tempHp + tempHpExpiresOnTurn. Decays at start of player
   //     turn once the marker passes. Damage routing: incoming →
@@ -3854,20 +3854,20 @@ export default function App() {
   // turn 2 after first endTurn, etc.). Used by UI displays and any
   // remaining turn-aware riders.
   const [combatTurn, setCombatTurn] = useState(1);
-  // v2.25: chutzpah DOUBLING DOWN — per-turn "corner tokens" counter.
-  // +1 per chutzpah target with `doubleDown: true` that resolves a CAST
+  // v2.25: handler DOUBLING DOWN — per-turn "corner tokens" counter.
+  // +1 per handler target with `doubleDown: true` that resolves a CAST
   // (not fizzled). At end of player turn, if the enemy is still alive,
   // the player takes cornerTokens * 2 unblocked HP damage — the bill for
   // bravado that didn't close the deal. Resets to 0 every turn (after the
   // damage tick fires).
   const [cornerTokens, setCornerTokens] = useState(0);
-  // v2.29: chutzpah SAYING IT LOUDER — per-turn counter of chutzpah word
+  // v2.29: handler SAYING IT LOUDER — per-turn counter of handler word
   // cards (intro/subject/modifier) carrying the 'demanding' tag. Reset at
   // the start of every player turn. Read by `loudScaling` targets to add
   // +loudCount * 3 to spell damage. The combo path is: stack as many
   // demanding-tagged words into one turn as possible, then fire I SAID.
   const [loudCount, setLoudCount] = useState(0);
-  // v2.26: chutzpah STORMING OUT — when a stormOut target casts, the enemy's
+  // v2.26: handler STORMING OUT — when a stormOut target casts, the enemy's
   // next intent is HIDDEN from the UI (we don't render the telegraph). The
   // flag persists through ONE upcoming player turn (the intent rolled during
   // the storm-out endTurn), then clears at the END of THAT turn's endTurn so
@@ -3882,7 +3882,7 @@ export default function App() {
     const id = setTimeout(() => setTutorFlash(null), 5000);
     return () => clearTimeout(id);
   }, [tutorFlash]);
-  // v2.27: HIT ME AGAIN — chutzpah's reactive recoil power. While the
+  // v2.27: HIT ME AGAIN — handler's reactive recoil power. While the
   // `cv2-p-hit-me-again` power is installed (mirrored on this flag so the
   // attack-resolution path doesn't have to walk `powers` on every swing),
   // each enemy hit landing on the player arms +1 to `hitMeAgainCharges`.
@@ -4336,7 +4336,7 @@ export default function App() {
       hand: ['wv2-i-frankly', 'wv2-s-boucle-suggestion', 'wv2-t-fabric-stops-asking', 'c-defend', 'c-compose'],
       deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
-    chutzpah: {
+    handler: {
       hand: ['cv2-i-look', 'cv2-i-listen-pal', 'cv2-s-this-nonsense', 'cv2-t-stops-now', 'c-defend'],
       deck: ['cv2-i-hey-now', 'cv2-s-your-attitude', 'cv2-t-is-over', 'c-compose'],
     },
@@ -4419,7 +4419,7 @@ export default function App() {
       3: ['wv2-t-natural-conclusion', 'wv2-i-i-should-think', 'wv2-ann-thorned-footnote', 'wv2-k-word-in-edgewise', 'c-mend'],
       4: ['wv2-t-generous-error', 'wv2-t-in-summary', 'wv2-ann-thesis-expanded', 'c-bulwark', 'c-acuity'],
     },
-    chutzpah: {
+    handler: {
       2: ['cv2-t-bleeds-for-it', 'cv2-i-bring-it-on', 'cv2-g-slams-table', 'cv2-p-hit-me-again', 'c-amplify'],
       3: ['cv2-t-bare-knuckles', 'cv2-m-say-again', 'cv2-i-once', 'cv2-g-headbutt', 'c-mend'],
       4: ['cv2-t-and-im-not-done', 'c-iron-stomach', 'c-bulwark', 'c-acuity', 'c-clarity'],
@@ -4622,7 +4622,7 @@ export default function App() {
     // v3.4.50 / v3.4.72 (Alan): ALL wizards skip the supply shop. Each
     // wizard gets a random common relic auto-strapped on, then goes
     // straight to familiar-shop. Wit additionally defaults to the
-    // slowburn-4 starting row (Lingering Point); chutzpah seeds bluster-1
+    // slowburn-4 starting row (Lingering Point); handler seeds bluster-1
     // automatically via buildStartingDeck; jnsq uses the lane defaults.
     if (c.lane === 'wit') {
       const row = WIT_ROW_BY_ID['slowburn-4'];
@@ -5382,7 +5382,7 @@ export default function App() {
     setEnemyDmgMult(1.0);
     setPlayerDmgMult(1.0);
     setPierceNextCast(false);
-    setBoostNextChutzpahCast(0);
+    setBoostNextHandlerCast(0);
     setLastIntentKinds([]);
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
@@ -5404,7 +5404,7 @@ export default function App() {
     setPendingTriggers({});
     setHpAtTurnStart(hp);
     setLastCastDamage(0);
-    // v2.24: chutzpah tunnel-vision meter and RAGE state reset per combat.
+    // v2.24: handler tunnel-vision meter and RAGE state reset per combat.
     setTunnelVision(0);
     setRageActive(false);
     // v2.34: wit LONG THREAD — meter + per-turn flags reset per combat.
@@ -5424,7 +5424,7 @@ export default function App() {
     setNextCardFree(false);
     setEnemySkipNextTurn(false);
     setComplimentSnap(null);
-    // v3.4.67 — chutzpah school state resets per combat.
+    // v3.4.67 — handler school state resets per combat.
     setLoudness(0);
     setTempHp(0);
     setTempHpTurns(0);
@@ -5454,15 +5454,15 @@ export default function App() {
     setPendingMissteps([]);
     // v2.39: combat turn counter reset to 1.
     setCombatTurn(1);
-    // v2.25: chutzpah corner-token counter resets per combat.
+    // v2.25: handler corner-token counter resets per combat.
     setCornerTokens(0);
-    // v2.29: chutzpah saying-it-louder counter resets per combat (and per turn).
+    // v2.29: handler saying-it-louder counter resets per combat (and per turn).
     setLoudCount(0);
-    // v2.26: chutzpah hidden-intent flag resets per combat.
+    // v2.26: handler hidden-intent flag resets per combat.
     setIntentHidden(false);
     stormOutFiredRef.current = false;
     tutorFiredThisTurnRef.current = false;
-    // v2.27: chutzpah Hit Me Again — power install + charges reset.
+    // v2.27: handler Hit Me Again — power install + charges reset.
     setHitMeAgainInstalled(false);
     setHitMeAgainCharges(0);
     // v2.46: jnsq WON'T SHUT UP — commitment flag clears per combat. Per-
@@ -5475,7 +5475,7 @@ export default function App() {
     // v2.52: jnsq DRUNKEN STAGGER — defensive flag clears per combat. The
     // dodge window is intra-turn / intra-combat only.
     setStaggerActive(false);
-    // v2.33: chutzpah Not Listening — pending absorb charges reset per combat.
+    // v2.33: handler Not Listening — pending absorb charges reset per combat.
     setNotListeningCharges(0);
     // v2.96: Hollow Weaver weave debt — reset per combat.
     setWeaveStacks(0);
@@ -5724,15 +5724,15 @@ export default function App() {
       return;
     }
 
-    // v2.24: tunnel-vision +1 helper. Bumps the meter when a chutzpah-lane
+    // v2.24: tunnel-vision +1 helper. Bumps the meter when a handler-lane
     // card lands a successful stage. Does NOT fire on refunds — the staging
     // outcome (replace, success) calls this AFTER the new card is committed.
-    const bumpTunnelVisionIfChutzpah = () => {
-      if (card.lane === 'chutzpah') setTunnelVision(n => n + 1);
-      // v2.29: saying-it-louder. Chutzpah word cards (intro/subject/modifier)
+    const bumpTunnelVisionIfHandler = () => {
+      if (card.lane === 'handler') setTunnelVision(n => n + 1);
+      // v2.29: saying-it-louder. Handler word cards (intro/subject/modifier)
       // with the 'demanding' tag are the repetition beats. Targets don't
       // count — they consume loudCount, they don't add to it.
-      if (card.lane === 'chutzpah'
+      if (card.lane === 'handler'
           && (card.slot === 'intro' || card.slot === 'subject' || card.slot === 'modifier')
           && (card.tags || []).includes('demanding')) {
         setLoudCount(n => n + 1);
@@ -5742,11 +5742,11 @@ export default function App() {
     // `requiresRage: true`) is castable only while RAGE is active.
     if (card.slot === 'target' && card.effect?.requiresRage && !rageActive) {
       setEnergy(e => e + (card.cost || 0));
-      pushLog(`🔥 ${card.phrase || card.name} needs RAGE — chutzpah isn't there yet.`);
+      pushLog(`🔥 ${card.phrase || card.name} needs RAGE — handler isn't there yet.`);
       return;
     }
 
-    // Chutzpah Animal Summoner — lure cards stage into the first empty
+    // Handler Animal Summoner — lure cards stage into the first empty
     // tray slot (intro → subject → target). Slot value becomes a
     // { kind: 'lure', card, turnsRemaining, animalId } envelope rather than
     // the raw card, so the end-of-turn tick + transform logic can find it.
@@ -5790,7 +5790,7 @@ export default function App() {
       const slotBonus = STAGE_SLOT_BONUS[card.slot] || {};
       applySideEffects({ ...slotBonus, ...(card.effects || {}) }, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
-      bumpTunnelVisionIfChutzpah();
+      bumpTunnelVisionIfHandler();
       pushLog(logBits.join(' · ') + `  →  📜 ${card.slot} staged`);
       // v3.4.57 (Alan) — Auto partial-row tutor was too strong. Now the
       // ONLY way to trigger sentence-finishes-itself is to play "The Tutor"
@@ -5884,7 +5884,7 @@ export default function App() {
         logBits.push(`📖 self-footnoted (+1 wit on this card)`);
       }
       setHand(h => h.filter((_, i) => i !== handIdx));
-      bumpTunnelVisionIfChutzpah();
+      bumpTunnelVisionIfHandler();
       pushLog(logBits.join(' · ') + `  →  ✨ modifier staged`);
       return;
     }
@@ -5909,7 +5909,7 @@ export default function App() {
       const slotBonus = STAGE_SLOT_BONUS[card.slot] || {};
       applySideEffects({ ...slotBonus, ...(card.effects || {}) }, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
-      bumpTunnelVisionIfChutzpah();
+      bumpTunnelVisionIfHandler();
       pushLog((logBits.length > 0 ? logBits.join(' · ') + ' · ' : '') + `🎯 Target staged: ${card.phrase} — hit CAST when ready.`);
       return;
     }
@@ -5964,7 +5964,7 @@ export default function App() {
       }
       if (ge.draw) drawCards(ge.draw);
       if (ge.stripEnemyBlock)   { setEnemyBlock(b => Math.max(0, b - ge.stripEnemyBlock)); pushLog(`🛇 Stripped ${ge.stripEnemyBlock} enemy block.`); }
-      // +1 Loudness on chutzpah gestures removed 2026-05-31 — Loudness mechanic
+      // +1 Loudness on handler gestures removed 2026-05-31 — Loudness mechanic
       // dormant under the Animal Summoner pivot. No consumers exist for it.
       // Exhaust by default — gestures are one-shot per acquisition.
       if (ge.exhaust !== false) setExiled(ex => [...ex, card]);
@@ -5979,7 +5979,7 @@ export default function App() {
       const cardTags = card.tags || [];
       setTray(prev => ({
         ...prev,
-        chutzpah: prev.chutzpah + (stats.chutzpah || 0),
+        handler: prev.handler + (stats.handler || 0),
         wit:      prev.wit      + (stats.wit      || 0),
         jnsq:     prev.jnsq     + (stats.jnsq     || 0),
         phrases:  [...prev.phrases, card.phrase || card.name],
@@ -6098,10 +6098,10 @@ export default function App() {
       const w = tray.words[wordIdx];
       setTray(prev => {
         const newWords = prev.words.filter((_, i) => i !== wordIdx);
-        const c = { chutzpah: 0, wit: 0, jnsq: 0 };
+        const c = { handler: 0, wit: 0, jnsq: 0 };
         const phrases = []; const allTags = [];
         for (const x of newWords) {
-          if (x.stats?.chutzpah) c.chutzpah += x.stats.chutzpah;
+          if (x.stats?.handler) c.handler += x.stats.handler;
           if (x.stats?.wit)      c.wit      += x.stats.wit;
           if (x.stats?.jnsq)     c.jnsq     += x.stats.jnsq;
           phrases.push(x.phrase || x.name);
@@ -6150,7 +6150,7 @@ export default function App() {
   }
 
   // v2.12: CHAOS DICE outcome table. Indexed 1-6. EV ~+4% damage,
-  // tuned post-sim to keep jnsq from leaping past chutzpah's risk-reward
+  // tuned post-sim to keep jnsq from leaping past handler's risk-reward
   // identity.
   const CHAOS_OUTCOMES = {
     1: { name: 'BACKFIRE',   dmgMult: 0.5,  hpDelta: -3, draw: 0, energyNext: 0, vuln: 0, discardRandom: 0 },
@@ -6254,9 +6254,9 @@ export default function App() {
       discardSize: discard.length,
       deckSize: deck.length + hand.length + discard.length + exiled.length,
       missingHpFrac: maxHp > 0 ? (maxHp - hp) / maxHp : 0,
-      stakeAmount, // v2.11: chutzpah ALL IN
-      loudCount, // v2.29: chutzpah SAYING IT LOUDER
-      // v2.30: chutzpah SMELL WEAKNESS — predator rider reads enemy debuff state
+      stakeAmount, // v2.11: handler ALL IN
+      loudCount, // v2.29: handler SAYING IT LOUDER
+      // v2.30: handler SMELL WEAKNESS — predator rider reads enemy debuff state
       playerDmgMult, enemyDmgMult,
       // v2.34: wit LONG THREAD — threadScaling targets read this for +N × LT
       longThread,
@@ -6296,7 +6296,7 @@ export default function App() {
     // v2.29: SAYING IT LOUDER — surface the bonus in the log when it applied.
     if (loudBonus > 0) {
       pushLog(`📢 SAID IT LOUDER ×${loudCount} → +${loudBonus} dmg`);
-      logEvent('chutzpah.loud', {
+      logEvent('handler.loud', {
         loudCount, bonusDamage: loudBonus,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
@@ -6304,7 +6304,7 @@ export default function App() {
     // v2.30: SMELL WEAKNESS — surface the predator rider when it fired.
     if (predatorBonus > 0) {
       pushLog(`🩸 PREDATOR — enemy debuffed → +${predatorBonus} dmg`);
-      logEvent('chutzpah.predator', {
+      logEvent('handler.predator', {
         bonusDamage: predatorBonus,
         playerDmgMult, enemyDmgMult,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
@@ -6530,7 +6530,7 @@ export default function App() {
       const rider = row.rider || {};
       if (rider.damageMult)  dmg = Math.round(dmg * rider.damageMult);
       if (rider.bonus)       dmg += rider.bonus;
-      // v3.4.67 — Chutzpah school riders (PRE-damage).
+      // v3.4.67 — Handler school riders (PRE-damage).
       //   Bluster: pressureBonus reads enemy.pressure as flat damage;
       //   consumePressureMult eats all pressure for multiplier bonus.
       //   Ballistic: rageDouble doubles damage while in RAGE (TV≥5);
@@ -6909,7 +6909,7 @@ export default function App() {
         pushLog(`🌹 Thorns — their next attack will be answered before it lands.`);
       }
       if (rider.addBank)        setWordsBank(b => b + rider.addBank);
-      // v3.4.67 — Chutzpah school riders (POST-damage state mutations).
+      // v3.4.67 — Handler school riders (POST-damage state mutations).
       if (rider.addPressure) {
         setEnemy(e => e ? { ...e, pressure: (e.pressure || 0) + rider.addPressure } : e);
         pushLog(`🔥 +${rider.addPressure} Pressure on enemy.`);
@@ -7106,7 +7106,7 @@ export default function App() {
       pushLog(`🩸 -${sideEffects.selfHpCost} HP (self)`);
     }
 
-    // v2.25: DOUBLING DOWN — bank a corner token when a chutzpah target
+    // v2.25: DOUBLING DOWN — bank a corner token when a handler target
     // with `doubleDown: true` resolves a cast. The token bills at end of
     // turn if the enemy is still alive. Counted on RAGE-missing casts too
     // — the cast still resolved (just at half damage), so the bravado
@@ -7277,7 +7277,7 @@ export default function App() {
 
     const card = t.effectCard;
     const eff = card.effect || {};
-    logEvent(TE.SPELL_CAST, { effectId: card.id, effectName: card.name, stagedWords: (t.words || []).map(w => w.id), trayStats: { chutzpah: t.chutzpah, wit: t.wit, jnsq: t.jnsq }, tags: t.tags, enemyId: enemy?.id, enemyHp, enemyComposure });
+    logEvent(TE.SPELL_CAST, { effectId: card.id, effectName: card.name, stagedWords: (t.words || []).map(w => w.id), trayStats: { handler: t.handler, wit: t.wit, jnsq: t.jnsq }, tags: t.tags, enemyId: enemy?.id, enemyHp, enemyComposure });
 
     // INSULT branch: open the 3-pick word prompt. The cast resolves
     // asynchronously from the prompt screen via finalizeInsult.
@@ -7339,7 +7339,7 @@ export default function App() {
     const stat = eff.scaleBy || 'wit';
     // Polymath-style: sum all three verbal stats instead of using one.
     const trayVal = eff.sumAllStats
-      ? (tray.chutzpah || 0) + (tray.wit || 0) + (tray.jnsq || 0)
+      ? (tray.handler || 0) + (tray.wit || 0) + (tray.jnsq || 0)
       : (tray[stat] || 0);
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
@@ -7356,11 +7356,11 @@ export default function App() {
       dmg *= 2;
       pushLog(`💥 below ${eff.hpThresholdDouble} HP — damage doubled.`);
     }
-    // Iron Stomach: next chutzpah-scaling cast gets the boost.
-    if (boostNextChutzpahCast > 0 && stat === 'chutzpah') {
-      dmg = Math.round(dmg * (1 + boostNextChutzpahCast));
-      pushLog(`💪 chutzpah cast boosted +${Math.round(boostNextChutzpahCast * 100)}%.`);
-      setBoostNextChutzpahCast(0);
+    // Iron Stomach: next handler-scaling cast gets the boost.
+    if (boostNextHandlerCast > 0 && stat === 'handler') {
+      dmg = Math.round(dmg * (1 + boostNextHandlerCast));
+      pushLog(`💪 handler cast boosted +${Math.round(boostNextHandlerCast * 100)}%.`);
+      setBoostNextHandlerCast(0);
     }
     if (piercing) pushLog(`🎯 cast pierces ${enemy?.name}'s resistance.`);
     const rWith = eff.resonatesWith || [];
@@ -7389,7 +7389,7 @@ export default function App() {
     if (rider.vulnerable) { applyExpiringVuln(rider.vulnerable); pushLog(`💫 +${25*rider.vulnerable}% potency (3 turns)`); }
     if (rider.block)      { setBlock(b => b + rider.block);          pushLog(`🛡 +${rider.block}`); }
     if (rider.draw)       { drawCards(rider.draw);                   pushLog(`+${rider.draw} draw`); }
-    // Chutzpah-archetype effects: pay HP to cast.
+    // Handler-archetype effects: pay HP to cast.
     if (eff.loseHpOnPlay)  { setHp(h => clamp(h - eff.loseHpOnPlay, 0, maxHp)); pushLog(`💔 -${eff.loseHpOnPlay} HP (self)`); }
     // Jnsq-archetype effects: weighted gamble.
     if (eff.chance) {
@@ -7405,7 +7405,7 @@ export default function App() {
     applyPowerTriggers('onEffectCardPlayed');
     advanceTutorialStep('cast-spell');
 
-    // Cycle 4 batch 5: drawAfterCast (chutzpah engine card hook).
+    // Cycle 4 batch 5: drawAfterCast (handler engine card hook).
     if (eff.drawAfterCast) {
       drawCards(eff.drawAfterCast);
       pushLog(`📥 Drew ${eff.drawAfterCast} after cast.`);
@@ -7511,7 +7511,7 @@ export default function App() {
     }
     const stat = eff.scaleBy || 'wit';
     const trayVal = eff.sumAllStats
-      ? (tray.chutzpah || 0) + (tray.wit || 0) + (tray.jnsq || 0)
+      ? (tray.handler || 0) + (tray.wit || 0) + (tray.jnsq || 0)
       : (tray[stat] || 0);
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
@@ -7521,7 +7521,7 @@ export default function App() {
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
     if (eff.hpThresholdDouble && hp < eff.hpThresholdDouble) dmg *= 2;
-    if (boostNextChutzpahCast > 0 && stat === 'chutzpah') dmg = Math.round(dmg * (1 + boostNextChutzpahCast));
+    if (boostNextHandlerCast > 0 && stat === 'handler') dmg = Math.round(dmg * (1 + boostNextHandlerCast));
     const rWith = eff.resonatesWith || [];
     const perTag = eff.resonanceBonus?.perTag || 0;
     const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
@@ -7547,9 +7547,9 @@ export default function App() {
       setPierceNextCast(true);
       logBits.push(`🎯 next cast pierces resistance`);
     }
-    if (fx.boostNextChutzpahCast) {
-      setBoostNextChutzpahCast(fx.boostNextChutzpahCast);
-      logBits.push(`💪 next Chutzpah cast +${Math.round(fx.boostNextChutzpahCast * 100)}%`);
+    if (fx.boostNextHandlerCast) {
+      setBoostNextHandlerCast(fx.boostNextHandlerCast);
+      logBits.push(`💪 next Handler cast +${Math.round(fx.boostNextHandlerCast * 100)}%`);
     }
     if (fx.vulnerable) {
       applyExpiringVuln(fx.vulnerable);
@@ -7703,15 +7703,15 @@ export default function App() {
       applyDamageToEnemyComposure(fx.compDmg);
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
     }
-    // v3.4.73 (Alan) — Punchline-style payoff for chutzpah. Eats current
+    // v3.4.73 (Alan) — Punchline-style payoff for handler. Eats current
     // Loudness × mult as composure damage, then clears Loudness.
     // v3.4.75 (Alan) — incorporate buffs and enemy statuses. The cast is
-    // chutzpah-flavored, so apply enemy effectiveness vs chutzpah + the
+    // handler-flavored, so apply enemy effectiveness vs handler + the
     // shared playerDmgMult (carries enemy Vulnerable / player Weak / etc).
     if (fx.consumeLoudnessAsDamage && loudness > 0) {
       const mult = fx.consumeLoudnessAsDamage;
       const baseDmg = loudness * mult;
-      const chutzEff = enemy?.effectiveness?.chutzpah ?? 1.0;
+      const chutzEff = enemy?.effectiveness?.handler ?? 1.0;
       const finalDmg = Math.max(0, Math.round(baseDmg * chutzEff * playerDmgMult));
       applyDamageToEnemyComposure(finalDmg);
       logBits.push(`📢 PUNCHLINE: ${loudness} Loudness × ${mult} = ${baseDmg}`
@@ -8039,7 +8039,7 @@ export default function App() {
         logBits.push(`🎭 ${dmg} (Pile-On — ⅓ of missing)`);
       }
     }
-    // Self-damage cost on the card (Chutzpah identity — risk for damage).
+    // Self-damage cost on the card (Handler identity — risk for damage).
     if (fx.loseHp) {
       setHp(h => clamp(h - fx.loseHp, 0, maxHp));
       logBits.push(`-${fx.loseHp} HP (self)`);
@@ -8059,14 +8059,14 @@ export default function App() {
       setEnergy(e => e + fx.refundEnergy);
       logBits.push(`⚡ +${fx.refundEnergy} refund`);
     }
-    // Apply enemy DOT (damage-over-time). Chutzpah "your every breath".
+    // Apply enemy DOT (damage-over-time). Handler "your every breath".
     if (fx.applyDot) {
       const d = fx.applyDot;
       setEnemy(e => e ? { ...e, dot: { damage: d.damage, turnsRemaining: d.turns, total: d.turns } } : e);
       logBits.push(`🩸 Bleed ${d.damage}/turn × ${d.turns}`);
     }
     // v2.24: tunnel-vision pump from card side effects (Foaming at the mouth,).
-    // Pushes the chutzpah RAGE meter without requiring the card to be played
+    // Pushes the handler RAGE meter without requiring the card to be played
     // as a particular slot — the effect itself is what fills.
     if (fx.tunnelVision) {
       setTunnelVision(n => n + fx.tunnelVision);
@@ -8571,7 +8571,7 @@ export default function App() {
       setRageActive(false);
       pushLog(`🔥 Rage dissipates.`);
     }
-    // v2.25: DOUBLING DOWN billing. If the player landed any chutzpah
+    // v2.25: DOUBLING DOWN billing. If the player landed any handler
     // doubleDown casts this turn and the enemy is still alive, eat
     // cornerTokens × 2 unblocked HP. Reset tokens either way.
     if (cornerTokens > 0) {
@@ -8681,7 +8681,7 @@ export default function App() {
     const killedByPowers = applyEndOfTurnPowerTriggers();
     if (killedByPowers) return;
 
-    // Chutzpah Animal Summoner end-of-turn tick (2026-05-31, slice 1).
+    // Handler Animal Summoner end-of-turn tick (2026-05-31, slice 1).
     // Process order:
     //   a. ANIMALS act: attack the enemy, decrement duration, advance
     //      predator-chain progress, transform to predator if chain completes,
@@ -8689,7 +8689,7 @@ export default function App() {
     //   b. LURES tick: decrement turnsRemaining, transform into the
     //      summoned animal in-place when it reaches 0. Newly arrived
     //      animals wait until the NEXT end-of-turn to act.
-    if (selectedCharacter?.lane === 'chutzpah') {
+    if (selectedCharacter?.lane === 'handler') {
       const nextSlots = {};
       let summonerKilledEnemy = false;
       for (const slotName of ['intro', 'subject', 'target']) {
@@ -8881,7 +8881,7 @@ export default function App() {
     }
     // v3.4.59 — clear "I Know Just What to Say" if it was unused this turn.
     if (nextCardFree) setNextCardFree(false);
-    // v3.4.67 — Chutzpah school over-time decay.
+    // v3.4.67 — Handler school over-time decay.
     //   Temp HP: each end-of-turn the turn counter decrements; at 0,
     //   any remaining Temp HP evaporates.
     //   Self-Vulnerable: counter decrements; at 0, reset playerIncomingMult.
@@ -9153,14 +9153,14 @@ export default function App() {
       });
     }
 
-    // v2.24: RAGE entry. If the chutzpah TUNNEL VISION meter is at 5+
+    // v2.24: RAGE entry. If the handler TUNNEL VISION meter is at 5+
     // entering the new player turn, flip into RAGE: +50% potency for
     // this turn. The bonus is applied to playerDmgMult (clamped at 1.5)
     // and rolled back at the top of the next endTurn call.
     if (tunnelVision >= 5 && !rageActive) {
       adjustPlayerDmg(+0.5);
       setRageActive(true);
-      pushLog(`🔥 RAGE — chutzpah unleashed (+50% damage).`);
+      pushLog(`🔥 RAGE — handler unleashed (+50% damage).`);
     }
 
     // 6. New intent. Track what just fired and force a switch if the
@@ -9212,7 +9212,7 @@ export default function App() {
     // Handles: debuff-over-time (Weak/Vuln), dormant delayed payloads,
     // and Crescendo's bankDouble. DoT damage moved to the
     // enemy.dot Poison-style counter (v3.4) — see legacy enemy.dot
-    // tick further down which now serves both chutzpah's applyDot
+    // tick further down which now serves both handler's applyDot
     // and Slow Burn's addDotDamage etc. Self-boons (selfBlock /
     // selfDraw) trigger at player-turn-start (separate tick).
     if (scheduledEffects.length > 0) {
@@ -9880,7 +9880,7 @@ export default function App() {
         salvaged: gathered.length === 0,
       };
       // v3.4.64 — if player owns at least one FFT row, offer an FFT row
-      // upgrade choice BEFORE crafting. Wit-only (chutzpah retired FFT
+      // upgrade choice BEFORE crafting. Wit-only (handler retired FFT
       // 2026-05-31; jnsq doesn't have row content built yet).
       const laneRowTable = selectedCharacter?.lane === 'wit' ? WIT_ROW_BY_ID : null;
       if (laneRowTable) {
@@ -9947,7 +9947,7 @@ export default function App() {
     // Elite enemies grant a choice of 3 T1 FFT rows; bosses grant 3 T2
     // rows. Each row is a bundle — picking adds all 3 cards at once.
     const isEliteOrBoss = enemy.tier === 'elite' || enemy.tier === 'boss';
-    // Wit-only FFT-row bundle reward (chutzpah retired FFT 2026-05-31).
+    // Wit-only FFT-row bundle reward (handler retired FFT 2026-05-31).
     const laneRowsTable = lane === 'wit' ? WIT_ROWS : null;
     if (laneRowsTable && isEliteOrBoss) {
       // Pick 3 rows the player doesn't already fully own.
@@ -10507,7 +10507,7 @@ export default function App() {
       onUnstage={unstageCard} onCast={castStagedSpell}
       castPreview={previewCastDamage()}
       castsThisTurn={castsThisTurn} maxCastsPerTurn={MAX_CASTS_PER_TURN}
-      isChutzpah={selectedCharacter?.lane === 'chutzpah'}
+      isHandler={selectedCharacter?.lane === 'handler'}
       stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
       isJnsq={selectedCharacter?.lane === 'jnsq'}
       rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
@@ -10612,12 +10612,12 @@ function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave, onDevQuick
 }
 
 function DevQuickStartScreen({ onStart, onBack }) {
-  const [lane, setLane] = useState('chutzpah');
+  const [lane, setLane] = useState('handler');
   const [actIdx, setActIdx] = useState(0);
   const [dropAtBoss, setDropAtBoss] = useState(false);
   const lanes = [
     { id: 'wit',      name: 'Wit — The Scholar' },
-    { id: 'chutzpah', name: 'Chutzpah — The Handler' },
+    { id: 'handler', name: 'Handler — The Handler' },
     { id: 'jnsq',     name: 'Jnsq — The Fool' },
   ];
   const actLabels = ['Act 1 (start)', 'Act 2 (Thread Path)', 'Act 3 (Forge Path)', 'Final Act (Staff Path)'];
@@ -10681,17 +10681,17 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
   // Lane-flavored examples — same step structure, different signature
   // mechanic explainer at step 4.
   const laneName = lane === 'wit' ? 'Wit'
-                 : lane === 'chutzpah' ? 'Chutzpah'
+                 : lane === 'handler' ? 'Handler'
                  :                       'Je Ne Sais Quoi';
-  const laneStat = lane === 'wit' ? '✨' : lane === 'chutzpah' ? '💪' : '🌀';
+  const laneStat = lane === 'wit' ? '✨' : lane === 'handler' ? '💪' : '🌀';
   // Lane-specific signature-mechanic explainer for the signature step.
   const signatureBody = lane === 'wit' ? (<>
         <p><b>🧵 Long Thread</b> — your defense engine. Every turn you cast a wit Effect AND take no unblocked HP damage, your thread grows by 1. While thread &gt; 0, incoming damage is reduced by <b>min(2, Thread)</b> per swing. The thread decays by 1 on an unblocked hit. Defend like your life depends on the build.</p>
         <p className="mt-2">Other wit-only tools you'll meet: <b>📖 Footnote</b> (attach +1 wit to a phrase permanently — sticks across casts), <b>🛑 Hold on, hold on —</b> (reactive skill: reduce the next enemy swing by your current Thread). Build patiently, finish big.</p>
       </>)
-    : lane === 'chutzpah' ? (<>
-        <p><b>🔥 Tunnel Vision</b> — your signature meter. Each chutzpah card played adds +1 to the meter. At <b>5+</b>, you enter <b>RAGE</b> next turn: all chutzpah damage +50%. Ride it for the burst, but you can't play Skills during RAGE.</p>
-        <p className="mt-2">Other chutzpah-only tools: <b>🏚 Doubling Down</b> (corner tokens — bill you if the enemy survives), <b>📢 Saying it Louder</b> (demanding words stack damage), <b>⚡ Hit Me Again</b> (Power — enemy attacks bill the enemy back).</p>
+    : lane === 'handler' ? (<>
+        <p><b>🔥 Tunnel Vision</b> — your signature meter. Each handler card played adds +1 to the meter. At <b>5+</b>, you enter <b>RAGE</b> next turn: all handler damage +50%. Ride it for the burst, but you can't play Skills during RAGE.</p>
+        <p className="mt-2">Other handler-only tools: <b>🏚 Doubling Down</b> (corner tokens — bill you if the enemy survives), <b>📢 Saying it Louder</b> (demanding words stack damage), <b>⚡ Hit Me Again</b> (Power — enemy attacks bill the enemy back).</p>
       </>)
     : (<>
         <p><b>🎲 Chaos Dice</b> — your signature gamble. After staging a full spell, the <b>🎲 ROLL?</b> toggle appears next to CAST. Toggle it ON to roll 1d6 on the cast:</p>
@@ -11003,24 +11003,24 @@ const WIZARD_TUTORIALS = {
       },
     ],
   },
-  chutzpah: {
+  handler: {
     color: 'ember',
     icon: '🔥',
-    title: 'The Chutzpah Playstyle',
+    title: 'The Handler Playstyle',
     subtitle: 'Tunnel-vision the kill. Eat the rest later.',
-    overview: 'Chutzpah wins by going RAGE-mode and dumping doubled damage into one enemy before consequences land. You stack a meter by playing chutzpah words, you eat HP-bills if you fail to close, and you have a capstone that does it all at once. You are Walter Sobchak at a meeting that has gone on too long.',
+    overview: 'Handler wins by going RAGE-mode and dumping doubled damage into one enemy before consequences land. You stack a meter by playing handler words, you eat HP-bills if you fail to close, and you have a capstone that does it all at once. You are Walter Sobchak at a meeting that has gone on too long.',
     sections: [
       {
         heading: '🔥 TUNNEL VISION → RAGE (the signature)',
-        body: 'Every chutzpah Word you play adds +1 to the Tunnel Vision meter. At 5+ at the start of your turn you enter RAGE — all chutzpah damage +50%, but you CAN\'T play Skill cards (no Block, no Heal) and you can\'t see next-turn intent. Ride the rage and one-shot the enemy, or break it by playing a non-chutzpah turn before the threshold.',
+        body: 'Every handler Word you play adds +1 to the Tunnel Vision meter. At 5+ at the start of your turn you enter RAGE — all handler damage +50%, but you CAN\'T play Skill cards (no Block, no Heal) and you can\'t see next-turn intent. Ride the rage and one-shot the enemy, or break it by playing a non-handler turn before the threshold.',
         examples: [
-          { name: 'Foaming at the mouth,', text: 'Chutzpah 3 intro — fills the meter fast.' },
-          { name: 'Bare knuckles.', text: 'Pure chutzpah skill — fills the meter and gives you a turn of pressure.' },
+          { name: 'Foaming at the mouth,', text: 'Handler 3 intro — fills the meter fast.' },
+          { name: 'Bare knuckles.', text: 'Pure handler skill — fills the meter and gives you a turn of pressure.' },
         ],
       },
       {
         heading: '🩸 DOUBLING DOWN — corner tokens',
-        body: 'Some chutzpah Effects carry a `doubleDown` rider. Each one adds a "Backed Into A Corner" token. If the enemy is still alive at end of turn, every token bills you 2 HP. Tokens clear either way. The math is: only commit if you\'re sure of the kill.',
+        body: 'Some handler Effects carry a `doubleDown` rider. Each one adds a "Backed Into A Corner" token. If the enemy is still alive at end of turn, every token bills you 2 HP. Tokens clear either way. The math is: only commit if you\'re sure of the kill.',
         examples: [
           { name: '"and that\'s the LAST word on it."', text: 'doubleDown target. Big damage, but a corner token if you whiff.' },
           { name: 'or we\'ll see who blinks first.', text: 'doubleDown — the kill-or-bleed contract.' },
@@ -11035,7 +11035,7 @@ const WIZARD_TUTORIALS = {
       },
       {
         heading: '👊 HIT ME AGAIN (Power)',
-        body: 'A reactive Power. While installed, every enemy attack that lands on you (blocked or not) adds +1 self-damage to their NEXT swing. You don\'t dodge — you BILL them. Stacks over the combat. Pairs beautifully with low-block chutzpah turns: take the hit, charge them for it.',
+        body: 'A reactive Power. While installed, every enemy attack that lands on you (blocked or not) adds +1 self-damage to their NEXT swing. You don\'t dodge — you BILL them. Stacks over the combat. Pairs beautifully with low-block handler turns: take the hit, charge them for it.',
       },
       {
         heading: '📣 SAYING IT LOUDER & SMELL WEAKNESS',
@@ -11051,7 +11051,7 @@ const WIZARD_TUTORIALS = {
       },
       {
         heading: 'Your job, in one line',
-        body: 'Stack chutzpah words to 5 Tunnel Vision, RAGE the next turn, and dump everything you have into one corner-token cast. If you don\'t kill, you bleed. That\'s the point.',
+        body: 'Stack handler words to 5 Tunnel Vision, RAGE the next turn, and dump everything you have into one corner-token cast. If you don\'t kill, you bleed. That\'s the point.',
       },
     ],
   },
@@ -11216,7 +11216,7 @@ function CharacterSelectScreen({ characters, onSelect, onPractice, onLab }) {
           const tut = WIZARD_TUTORIALS[c.lane];
           // Static class strings per lane so Tailwind's purge keeps them.
           const tutBtnClass = c.lane === 'wit'      ? 'border-iris-500 bg-iris-900 text-iris-200 hover:bg-iris-800'
-                            : c.lane === 'chutzpah' ? 'border-ember-500 bg-ember-900 text-ember-200 hover:bg-ember-800'
+                            : c.lane === 'handler' ? 'border-ember-500 bg-ember-900 text-ember-200 hover:bg-ember-800'
                             :                         'border-moss-500 bg-moss-900 text-moss-200 hover:bg-moss-800';
           return (
             <div key={c.id}
@@ -11276,7 +11276,7 @@ function WizardTutorialModal({ lane, onClose }) {
   if (!tut) return null;
   // Static class literals per lane so Tailwind's purge keeps them.
   const c = lane === 'wit'      ? { border: 'border-iris-500',  bg: 'bg-iris-900',   accent: 'text-iris-300' }
-          : lane === 'chutzpah' ? { border: 'border-ember-500', bg: 'bg-ember-900',  accent: 'text-ember-300' }
+          : lane === 'handler' ? { border: 'border-ember-500', bg: 'bg-ember-900',  accent: 'text-ember-300' }
           :                       { border: 'border-moss-500',  bg: 'bg-moss-900',   accent: 'text-moss-300' };
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4 overflow-y-auto">
@@ -11320,7 +11320,7 @@ function SupplyShopScreen({ offers, onPick, character }) {
   if (!offers) return null;
   const { card, relic, boon } = offers;
   const laneColor = character?.lane === 'wit' ? 'text-iris-300'
-                  : character?.lane === 'chutzpah' ? 'text-ember-300'
+                  : character?.lane === 'handler' ? 'text-ember-300'
                   : 'text-moss-300';
   return (
     <div className="min-h-screen flex flex-col items-center p-6 gap-5 max-w-5xl mx-auto">
@@ -11348,9 +11348,9 @@ function SupplyShopScreen({ offers, onPick, character }) {
             <div className="text-[10px] uppercase tracking-wider opacity-70 font-bold">
               {(card.slot || card.type)}{card.tier ? ` · T${card.tier}` : ''}
             </div>
-            {card.stats && (card.stats.chutzpah || card.stats.wit || card.stats.jnsq) && (
+            {card.stats && (card.stats.handler || card.stats.wit || card.stats.jnsq) && (
               <div className="flex gap-1 flex-wrap text-xs font-mono">
-                {card.stats.chutzpah ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.chutzpah}</span> : null}
+                {card.stats.handler ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💪 {card.stats.handler}</span> : null}
                 {card.stats.wit      ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">✨ {card.stats.wit}</span> : null}
                 {card.stats.jnsq     ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🌀 {card.stats.jnsq}</span> : null}
               </div>
@@ -11918,7 +11918,7 @@ function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCance
   const lane = character.lane;
   const pool = LANE_POOL[lane] || [];
   // Static lane color class strings for Tailwind purge safety.
-  const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'chutzpah' ? 'text-ember-300' : 'text-moss-300';
+  const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'handler' ? 'text-ember-300' : 'text-moss-300';
   const rarityColor = (r) => r === 'basic' ? 'text-parchment-400'
     : r === 'common' ? 'text-parchment-100'
     : r === 'uncommon' ? 'text-iris-200'
@@ -12230,7 +12230,7 @@ function CompendiumScreen({ onBack }) {
     );
   };
 
-  const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'chutzpah' ? 'text-ember-300' : 'text-moss-300';
+  const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'handler' ? 'text-ember-300' : 'text-moss-300';
 
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-7xl mx-auto w-full">
@@ -12240,7 +12240,7 @@ function CompendiumScreen({ onBack }) {
       </div>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex gap-1">
-          {[{ id: 'wit', label: 'Wit' }, { id: 'chutzpah', label: 'Chutzpah' }, { id: 'jnsq', label: 'Jnsq' }].map(l => (
+          {[{ id: 'wit', label: 'Wit' }, { id: 'handler', label: 'Handler' }, { id: 'jnsq', label: 'Jnsq' }].map(l => (
             <button key={l.id} onClick={() => { setLane(l.id); setSelectedCardId(null); setView(l.id === 'wit' ? 'rows' : 'all'); }}
                     className={`text-sm uppercase tracking-wide border-2 rounded px-3 py-1 transition
                       ${lane === l.id ? 'border-gold-500 bg-ink-700 text-gold-200' : 'border-ink-500 bg-ink-800 text-parchment-400 hover:border-parchment-300'}`}>
@@ -12452,12 +12452,12 @@ function EventScreen({ event, onChoose }) {
 }
 
 // Friendly label + tooltip for a raw material-stat key. Material
-// data uses internal keys (`defense`, `regen`, `chutzpah`, etc.);
+// data uses internal keys (`defense`, `regen`, `handler`, etc.);
 // the UI shows what the player will actually get when crafted.
 function materialStatChip(key, value) {
   const labels = {
-    chutzpah: { label: 'Chutzpah', tip: `On a Staff: scales the spell's base and multiplier (more raw damage).` },
-    loseHp:   { label: 'Risk',     tip: `On a Staff: cast costs ${value} HP (Chutzpah glass-cannon archetype).` },
+    handler: { label: 'Handler', tip: `On a Staff: scales the spell's base and multiplier (more raw damage).` },
+    loseHp:   { label: 'Risk',     tip: `On a Staff: cast costs ${value} HP (Handler glass-cannon archetype).` },
     defense:  { label: 'Defense',  tip: `Permanent damage reduction (-${value} per incoming hit, engine caps total at 2, min 1 damage taken). On a Staff: also adds rider Block on cast.` },
     regen:    { label: 'Regen',    tip: `On Robes: heals ${value * 2} HP at the start of every combat.` },
     draw:     { label: 'Draw',     tip: `On Robes/Ring: +${value} card drawn on turn 1. On a Hat: +${value} card every turn.` },
@@ -13329,7 +13329,7 @@ function UpgradeCardScreen({ deck, onPick }) {
                       if (dBase > 0) return `: base ${card.effect.base} → ${upgraded.effect.base}`;
                     }
                     if (upgraded.stats && card.stats) {
-                      const k = ['chutzpah','wit','jnsq'].find(s => (upgraded.stats[s] || 0) > (card.stats[s] || 0));
+                      const k = ['handler','wit','jnsq'].find(s => (upgraded.stats[s] || 0) > (card.stats[s] || 0));
                       if (k) return `: ${k} ${card.stats[k]} → ${upgraded.stats[k]}`;
                     }
                     return summarizeEffects(upgraded.effects, upgraded.power, upgraded.cost, upgraded.stats, upgraded.effect);
@@ -13454,7 +13454,7 @@ function UpgradeSpellScreen({ hand, deck, discard, exiled, tray, onPick }) {
     byRow[c.setId].cards.push(c);
   }
   // Eligible: at least 3 slots filled (a complete row) AND at least one
-  // card in the row is still unupgraded. Wit-only since chutzpah retired
+  // card in the row is still unupgraded. Wit-only since handler retired
   // FFT 2026-05-31.
   const eligibleRows = WIT_ROWS.filter(r => {
     const own = byRow[r.id];
@@ -13600,7 +13600,7 @@ function summarizeEffects(effects, power, cost, stats, effect) {
   const bits = [];
   if (cost !== undefined) bits.push(`cost ${cost}`);
   if (stats) {
-    if (stats.chutzpah) bits.push(`+${stats.chutzpah} Chutzpah`);
+    if (stats.handler) bits.push(`+${stats.handler} Handler`);
     if (stats.wit)      bits.push(`+${stats.wit} Wit`);
     if (stats.jnsq)     bits.push(`+${stats.jnsq} Jnsq`);
   }

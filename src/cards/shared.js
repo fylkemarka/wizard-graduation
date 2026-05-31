@@ -1,13 +1,13 @@
 // Witch Mountain Bridge — Sentence Engine v2: shared schema + tier math.
 //
-// All v2 cards (wit / chutzpah / jnsq) share this schema. The lane-specific
-// data files (wit-v2.js, chutzpah-v2.js, jnsq-v2.js) only differ in the
+// All v2 cards (wit / handler / jnsq) share this schema. The lane-specific
+// data files (wit-v2.js, handler-v2.js, jnsq-v2.js) only differ in the
 // `lane`, `tags`, and `phrase` content.
 //
 // Card shape:
 //   {
 //     id: 'wv2-i-frankly',
-//     lane: 'wit' | 'chutzpah' | 'jnsq',
+//     lane: 'wit' | 'handler' | 'jnsq',
 //     slot: 'intro' | 'subject' | 'target' | 'modifier',
 //     tier: 1 | 2 | 3,             // Basic+Common=1, Uncommon=2, Rare=3
 //     rarity: 'basic' | 'common' | 'uncommon' | 'rare',
@@ -34,7 +34,7 @@ export const RARITY_WIT = { basic: 1, common: 2, uncommon: 3, rare: 4 };
 export const RARITY_TIER = { basic: 1, common: 1, uncommon: 2, rare: 3 };
 
 // Lane-stat key (cards in lane X contribute to that stat).
-export const LANE_STAT = { wit: 'wit', chutzpah: 'chutzpah', jnsq: 'jnsq' };
+export const LANE_STAT = { wit: 'wit', handler: 'handler', jnsq: 'jnsq' };
 
 // =============================================================================
 // HELPERS
@@ -133,8 +133,8 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   const tier = computeSpellTier(intro, subject, target);
   const eff = target.effect;
   // v2.94: prefer target.effect.scaleBy over target.lane. Targets like
-  // Coil declare `scaleBy: 'chutzpah'` but carry no `lane` field — without
-  // this fallback, statTotal would sum wit stats (zero) instead of chutzpah,
+  // Coil declare `scaleBy: 'handler'` but carry no `lane` field — without
+  // this fallback, statTotal would sum wit stats (zero) instead of handler,
   // and the cast lands at base damage only. Math bar + cast formula now agree.
   const lane = eff?.scaleBy || target.lane || 'wit';
 
@@ -244,7 +244,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
   let drawCount = eff.drawAfterCast || 0;
   let stripBlock = 0;
   let selfComposureCost = 0;
-  // v2.4: HP-cost-on-cast (Chutzpah identity). Modifiers can also add to it.
+  // v2.4: HP-cost-on-cast (Handler identity). Modifiers can also add to it.
   let selfHpCost = eff.loseHpOnCast || 0;
 
   for (const m of modifiers) {
@@ -285,8 +285,8 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     ? (eff.damageType === 'physical' ? 'composure' : 'physical')
     : null;
 
-  // v2.29: chutzpah SAYING IT LOUDER — repetition scaling. Each demanding-
-  // tagged chutzpah WORD card staged this turn (intro/subject/modifier)
+  // v2.29: handler SAYING IT LOUDER — repetition scaling. Each demanding-
+  // tagged handler WORD card staged this turn (intro/subject/modifier)
   // bumps context.loudCount. Targets with `loudScaling: true` get a flat
   // +loudCount × 3 added AFTER the tier-multiplied base. Note: this is a
   // flat bonus (not multiplied by tier or stakeMult) so the math reads as
@@ -297,13 +297,13 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage += loudBonus;
   }
 
-  // v2.30: chutzpah SMELL WEAKNESS — predator rider. If the enemy currently
+  // v2.30: handler SMELL WEAKNESS — predator rider. If the enemy currently
   // has Vulnerable (playerDmgMult > 1) OR Weak (enemyDmgMult < 1) applied,
   // a target with `predator: N` adds N flat damage to the cast. Flat (not
   // tier-multiplied) so the math reads as "+N when the prey is wounded".
   // Caller passes the current mults via context.playerDmgMult / enemyDmgMult
   // (both default to 1.0). The bonus is conditional: clean enemies = no
-  // bonus, so chutzpah players are incentivised to OPEN with a Vuln/Weak
+  // bonus, so handler players are incentivised to OPEN with a Vuln/Weak
   // applier before swinging the predator finisher.
   let predatorBonus = 0;
   const enemyDebuffed = (context.playerDmgMult || 1) > 1.0 ||
@@ -350,7 +350,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     }
   }
 
-  // v2.11: chutzpah ALL IN — per-cast HP wager. context.stakeAmount is
+  // v2.11: handler ALL IN — per-cast HP wager. context.stakeAmount is
   // the staked HP. Per-card stakeMultiplier picks the MAX value (so a
   // staged Double-or-Nothing target overrides the default 1.5×). If any
   // modifier has stakeAutoDouble, the final stake bonus doubles.
