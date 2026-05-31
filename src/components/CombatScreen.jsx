@@ -1181,7 +1181,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                     : 'border-2 border-dashed border-gold-400 text-gold-200 opacity-100 cursor-pointer hover:bg-gold-900/50 p-3')
                 : `border-2 border-dashed ${color.empty} opacity-70 hover:opacity-100 hover:border-solid p-3`
           }`}>
-          <span className="font-bold uppercase tracking-widest text-xs opacity-80">{slotName}</span>
+          <span className="font-bold uppercase tracking-widest text-xs opacity-80">{isHandler ? 'available' : slotName}</span>
           {isDragOver && <span className="text-[10px] mt-1 not-italic font-mono">↓ drop here</span>}
           {isWhistlePick1 && <span className="text-[10px] mt-1 not-italic">🎶</span>}
         </div>

@@ -9020,7 +9020,13 @@ export default function App() {
     // Applies whether the player skipped on purpose (Awkward Pause) or
     // just didn't complete the spell. Doesn't apply if you cast — the
     // tray empties on cast, so there's nothing to carry.
-    if (castsThisTurn === 0) {
+    if (selectedCharacter?.lane !== 'handler' && castsThisTurn === 0) {
+      // Pre-staging penalty + Weave debt are wit/jnsq-only — they hinge on
+      // "did you finish a spell this turn?" Handler doesn't cast spells
+      // (animals attack automatically), so neither check applies. Without
+      // this gate the handler ate the penalty every turn because animal
+      // envelopes in intro/subject/target counted as "staged words" and
+      // castsThisTurn was always 0 (Alan, 2026-05-31).
       const staged = (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0);
       if (staged > 0) {
         const cost = staged;
@@ -9036,7 +9042,7 @@ export default function App() {
         pushLog(`🪡 Weave fires: -${dmg} composure (you didn't cast — the thought finishes itself).`);
         setWeaveStacks(0);
       }
-    } else if (weaveStacks > 0) {
+    } else if (selectedCharacter?.lane !== 'handler' && weaveStacks > 0) {
       // Cast happened — the weave is interrupted. Clear the stacks silently.
       setWeaveStacks(0);
     }
@@ -10373,8 +10379,18 @@ export default function App() {
       // check: if the player ended their turn WITHOUT casting, all Weave
       // stacks fire as composure damage and clear. Forces "cast something
       // every turn" pressure — chip-cast-skip strategies get punished.
-      setWeaveStacks(w => w + (intent.value || 1));
-      pushLog(`👹 ${e.name}: 🪡 Weave +${intent.value || 1} (total: ${weaveStacks + (intent.value || 1)}).`);
+      // HANDLER (2026-05-31): handler doesn't cast, so the "did you cast?"
+      // check is meaningless. Resolve weave intents as immediate composure
+      // damage so the threat still lands but doesn't accumulate into
+      // unkillable debt.
+      if (selectedCharacter?.lane === 'handler') {
+        const dmg = intent.value || 1;
+        setComposure(c => Math.max(0, c - dmg));
+        pushLog(`👹 ${e.name}: 🪡 Weave fires now: -${dmg} composure.`);
+      } else {
+        setWeaveStacks(w => w + (intent.value || 1));
+        pushLog(`👹 ${e.name}: 🪡 Weave +${intent.value || 1} (total: ${weaveStacks + (intent.value || 1)}).`);
+      }
     } else if (intent.kind === 'vulnerable') {
       // Enemy applies vulnerable to player → enemy hits harder.
       // v2.32: NOT LISTENING — first debuff (Weak/Vuln) per combat is ignored.
