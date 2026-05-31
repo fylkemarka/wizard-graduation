@@ -132,6 +132,29 @@ const CARDS = [
     effects: { buffetArmed: true, exhaust: true },
     desc: 'Your next lure is placed in every empty stage slot. Exhaust.',
     flavor: 'A spread, really. You laid it out. Now they come.' },
+  // ---- TACTICS — persistent cards that bend the animal-summoner engine.
+  // A Tactic occupies the modifier slot of the spell tray (relabelled as
+  // "Pack Tactics" for handler). Stays until replaced by another tactic.
+  { id: 'c-tactic-shield', name: 'Summoned Shield', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
+    tactic: { id: 'shield' },
+    desc: 'Tactic: animal attack damage becomes Block for you instead of damage to the enemy.',
+    flavor: 'Each beast turns its body to the door. You may pass between them.' },
+  { id: 'c-tactic-rabid', name: 'Rabid', cost: 2, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
+    tactic: { id: 'rabid' },
+    desc: 'Tactic: animal attacks deal 50% more damage. You take 20% of that damage as composure recoil.',
+    flavor: "It's contagious, frankly. Try not to make eye contact." },
+  { id: 'c-tactic-youth', name: 'Fountain of Youth', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
+    tactic: { id: 'youth' },
+    desc: 'Tactic: animals summoned while active stay one extra turn.',
+    flavor: 'A small puddle. The animals know about it. Apparently.' },
+  { id: 'c-tactic-nurture', name: 'Nurture', cost: 2, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
+    tactic: { id: 'nurture' },
+    desc: 'Tactic: lures resolve immediately on placement — animals arrive the moment they are staged.',
+    flavor: 'They were peckish anyway. Apparently.' },
+  { id: 'c-tactic-feather', name: 'Birds of a Feather', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
+    tactic: { id: 'feather', requiresExactlyOneAnimal: true },
+    desc: 'Tactic: requires exactly one animal in play. Any new animal summoned matches the existing species. Self-exhausts when three of the same animal are on the field.',
+    flavor: "A field full of one thing. They've been doing this for some time." },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -3518,6 +3541,10 @@ const INTER_ACT_HEAL_RATIO = 0.35; // v2.22: was 0.55 — too generous; 0.25 was
 function initialV2Tray(overrides = {}) {
   return {
     intro: null, subject: null, target: null, modifiers: [],
+    // tactic: persistent Handler-lane card occupying the modifier slot
+    // (relabelled "Pack Tactics" for handler). Stays until replaced by
+    // another tactic card. null when no tactic is active.
+    tactic: null,
     handler: 0, wit: 0, jnsq: 0,
     phrases: [], tags: [], words: [],
     effectCard: null,
@@ -5811,13 +5838,31 @@ export default function App() {
     const bumpTunnelVisionIfHandler = () => {};
 
     // Handler Animal Summoner — lure cards stage into a specific tray slot.
-    // If opts.targetSlot is provided (drag-and-drop from hand to a slot) and
-    // that slot is empty, the lure lands there. Otherwise it falls back to
-    // the first empty slot (intro → subject → target). Slot value becomes
-    // a { kind: 'lure', card, turnsRemaining, animalId } envelope rather
-    // than the raw card so the end-of-turn tick + transform logic can find
-    // it. The adjacency mechanics (predator chain, cannibalism) make the
-    // slot choice meaningful — drag-and-drop gives the player control.
+    // TACTIC card — persistent slot card for handler. Replaces any
+    // existing tactic (old one → discard). Birds of a Feather has a
+    // play-time validator (requires exactly one animal in play).
+    if (card.slot === 'tactic' && card.tactic) {
+      if (card.tactic.requiresExactlyOneAnimal) {
+        const animalCount = ['intro', 'subject', 'target']
+          .filter(s => tray[s]?.kind === 'animal').length;
+        if (animalCount !== 1) {
+          setEnergy(e => e + (card.cost || 0));
+          pushLog(`📜 ${card.name} requires exactly one animal in play — currently ${animalCount}.`);
+          return;
+        }
+      }
+      const previous = tray.tactic;
+      setTray(p => syncTrayLegacy({ ...p, tactic: { ...card } }));
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      if (previous) {
+        setDiscard(d => [...d, { ...previous, uid: uid() }]);
+        pushLog(`📜 ${previous.name} replaced by ${card.name}.`);
+      } else {
+        pushLog(`📜 Tactic engaged: ${card.name}.`);
+      }
+      return;
+    }
+
     if (card.slot === 'lure' && card.summon) {
       const order = ['intro', 'subject', 'target'];
       // Occupied placeholder slots (Mouse House spans) are NOT empty.
@@ -5846,33 +5891,76 @@ export default function App() {
       //
       // BUFFET SPREAD: only the FIRST envelope carries `card` (the actual
       // played card resource); the others get `card: null` so they don't
-      // each recycle a copy to discard on transform. Without this, one
-      // played card would generate N cards back to discard.
+      // each recycle a copy to discard on transform.
+      // NURTURE TACTIC: the lure resolves immediately on placement —
+      // animal envelopes go straight into the slots, card lands in discard
+      // right now. Birds of a Feather tactic overrides the random pool so
+      // the spawned animal matches the one already in play. Fountain of
+      // Youth grants +1 duration to summoned animals.
+      const activeTacticId = tray.tactic?.tactic?.id;
+      const isNurture = activeTacticId === 'nurture';
+      const isFeather = activeTacticId === 'feather';
+      const isYouth   = activeTacticId === 'youth';
+      // Pick the species for Birds of a Feather: use the first existing
+      // animal in play. Same species applies to ALL spread slots.
+      let featherSpecies = null;
+      if (isFeather) {
+        const existing = ['intro', 'subject', 'target'].map(s => tray[s]).find(v => v?.kind === 'animal');
+        if (existing) featherSpecies = existing.animalId;
+      }
       const newSlots = {};
       for (let i = 0; i < targetSlots.length; i++) {
         const s = targetSlots[i];
-        newSlots[s] = {
-          kind: 'lure',
-          uid: uid(),
-          cardId: card.id,
-          cardName: card.name,
-          card: i === 0 ? card : null,
-          turnsRemaining: card.summon.turnsToArrive,
-          animalId: card.summon.animalId || null,
-          animalIds: card.summon.animalIds || null,
-          summonSet: card.summon.summonSet || null,
-        };
+        if (isNurture) {
+          // Resolve the animal NOW, build animal envelope directly.
+          let resolvedId = featherSpecies
+            || card.summon.animalId
+            || (card.summon.animalIds ? card.summon.animalIds[Math.floor(Math.random() * card.summon.animalIds.length)] : null);
+          const animal = ANIMALS[resolvedId];
+          newSlots[s] = {
+            kind: 'animal',
+            animalId: resolvedId,
+            durationRemaining: (animal?.duration || 3) + (isYouth ? 1 : 0),
+            predatorProgress: 0,
+            adjacentSpawnProgress: 0,
+            summonSet: card.summon.summonSet || null,
+          };
+        } else {
+          newSlots[s] = {
+            kind: 'lure',
+            uid: uid(),
+            cardId: card.id,
+            cardName: card.name,
+            card: i === 0 ? card : null,
+            turnsRemaining: card.summon.turnsToArrive,
+            // Birds of a Feather: force the species via animalId.
+            animalId: featherSpecies || card.summon.animalId || null,
+            animalIds: featherSpecies ? null : (card.summon.animalIds || null),
+            summonSet: card.summon.summonSet || null,
+            youthBonus: isYouth ? 1 : 0,
+          };
+        }
       }
       setTray(p => syncTrayLegacy({ ...p, ...newSlots }));
       setHand(h => h.filter((_, i) => i !== handIdx));
-      if (targetSlots.length > 1) {
+      if (isNurture) {
+        // Nurture consumed the card — push to discard immediately. The lure
+        // skipped the envelope-recycle path so do it here.
+        setDiscard(d => [...d, { ...card, uid: uid() }]);
+        pushLog(`🌿 Nurture — ${card.name} resolves immediately in ${targetSlots.join(', ')}.`);
+      }
+      if (targetSlots.length > 1 && !isNurture) {
         pushLog(`🍽 Buffet — ${card.name} spreads across ${targetSlots.length} slots (${targetSlots.join(', ')}).`);
-        setBuffetArmed(false);
-      } else if (card.summon.animalId) {
-        const animal = ANIMALS[card.summon.animalId];
-        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
-      } else {
-        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. Something arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+      }
+      if (targetSlots.length > 1) setBuffetArmed(false);
+      if (targetSlots.length === 1 && !isNurture) {
+        if (card.summon.animalId || featherSpecies) {
+          const animalId = featherSpecies || card.summon.animalId;
+          const animal = ANIMALS[animalId];
+          pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. ${animal?.icon || ''} ${animal?.name || animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+        } else {
+          pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. Something arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+        }
       }
       return;
     }
@@ -7769,16 +7857,31 @@ export default function App() {
     // this turn. Salmon (0 attack) does nothing; animals that already ate
     // this turn (eatenThisTurn) are skipped since they were busy.
     if (fx.packTactics) {
+      const tacticId = tray.tactic?.tactic?.id;
+      const isShield = tacticId === 'shield';
+      const isRabid  = tacticId === 'rabid';
       for (const slotName of ['intro', 'subject', 'target']) {
         const slot = tray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
         if (slot.eatenThisTurn) continue;
         const animal = ANIMALS[slot.animalId];
         if (!animal || (animal.attack || 0) <= 0) continue;
-        if (animal.attackPool === 'composure') applyDamageToEnemyComposure(animal.attack);
-        else                                    applyDamageToEnemyHp(animal.attack);
+        let atk = animal.attack;
+        if (isRabid) atk = Math.round(atk * 1.5);
+        if (isShield) {
+          setBlock(b => b + atk);
+          pushLog(`${animal.icon} ${animal.name} braces again: +${atk} Block (Pack Tactics).`);
+        } else {
+          if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
+          else                                    applyDamageToEnemyHp(atk);
+          if (isRabid) {
+            const recoil = Math.max(1, Math.round(atk * 0.2));
+            setComposure(c => Math.max(0, c - recoil));
+            pushLog(`💢 Rabid recoil: -${recoil} composure.`);
+          }
+          pushLog(`${animal.icon} ${animal.name} attacks again: ${atk} composure (Pack Tactics${isRabid ? ' · Rabid' : ''}).`);
+        }
         if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
-        pushLog(`${animal.icon} ${animal.name} attacks again: ${animal.attack} composure (Pack Tactics).`);
       }
     }
     // consumeLoudnessAsDamage (Punchline-style payoff) removed 2026-05-31
@@ -8981,14 +9084,29 @@ export default function App() {
           // duration-tick branches).
           if (!slot.eatenThisTurn && animal.attack > 0) {
             const atkMult = slot.nextAttackMult || 1;
-            const atk = animal.attack * atkMult;
+            let atk = animal.attack * atkMult;
             const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
-            if (animal.attackPool === 'composure') {
-              applyDamageToEnemyComposure(atk);
-              pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}.`);
+            const tacticId = tray.tactic?.tactic?.id;
+            const isShield = tacticId === 'shield';
+            const isRabid  = tacticId === 'rabid';
+            if (isRabid) atk = Math.round(atk * 1.5);
+            const tacticLabel = isRabid ? ' (Rabid ×1.5)' : isShield ? ' (Shield → Block)' : '';
+            if (isShield) {
+              setBlock(b => b + atk);
+              pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block${multLabel}${tacticLabel}.`);
             } else {
-              applyDamageToEnemyHp(atk);
-              pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}.`);
+              if (animal.attackPool === 'composure') {
+                applyDamageToEnemyComposure(atk);
+                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}${tacticLabel}.`);
+              } else {
+                applyDamageToEnemyHp(atk);
+                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}${tacticLabel}.`);
+              }
+              if (isRabid) {
+                const recoil = Math.max(1, Math.round(atk * 0.2));
+                setComposure(c => Math.max(0, c - recoil));
+                pushLog(`💢 Rabid recoil: -${recoil} composure.`);
+              }
             }
             if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
             // Per-attack debuff rider (e.g. Mouse House applies Vuln 1).
@@ -8996,10 +9114,12 @@ export default function App() {
               applyExpiringVuln(animal.onAttackEffect.applyVulnerable);
               pushLog(`${animal.icon} ${animal.name} unsettles the enemy — Vulnerable ${animal.onAttackEffect.applyVulnerable}.`);
             }
-            // Check if attack killed the enemy
-            if ((enemyComposure - atk <= 0 && animal.attackPool === 'composure')
-                || (enemyHp - atk <= 0 && animal.attackPool !== 'composure')) {
-              summonerKilledEnemy = true;
+            // Check if attack killed the enemy (only when actually attacking)
+            if (!isShield) {
+              if ((enemyComposure - atk <= 0 && animal.attackPool === 'composure')
+                  || (enemyHp - atk <= 0 && animal.attackPool !== 'composure')) {
+                summonerKilledEnemy = true;
+              }
             }
           }
           // Decrement duration and tick chain counters.
@@ -9096,20 +9216,30 @@ export default function App() {
         } else if (slot.kind === 'lure') {
           const nextTurns = slot.turnsRemaining - 1;
           if (nextTurns <= 0) {
-            // Resolve which animal arrives. If the lure carries an
-            // animalIds array (random pool — Tender Greens), pick one.
-            // Otherwise the fixed animalId.
-            const resolvedAnimalId = slot.animalIds && slot.animalIds.length > 0
-              ? slot.animalIds[Math.floor(Math.random() * slot.animalIds.length)]
-              : slot.animalId;
+            // Resolve species. Birds of a Feather tactic overrides with the
+            // species of any existing animal currently on the board.
+            const tacticId = tray.tactic?.tactic?.id;
+            let resolvedAnimalId = null;
+            if (tacticId === 'feather') {
+              const existing = SLOT_ORDER.map(s => (nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s]))
+                .find(v => v?.kind === 'animal');
+              if (existing) resolvedAnimalId = existing.animalId;
+            }
+            if (!resolvedAnimalId) {
+              resolvedAnimalId = slot.animalIds && slot.animalIds.length > 0
+                ? slot.animalIds[Math.floor(Math.random() * slot.animalIds.length)]
+                : slot.animalId;
+            }
             const animal = ANIMALS[resolvedAnimalId];
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
             // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
+            // Fountain of Youth tactic: +1 duration to fresh summons.
+            const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: resolvedAnimalId,
-              durationRemaining: animal?.duration || 3,
+              durationRemaining: (animal?.duration || 3) + youthBonus,
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
@@ -9121,7 +9251,30 @@ export default function App() {
           nextSlots[slotName] = slot;
         }
       }
-      setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
+      // Birds of a Feather self-exhaust: if the tactic is active AND three
+      // animals of the SAME species are on the board after this tick, the
+      // tactic card exhausts (→ exiled) and the slot clears.
+      const activeTacticId = tray.tactic?.tactic?.id;
+      if (activeTacticId === 'feather') {
+        const speciesCounts = {};
+        for (const s of SLOT_ORDER) {
+          const slot = nextSlots[s];
+          if (slot?.kind === 'animal') {
+            speciesCounts[slot.animalId] = (speciesCounts[slot.animalId] || 0) + 1;
+          }
+        }
+        const hasTriple = Object.values(speciesCounts).some(n => n >= 3);
+        if (hasTriple) {
+          const exhaustCard = tray.tactic;
+          pushLog(`📜 Birds of a Feather — three of a kind, the tactic exhausts.`);
+          setExiled(ex => [...ex, { ...exhaustCard, uid: uid() }]);
+          setTray(p => syncTrayLegacy({ ...p, ...nextSlots, tactic: null }));
+        } else {
+          setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
+        }
+      } else {
+        setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
+      }
       if (luresToRecycle.length > 0) {
         // Push into the shared recycle buffer instead of setDiscard — the
         // end-of-turn refill block reads `discard` from closure and then

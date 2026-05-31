@@ -1285,6 +1285,19 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               : `(flops) · ${card.durationRemaining}t left`}
             {predatorNote}
           </span>
+          {animal?.onExit && (() => {
+            const parts = [];
+            if (animal.onExit.damage > 0) parts.push(`${animal.onExit.damage} ${animal.onExit.damageType === 'physical' ? '⚔' : '🎭'}`);
+            if (animal.onExit.block > 0) parts.push(`+${animal.onExit.block} 🛡`);
+            if (animal.onExit.applyWeak > 0) parts.push(`Weak ${animal.onExit.applyWeak}`);
+            if (parts.length === 0) return null;
+            return (
+              <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-ember-100/90 text-ember-800 text-center leading-tight"
+                    title={`On exit: ${parts.join(' · ')}.`}>
+                ↩ exit: {parts.join(' · ')}
+              </span>
+            );
+          })()}
         </motion.button>
       );
     }
@@ -1432,8 +1445,26 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {slotPill(tray.intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
         {slotPill(tray.subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
         {slotPill(tray.target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
-        {modifiers.map(m => slotPill(m, 'modifier', { empty: '', filled: 'bg-gold-700 hover:bg-gold-600 border border-gold-400' }))}
-        {modifiers.length < 2 && slotPill(null, modifiers.length === 0 ? 'modifier (optional)' : 'modifier 2 (optional)', { empty: 'border-gold-600 text-gold-500', filled: '' })}
+        {isHandler ? (
+          tray.tactic ? (
+            <div className="px-3 py-2 rounded bg-gold-800 border-2 border-gold-400 text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[160px] max-w-[220px]"
+                 title={tray.tactic.desc || tray.tactic.flavor}>
+              <span className="font-mono text-[10px] opacity-70">PACK TACTIC · active</span>
+              <span className="font-bold text-center text-sm">📜 {tray.tactic.name}</span>
+              <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
+                Stays until replaced
+              </span>
+            </div>
+          ) : (
+            <div className="px-3 py-2 rounded border border-dashed border-gold-600 text-gold-500 text-xs italic text-center min-w-[160px] flex flex-col items-center justify-center">
+              <span className="font-bold uppercase tracking-widest opacity-80">Pack Tactic</span>
+              <span className="text-[10px] mt-0.5 not-italic font-mono opacity-70">play a tactic card</span>
+            </div>
+          )
+        ) : (<>
+          {modifiers.map(m => slotPill(m, 'modifier', { empty: '', filled: 'bg-gold-700 hover:bg-gold-600 border border-gold-400' }))}
+          {modifiers.length < 2 && slotPill(null, modifiers.length === 0 ? 'modifier (optional)' : 'modifier 2 (optional)', { empty: 'border-gold-600 text-gold-500', filled: '' })}
+        </>)}
         <div className="flex-1" />
         {ready && predicted && (
           <div className="text-right flex flex-col items-end gap-1">
