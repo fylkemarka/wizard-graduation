@@ -663,8 +663,29 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         })}
       </div>
 
-      {/* v3.4.28 (Alan): FFT Progress panel — moved BELOW the hand so the
-          combat-state info above stays compact. Wit-only set-collection
+      {/* Action bar — always-visible row with Compendium / Deck / End Turn.
+          When wit, the FFT Progress strip merges into this same row below the
+          buttons. Pre-2026-05-31 this whole strip was wit-gated, which left
+          handler/jnsq with NO End Turn button after the chutzpah pivot. */}
+      <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
+        {onOpenCompendium && isWit && (
+          <button onClick={onOpenCompendium}
+                  title="Open the Compendium of Fully Formed Thoughts"
+                  className="px-2 py-1 text-xs rounded border bg-iris-700 text-parchment-50 border-iris-400 hover:bg-iris-600">
+            📚 Compendium
+          </button>
+        )}
+        {onOpenDeckView && (
+          <button onClick={onOpenDeckView}
+                  title="View all the cards currently in your deck (hand + draw + discard + exiled + tray), grouped by row"
+                  className="px-2 py-1 text-xs rounded border bg-moss-700 text-parchment-50 border-moss-400 hover:bg-moss-600">
+            🗂 Deck
+          </button>
+        )}
+        <button onClick={onEndTurn} className="btn btn-ember text-sm px-4 py-1 ml-auto">End Turn</button>
+      </div>
+
+      {/* v3.4.28 (Alan): FFT Progress panel — Wit-only set-collection
           overlay; shows owned rows + their canonical phrase + rider on
           hover. Hidden when no set-tagged cards have been collected. */}
       {(() => {
@@ -690,20 +711,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         return (
           <div className="parchment-card p-2 flex gap-2 flex-wrap items-center">
             <span className="text-[10px] uppercase tracking-widest text-iris-300 mr-1">🎩 FFT Progress</span>
-            {onOpenCompendium && (
-              <button onClick={onOpenCompendium}
-                      title="Open the Compendium of Fully Formed Thoughts"
-                      className="px-2 py-1 text-xs rounded border bg-iris-700 text-parchment-50 border-iris-400 hover:bg-iris-600">
-                📚 Compendium
-              </button>
-            )}
-            {onOpenDeckView && (
-              <button onClick={onOpenDeckView}
-                      title="View all the cards currently in your deck (hand + draw + discard + exiled + tray), grouped by row"
-                      className="px-2 py-1 text-xs rounded border bg-moss-700 text-parchment-50 border-moss-400 hover:bg-moss-600">
-                🗂 Deck
-              </button>
-            )}
             {visible.length === 0 && (
               <span className="text-[11px] text-parchment-400 italic">No rows collected yet — pick up a set-tagged card to start.</span>
             )}
@@ -723,11 +730,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 </span>
               );
             })}
-            {/* v3.4.28 (Alan): End Turn anchored at the right end of
-                the FFT Progress bar — out from under the floating menu
-                button at top-right. ml-auto pushes it to the edge so
-                the row chips fill from the left. */}
-            <button onClick={onEndTurn} className="btn btn-ember text-sm px-4 py-1 ml-auto">End Turn</button>
           </div>
         );
       })()}
