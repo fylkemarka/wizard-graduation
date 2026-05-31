@@ -125,14 +125,14 @@ export const CHUTZPAH_ROWS = [
     canonical: "Listen carefully, we are off the RAILS now.",
     introId: 'cv2-i-ballistic-2', subjectId: 'cv2-s-ballistic-2', targetId: 'cv2-t-ballistic-2',
     rider: { bonus: 6, addTunnelVision: 2, selfVulnerable: { amount: 1, turns: 2 } },
-    riderDesc: '+6 composure. +2 Tunnel Vision. You become Vulnerable for 2 turns.',
+    riderDesc: '+6 composure. +2 Tunnel Vision (build to 5 to enter RAGE: +50% spell damage next turn). You become Vulnerable for 2 turns.',
   },
   {
     id: 'ballistic-3', schoolId: 'ballistic', name: 'Blind Rage',
     canonical: 'I can no longer see the room.',
     introId: 'cv2-i-ballistic-3', subjectId: 'cv2-s-ballistic-3', targetId: 'cv2-t-ballistic-3',
     rider: { bonus: 10, selfVulnerable: { amount: 2, turns: 2 }, rageDouble: true },
-    riderDesc: '+10 composure (DOUBLED while in RAGE). You become Vulnerable for 2 turns.',
+    riderDesc: '+10 composure (DOUBLED while in RAGE — chutzpah rage meter at 5+, see Tunnel Vision chip). You become Vulnerable for 2 turns.',
   },
   {
     id: 'ballistic-4', schoolId: 'ballistic', name: 'Nothing Left to Lose',

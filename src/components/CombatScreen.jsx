@@ -449,8 +449,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           })()}
           {/* Chutzpah/jnsq conditional chips (only render when active) */}
           {(isChutzpah || tunnelVision > 0 || rageActive) && (
-            <span className="text-[11px] text-ember-300 font-mono"
-                  title={`Tunnel Vision — chutzpah rage meter.`}>🔥{tunnelVision}{rageActive && <span className="text-[10px] bg-ember-700 px-1 ml-0.5 rounded">RAGE</span>}</span>
+            <span className="text-[11px] text-ember-300 font-mono cursor-help"
+                  title={`Tunnel Vision (${tunnelVision}/5) — chutzpah RAGE meter. Every chutzpah-lane card you play adds +1. At the start of any turn where this hits 5+, you enter RAGE: +50% to all outgoing damage AND requiresRage cards (Bare Knuckles) become castable. Resets at the end of your RAGE turn.${rageActive ? '\n\nRAGE IS ACTIVE THIS TURN: spell damage ×1.5.' : ''}`}>🔥{tunnelVision}/5{rageActive && <span className="text-[10px] bg-ember-700 px-1 ml-0.5 rounded">RAGE</span>}</span>
           )}
           {cornerTokens > 0 && (
             <span className="text-[11px] text-ember-300 font-mono"
@@ -891,6 +891,23 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         damage += bonus;
         damageParts.push(`+${bonus} (Temp HP ${tempHp} × ${r.consumeTempHpAsDamage})`);
       }
+    }
+    // v3.4.82 (Alan: "Predicted said 12, hit for 16 with enemy Vulnerable").
+    // Bake the enemy stat-effectiveness AND playerDmgMult (carries enemy
+    // Vulnerable / player Weak) into the Predicted number. App.jsx applies
+    // both at cast time (lines 6285-6286), so Predicted without them was
+    // structurally low whenever Vulnerable was up or stat-eff != 1.0.
+    const targetStat = target?.effect?.scaleBy || target?.lane || 'wit';
+    const enemyStatMult = enemy?.effectiveness?.[targetStat] ?? 1.0;
+    if (enemyStatMult !== 1.0) {
+      const before = damage;
+      damage = Math.round(damage * enemyStatMult);
+      if (damage !== before) damageParts.push(`× ${enemyStatMult.toFixed(2)} (enemy ${targetStat}-eff)`);
+    }
+    if ((playerDmgMult || 1.0) !== 1.0) {
+      const before = damage;
+      damage = Math.round(damage * (playerDmgMult || 1.0));
+      if (damage !== before) damageParts.push(`× ${(playerDmgMult || 1.0).toFixed(2)} (Vuln/Weak mult)`);
     }
     // v3.4.76 (Alan) — preview Loudness gain on chutzpah Bluster casts so
     // the player sees +N Loudness alongside the damage number.
