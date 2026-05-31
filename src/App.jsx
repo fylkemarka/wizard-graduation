@@ -92,6 +92,21 @@ const CARDS = [
   // mechanic with the Animal Summoner engine. No card now feeds or consumes
   // Loudness. State machinery remains in place (dormant) until the new engine
   // either repurposes or fully retires it.
+  // Shoo! — Handler utility. Lets the player dismiss a currently summoned
+  // animal to free up a stage slot. Plays from hand; arms a click-target
+  // prompt; the next click on an animal slot dismisses that animal. Lures
+  // are NOT affected (the bait is still being eaten). Cycles back to discard.
+  { id: 'c-shoo', name: 'Shoo!', cost: 1, type: 'skill', rarity: 'basic',
+    effects: { shooAnimal: true },
+    desc: 'Dismiss one of your summoned animals. (Lures stay put.)',
+    flavor: "It's been lovely. Yes, lovely. Goodbye." },
+  // Handler-specific defend. The Handler outsources fighting to the
+  // menagerie, so personal defense is softer than the colorless +8 c-defend.
+  // Mirrors c-defend in shape: 1 energy, +N block, cycles back via discard.
+  { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'skill', rarity: 'basic',
+    effects: { block: 6 },
+    desc: 'Gain 6 Block.',
+    flavor: 'You take half a step back. Let the goose handle this.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -810,14 +825,17 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     subjectId = basics(pool.subject)[0]?.id;
     targetId  = basics(pool.target)[0]?.id;
   }
+  // Handler uses the softer +6 Step Back instead of +8 c-defend — outsourcing
+  // the fighting to the menagerie comes with a personal-defense tax.
+  const defendCardId = lane === 'handler' ? 'c-defend-handler' : 'c-defend';
   const ids = [
     introIds[0],
     introIds[1],
     subjectId,
     targetId,
     ...laneStarters,
-    'c-defend', // v3.4.6 (Alan): 3× defend was too much. Dropped to 1.
-    'c-defend', // v3.4.53 (Alan): 1 defend wasn't enough vs elites; back to 2.
+    defendCardId,
+    defendCardId,
     'c-compose',
   ].filter(Boolean);
   if (lane === 'wit') {
@@ -826,11 +844,12 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
   }
-  // Handler Animal Summoner (2026-05-31, slice 1) — starter lures.
+  // Handler Animal Summoner (2026-05-31, slice 1) — starter lures + Shoo!
   if (lane === 'handler') {
     ids.push('cv2-l-fish-food');   // 2-turn → Salmon → 2-more-turn → Bear
     ids.push('cv2-l-birdseed');    // 1-turn → Sparrow
     ids.push('cv2-l-cheese');      // 1-turn → Field Mouse
+    ids.push('c-shoo');            // utility — dismiss a summoned animal
   }
   return ids;
 }
@@ -3798,6 +3817,9 @@ export default function App() {
   // without applying. The skill is exhausted at play time either way —
   // the prompt is the payoff window.
   const [footnotePromptActive, setFootnotePromptActive] = useState(false);
+  // Shoo! prompt — armed by playing the Shoo card. Next click on an animal
+  // slot dismisses that animal and clears the prompt. Lures are not eligible.
+  const [shooPromptActive, setShooPromptActive] = useState(false);
   // v2.85: pick-one-of-two-to-forget. When an event/sidequest fires the
   // loseRandomCard effect, pre-pick two candidates and surface a modal
   // so the player chooses which one to lose (not silent + not pure RNG).
@@ -4301,8 +4323,8 @@ export default function App() {
       deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
     handler: {
-      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'cv2-k-square-up', 'c-defend'],
-      deck: ['cv2-k-square-up', 'c-defend', 'c-compose'],
+      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'c-shoo', 'c-defend-handler'],
+      deck: ['c-defend-handler', 'c-compose'],
     },
     jnsq: {
       hand: ['jv2-i-speaking-of', 'jv2-i-astrally', 'jv2-s-your-aura', 'jv2-t-wrong-color', 'c-defend'],
@@ -4386,8 +4408,8 @@ export default function App() {
     handler: {
       // DEV_PRESETS for the Handler — Animal Summoner build (2026-05-31 pivot).
       // Each tier seeds a deck representative of what the player can build to.
-      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'cv2-k-square-up', 'c-amplify'],
-      3: ['cv2-l-fish-food', 'cv2-l-cheese', 'cv2-l-birdseed', 'cv2-k-square-up', 'c-mend'],
+      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'c-shoo', 'c-amplify'],
+      3: ['cv2-l-fish-food', 'cv2-l-cheese', 'cv2-l-birdseed', 'c-shoo', 'c-mend'],
       4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-l-cheese', 'c-bulwark', 'c-acuity'],
     },
     jnsq: {
@@ -5402,6 +5424,7 @@ export default function App() {
     // instances are rebuilt at combat start (uids re-issued, footnotes
     // reset to 0 implicitly since no skill has fired yet).
     setFootnotePromptActive(false);
+    setShooPromptActive(false);
     // v2.36: ACTUALLY— state. lastCastSnapshot starts null (no casts yet);
     // arguingBackThisTurn starts 0. Both never persist between combats.
     setLastCastSnapshot(null);
@@ -7565,6 +7588,13 @@ export default function App() {
       applyDamageToEnemyComposure(fx.compDmg);
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
     }
+    // Shoo! — arm a click-target prompt. Next click on an animal slot
+    // dismisses that animal. If no animal is currently in play, the prompt
+    // still arms (will fire whenever the next animal arrives).
+    if (fx.shooAnimal) {
+      setShooPromptActive(true);
+      logBits.push(`👋 Shoo armed — click an animal slot to dismiss.`);
+    }
     // consumeLoudnessAsDamage (Punchline-style payoff) removed 2026-05-31
     // with the chutzpah → handler pivot. Loudness mechanic ripped entirely.
     // v3.4.19 — tutor a card by slot. Walks the deck for the first
@@ -8291,6 +8321,25 @@ export default function App() {
     if (!footnotePromptActive) return;
     setFootnotePromptActive(false);
     pushLog(`📖 Footnote skill dismissed without picking a phrase.`);
+  }
+
+  // Shoo — called from the slotPill click handler when the Shoo prompt is
+  // armed AND the target slot contains an animal. Empties the slot, consumes
+  // the prompt. Lures and empty slots are NOT clickable.
+  function shooAnimalFromSlot(slotName) {
+    if (!shooPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const animal = ANIMALS[slot.animalId];
+    pushLog(`👋 Shoo! ${animal?.icon || ''} ${animal?.name || slot.animalId} departs.`);
+    setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
+    setShooPromptActive(false);
+  }
+
+  function cancelShooPrompt() {
+    if (!shooPromptActive) return;
+    setShooPromptActive(false);
+    pushLog(`👋 Shoo skill dismissed without picking an animal.`);
   }
 
   // Synchronous draw. Reads deck/discard/hand from closure (the state at
@@ -10322,6 +10371,9 @@ export default function App() {
       tutorFlash={tutorFlash}
       tutorArmed={tutorArmed}
       animals={ANIMALS}
+      shooPromptActive={shooPromptActive}
+      onShooAnimal={shooAnimalFromSlot}
+      onCancelShoo={cancelShooPrompt}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}

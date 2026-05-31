@@ -14,17 +14,11 @@
 const LANE = 'handler';
 
 // =============================================================================
-// STARTER CARDS — the basic utility starters that ship with every
-// Handler deck regardless of build.
+// STARTER CARDS — formerly Square Up + Shove. Both removed 2026-05-31.
+// The Handler doesn't fight; the animals do. Starter is just lures + Shoo +
+// colorless utility.
 // =============================================================================
-const STARTER_CARDS = [
-  { id: 'cv2-k-square-up', slot: 'skill', tier: 1, rarity: 'basic', lane: LANE, cost: 0, type: 'skill',
-    name: 'Square Up', phrase: 'Square Up',
-    tags: ['threatening', 'direct'],
-    effects: { block: 7, loseHp: 1, exhaust: true },
-    desc: 'Lose 1 HP. Gain 7 Block. Exhaust.',
-    flavor: 'You take a step closer. The room rearranges itself slightly.' },
-];
+const STARTER_CARDS = [];
 
 // =============================================================================
 // LURE CARDS — Animal Summoner engine (slice 1, 2026-05-31). Each lure
@@ -55,7 +49,7 @@ const LURE_CARDS = [
     flavor: 'Aged. Slightly judgmental.' },
 ];
 
-export const HANDLER_V2 = [...STARTER_CARDS, ...LURE_CARDS];
+export const HANDLER_V2 = [...LURE_CARDS];
 export const HANDLER_V2_BY_SLOT = {
   intro: [],
   subject: [],
@@ -63,6 +57,6 @@ export const HANDLER_V2_BY_SLOT = {
   modifier: [],
   gesture: [],
   power: [],
-  skill: [...STARTER_CARDS.filter(c => c.slot === 'skill')],
+  skill: [],
   lure: [...LURE_CARDS],
 };

@@ -47,6 +47,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        tutorFlash = null,
                        tutorArmed = false,
                        animals = {},
+                       shooPromptActive = false,
+                       onShooAnimal = () => {},
+                       onCancelShoo = () => {},
                        onOpenCompendium, onOpenDeckView }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
@@ -581,7 +584,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         pauseHeldActive={pauseHeldActive} enemy={enemy}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
-        animals={animals} tutorArmed={tutorArmed} />
+        animals={animals} tutorArmed={tutorArmed}
+        shooPromptActive={shooPromptActive} onShooAnimal={onShooAnimal} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
           played the "As Hewn-Greaves notes in his footnotes," skill and
@@ -594,6 +598,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="font-bold">📖 Footnote:</span> click a Word card (intro / subject / modifier) in your hand or discard to attach a permanent +1 wit footnote.
           </div>
           <button onClick={onCancelFootnote}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {shooPromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-gold-100">
+            <span className="font-bold">👋 Shoo!</span> click a summoned animal in the spell tray to dismiss it. (Lures are not eligible — wait for them to arrive first.)
+          </div>
+          <button onClick={onCancelShoo}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
@@ -787,7 +802,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        pauseHeldActive = false, enemy = null,
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
-                       animals = {}, tutorArmed = false }) {
+                       animals = {}, tutorArmed = false,
+                       shooPromptActive = false, onShooAnimal = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
   // / FFT detection only treats raw cards as content; envelopes are rendered
@@ -1076,15 +1092,23 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const predatorNote = animal?.predatorChain
         ? ` · ${animals?.[animal.predatorChain.animalId]?.name || '?'} in ${animal.predatorChain.turnsToTrigger - (card.predatorProgress || 0)}t`
         : '';
+      const shooArmed = shooPromptActive;
       return (
         <motion.button key={card.animalId + '-' + slotName}
           layout
           initial={{ scale: 0.5, opacity: 0, y: 12 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-          title={`${animal?.name || card.animalId} — ${animal?.desc || ''} ${card.durationRemaining} turn${card.durationRemaining === 1 ? '' : 's'} left.${predatorNote}`}
-          className="px-3 py-2 rounded bg-ember-800 border border-ember-500 text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] cursor-help">
-          <span className="font-mono text-[10px] opacity-70">{slotName} · animal</span>
+          onClick={shooArmed ? () => onShooAnimal(slotName) : undefined}
+          title={shooArmed
+            ? `👋 Click to Shoo this ${animal?.name || 'animal'} away.`
+            : `${animal?.name || card.animalId} — ${animal?.desc || ''} ${card.durationRemaining} turn${card.durationRemaining === 1 ? '' : 's'} left.${predatorNote}`}
+          className={`px-3 py-2 rounded text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] ${
+            shooArmed
+              ? 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600'
+              : 'bg-ember-800 border border-ember-500 cursor-help'
+          }`}>
+          <span className="font-mono text-[10px] opacity-70">{slotName} · animal{shooArmed ? ' · 👋 click to shoo' : ''}</span>
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {animal?.attack} 🎭 / turn · {card.durationRemaining}t left{predatorNote}
