@@ -42,11 +42,11 @@ const LURE_CARDS = [
     summon: { animalId: 'sparrow', turnsToArrive: 1 },
     desc: 'Stage. A Sparrow arrives next turn.',
     flavor: 'You scatter it like you mean it.' },
-  { id: 'cv2-l-cheese', name: 'Cheese', cost: 1, type: 'lure', slot: 'lure',
+  { id: 'cv2-l-tender-greens', name: 'Tender Greens', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'basic', tier: 1,
-    summon: { animalId: 'field-mouse', turnsToArrive: 1 },
-    desc: 'Stage. A Field Mouse arrives next turn.',
-    flavor: 'Aged. Slightly judgmental.' },
+    summon: { animalIds: ['field-mouse', 'rabbit', 'young-buck'], turnsToArrive: 1, summonSet: 'tender-greens' },
+    desc: 'Stage. Next turn, a small animal arrives. (You will not know which.)',
+    flavor: 'Lettuce, mostly. Whatever turns up will have to make do.' },
 ];
 
 export const HANDLER_V2 = [...LURE_CARDS];

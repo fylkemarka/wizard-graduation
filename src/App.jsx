@@ -869,7 +869,7 @@ function buildStarterDeckForLane(lane, startingRow = null) {
   if (lane === 'handler') {
     ids.push('cv2-l-fish-food');   // 2-turn → Salmon → 2-more-turn → Bear
     ids.push('cv2-l-birdseed');    // 1-turn → Sparrow
-    ids.push('cv2-l-cheese');      // 1-turn → Field Mouse
+    ids.push('cv2-l-tender-greens');      // 1-turn → Field Mouse
     ids.push('c-shoo');            // dismiss a summoned animal
     ids.push('c-whistle');         // swap two stage slots
     ids.push('c-pack-tactics');    // all animals attack again this turn (exhaust)
@@ -1234,8 +1234,43 @@ const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     onAttack: { draw: 1 },
+    onExit: { block: 3 },
     flavor: 'A small contribution. Steady.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns.',
+    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block on exit.',
+  },
+  rabbit: {
+    name: 'Rabbit',
+    icon: '🐰',
+    attack: 2,
+    attackPool: 'composure',
+    duration: 3,
+    onAttack: { draw: 1 },
+    // After 2 turns, a new Rabbit spawns in every adjacent empty slot, and
+    // the original Rabbit's stay is extended by 2 turns. Can trigger on
+    // BOTH sides if the original is in the center slot.
+    adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
+    flavor: 'There were always going to be more of them.',
+    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns.',
+  },
+  'young-buck': {
+    name: 'Young Buck',
+    icon: '🦌',
+    attack: 5,
+    attackPool: 'composure',
+    duration: 2,
+    onExit: { damage: 6, damageType: 'composure' },
+    flavor: 'Bold. Brief. Largely correct.',
+    desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 6 composure on exit.',
+  },
+  hawk: {
+    name: 'Hawk',
+    icon: '🦅',
+    attack: 4,
+    attackPool: 'composure',
+    duration: 3,
+    onExit: { applyWeak: 1, weakTurns: 1 },
+    flavor: 'Arrived suddenly. The field mouse, presumably, is no longer a topic.',
+    desc: 'Attacks for 4 composure each turn for 3 turns. Applies Weak 1 to the enemy on exit.',
   },
   bear: {
     name: 'Bear',
@@ -4368,7 +4403,7 @@ export default function App() {
       deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
     handler: {
-      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'c-shoo', 'c-defend-handler'],
+      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-shoo', 'c-defend-handler'],
       deck: ['c-defend-handler', 'c-compose'],
     },
     jnsq: {
@@ -4453,9 +4488,9 @@ export default function App() {
     handler: {
       // DEV_PRESETS for the Handler — Animal Summoner build (2026-05-31 pivot).
       // Each tier seeds a deck representative of what the player can build to.
-      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-cheese', 'c-shoo', 'c-amplify'],
-      3: ['cv2-l-fish-food', 'cv2-l-cheese', 'cv2-l-birdseed', 'c-shoo', 'c-mend'],
-      4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-l-cheese', 'c-bulwark', 'c-acuity'],
+      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-shoo', 'c-amplify'],
+      3: ['cv2-l-fish-food', 'cv2-l-tender-greens', 'cv2-l-birdseed', 'c-shoo', 'c-mend'],
+      4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-l-tender-greens', 'c-bulwark', 'c-acuity'],
     },
     jnsq: {
       2: ['jv2-t-third-tuesday', 'jv2-i-astrally', 'jv2-p-hold-my-drink', 'jv2-k-shouldnt-said-have-you-eaten', 'c-channel'],
@@ -5772,6 +5807,13 @@ export default function App() {
         pushLog(`🪱 No empty stage slot for ${card.name} — refunded.`);
         return;
       }
+      // Lures may carry either a single `summon.animalId` (deterministic —
+      // e.g. Birdseed → Sparrow) or `summon.animalIds` (random — e.g.
+      // Tender Greens → one of field-mouse / rabbit / young-buck). The
+      // random choice is resolved at TRANSFORM, not at stage, so the
+      // surprise lands when the animal arrives. summonSet (e.g.
+      // 'tender-greens') flows through to the animal envelope for row-bonus
+      // detection.
       const lureEnvelope = {
         kind: 'lure',
         uid: card.uid,
@@ -5779,12 +5821,18 @@ export default function App() {
         cardName: card.name,
         card,
         turnsRemaining: card.summon.turnsToArrive,
-        animalId: card.summon.animalId,
+        animalId: card.summon.animalId || null,
+        animalIds: card.summon.animalIds || null,
+        summonSet: card.summon.summonSet || null,
       };
       setTray(p => syncTrayLegacy({ ...p, [targetSlot]: lureEnvelope }));
       setHand(h => h.filter((_, i) => i !== handIdx));
-      const animal = ANIMALS[card.summon.animalId];
-      pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlot) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+      if (card.summon.animalId) {
+        const animal = ANIMALS[card.summon.animalId];
+        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlot) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+      } else {
+        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlot) + 1}. Something arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+      }
       return;
     }
 
@@ -8746,6 +8794,29 @@ export default function App() {
       const workingTray = { intro: tray.intro, subject: tray.subject, target: tray.target };
       const luresEaten = []; // lure cards sent to exiled (eaten, not cycled)
 
+      // onExit helper — fires when an animal departs by natural duration
+      // expiry. Handles damage (Young Buck's 6-comp kick), block (Field
+      // Mouse's +3 block), and Weak debuff (Hawk's parting screech).
+      // Doesn't fire on Shoo or predator-chain / adjacent-spawn transforms
+      // — only natural exit.
+      const applyAnimalOnExit = (animal) => {
+        const fx = animal?.onExit;
+        if (!fx) return;
+        if (fx.damage > 0) {
+          if (fx.damageType === 'physical') applyDamageToEnemyHp(fx.damage);
+          else                              applyDamageToEnemyComposure(fx.damage);
+          pushLog(`${animal.icon} ${animal.name} parting kick: ${fx.damage} ${fx.damageType === 'physical' ? 'HP' : 'composure'}.`);
+        }
+        if (fx.block > 0) {
+          setBlock(b => b + fx.block);
+          pushLog(`${animal.icon} ${animal.name} drops +${fx.block} Block on the way out.`);
+        }
+        if (fx.applyWeak > 0) {
+          applyExpiringWeak(fx.applyWeak);
+          pushLog(`${animal.icon} ${animal.name} parting screech — Weak ${fx.applyWeak} on enemy.`);
+        }
+      };
+
       // Pre-pass: cannibalism check. Walk lures; for each, check both
       // neighbors for a matching-species animal. First match wins.
       for (let i = 0; i < SLOT_ORDER.length; i++) {
@@ -8767,6 +8838,51 @@ export default function App() {
         }
       }
 
+      // Pre-pass: HAWK STRIKE. Each turn there is a 10% chance per Field
+      // Mouse on the board that a Hawk swoops in and replaces it. The
+      // Field Mouse forfeits its turn (no attack, no draw). The Hawk takes
+      // over the slot with a fresh duration; it acts normally next turn.
+      for (const slotName of SLOT_ORDER) {
+        const slot = workingTray[slotName];
+        if (!slot || slot.kind !== 'animal') continue;
+        if (slot.animalId !== 'field-mouse') continue;
+        if (Math.random() >= 0.1) continue;
+        const hawk = ANIMALS['hawk'];
+        pushLog(`🦅 A Hawk swoops in and snatches the Field Mouse — its turn is forfeited.`);
+        workingTray[slotName] = {
+          kind: 'animal',
+          animalId: 'hawk',
+          durationRemaining: hawk?.duration || 3,
+          predatorProgress: 0,
+          adjacentSpawnProgress: 0,
+          summonSet: slot.summonSet || null,
+          eatenThisTurn: true, // Hawk took the action this turn — wait until next.
+        };
+      }
+
+      // Pre-pass: TENDER GREENS ROW BONUS. If every slot holds an animal
+      // summoned via Tender Greens (summonSet === 'tender-greens') AND the
+      // bonus hasn't already fired for the current row composition, fire it:
+      // each animal's duration +1 AND each animal's next attack doubles.
+      // tenderGreensRowBonusFired marker on each envelope prevents re-fire
+      // for the same row; when an animal leaves or the set changes, the
+      // bonus is available again on the next full row.
+      const slotEntries = SLOT_ORDER.map(s => workingTray[s]);
+      const allTenderGreens = slotEntries.every(s => s && s.kind === 'animal' && s.summonSet === 'tender-greens');
+      const allAlreadyFired = allTenderGreens && slotEntries.every(s => s.tenderGreensRowBonusFired);
+      if (allTenderGreens && !allAlreadyFired) {
+        pushLog(`🥬 TENDER GREENS row complete — every animal stays one more turn AND its next attack doubles.`);
+        for (const slotName of SLOT_ORDER) {
+          const s = workingTray[slotName];
+          workingTray[slotName] = {
+            ...s,
+            durationRemaining: (s.durationRemaining || 0) + 1,
+            nextAttackMult: 2,
+            tenderGreensRowBonusFired: true,
+          };
+        }
+      }
+
       const nextSlots = {};
       const luresToRecycle = []; // lure cards returned to discard on transform
       let summonerKilledEnemy = false;
@@ -8777,27 +8893,34 @@ export default function App() {
           const animal = ANIMALS[slot.animalId];
           if (!animal) { nextSlots[slotName] = null; continue; }
           // Skip attack if the animal already acted this turn by eating a
-          // lure in the pre-pass. Duration still ticks; flag clears below.
-          // Also skip the attack pipeline entirely for 0-attack animals
-          // (e.g. Salmon, which flops and waits — see hidePredatorChain).
+          // lure / being snatched by a Hawk (eatenThisTurn flag), or for
+          // 0-attack animals (Salmon — flops by design). nextAttackMult
+          // multiplies this attack only (consumed below; reset in the
+          // duration-tick branches).
           if (!slot.eatenThisTurn && animal.attack > 0) {
+            const atkMult = slot.nextAttackMult || 1;
+            const atk = animal.attack * atkMult;
+            const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
             if (animal.attackPool === 'composure') {
-              applyDamageToEnemyComposure(animal.attack);
-              pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} composure.`);
+              applyDamageToEnemyComposure(atk);
+              pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}.`);
             } else {
-              applyDamageToEnemyHp(animal.attack);
-              pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} HP.`);
+              applyDamageToEnemyHp(atk);
+              pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}.`);
             }
             if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
             // Check if attack killed the enemy
-            if ((enemyComposure - animal.attack <= 0 && animal.attackPool === 'composure')
-                || (enemyHp - animal.attack <= 0 && animal.attackPool !== 'composure')) {
+            if ((enemyComposure - atk <= 0 && animal.attackPool === 'composure')
+                || (enemyHp - atk <= 0 && animal.attackPool !== 'composure')) {
               summonerKilledEnemy = true;
             }
           }
-          // Decrement duration and tick predator chain
-          const nextDuration = slot.durationRemaining - 1;
+          // Decrement duration and tick chain counters.
+          let nextDuration = slot.durationRemaining - 1;
           const nextPredator = (slot.predatorProgress || 0) + 1;
+          const nextAdjSpawn = (slot.adjacentSpawnProgress || 0) + 1;
+
+          // Predator chain (Salmon → Bear): in-place transform, fresh duration.
           if (animal.predatorChain && nextPredator >= animal.predatorChain.turnsToTrigger) {
             const newAnimalId = animal.predatorChain.animalId;
             const newAnimal = ANIMALS[newAnimalId];
@@ -8807,28 +8930,93 @@ export default function App() {
               animalId: newAnimalId,
               durationRemaining: newAnimal?.duration || 3,
               predatorProgress: 0,
+              adjacentSpawnProgress: 0,
+              summonSet: slot.summonSet || null,
             };
+          } else if (animal.adjacentSpawn && nextAdjSpawn >= animal.adjacentSpawn.turnsToTrigger) {
+            // Adjacent-spawn chain (Rabbit): spawn a copy of the configured
+            // animalId in each adjacent EMPTY slot. Original extends self
+            // duration by extendSelfTurns. Triggers ONCE per chain cycle
+            // (adjacentSpawnProgress resets after spawn).
+            const slotIdx = SLOT_ORDER.indexOf(slotName);
+            const neighborIdxs = [slotIdx - 1, slotIdx + 1].filter(n => n >= 0 && n < SLOT_ORDER.length);
+            const spawnId = animal.adjacentSpawn.animalId;
+            const spawnAnimal = ANIMALS[spawnId];
+            let spawned = 0;
+            for (const ni of neighborIdxs) {
+              const ns = SLOT_ORDER[ni];
+              // Check the WORKING tray for the neighbor's current state —
+              // but we want the END state. Since we're mid-loop, any slot
+              // processed earlier in this iteration is in nextSlots. Slots
+              // not yet processed are in workingTray. Compose.
+              const projected = (nextSlots[ns] !== undefined) ? nextSlots[ns] : workingTray[ns];
+              if (projected == null) {
+                nextSlots[ns] = {
+                  kind: 'animal',
+                  animalId: spawnId,
+                  durationRemaining: spawnAnimal?.duration || 3,
+                  predatorProgress: 0,
+                  adjacentSpawnProgress: 0,
+                  summonSet: slot.summonSet || null,
+                };
+                spawned++;
+              }
+            }
+            if (spawned > 0) {
+              const extend = animal.adjacentSpawn.extendSelfTurns || 0;
+              nextDuration = (slot.durationRemaining - 1) + extend;
+              pushLog(`${animal.icon} ${animal.name} multiplies: +${spawned} ${spawnAnimal?.name || spawnId} adjacent. Original stays ${extend} more turn${extend === 1 ? '' : 's'}.`);
+            }
+            // Continue to duration logic with reset chain counter.
+            if (nextDuration <= 0) {
+              if (animal.onExit) applyAnimalOnExit(animal);
+              pushLog(`${animal.icon} ${animal.name} departs.`);
+              nextSlots[slotName] = null;
+            } else {
+              nextSlots[slotName] = {
+                ...slot,
+                durationRemaining: nextDuration,
+                predatorProgress: nextPredator,
+                adjacentSpawnProgress: 0,
+                eatenThisTurn: false,
+                nextAttackMult: 1, // clear any spent multiplier
+              };
+            }
           } else if (nextDuration <= 0) {
+            if (animal.onExit) applyAnimalOnExit(animal);
             pushLog(`${animal.icon} ${animal.name} departs.`);
             nextSlots[slotName] = null;
           } else {
-            // Clear eatenThisTurn so the animal acts normally next turn.
-            nextSlots[slotName] = { ...slot, durationRemaining: nextDuration, predatorProgress: nextPredator, eatenThisTurn: false };
+            // Normal tick — clear flags that were consumed this turn.
+            nextSlots[slotName] = {
+              ...slot,
+              durationRemaining: nextDuration,
+              predatorProgress: nextPredator,
+              adjacentSpawnProgress: nextAdjSpawn,
+              eatenThisTurn: false,
+              nextAttackMult: 1,
+            };
           }
         } else if (slot.kind === 'lure') {
           const nextTurns = slot.turnsRemaining - 1;
           if (nextTurns <= 0) {
-            const animal = ANIMALS[slot.animalId];
-            pushLog(`${animal?.icon || '🐾'} ${animal?.name || slot.animalId} arrives!`);
-            // Lure card cycles back to discard so it can be redrawn (no exhaust).
-            // The animal entity replaces it in the stage slot — the entity is
-            // not a card; it's pure state with no need to be in any pile.
+            // Resolve which animal arrives. If the lure carries an
+            // animalIds array (random pool — Tender Greens), pick one.
+            // Otherwise the fixed animalId.
+            const resolvedAnimalId = slot.animalIds && slot.animalIds.length > 0
+              ? slot.animalIds[Math.floor(Math.random() * slot.animalIds.length)]
+              : slot.animalId;
+            const animal = ANIMALS[resolvedAnimalId];
+            pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
+            // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
             nextSlots[slotName] = {
               kind: 'animal',
-              animalId: slot.animalId,
+              animalId: resolvedAnimalId,
               durationRemaining: animal?.duration || 3,
               predatorProgress: 0,
+              adjacentSpawnProgress: 0,
+              summonSet: slot.summonSet || null,
             };
           } else {
             nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };
