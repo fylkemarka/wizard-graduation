@@ -1296,11 +1296,13 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             const feedReceived = !!card.feedReceived;
             // Badge logic:
             //   - feedReceived (set this turn or a prior turn) → green "fed".
-            //     Hide once it's no longer the feeding turn.
-            //   - !feedReceived AND durationRemaining === 2 → urgent
-            //     "feed now or short-stay" warning. (D-1 turn.)
+            //     Hide once it's no longer the actual feeding turn.
+            //   - !feedReceived AND durationRemaining <= 2 → urgent "feed
+            //     now or no exit bonus" warning. The arrival turn now counts
+            //     as stay-turn 1 (Alan, 2026-05-31), so D=2 animals arrive
+            //     at dur=1 and D=3 at dur=2 — both are the make-or-break turn.
             //   - anything else → no badge.
-            if (!feedReceived && card.durationRemaining !== 2) return null;
+            if (!feedReceived && card.durationRemaining > 2) return null;
             if (feedReceived && !fedThisTurn) return null;
             const tone = feedReceived
               ? 'bg-moss-900 text-moss-200 border border-moss-500'
@@ -1505,16 +1507,16 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
           const neededKeys = new Set();
           // Surface a feed slot only when an unfed animal is on its
-          // make-or-break turn (durationRemaining === 2). Earlier in the
-          // animal's stay nothing appears; once fed (feedReceived=true),
-          // nothing reappears (Alan, 2026-05-31).
+          // make-or-break turn — durationRemaining <= 2. Earlier in the stay
+          // nothing appears; once fed (feedReceived=true), nothing reappears
+          // (Alan, 2026-05-31).
           for (const sn of ['intro', 'subject', 'target']) {
             const slot = tray?.[sn];
             if (slot?.kind !== 'animal') continue;
             const animal = animals?.[slot.animalId];
             if (!animal?.feedKey) continue;
             if (slot.feedReceived) continue;
-            if (slot.durationRemaining !== 2) continue;
+            if (slot.durationRemaining > 2) continue;
             neededKeys.add(animal.feedKey);
           }
           if (neededKeys.size === 0) return null;

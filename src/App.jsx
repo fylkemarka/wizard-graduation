@@ -5988,7 +5988,10 @@ export default function App() {
           newSlots[s] = {
             kind: 'animal',
             animalId: resolvedId,
-            durationRemaining: (animal?.duration || 3) + (isYouth ? 1 : 0),
+            // Arrival counts as the animal's first stay-turn (Alan,
+            // 2026-05-31): spawn with D-1 so the in-play turn ends include
+            // the arrival.
+            durationRemaining: Math.max(1, (animal?.duration || 3) - 1) + (isYouth ? 1 : 0),
             predatorProgress: 0,
             adjacentSpawnProgress: 0,
             summonSet: card.summon.summonSet || null,
@@ -8794,7 +8797,7 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
       kind: 'animal',
       animalId: slot.animalId,
-      durationRemaining: animal?.duration || 3,
+      durationRemaining: Math.max(1, (animal?.duration || 3) - 1),
       predatorProgress: 0,
     } }));
     setEatItPromptActive(false);
@@ -9245,7 +9248,7 @@ export default function App() {
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: newAnimalId,
-              durationRemaining: newAnimal?.duration || 3,
+              durationRemaining: Math.max(1, (newAnimal?.duration || 3) - 1),
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
@@ -9271,7 +9274,7 @@ export default function App() {
                 nextSlots[ns] = {
                   kind: 'animal',
                   animalId: spawnId,
-                  durationRemaining: spawnAnimal?.duration || 3,
+                  durationRemaining: Math.max(1, (spawnAnimal?.duration || 3) - 1),
                   predatorProgress: 0,
                   adjacentSpawnProgress: 0,
                   summonSet: slot.summonSet || null,
@@ -9376,7 +9379,10 @@ export default function App() {
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: resolvedAnimalId,
-              durationRemaining: (animal?.duration || 3) + youthBonus,
+              // Arrival counts as turn 1 of the animal's stay (Alan,
+              // 2026-05-31). Spawn with D-1 so subsequent end-of-turns
+              // count toward the full duration including arrival.
+              durationRemaining: Math.max(1, (animal?.duration || 3) - 1) + youthBonus,
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
