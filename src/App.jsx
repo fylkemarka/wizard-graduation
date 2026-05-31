@@ -5489,6 +5489,31 @@ export default function App() {
     return pool[Math.floor(Math.random() * pool.length)].id;
   }
 
+  // Extract real card objects from the tray for combat-end pile merges.
+  // Lure envelopes carry the actual lure CARD in slot.card — extract it.
+  // Animal / occupied envelopes have NO card (the original lure was already
+  // recycled to discard via luresToRecycle when it transformed). Modifiers
+  // are raw cards. Tactic is a raw card and should also return to the deck
+  // so it can be replayed next combat. Pre-fix this dropped envelopes into
+  // the deck as opaque blobs, causing "blank cards" in subsequent combats
+  // (Alan, 2026-05-31 telemetry).
+  function extractTrayCardsForReturn(t) {
+    if (!t) return [];
+    const slotCard = (slot) => {
+      if (!slot) return null;
+      if (slot.kind === 'lure') return slot.card || null;
+      if (slot.kind === 'animal' || slot.kind === 'occupied') return null;
+      return slot;
+    };
+    return [
+      slotCard(t.intro),
+      slotCard(t.subject),
+      slotCard(t.target),
+      ...((t.modifiers || []).filter(Boolean)),
+      t.tactic || null,
+    ].filter(Boolean);
+  }
+
   // v3.4.11 — pile telemetry. Snapshot card-id contents of every pile
   // (deck/hand/discard/exiled/tray) at combat.start, combat.end, and
   // turn_end. Used to diagnose card-loss reports: if a card vanishes
@@ -5753,7 +5778,7 @@ export default function App() {
       // in, but this is the defensive catch — sidequest exits and any
       // other transition path that bypasses those merges still have
       // tray/exiled cards intact here, and we don't want them lost.
-      const trayCardsIn = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
+      const trayCardsIn = extractTrayCardsForReturn(tray);
       const fullDeck = [...deck, ...hand, ...discard, ...exiled, ...trayCardsIn];
       setExiled([]);
       // v2.13: jnsq +1 hand size at combat start (chaos dice need full
@@ -10506,7 +10531,9 @@ export default function App() {
       // forever — enterFight resets the tray on next combat. Alan's
       // telemetry: ended Hollow Weaver with subject staged → Pattern
       // Maker started with no subject in deck → 0 casts across 4 turns.
-      const trayCards = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
+      // 2026-05-31 follow-up: extractor now unwraps lure envelopes and
+      // skips animal envelopes so handler combats don't leak blanks.
+      const trayCards = extractTrayCardsForReturn(tray);
       setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards]);
       setHand([]); setDiscard([]); setExiled([]);
       setTray(initialV2Tray());
@@ -10679,7 +10706,7 @@ export default function App() {
     // v3.1.3 BUGFIX: include tray-staged cards in the merge. Without this,
     // any card staged at combat end (waiting for the next turn's cast)
     // got obliterated by enterFight's tray reset on the next combat.
-    const trayCards = [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])].filter(Boolean);
+    const trayCards = extractTrayCardsForReturn(tray);
     // v3.4.15 — FFT row pick. cardOrSkip is { row, cards, tierBumped }.
     // Add all three cards to the deck and bypass the single-card path.
     if (cardOrSkip && cardOrSkip.row && Array.isArray(cardOrSkip.cards)) {
