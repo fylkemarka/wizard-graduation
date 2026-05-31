@@ -1,4 +1,5 @@
-// Chutzpah lane v2 — The Bruiser's deck. 75 cards.
+// Chutzpah lane v2 — The Handler's deck. (Animal Summoner pivot — see
+// project_wg_chutzpah_animal_summoner memory.)
 //
 // Voice: Jack Burton / Walter Sobchak. Short, declarative, swaggering.
 // Tags: demanding, threatening, dismissive, swaggering, direct.

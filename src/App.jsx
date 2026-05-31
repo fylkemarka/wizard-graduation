@@ -2846,7 +2846,7 @@ const CHARACTERS = [
   },
   {
     id: 'chutzpah-bruiser',
-    name: 'The Bruiser',
+    name: 'The Handler',
     lane: 'chutzpah',
     voice: 'Jack Burton / Walter Sobchak',
     title: 'graduates by refusing to leave the room',
@@ -10617,7 +10617,7 @@ function DevQuickStartScreen({ onStart, onBack }) {
   const [dropAtBoss, setDropAtBoss] = useState(false);
   const lanes = [
     { id: 'wit',      name: 'Wit — The Scholar' },
-    { id: 'chutzpah', name: 'Chutzpah — The Bruiser' },
+    { id: 'chutzpah', name: 'Chutzpah — The Handler' },
     { id: 'jnsq',     name: 'Jnsq — The Fool' },
   ];
   const actLabels = ['Act 1 (start)', 'Act 2 (Thread Path)', 'Act 3 (Forge Path)', 'Final Act (Staff Path)'];
