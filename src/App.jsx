@@ -1337,17 +1337,45 @@ const ANIMALS = {
   // combine into one Mouse House in the center slot (subject); the
   // outer slots empty. Mouse House attacks 8 composure each turn for 2
   // turns AND applies Vulnerable 1 to the enemy each attack.
+  // ---- COMBINE ANIMALS (formed by a three-of-a-kind pre-pass at end of
+  // turn). They never need feeding — feedKey is intentionally absent so the
+  // feed gate (isUnfed) always sees them as "fed" and grants the full
+  // duration + exit bonus. They also don't carry an eatenThisTurn flag on
+  // formation: they attack and grant defense the same turn they combine.
   'mouse-house': {
     name: 'Mouse House',
     icon: '🏠',
     attack: 8,
     attackPool: 'composure',
     duration: 2,
-    feedKey: 'small-land',
     onAttackEffect: { applyVulnerable: 1 },
+    onExit: { healComp: 4 },
     flavor: 'They were, you realise, organising the whole time.',
-    desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack.',
-    upgrade: { attack: 10, duration: 3 },
+    desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 4 Composure on exit.',
+    upgrade: { attack: 10, duration: 3, onExit: { healComp: 6 } },
+  },
+  'long-hare': {
+    name: 'The Long Hare',
+    icon: '🐇',
+    attack: 8,
+    attackPool: 'hp',
+    duration: 2,
+    onAttackEffect: { applyWeak: 1 },
+    turnGrant: { poise: 5 },
+    onExit: { healComp: 4 },
+    flavor: 'It is many. It is one. It is, frankly, late.',
+    desc: 'Attacks for 8 HP and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 4 Composure on exit.',
+  },
+  mccloven: {
+    name: 'McCloven',
+    icon: '🦌',
+    attack: 10,
+    attackPool: 'hp',
+    duration: 2,
+    turnGrant: { block: 5 },
+    onExit: { healHp: 5 },
+    flavor: 'A great cloven thing has, by collective vote, decided.',
+    desc: 'Attacks for 10 HP each turn for 2 turns. Grants 5 Block per turn. Heals 5 HP on exit.',
   },
   bear: {
     name: 'Bear',
@@ -9170,22 +9198,33 @@ export default function App() {
         };
       }
 
-      // Pre-pass: MOUSE HOUSE COMBINE. If every slot holds a Field Mouse,
-      // they merge into one Mouse House anchored at intro that spans into
-      // subject. target empties. Mouse House sits as eatenThisTurn so it
-      // doesn't attack on the turn it formed; starts hitting next turn.
-      const allFieldMice = SLOT_ORDER.every(s => workingTray[s]?.kind === 'animal' && workingTray[s].animalId === 'field-mouse');
-      if (allFieldMice) {
-        const mh = getAnimal('mouse-house');
-        pushLog(`🏠 The mice combine into a MOUSE HOUSE — it spans two slots.`);
+      // Pre-pass: THREE-OF-A-KIND COMBINES. When all 3 slots hold the same
+      // species AND that species has a combine target, merge into the
+      // combine animal anchored at intro spanning into subject. target
+      // empties. Combine animals never need feeding (no feedKey) and
+      // attack/grant defense on the turn they form (no eatenThisTurn).
+      const COMBINE_BY_SPECIES = {
+        'field-mouse': 'mouse-house',
+        'rabbit':      'long-hare',
+        'young-buck':  'mccloven',
+      };
+      const firstSlot = workingTray[SLOT_ORDER[0]];
+      const matchedSpecies = (firstSlot?.kind === 'animal' && COMBINE_BY_SPECIES[firstSlot.animalId])
+        ? firstSlot.animalId
+        : null;
+      const allSameSpecies = matchedSpecies && SLOT_ORDER.every(s =>
+        workingTray[s]?.kind === 'animal' && workingTray[s].animalId === matchedSpecies);
+      if (allSameSpecies) {
+        const combineId = COMBINE_BY_SPECIES[matchedSpecies];
+        const combineAnim = getAnimal(combineId);
+        pushLog(`✨ Three ${getAnimal(matchedSpecies)?.name || matchedSpecies}s combine into ${combineAnim?.icon || ''} ${combineAnim?.name || combineId} — it spans two slots.`);
         workingTray.intro = {
           kind: 'animal',
-          animalId: 'mouse-house',
-          durationRemaining: mh?.duration || 2,
+          animalId: combineId,
+          durationRemaining: combineAnim?.duration || 2,
           predatorProgress: 0,
           adjacentSpawnProgress: 0,
-          summonSet: 'tender-greens',
-          eatenThisTurn: true, // forming the house IS the action this turn
+          summonSet: matchedSpecies === 'field-mouse' ? 'tender-greens' : null,
           spans: ['intro', 'subject'],
         };
         workingTray.subject = { kind: 'occupied', occupiedBy: 'intro' };
@@ -9195,11 +9234,11 @@ export default function App() {
       // Pre-pass: TENDER GREENS ROW BONUS. If every slot holds an animal
       // summoned via Tender Greens (summonSet === 'tender-greens') AND the
       // bonus hasn't already fired for the current row composition, fire it:
-      // each animal's NEXT ATTACK DOUBLES. (Alan, 2026-05-31: dropped the
-      // legacy +1 duration extension — it silently offset the feeding-tick
-      // and confused players who had just fed an animal expecting it to
-      // tick toward exit. The big-burst attack is the real reward; the
-      // duration extension fought the feeding mechanic for the spotlight.)
+      // each animal's NEXT ATTACK is +50% AND each grants +3 Block per turn
+      // for the rest of its stay. (Alan, 2026-05-31: dropped legacy +1
+      // duration extension that fought the feeding tick; toned next-attack
+      // multiplier from 2.0 → 1.5 and added a per-turn block grant to
+      // smooth the bonus across multiple turns instead of one big burst.)
       // tenderGreensRowBonusFired marker on each envelope prevents re-fire
       // for the same row; when an animal leaves or the set changes, the
       // bonus is available again on the next full row.
@@ -9207,12 +9246,13 @@ export default function App() {
       const allTenderGreens = slotEntries.every(s => s && s.kind === 'animal' && s.summonSet === 'tender-greens');
       const allAlreadyFired = allTenderGreens && slotEntries.every(s => s.tenderGreensRowBonusFired);
       if (allTenderGreens && !allAlreadyFired) {
-        pushLog(`🥬 TENDER GREENS row complete — every animal's next attack doubles.`);
+        pushLog(`🥬 TENDER GREENS row complete — each animal's next attack ×1.5 AND +3 Block per turn.`);
         for (const slotName of SLOT_ORDER) {
           const s = workingTray[slotName];
           workingTray[slotName] = {
             ...s,
-            nextAttackMult: 2,
+            nextAttackMult: 1.5,
+            turnGrantTemp: { ...(s.turnGrantTemp || {}), block: ((s.turnGrantTemp?.block) || 0) + 3 },
             tenderGreensRowBonusFired: true,
           };
         }
@@ -9250,7 +9290,7 @@ export default function App() {
           // duration-tick branches).
           if (!slot.eatenThisTurn && animal.attack > 0) {
             const atkMult = slot.nextAttackMult || 1;
-            let atk = animal.attack * atkMult;
+            let atk = Math.round(animal.attack * atkMult);
             const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
             const tacticId = tray.tactic?.tactic?.id;
             const isShield = tacticId === 'shield';
@@ -9275,10 +9315,14 @@ export default function App() {
               }
             }
             if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
-            // Per-attack debuff rider (e.g. Mouse House applies Vuln 1).
+            // Per-attack debuff rider (Mouse House Vuln 1; Long Hare Weak 1).
             if (animal.onAttackEffect?.applyVulnerable > 0) {
               applyExpiringVuln(animal.onAttackEffect.applyVulnerable);
               pushLog(`${animal.icon} ${animal.name} unsettles the enemy — Vulnerable ${animal.onAttackEffect.applyVulnerable}.`);
+            }
+            if (animal.onAttackEffect?.applyWeak > 0) {
+              applyExpiringWeak(animal.onAttackEffect.applyWeak);
+              pushLog(`${animal.icon} ${animal.name} blurs the enemy's swing — Weak ${animal.onAttackEffect.applyWeak}.`);
             }
             // Check if attack killed the enemy (only when actually attacking)
             if (!isShield) {
@@ -9286,6 +9330,21 @@ export default function App() {
                   || (enemyHp - atk <= 0 && animal.attackPool !== 'composure')) {
                 summonerKilledEnemy = true;
               }
+            }
+          }
+          // Per-turn passive grants (Long Hare / McCloven / Tender Greens row
+          // bonus). Fires every turn the animal is on board, regardless of
+          // eatenThisTurn or whether the animal attacked. Also fires for
+          // turnGrantTemp riders the row-bonus pre-pass stamps on slots.
+          const grant = animal.turnGrant || slot.turnGrantTemp;
+          if (grant) {
+            if (grant.block > 0) {
+              setBlock(b => b + grant.block);
+              pushLog(`${animal.icon} ${animal.name} braces: +${grant.block} Block.`);
+            }
+            if (grant.poise > 0) {
+              setPoise(p => p + grant.poise);
+              pushLog(`${animal.icon} ${animal.name} steadies you: +${grant.poise} Poise.`);
             }
           }
           // Decrement duration and tick chain counters.

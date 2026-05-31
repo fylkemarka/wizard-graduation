@@ -1689,17 +1689,31 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         for (const slot of slots) {
           if (slot.eatenThisTurn) continue;
           const animal = animals?.[slot.animalId];
-          if (!animal || (animal.attack || 0) <= 0) continue;
+          if (!animal) continue;
           const atkMult = slot.nextAttackMult || 1;
-          let atk = animal.attack * atkMult;
+          let atk = Math.round((animal.attack || 0) * atkMult);
           if (isRabid) atk = Math.round(atk * 1.5);
           const parts = [];
-          if (isShield) {
-            totalBlock += atk;
-            parts.push(`+${atk} block`);
-          } else {
-            totalDmg += atk;
-            parts.push(`${atk} dmg`);
+          if (animal.attack > 0) {
+            if (isShield) {
+              totalBlock += atk;
+              parts.push(`+${atk} block`);
+            } else {
+              totalDmg += atk;
+              parts.push(`${atk} dmg`);
+            }
+          }
+          // Per-turn grants (Long Hare poise, McCloven block, Tender Greens
+          // row-bonus +3 block).
+          const grant = animal.turnGrant || slot.turnGrantTemp;
+          if (grant) {
+            if (grant.block > 0) {
+              totalBlock += grant.block;
+              parts.push(`+${grant.block} block`);
+            }
+            if (grant.poise > 0) {
+              parts.push(`+${grant.poise} poise`);
+            }
           }
           if (isRabid && !isShield) {
             const r = Math.max(1, Math.round(atk * 0.2));
@@ -1712,6 +1726,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           }
           if (animal.onAttackEffect?.applyVulnerable > 0) {
             parts.push(`Vuln ${animal.onAttackEffect.applyVulnerable}`);
+          }
+          if (animal.onAttackEffect?.applyWeak > 0) {
+            parts.push(`Weak ${animal.onAttackEffect.applyWeak}`);
           }
           // Exit-bonus preview: if this is the animal's LAST turn (duration 1
           // ticking to 0) AND it carries feedReceived (set when fed during
@@ -1743,6 +1760,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               parts.push(`+${ex.healHp} HP on exit`);
             }
           }
+          if (parts.length === 0) continue;
           lines.push(`${animal.icon} ${animal.name}: ${parts.join(' · ')}${atkMult > 1 ? ` (×${atkMult})` : ''}`);
         }
         if (lines.length === 0) return null;
