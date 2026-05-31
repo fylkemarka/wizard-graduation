@@ -5842,16 +5842,21 @@ export default function App() {
       // single `summon.animalId` (deterministic — Birdseed → Sparrow) or
       // `summon.animalIds` (random — Tender Greens). Random choice is
       // resolved at TRANSFORM, not stage. summonSet (e.g. 'tender-greens')
-      // flows through for row-bonus detection. Each spread envelope gets
-      // its own uid since they're separate game entities.
+      // flows through for row-bonus detection.
+      //
+      // BUFFET SPREAD: only the FIRST envelope carries `card` (the actual
+      // played card resource); the others get `card: null` so they don't
+      // each recycle a copy to discard on transform. Without this, one
+      // played card would generate N cards back to discard.
       const newSlots = {};
-      for (const s of targetSlots) {
+      for (let i = 0; i < targetSlots.length; i++) {
+        const s = targetSlots[i];
         newSlots[s] = {
           kind: 'lure',
           uid: uid(),
           cardId: card.id,
           cardName: card.name,
-          card,
+          card: i === 0 ? card : null,
           turnsRemaining: card.summon.turnsToArrive,
           animalId: card.summon.animalId || null,
           animalIds: card.summon.animalIds || null,
