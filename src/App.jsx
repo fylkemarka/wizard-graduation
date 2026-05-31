@@ -3675,12 +3675,13 @@ export default function App() {
   // snapshot right after the card was played + the heal cap (5).
   const [complimentSnap, setComplimentSnap] = useState(null);
   // v3.4.67 — Chutzpah schools state.
-  //   Bluster: enemy.pressure (lives on enemy object).
+  //   Bluster: loudness counter (chip+finisher). Persists all combat.
   //   Ballooning: tempHp + tempHpExpiresOnTurn. Decays at start of player
   //     turn once the marker passes. Damage routing: incoming →
   //     block → tempHp → HP/Comp.
   //   Ballistic: playerIncomingMult — multiplier on incoming damage to
   //     player. Self-Vulnerable raises it. Decays per turn.
+  const [loudness, setLoudness] = useState(0);
   const [tempHp, setTempHp] = useState(0);
   const [tempHpTurns, setTempHpTurns] = useState(0);
   const [playerIncomingMult, setPlayerIncomingMult] = useState(1.0);
@@ -5339,6 +5340,7 @@ export default function App() {
     setEnemySkipNextTurn(false);
     setComplimentSnap(null);
     // v3.4.67 — chutzpah school state resets per combat.
+    setLoudness(0);
     setTempHp(0);
     setTempHpTurns(0);
     setPlayerIncomingMult(1.0);
@@ -6418,6 +6420,15 @@ export default function App() {
         pushLog(`🔥 Pressure spike: ${enemy.pressure} × ${rider.consumePressureMult} = +${bonus} damage. Pressure cleared.`);
         setEnemy(e => e ? { ...e, pressure: 0 } : e);
       }
+      // v3.4.75 — Bluster's new Chip + Loud Finisher. Eat all Loudness for
+      // damage × N, then clear. The finisher (bluster-5 / ballistic-5)
+      // is the only way to cash in.
+      if (rider.consumeLoudnessMult && loudness > 0) {
+        const bonus = loudness * rider.consumeLoudnessMult;
+        dmg += bonus;
+        pushLog(`📢 PUNCHLINE: ${loudness} Loudness × ${rider.consumeLoudnessMult} = +${bonus} damage. Loudness cleared.`);
+        setLoudness(0);
+      }
       if (rider.rageDouble && rageActive) {
         dmg = Math.round(dmg * 2);
         pushLog(`💥 RAGE × 2 on Ballistic cast.`);
@@ -6775,6 +6786,11 @@ export default function App() {
       if (rider.addPressure) {
         setEnemy(e => e ? { ...e, pressure: (e.pressure || 0) + rider.addPressure } : e);
         pushLog(`🔥 +${rider.addPressure} Pressure on enemy.`);
+      }
+      // v3.4.75 — Bluster Loudness stack.
+      if (rider.addLoudness) {
+        setLoudness(n => n + rider.addLoudness);
+        pushLog(`📢 +${rider.addLoudness} Loudness (saved for the punchline).`);
       }
       if (rider.addTempHp) {
         const { amount, turns } = rider.addTempHp;
@@ -10308,6 +10324,7 @@ export default function App() {
       tempHpTurns={tempHpTurns}
       playerIncomingMult={playerIncomingMult}
       enemyPressure={enemy?.pressure || 0}
+      loudness={loudness}
       enemySkipNextAttack={enemySkipNextAttack}
       tutorFlash={tutorFlash}
       enemyAnnotation={enemy?.annotation || null}

@@ -35,6 +35,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        mirrorReflectCharges = null,
                        tempHp = 0, tempHpTurns = 0,
                        playerIncomingMult = 1.0, enemyPressure = 0,
+                       loudness = 0,
                        enemySkipNextAttack = false, enemyAnnotation = null,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
@@ -474,7 +475,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           const mirrorCap = mirrorReflectCharges?.capPerHit || 0;
           const hasAny = Object.keys(buckets).length > 0 || annRed > 0 || enemySkipNextAttack
                         || thornsAuraTurns > 0 || (thornsCharges?.count || 0) > 0 || mirrorCount > 0
-                        || tempHp > 0 || playerIncomingMult > 1.0;
+                        || tempHp > 0 || playerIncomingMult > 1.0 || loudness > 0;
           if (!hasAny) return null;
           const chips = [];
           if (enemySkipNextAttack) chips.push(<span key="skip" className="text-gold-300 cursor-help" title="The enemy's next attack will be fully skipped.">🤐 SKIP NEXT</span>);
@@ -495,6 +496,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           // v3.4.67 — Chutzpah school chips.
           if (tempHp > 0) chips.push(<span key="thp" className="text-gold-300 cursor-help" title={`Ballooning Temp HP: absorbs HP damage BEFORE your real HP. Expires after ${tempHpTurns} more turn${tempHpTurns > 1 ? 's' : ''}; any unused Temp HP is lost.`}>🎈 {tempHp} Temp HP × {tempHpTurns}t</span>);
           if (playerIncomingMult > 1.0) chips.push(<span key="sv" className="text-ember-300 cursor-help" title="Self-Vulnerable — incoming enemy damage to you is amplified. Decays back to neutral.">🩸 YOU VULN</span>);
+          if (loudness > 0) chips.push(<span key="ld" className="text-ember-300 cursor-help" title={`Bluster Loudness: ${loudness} stack${loudness > 1 ? 's' : ''} banked. Cast a finisher (Now You Listen Here / Scorched Earth) to consume for damage × N spike.`}>📢 {loudness} Loudness</span>);
           if (buckets.stripBlock) chips.push(<span key="sb" className="cursor-help" title={`At the start of each of your next ${buckets.stripBlock.turns} turn${buckets.stripBlock.turns > 1 ? 's' : ''}, strip ${buckets.stripBlock.amount} of the enemy's Block.`}>🛇 strip {buckets.stripBlock.amount}/turn × {buckets.stripBlock.turns}t</span>);
           if (buckets.weak) chips.push(<span key="w" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.weak.turns} turn${buckets.weak.turns > 1 ? 's' : ''}, apply +${buckets.weak.amount} Weak (-25% attack per stack).`}>💢 Weak +{buckets.weak.amount}/turn × {buckets.weak.turns}t</span>);
           if (buckets.vuln) chips.push(<span key="v" className="cursor-help" title={`At the start of each of the enemy's next ${buckets.vuln.turns} turn${buckets.vuln.turns > 1 ? 's' : ''}, apply +${buckets.vuln.amount} Vulnerable (+25% spell potency per stack).`}>🩸 Vuln +{buckets.vuln.amount}/turn × {buckets.vuln.turns}t</span>);
@@ -569,7 +571,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
         isChutzpah={isChutzpah} stakeAmount={stakeAmount} setStakeAmount={setStakeAmount}
         playerHp={hp} playerMaxHp={maxHp}
-        tempHp={tempHp} rageActive={rageActive}
+        tempHp={tempHp} rageActive={rageActive} loudness={loudness}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
         lastRoll={lastRoll} combatRolls={combatRolls} loudCount={loudCount}
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
@@ -772,7 +774,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
                        isChutzpah = false, stakeAmount = 0, setStakeAmount = () => {},
                        playerHp = 70, playerMaxHp = 70,
-                       tempHp = 0, rageActive = false,
+                       tempHp = 0, rageActive = false, loudness = 0,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
                        lastRoll = null, combatRolls = [], loudCount = 0,
                        playerDmgMult = 1.0, enemyDmgMult = 1.0,
@@ -820,6 +822,11 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         const spike = enemy.pressure * r.consumePressureMult;
         damage += spike;
         damageParts.push(`+${spike} (Pressure ${enemy.pressure} × ${r.consumePressureMult})`);
+      }
+      if (r.consumeLoudnessMult && loudness > 0) {
+        const spike = loudness * r.consumeLoudnessMult;
+        damage += spike;
+        damageParts.push(`+${spike} (Loudness ${loudness} × ${r.consumeLoudnessMult}) — PUNCHLINE`);
       }
       if (r.rageDouble && rageActive) {
         damage = Math.round(damage * 2);
@@ -990,6 +997,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const cur = enemy?.pressure || 0;
       const bonus = cur * rider.consumePressureMult;
       chips.push(cur > 0 ? `🔥 Consume ${cur} Pressure × ${rider.consumePressureMult} = +${bonus}` : `🔥 Consume Pressure × ${rider.consumePressureMult}`);
+    }
+    if (rider.addLoudness) chips.push(`📢 +${rider.addLoudness} Loudness`);
+    if (rider.consumeLoudnessMult) {
+      const cur = loudness || 0;
+      const bonus = cur * rider.consumeLoudnessMult;
+      chips.push(cur > 0 ? `📢 PUNCHLINE: ${cur} × ${rider.consumeLoudnessMult} = +${bonus}` : `📢 Punchline × ${rider.consumeLoudnessMult}`);
     }
     if (rider.addTempHp) chips.push(`🎈 +${rider.addTempHp.amount} Temp HP × ${rider.addTempHp.turns}t`);
     if (rider.consumeTempHpAsDamage) {

@@ -13,15 +13,15 @@
 // =============================================================================
 
 export const CHUTZPAH_SAME_SCHOOL_BONUSES = {
-  bluster:    { name: 'Bluster pressure (half-formed)',    bonus: 3 },
+  bluster:    { name: 'Bluster volume (half-formed)',      addLoudness: 1 },
   ballooning: { name: 'Ballooning puff (half-formed)',     addTempHp: { amount: 3, turns: 2 } },
-  ballistic:  { name: 'Ballistic spark (half-formed)',     bonus: 4, selfVulnerable: { amount: 1, turns: 1 } },
+  ballistic:  { name: 'Ballistic spark (half-formed)',     bonus: 3, selfVulnerable: { amount: 1, turns: 1 } },
 };
 
 export const CHUTZPAH_PARTIAL_ROW_BONUSES = {
-  bluster:    { name: 'Bluster pressure (half-formed)',    addPressure: 1 },
+  bluster:    { name: 'Bluster volume (half-formed)',      addLoudness: 1 },
   ballooning: { name: 'Ballooning puff (half-formed)',     addTempHp: { amount: 4, turns: 2 } },
-  ballistic:  { name: 'Ballistic spark (half-formed)',     bonus: 6 },
+  ballistic:  { name: 'Ballistic spark (half-formed)',     bonus: 3 },
 };
 
 // =============================================================================
@@ -29,44 +29,45 @@ export const CHUTZPAH_PARTIAL_ROW_BONUSES = {
 // =============================================================================
 export const CHUTZPAH_ROWS = [
 
-  // ---- BLUSTER (cumulative Pressure on enemy) ----
-  // Pressure stacks on the enemy. Bluster casts with `pressureBonus: true`
-  // get +enemy.pressure flat damage. addPressure: N stacks more. The
-  // capstone consumes all pressure for a damage spike.
+  // ---- BLUSTER (Chip + Loud Finisher) ----
+  // Most Bluster casts do small chip damage AND stack Loudness. The
+  // capstone consumes all Loudness for a damage spike. Identity:
+  // "louder, louder, LOUDER — punchline." Designed to land ~7-9 dmg
+  // per cast on average, with the finisher delivering the spike.
   {
     id: 'bluster-1', schoolId: 'bluster', name: 'Take That Tone Elsewhere',
     canonical: 'Listen pal, take that tone elsewhere.',
     introId: 'cv2-i-bluster-1', subjectId: 'cv2-s-bluster-1', targetId: 'cv2-t-bluster-1',
-    rider: { bonus: 12, addPressure: 1, pressureBonus: true },
-    riderDesc: '+12 composure damage. +1 Pressure on enemy. Bonus = +Pressure flat damage.',
+    rider: { bonus: 4, addLoudness: 1 },
+    riderDesc: '+4 composure damage. +1 Loudness.',
   },
   {
     id: 'bluster-2', schoolId: 'bluster', name: "Don't Walk Away From Me",
     canonical: "Buddy, don't walk away from me.",
     introId: 'cv2-i-bluster-2', subjectId: 'cv2-s-bluster-2', targetId: 'cv2-t-bluster-2',
-    rider: { bonus: 8, addPressure: 2, pressureBonus: true },
-    riderDesc: '+8 composure damage. +2 Pressure on enemy. Bonus = +Pressure flat.',
+    rider: { bonus: 3, addLoudness: 2 },
+    riderDesc: '+3 composure. +2 Loudness — the build-faster line.',
   },
   {
     id: 'bluster-3', schoolId: 'bluster', name: "Who Do You Think You're Talking To",
     canonical: "Look, who do you think you're talking to?",
     introId: 'cv2-i-bluster-3', subjectId: 'cv2-s-bluster-3', targetId: 'cv2-t-bluster-3',
-    rider: { bonus: 15, addPressure: 1, pressureBonus: true, weak: 1 },
-    riderDesc: '+15 composure. +1 Pressure. Bonus = +Pressure. Enemy Weak 1 (3 turns).',
+    rider: { bonus: 5, addLoudness: 1, weak: 1 },
+    riderDesc: '+5 composure. +1 Loudness. Enemy Weak 1 (3 turns).',
   },
   {
     id: 'bluster-4', schoolId: 'bluster', name: "I'm Done Being Polite",
     canonical: "Frankly, I'm done being polite.",
     introId: 'cv2-i-bluster-4', subjectId: 'cv2-s-bluster-4', targetId: 'cv2-t-bluster-4',
-    rider: { bonus: 6, addPressure: 1, consumePressureMult: 3 },
-    riderDesc: '+6 composure. Eat all Pressure for ×3 flat damage. Then +1 Pressure.',
+    rider: { bonus: 6, addLoudness: 1, vulnerable: 1 },
+    riderDesc: '+6 composure. +1 Loudness. Enemy Vulnerable 1 (3 turns).',
   },
   {
     id: 'bluster-5', schoolId: 'bluster', name: 'Now You Listen Here',
-    canonical: 'Now you listen here.',
+    canonical: 'NOW YOU LISTEN HERE.',
     introId: 'cv2-i-bluster-5', subjectId: 'cv2-s-bluster-5', targetId: 'cv2-t-bluster-5',
-    rider: { bonus: 20, consumePressureMult: 5 },
-    riderDesc: '+20 composure. Spike: eat all Pressure for ×5 flat damage. Capstone.',
+    rider: { bonus: 3, consumeLoudnessMult: 4 },
+    riderDesc: '+3 composure. THE PUNCHLINE: eat all Loudness for ×4 flat damage. Capstone.',
   },
 
   // ---- BALLOONING (Temp HP buffer) ----
@@ -116,48 +117,51 @@ export const CHUTZPAH_ROWS = [
     id: 'ballistic-1', schoolId: 'ballistic', name: 'Going Off',
     canonical: 'Buddy, I am going OFF.',
     introId: 'cv2-i-ballistic-1', subjectId: 'cv2-s-ballistic-1', targetId: 'cv2-t-ballistic-1',
-    rider: { bonus: 15, selfVulnerable: { amount: 1, turns: 2 } },
-    riderDesc: '+15 composure. You take +25% incoming damage for 2 turns.',
+    rider: { bonus: 8, selfVulnerable: { amount: 1, turns: 2 } },
+    riderDesc: '+8 composure damage. You become Vulnerable for 2 turns.',
   },
   {
     id: 'ballistic-2', schoolId: 'ballistic', name: 'Off the Rails',
     canonical: "Listen carefully, we are off the RAILS now.",
     introId: 'cv2-i-ballistic-2', subjectId: 'cv2-s-ballistic-2', targetId: 'cv2-t-ballistic-2',
-    rider: { bonus: 12, addTunnelVision: 2, selfVulnerable: { amount: 1, turns: 2 } },
-    riderDesc: '+12 composure. +2 Tunnel Vision. Self-Vuln 1 for 2 turns.',
+    rider: { bonus: 6, addTunnelVision: 2, selfVulnerable: { amount: 1, turns: 2 } },
+    riderDesc: '+6 composure. +2 Tunnel Vision. You become Vulnerable for 2 turns.',
   },
   {
     id: 'ballistic-3', schoolId: 'ballistic', name: 'Blind Rage',
     canonical: 'I can no longer see the room.',
     introId: 'cv2-i-ballistic-3', subjectId: 'cv2-s-ballistic-3', targetId: 'cv2-t-ballistic-3',
-    rider: { bonus: 20, selfVulnerable: { amount: 2, turns: 2 }, rageDouble: true },
-    riderDesc: '+20 composure (DOUBLED while in RAGE). Self-Vuln 2 for 2 turns.',
+    rider: { bonus: 10, selfVulnerable: { amount: 2, turns: 2 }, rageDouble: true },
+    riderDesc: '+10 composure (DOUBLED while in RAGE). You become Vulnerable for 2 turns.',
   },
   {
     id: 'ballistic-4', schoolId: 'ballistic', name: 'Nothing Left to Lose',
     canonical: "I, in point of fact, have nothing left to lose.",
     introId: 'cv2-i-ballistic-4', subjectId: 'cv2-s-ballistic-4', targetId: 'cv2-t-ballistic-4',
-    rider: { bonus: 10, missingHpScaling: 1, selfVulnerable: { amount: 1, turns: 3 } },
-    riderDesc: '+10 composure +1 per missing HP. Self-Vuln 1 for 3 turns.',
+    rider: { bonus: 5, missingHpScaling: 1, selfVulnerable: { amount: 1, turns: 3 } },
+    riderDesc: '+5 composure +1 per missing HP. You become Vulnerable for 3 turns.',
   },
   {
     id: 'ballistic-5', schoolId: 'ballistic', name: 'Scorched Earth',
     canonical: "Pal, this is officially scorched earth.",
     introId: 'cv2-i-ballistic-5', subjectId: 'cv2-s-ballistic-5', targetId: 'cv2-t-ballistic-5',
-    rider: { bonus: 25, consumePressureMult: 3, selfVulnerable: { amount: 2, turns: 3 } },
-    riderDesc: '+25 composure. Eat all Pressure × 3. Self-Vuln 2 for 3 turns. Cross-school capstone.',
+    rider: { bonus: 12, consumeLoudnessMult: 3, selfVulnerable: { amount: 2, turns: 3 } },
+    riderDesc: '+12 composure. Cross-school finisher: eat all Loudness × 3. Vuln 2 for 3 turns.',
   },
 ];
 
 export const CHUTZPAH_ROW_BY_ID = Object.fromEntries(CHUTZPAH_ROWS.map(r => [r.id, r]));
 
 // Shared rider keys this schema introduces (consumed by App.jsx applyRider):
-//   addPressure: N              — enemy.pressure += N
-//   pressureBonus: true         — damage += enemy.pressure (no consume)
-//   consumePressureMult: N      — damage += enemy.pressure × N, then pressure = 0
+//   addLoudness: N              — loudness += N (persists across turns)
+//   consumeLoudnessMult: N      — damage += loudness × N, then loudness = 0
 //   addTempHp: { amount, turns }— grant N Temp HP that decays after M turns
 //   consumeTempHpAsDamage: mult — damage += current tempHp × mult, tempHp = 0
 //   selfVulnerable: { amount, turns } — apply Vulnerable to PLAYER for N turns
 //   addTunnelVision: N          — bump existing tunnelVision meter
 //   missingHpScaling: N         — damage += (maxHp - hp) × N
 //   rageDouble: true            — damage doubled if Tunnel Vision >= 5 (RAGE)
+//
+// Legacy keys (kept dead-but-harmless in case the Pressure mechanic comes
+// back as an alternate path):
+//   addPressure, pressureBonus, consumePressureMult
