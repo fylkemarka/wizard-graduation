@@ -98,7 +98,7 @@ const CARDS = [
   // are NOT affected (the bait is still being eaten). Cycles back to discard.
   { id: 'c-shoo', name: 'Shoo!', cost: 1, type: 'skill', rarity: 'basic',
     effects: { shooAnimal: true },
-    desc: 'Dismiss one of your summoned animals. (Lures stay put.)',
+    desc: 'Dismiss one of your summoned animals.',
     flavor: "It's been lovely. Yes, lovely. Goodbye." },
   // Handler-specific defend. The Handler outsources fighting to the
   // menagerie, so personal defense is softer than the colorless +8 c-defend.
@@ -922,7 +922,6 @@ const STARTER_DECK = buildStarterDeckForLane('wit');
 const ENEMIES = [
   // ===== ACT 3 — The Staff Path (the deep forest, final act) =====
   { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 25, hpMax: 18, tier: 'normal',
-    effectiveness: { handler: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic', // Wants someone to explain what they're doing here.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
@@ -931,7 +930,6 @@ const ENEMIES = [
     ] },
   { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 23, hpMax: 999, tier: 'normal',
     // v2.4: handler 0.7 → 1.0 (less hostile to handler in act 1).
-    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 },
     softSpot: 'threat', // Bullies fold the moment you don't.
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -941,7 +939,6 @@ const ENEMIES = [
   { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 20, hpMax: 12, tier: 'normal',
     // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
     // partly because Shrine Rat and Thicket were freebies for it.
-    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 },
     softSpot: 'threat', // Bigger predator energy = scatter.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
@@ -956,7 +953,6 @@ const ENEMIES = [
     // failure mode: mystical mishap (transformation). Handler 0.6 —
     // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
     // wound. Physical 1.0 — he is also wood, axe him.
-    effectiveness: { handler: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic', // Point out that he is a staff. He is, technically, aware.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (the staff turns)' },
@@ -965,7 +961,6 @@ const ENEMIES = [
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
     ] },
   { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 40, hpMax: 999, tier: 'elite',
-    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 2.0, physical: 0.5 },
     softSpot: 'logic', // Will argue the methodology over the outcome.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -976,7 +971,6 @@ const ENEMIES = [
   { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 69, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
-    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
@@ -987,7 +981,6 @@ const ENEMIES = [
     // v2.16: was killing 182/500 handler runs. First pass 0.7→0.85
     // overcorrected (handler jumped to 41%). Settled at 0.75: still
     // a handler-hostile boss, just not a trap.
-    effectiveness: { handler: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 },
     softSpot: 'flattery', // Apex predator; flatter the apex.
     insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
@@ -999,7 +992,6 @@ const ENEMIES = [
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
-    effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     // v2.96: signature mechanic = Weave debt. Each "weave" intent stacks
     // +N on the player; ending a turn without casting fires ALL stacks as
@@ -1013,7 +1005,6 @@ const ENEMIES = [
       { kind: 'attack', value: 4, pool: 'composure', weight: 1, telegraph: '🎭 4 (half-thought)' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 25, hpMax: 999, tier: 'normal',
-    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 },
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
       // v2.9.2: silk-thread cuts now hit harder + composure-pool option.
@@ -1023,7 +1014,6 @@ const ENEMIES = [
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
-    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
     // into your hand and pulls a card it "needs to weave with." Forces
@@ -1046,7 +1036,6 @@ const ENEMIES = [
   // Pratchett-tone with parenthetical bureaucratic annotations.
   { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
     composureMax: 28, hpMax: 999, tier: 'normal',
-    effectiveness: { handler: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 },
     // failure mode: refusal. 50 years on the same hem. Wit can't
     // out-argue him (heard every version); jnsq breaks his focus.
     softSpot: 'confusion',
@@ -1057,7 +1046,6 @@ const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 50, hpMax: 999, tier: 'elite',
-    effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
       // v3.4.53 (Alan: "Pattern-Maker hits too hard, BARELY beat it"). With
@@ -1078,7 +1066,6 @@ const ENEMIES = [
       { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
-    effectiveness: { handler: 1.5, wit: 0.5, jnsq: 1.0, physical: 1.0 },
     softSpot: 'threat', // The vow of silence has limits.
     behaviors: [
       { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -1089,7 +1076,6 @@ const ENEMIES = [
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 69, hpMax: 999, tier: 'boss',
-    effectiveness: { handler: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 },
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     behaviors: [
@@ -1103,7 +1089,6 @@ const ENEMIES = [
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 28, hpMax: 12, tier: 'normal',
     // v2.4: sharpened from flat-low to handler-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
-    effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
@@ -1111,7 +1096,6 @@ const ENEMIES = [
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 23, hpMax: 14, tier: 'normal',
-    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.5, physical: 1.0 },
     softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
@@ -1120,7 +1104,6 @@ const ENEMIES = [
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 28, hpMax: 12, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
-    effectiveness: { handler: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
@@ -1135,7 +1118,6 @@ const ENEMIES = [
     // bully someone whose identity is partly an iron ring. Jnsq 1.3
     // because absurdity disrupts the alloy. Physical 1.0 — he is, after
     // all, also metal.
-    effectiveness: { handler: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 },
     softSpot: 'confusion',
     behaviors: [
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (alloyed strike)' },
@@ -1145,7 +1127,6 @@ const ENEMIES = [
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 35, hpMax: 22, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
-    effectiveness: { handler: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -1158,7 +1139,6 @@ const ENEMIES = [
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 57, hpMax: 28, tier: 'elite',
     // v2.4: handler-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
-    effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 },
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
@@ -1172,7 +1152,6 @@ const ENEMIES = [
     // v2.4: Anvil flipped from handler-resist to handler-favored. It's
     // a forging boss — it understands direct demands. Jnsq is now the
     // softer side (0.7); wit stays neutral.
-    effectiveness: { handler: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 },
     softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
@@ -1188,7 +1167,6 @@ const ENEMIES = [
   // Block without ever being in danger.
   // ===== SIDEQUEST ENEMIES — gated by sidequest combat nodes =====
   { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 75, hpMax: 999, tier: 'elite',
-    effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.5, physical: 0 },
     softSpot: 'logic',
     insultVulnerabilities: ['dismissive', 'absurd'], // Pedant; absurdity destabilizes him most.
     behaviors: [
@@ -1199,7 +1177,6 @@ const ENEMIES = [
     ] },
 
   { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 30, hpMax: 999, tier: 'normal',
-    effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 },
     softSpot: 'logic',
     behaviors: [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (gentle)' },
@@ -8760,11 +8737,12 @@ export default function App() {
     // without being a hard wall.
     if (enemy?.id === 'e2-silk-wraith' && !enemy.phaseShifted
         && newComposure > 0 && newComposure <= enemy.composureMax * 0.5) {
-      setEnemy(e => e ? { ...e, phaseShifted: true,
-        effectiveness: { ...e.effectiveness, wit: 0.5 } } : e);
+      // 2026-05-31: enemy effectiveness-per-stat removed game-wide. Phase
+      // shift now drops only the composure-regen tick (a distinct mechanic
+      // from the lane-resistance multiplier that used to ride alongside it).
+      setEnemy(e => e ? { ...e, phaseShifted: true } : e);
       pushLog('━━━━━━━━━━━━━━━━━━━━━━━');
       pushLog('🕸 PHASE SHIFT — Silk Wraith thins!');
-      pushLog('   • Words now slide through it (wit ×0.5).');
       pushLog('   • Re-weaves +1 Composure at the start of every enemy turn.');
       pushLog('━━━━━━━━━━━━━━━━━━━━━━━');
     }

@@ -1394,7 +1394,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {/* Left column: label + sentence + tags */}
         <div className="flex flex-col gap-1 min-w-[180px] max-w-[280px]">
           <div className="flex justify-between items-center">
-            <div className="text-[10px] uppercase tracking-widest text-iris-300 font-bold">📜 Spell Tray</div>
+            <div className="text-[10px] uppercase tracking-widest text-iris-300 font-bold">{isHandler ? '🐾 Summoning Pitch' : '📜 Spell Tray'}</div>
             <div className="flex items-center gap-2">
               {tutorArmed && (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gold-700 text-parchment-50 border border-gold-400 animate-pulse cursor-help"
@@ -1412,8 +1412,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           <div className="text-[11px] font-quill italic text-parchment-100 leading-snug">
             {isHandler
               ? (anySummon
-                  ? <span className="text-parchment-300">Your menagerie is on the case. Stage more lures, defend the slots.</span>
-                  : <span className="text-parchment-400">(empty — play a lure to summon an animal to a slot)</span>)
+                  ? <span className="text-parchment-300">Your menagerie is on the pitch. Stage more lures, defend the slots.</span>
+                  : <span className="text-parchment-400">(empty pitch — play a lure to summon an animal to a slot)</span>)
               : ready
                 ? <span>"{sentence}"</span>
                 : !anyStaged
@@ -1568,6 +1568,66 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         same height whether empty or staged. Always rendered with a
         min-height so the screen below doesn't jitter when you stage. */}
     <div className="parchment-card px-2 py-1 flex flex-col gap-0.5" style={{ minHeight: 32 }}>
+      {/* Handler — end-of-turn animal damage projection. Reads tray slots
+          + active tactic, computes what each animal will inflict this turn
+          and the total composure / block / recoil. */}
+      {isHandler && (() => {
+        const slots = ['intro', 'subject', 'target'].map(s => tray?.[s]).filter(v => v?.kind === 'animal');
+        if (slots.length === 0) return null;
+        const tacticId = tray?.tactic?.tactic?.id;
+        const isShield = tacticId === 'shield';
+        const isRabid  = tacticId === 'rabid';
+        const lines = [];
+        let totalDmg = 0;
+        let totalBlock = 0;
+        let totalRecoil = 0;
+        let totalDraw = 0;
+        for (const slot of slots) {
+          if (slot.eatenThisTurn) continue;
+          const animal = animals?.[slot.animalId];
+          if (!animal || (animal.attack || 0) <= 0) continue;
+          const atkMult = slot.nextAttackMult || 1;
+          let atk = animal.attack * atkMult;
+          if (isRabid) atk = Math.round(atk * 1.5);
+          const parts = [];
+          if (isShield) {
+            totalBlock += atk;
+            parts.push(`+${atk} 🛡`);
+          } else {
+            totalDmg += atk;
+            parts.push(`${atk} 🎭`);
+          }
+          if (isRabid && !isShield) {
+            const r = Math.max(1, Math.round(atk * 0.2));
+            totalRecoil += r;
+            parts.push(`-${r} self`);
+          }
+          if (animal.onAttack?.draw) {
+            totalDraw += animal.onAttack.draw;
+            parts.push(`+${animal.onAttack.draw} 📥`);
+          }
+          if (animal.onAttackEffect?.applyVulnerable > 0) {
+            parts.push(`Vuln ${animal.onAttackEffect.applyVulnerable}`);
+          }
+          lines.push(`${animal.icon} ${animal.name}: ${parts.join(' · ')}${atkMult > 1 ? ` (×${atkMult})` : ''}`);
+        }
+        if (lines.length === 0) return null;
+        return (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0 text-[11px] font-mono border-b border-ink-600 pb-1 mb-0.5">
+            <span className="text-[10px] uppercase tracking-widest text-moss-300 font-bold">🐾 This turn</span>
+            {lines.map((l, i) => (
+              <span key={i} className="text-parchment-200">{l}</span>
+            ))}
+            <span className="ml-auto text-[11px] text-parchment-100 font-bold">
+              Σ {totalDmg > 0 && <span className="text-iris-200">{totalDmg} 🎭</span>}
+              {totalBlock > 0 && <span className="text-moss-200 ml-1">+{totalBlock} 🛡</span>}
+              {totalDraw > 0 && <span className="text-moss-200 ml-1">+{totalDraw} 📥</span>}
+              {totalRecoil > 0 && <span className="text-ember-300 ml-1">-{totalRecoil} self</span>}
+              {tacticId && <span className="ml-2 text-gold-200 italic">[{tray.tactic.name}]</span>}
+            </span>
+          </div>
+        );
+      })()}
       {/* v3.4.30 — FFT preview chips + Crescendo preview moved here from
           inside the spell tray. Compact inline rows so the strip stays
           a few lines tall. */}
