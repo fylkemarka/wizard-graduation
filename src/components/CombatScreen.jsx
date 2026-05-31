@@ -59,6 +59,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        eatItPromptActive = false,
                        onEatItClick = () => {},
                        onCancelEatIt = () => {},
+                       buffetArmed = false,
+                       onCancelBuffet = () => {},
                        onOpenCompendium, onOpenDeckView }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
@@ -662,6 +664,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           </button>
         </div>
       )}
+      {buffetArmed && (
+        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-gold-100">
+            <span className="font-bold">🍽 Buffet armed:</span> your next lure will spread across every empty stage slot.
+          </div>
+          <button onClick={onCancelBuffet}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
         {hand.map((card, i) => {
@@ -1151,8 +1164,18 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         </div>
       );
     }
-    // Handler Animal Summoner (2026-05-31, slice 1) — slot can hold a
-    // lure envelope (waiting to summon) or animal envelope (active hunter).
+    // Handler Animal Summoner — slot can hold a lure envelope, animal
+    // envelope, or an OCCUPIED placeholder (a cell mirrored from a
+    // multi-slot animal anchored elsewhere — e.g. Mouse House spans two).
+    if (card.kind === 'occupied') {
+      return (
+        <div className="px-3 py-2 rounded bg-ember-800/40 border border-ember-700 border-dashed text-parchment-100 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] cursor-help"
+             title={`This slot is occupied by the animal anchored in slot ${card.occupiedBy}.`}>
+          <span className="font-mono text-[10px] opacity-70">{slotName} · occupied</span>
+          <span className="font-bold text-center text-base opacity-80">⬅ part of {card.occupiedBy}</span>
+        </div>
+      );
+    }
     if (card.kind === 'lure') {
       const animal = animals?.[card.animalId];
       // Lures are click targets for Whistle (swap) and Just Eat It (summon

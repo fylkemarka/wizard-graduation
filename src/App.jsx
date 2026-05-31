@@ -128,6 +128,10 @@ const CARDS = [
     effects: { eatLureNow: true, exhaust: true },
     desc: 'Pick a staged lure. The animal it summons arrives immediately. Exhaust.',
     flavor: 'You explain, with the gentle authority of a man with no time, that it is, in fact, lunch.' },
+  { id: 'c-buffet', name: 'Buffet', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { buffetArmed: true, exhaust: true },
+    desc: 'Your next lure is placed in every empty stage slot. Exhaust.',
+    flavor: 'A spread, really. You laid it out. Now they come.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -1271,6 +1275,20 @@ const ANIMALS = {
     onExit: { applyWeak: 1, weakTurns: 1 },
     flavor: 'Arrived suddenly. The field mouse, presumably, is no longer a topic.',
     desc: 'Attacks for 4 composure each turn for 3 turns. Applies Weak 1 to the enemy on exit.',
+  },
+  // Mouse House — formed when all three slots hold Field Mice. The mice
+  // combine into one Mouse House in the center slot (subject); the
+  // outer slots empty. Mouse House attacks 8 composure each turn for 2
+  // turns AND applies Vulnerable 1 to the enemy each attack.
+  'mouse-house': {
+    name: 'Mouse House',
+    icon: '🏠',
+    attack: 8,
+    attackPool: 'composure',
+    duration: 2,
+    onAttackEffect: { applyVulnerable: 1 },
+    flavor: 'They were, you realise, organising the whole time.',
+    desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack.',
   },
   bear: {
     name: 'Bear',
@@ -3900,6 +3918,10 @@ export default function App() {
   // into its animal immediately, recycling the lure card to discard via
   // the recycleToDiscard buffer.
   const [eatItPromptActive, setEatItPromptActive] = useState(false);
+  // Buffet armed — the NEXT lure played fills EVERY empty stage slot at
+  // once (single card consumed; one envelope per slot). Cleared on lure
+  // play. Exhausts when played.
+  const [buffetArmed, setBuffetArmed] = useState(false);
   // v2.85: pick-one-of-two-to-forget. When an event/sidequest fires the
   // loseRandomCard effect, pre-pick two candidates and surface a modal
   // so the player chooses which one to lose (not silent + not pure RNG).
@@ -5509,6 +5531,7 @@ export default function App() {
     setWhistlePick1Slot(null);
     setTreatPromptActive(false);
     setEatItPromptActive(false);
+    setBuffetArmed(false);
     // v2.36: ACTUALLY— state. lastCastSnapshot starts null (no casts yet);
     // arguingBackThisTurn starts 0. Both never persist between combats.
     setLastCastSnapshot(null);
@@ -5796,42 +5819,54 @@ export default function App() {
     // slot choice meaningful — drag-and-drop gives the player control.
     if (card.slot === 'lure' && card.summon) {
       const order = ['intro', 'subject', 'target'];
-      let targetSlot = null;
-      if (opts.targetSlot && order.includes(opts.targetSlot) && tray[opts.targetSlot] == null) {
-        targetSlot = opts.targetSlot;
-      } else {
-        targetSlot = order.find(s => tray[s] == null);
-      }
-      if (!targetSlot) {
+      // Occupied placeholder slots (Mouse House spans) are NOT empty.
+      const emptySlots = order.filter(s => tray[s] == null);
+      if (emptySlots.length === 0) {
         setEnergy(e => e + (card.cost || 0));
         pushLog(`🪱 No empty stage slot for ${card.name} — refunded.`);
         return;
       }
-      // Lures may carry either a single `summon.animalId` (deterministic —
-      // e.g. Birdseed → Sparrow) or `summon.animalIds` (random — e.g.
-      // Tender Greens → one of field-mouse / rabbit / young-buck). The
-      // random choice is resolved at TRANSFORM, not at stage, so the
-      // surprise lands when the animal arrives. summonSet (e.g.
-      // 'tender-greens') flows through to the animal envelope for row-bonus
-      // detection.
-      const lureEnvelope = {
-        kind: 'lure',
-        uid: card.uid,
-        cardId: card.id,
-        cardName: card.name,
-        card,
-        turnsRemaining: card.summon.turnsToArrive,
-        animalId: card.summon.animalId || null,
-        animalIds: card.summon.animalIds || null,
-        summonSet: card.summon.summonSet || null,
-      };
-      setTray(p => syncTrayLegacy({ ...p, [targetSlot]: lureEnvelope }));
-      setHand(h => h.filter((_, i) => i !== handIdx));
-      if (card.summon.animalId) {
-        const animal = ANIMALS[card.summon.animalId];
-        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlot) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+      // Buffet — if armed, place the lure in EVERY empty slot at once
+      // (one envelope per slot, single card consumed). Otherwise stage in
+      // the explicit targetSlot (drag-and-drop) or fall back to first empty.
+      let targetSlots;
+      if (buffetArmed) {
+        targetSlots = emptySlots;
+      } else if (opts.targetSlot && order.includes(opts.targetSlot) && tray[opts.targetSlot] == null) {
+        targetSlots = [opts.targetSlot];
       } else {
-        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlot) + 1}. Something arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+        targetSlots = [emptySlots[0]];
+      }
+      // Build one envelope per target slot. Lures may carry either a
+      // single `summon.animalId` (deterministic — Birdseed → Sparrow) or
+      // `summon.animalIds` (random — Tender Greens). Random choice is
+      // resolved at TRANSFORM, not stage. summonSet (e.g. 'tender-greens')
+      // flows through for row-bonus detection. Each spread envelope gets
+      // its own uid since they're separate game entities.
+      const newSlots = {};
+      for (const s of targetSlots) {
+        newSlots[s] = {
+          kind: 'lure',
+          uid: uid(),
+          cardId: card.id,
+          cardName: card.name,
+          card,
+          turnsRemaining: card.summon.turnsToArrive,
+          animalId: card.summon.animalId || null,
+          animalIds: card.summon.animalIds || null,
+          summonSet: card.summon.summonSet || null,
+        };
+      }
+      setTray(p => syncTrayLegacy({ ...p, ...newSlots }));
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      if (targetSlots.length > 1) {
+        pushLog(`🍽 Buffet — ${card.name} spreads across ${targetSlots.length} slots (${targetSlots.join(', ')}).`);
+        setBuffetArmed(false);
+      } else if (card.summon.animalId) {
+        const animal = ANIMALS[card.summon.animalId];
+        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+      } else {
+        pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. Something arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
       }
       return;
     }
@@ -7719,6 +7754,11 @@ export default function App() {
       setEatItPromptActive(true);
       logBits.push(`🍴 Just Eat It armed — pick a staged lure to summon now.`);
     }
+    // Buffet — arm a flag. Next lure played fills every empty stage slot.
+    if (fx.buffetArmed) {
+      setBuffetArmed(true);
+      logBits.push(`🍽 Buffet armed — your next lure spreads across every empty slot.`);
+    }
     // Pack Tactics — instant. Every animal currently in play attacks again
     // this turn. Salmon (0 attack) does nothing; animals that already ate
     // this turn (eatenThisTurn) are skipped since they were busy.
@@ -8838,6 +8878,11 @@ export default function App() {
         }
       }
 
+      // Pre-pass: cannibalism only considers real animals — skip occupied
+      // placeholder slots (Mouse House's second cell). Already handled
+      // naturally because workingTray[s].kind === 'animal' check excludes
+      // 'occupied' kind. Same for Hawk strike and row bonus below.
+
       // Pre-pass: HAWK STRIKE. Each turn there is a 10% chance per Field
       // Mouse on the board that a Hawk swoops in and replaces it. The
       // Field Mouse forfeits its turn (no attack, no draw). The Hawk takes
@@ -8858,6 +8903,28 @@ export default function App() {
           summonSet: slot.summonSet || null,
           eatenThisTurn: true, // Hawk took the action this turn — wait until next.
         };
+      }
+
+      // Pre-pass: MOUSE HOUSE COMBINE. If every slot holds a Field Mouse,
+      // they merge into one Mouse House anchored at intro that spans into
+      // subject. target empties. Mouse House sits as eatenThisTurn so it
+      // doesn't attack on the turn it formed; starts hitting next turn.
+      const allFieldMice = SLOT_ORDER.every(s => workingTray[s]?.kind === 'animal' && workingTray[s].animalId === 'field-mouse');
+      if (allFieldMice) {
+        const mh = ANIMALS['mouse-house'];
+        pushLog(`🏠 The mice combine into a MOUSE HOUSE — it spans two slots.`);
+        workingTray.intro = {
+          kind: 'animal',
+          animalId: 'mouse-house',
+          durationRemaining: mh?.duration || 2,
+          predatorProgress: 0,
+          adjacentSpawnProgress: 0,
+          summonSet: 'tender-greens',
+          eatenThisTurn: true, // forming the house IS the action this turn
+          spans: ['intro', 'subject'],
+        };
+        workingTray.subject = { kind: 'occupied', occupiedBy: 'intro' };
+        workingTray.target = null;
       }
 
       // Pre-pass: TENDER GREENS ROW BONUS. If every slot holds an animal
@@ -8889,6 +8956,15 @@ export default function App() {
       for (const slotName of SLOT_ORDER) {
         const slot = workingTray[slotName];
         if (!slot) { nextSlots[slotName] = null; continue; }
+        // Occupied placeholder cells are mirrored from their anchor. Skip
+        // here — when the anchor processes, it'll set both slots in
+        // nextSlots. If the anchor was processed FIRST and cleared this
+        // slot to null, we'd never reach here. If processed LATER, leave
+        // the placeholder in place until the anchor commits.
+        if (slot.kind === 'occupied') {
+          if (nextSlots[slotName] === undefined) nextSlots[slotName] = slot;
+          continue;
+        }
         if (slot.kind === 'animal') {
           const animal = ANIMALS[slot.animalId];
           if (!animal) { nextSlots[slotName] = null; continue; }
@@ -8909,6 +8985,11 @@ export default function App() {
               pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}.`);
             }
             if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
+            // Per-attack debuff rider (e.g. Mouse House applies Vuln 1).
+            if (animal.onAttackEffect?.applyVulnerable > 0) {
+              applyExpiringVuln(animal.onAttackEffect.applyVulnerable);
+              pushLog(`${animal.icon} ${animal.name} unsettles the enemy — Vulnerable ${animal.onAttackEffect.applyVulnerable}.`);
+            }
             // Check if attack killed the enemy
             if ((enemyComposure - atk <= 0 && animal.attackPool === 'composure')
                 || (enemyHp - atk <= 0 && animal.attackPool !== 'composure')) {
@@ -8971,7 +9052,12 @@ export default function App() {
             if (nextDuration <= 0) {
               if (animal.onExit) applyAnimalOnExit(animal);
               pushLog(`${animal.icon} ${animal.name} departs.`);
-              nextSlots[slotName] = null;
+              // Multi-slot animals (e.g. Mouse House) clear all their spans.
+              if (slot.spans && slot.spans.length > 0) {
+                for (const s of slot.spans) nextSlots[s] = null;
+              } else {
+                nextSlots[slotName] = null;
+              }
             } else {
               nextSlots[slotName] = {
                 ...slot,
@@ -8985,7 +9071,11 @@ export default function App() {
           } else if (nextDuration <= 0) {
             if (animal.onExit) applyAnimalOnExit(animal);
             pushLog(`${animal.icon} ${animal.name} departs.`);
-            nextSlots[slotName] = null;
+            if (slot.spans && slot.spans.length > 0) {
+              for (const s of slot.spans) nextSlots[s] = null;
+            } else {
+              nextSlots[slotName] = null;
+            }
           } else {
             // Normal tick — clear flags that were consumed this turn.
             nextSlots[slotName] = {
@@ -10788,6 +10878,8 @@ export default function App() {
       eatItPromptActive={eatItPromptActive}
       onEatItClick={eatItClickSlot}
       onCancelEatIt={cancelEatItPrompt}
+      buffetArmed={buffetArmed}
+      onCancelBuffet={() => { setBuffetArmed(false); pushLog(`🍽 Buffet dismissed.`); }}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}
