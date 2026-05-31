@@ -10448,36 +10448,35 @@ export default function App() {
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
     } else if (intent.kind === 'discard-hand') {
       // v2.96: Loom Familiar — pulls a card out of the player's hand.
-      // v3.1.2: prefer NON-SPELL cards (skills, gestures, c-* utilities).
-      // Spell pieces (intro/subject/target) are rare and singletons in
-      // most starter decks — losing one randomly locked players out of
-      // casts entirely. Now the discard hits utility cards first, only
-      // touching spell pieces if no other options are available.
-      const n = Math.min(intent.value || 1, hand.length);
+      // v3.1.2: prefer NON-SPELL cards. Spell pieces are rare singletons
+      // and losing one to randomness locks players out of casts.
+      // 2026-05-31 (Alan): the prior version read hand from the endTurn
+      // closure AND committed with `setHand(handCopy)`. By the time this
+      // fires the closure hand was stale (animal onAttack.draw / misstep
+      // self-play had mutated state earlier in endTurn), and the snapshot
+      // overwrite quietly put the "stolen" card right back in hand. New
+      // pattern: pick taken cards from the closure snapshot, but remove
+      // them from the LATEST hand via uid match in a functional updater.
+      const requested = intent.value || 1;
+      const n = Math.min(requested, hand.length);
       if (n > 0) {
-        const idxs = [];
-        const handCopy = [...hand];
         const isSpellPiece = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
+        const handCopy = [...hand];
+        const taken = [];
         for (let k = 0; k < n; k++) {
           if (handCopy.length === 0) break;
-          // Try non-spell pool first; fall back to anything if that's empty.
           const nonSpellIdxs = handCopy.map((c, i) => isSpellPiece(c) ? -1 : i).filter(i => i >= 0);
           const pool = nonSpellIdxs.length > 0 ? nonSpellIdxs : handCopy.map((_, i) => i);
           const pickedIdx = pool[Math.floor(Math.random() * pool.length)];
-          idxs.push(handCopy[pickedIdx]);
+          taken.push(handCopy[pickedIdx]);
           handCopy.splice(pickedIdx, 1);
         }
-        setHand(handCopy);
-        setDiscard(d => [...d, ...idxs]);
+        const takenUids = new Set(taken.map(c => c.uid));
+        setHand(prev => prev.filter(c => !takenUids.has(c.uid)));
+        setDiscard(d => [...d, ...taken]);
         setEnemyDiscardCount(c => c + 1);
-        pushLog(`👹 ${e.name}: 🗑 you lose ${n} card${n === 1 ? '' : 's'} (${idxs.map(c => c.name || c.phrase || '?').join(', ')}).`);
-        // v3.2: surface the taken cards visually. The log line alone gets
-        // missed — Alan playtest: "When loom familiar takes a card,
-        // something should show the player what card they just lost.
-        // Otherwise it's confusing to be waiting on a card in your draw
-        // that you don't know you've lost." Modal overlay pauses the
-        // game until acknowledged.
-        setCardLossNotice({ source: e.name, cards: idxs });
+        pushLog(`👹 ${e.name}: 🗑 you lose ${taken.length} card${taken.length === 1 ? '' : 's'} (${taken.map(c => c.name || c.phrase || '?').join(', ')}).`);
+        setCardLossNotice({ source: e.name, cards: taken });
       } else {
         pushLog(`👹 ${e.name}: 🗑 ${intent.telegraph || 'discard'} — no cards to take.`);
       }
