@@ -284,7 +284,8 @@ const CARDS = [
     upgrade: { effects: { delayedComposureDamage: { amount: 27, delay: 3 }, exhaust: true } },
     desc: 'Deal 21 composure damage to the enemy 3 turns from now. Exhaust.',
     flavor: 'For now, you simply file it.' },
-  { id: 'c-know-what-to-say', name: 'I Know Just What to Say', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-know-what-to-say', name: 'I Know Just What to Say', nameByLane: { handler: 'Extra Food in the Pocket' },
+    cost: 1, type: 'skill', rarity: 'common',
     effects: { nextCardFree: true, exhaust: true },
     upgrade: { effects: { nextCardFree: true, draw: 1, exhaust: true } },
     desc: 'Your next card played this turn costs 0. Exhaust.',
@@ -905,6 +906,12 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     ids.push('c-shoo');                 // dismiss a summoned animal
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
     ids.push('c-buffet');               // next lure spreads across all empty slots (exhaust)
+    // Alan, 2026-05-31: assign one random Pack Tactic (the persistent
+    // tactic-slot modifier cards) at run start so every handler run
+    // opens with a baseline tactic flavor. The player can replace it
+    // later by playing another tactic card from rewards.
+    const HANDLER_TACTIC_POOL = ['c-tactic-shield', 'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather'];
+    ids.push(HANDLER_TACTIC_POOL[Math.floor(Math.random() * HANDLER_TACTIC_POOL.length)]);
   }
   return ids;
 }
@@ -7990,13 +7997,20 @@ export default function App() {
       const tacticId = tray.tactic?.tactic?.id;
       const isShield = tacticId === 'shield';
       const isRabid  = tacticId === 'rabid';
+      // Consume nextAttackMult on the SLOT (Tender Greens row bonus etc.)
+      // so the On Three! re-attack honors it — the natural end-of-turn
+      // attack then resets to 1×. Collect mutations and apply via setTray
+      // after the loop so we don't trip the React pure-updater rule.
+      const slotMultUpdates = {};
       for (const slotName of ['intro', 'subject', 'target']) {
         const slot = tray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
         if (slot.eatenThisTurn) continue;
         const animal = getAnimal(slot.animalId);
         if (!animal || (animal.attack || 0) <= 0) continue;
-        let atk = animal.attack;
+        const atkMult = slot.nextAttackMult || 1;
+        let atk = Math.round(animal.attack * atkMult);
+        if (atkMult > 1) slotMultUpdates[slotName] = { ...slot, nextAttackMult: 1 };
         if (isRabid) atk = Math.round(atk * 1.5);
         if (isShield) {
           setBlock(b => b + atk);
@@ -8012,6 +8026,9 @@ export default function App() {
           pushLog(`${animal.icon} ${animal.name} attacks again: ${atk} composure (Pack Tactics${isRabid ? ' · Rabid' : ''}).`);
         }
         if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
+      }
+      if (Object.keys(slotMultUpdates).length > 0) {
+        setTray(p => syncTrayLegacy({ ...p, ...slotMultUpdates }));
       }
     }
     // consumeLoudnessAsDamage (Punchline-style payoff) removed 2026-05-31
