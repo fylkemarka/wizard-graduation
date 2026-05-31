@@ -1409,6 +1409,14 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             <span className="text-parchment-500">+</span>
             <span className="text-ember-300" title="ALL IN.">🩸+{predicted.stakeBonus}</span>
           </>)}
+          {/* v3.4.74 (Alan): surface FFT rider bonuses (Bluster pressure,
+              consume spike, RAGE × 2, missing-HP scaling, Pop Off Temp HP,
+              flat FFT bonus) so the jump from base to Predicted is legible. */}
+          {predicted.damageParts && predicted.damageParts.length > 0 && predicted.damageParts.map((part, pi) => (
+            <span key={`rp-${pi}`} className="text-gold-300 font-bold" title={`From FFT rider — ${part}`}>
+              {part.startsWith('×') ? part : (part.startsWith('+') ? part : '+ ' + part)}
+            </span>
+          ))}
           {mathBreakdown.enemyBlock > 0 && (<>
             <span className="text-parchment-500">−</span>
             <span className="text-parchment-100 bg-ink-700 px-1 rounded"
