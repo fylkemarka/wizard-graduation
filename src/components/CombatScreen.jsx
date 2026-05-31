@@ -50,6 +50,15 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        shooPromptActive = false,
                        onShooAnimal = () => {},
                        onCancelShoo = () => {},
+                       whistlePromptActive = false, whistlePick1Slot = null,
+                       onWhistleClick = () => {},
+                       onCancelWhistle = () => {},
+                       treatPromptActive = false,
+                       onTreatClick = () => {},
+                       onCancelTreat = () => {},
+                       eatItPromptActive = false,
+                       onEatItClick = () => {},
+                       onCancelEatIt = () => {},
                        onOpenCompendium, onOpenDeckView }) {
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
@@ -586,6 +595,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
         animals={animals} tutorArmed={tutorArmed}
         shooPromptActive={shooPromptActive} onShooAnimal={onShooAnimal}
+        whistlePromptActive={whistlePromptActive} whistlePick1Slot={whistlePick1Slot} onWhistleClick={onWhistleClick}
+        treatPromptActive={treatPromptActive} onTreatClick={onTreatClick}
+        eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
         onPlayCard={onPlayCard} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
@@ -610,6 +622,41 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="font-bold">👋 Shoo!</span> click a summoned animal in the spell tray to dismiss it. (Lures are not eligible — wait for them to arrive first.)
           </div>
           <button onClick={onCancelShoo}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {whistlePromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-gold-100">
+            <span className="font-bold">🎶 Whistle:</span> {whistlePick1Slot
+              ? `first slot ${whistlePick1Slot} selected. Click a second slot to swap.`
+              : 'click any two slots in order to swap their contents.'}
+          </div>
+          <button onClick={onCancelWhistle}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {treatPromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-gold-100">
+            <span className="font-bold">🍖 Treat:</span> click a summoned animal to extend its stay by 1 turn.
+          </div>
+          <button onClick={onCancelTreat}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {eatItPromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-gold-100">
+            <span className="font-bold">🍴 Just Eat It:</span> click a staged lure to summon its animal right now.
+          </div>
+          <button onClick={onCancelEatIt}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
@@ -815,6 +862,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
                        animals = {}, tutorArmed = false,
                        shooPromptActive = false, onShooAnimal = () => {},
+                       whistlePromptActive = false, whistlePick1Slot = null, onWhistleClick = () => {},
+                       treatPromptActive = false, onTreatClick = () => {},
+                       eatItPromptActive = false, onEatItClick = () => {},
                        onPlayCard = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
@@ -1073,10 +1123,15 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
 
   const slotPill = (card, slotName, color) => {
     if (!card) {
-      // Empty slots are drop targets for hand lures. Dragover preventDefault
-      // is required by HTML5 DnD to mark the element as a valid drop zone.
+      // Empty slots are drop targets for hand lures AND click targets for
+      // Whistle (slot swap can target empty slots — moves an animal into
+      // empty space). Whistle takes precedence over the drop affordance
+      // when active. Drag-and-drop preventDefault is required by HTML5 DnD.
+      const whistleArmed = whistlePromptActive;
+      const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
       return (
         <div
+          onClick={whistleArmed ? () => onWhistleClick(slotName) : undefined}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
           onDrop={(e) => {
             e.preventDefault();
@@ -1084,8 +1139,15 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             const handIdx = parseInt(handIdxRaw, 10);
             if (!Number.isNaN(handIdx) && onPlayCard) onPlayCard(handIdx, { targetSlot: slotName });
           }}
-          className={`px-3 py-2 rounded border border-dashed ${color.empty} text-xs italic text-center opacity-60 min-w-[110px] hover:opacity-100 hover:border-solid transition-all`}>
-          {slotName}
+          title={whistleArmed ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}` : undefined}
+          className={`px-3 py-2 rounded border border-dashed text-xs italic text-center min-w-[110px] transition-all ${
+            whistleArmed
+              ? (isWhistlePick1
+                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 text-gold-100 opacity-100 cursor-pointer'
+                  : 'border-gold-400 text-gold-200 opacity-100 cursor-pointer hover:bg-gold-900/50')
+              : `${color.empty} opacity-60 hover:opacity-100 hover:border-solid`
+          }`}>
+          {slotName}{isWhistlePick1 ? ' · 🎶' : ''}
         </div>
       );
     }
@@ -1093,15 +1155,36 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     // lure envelope (waiting to summon) or animal envelope (active hunter).
     if (card.kind === 'lure') {
       const animal = animals?.[card.animalId];
+      // Lures are click targets for Whistle (swap) and Just Eat It (summon
+      // now). First match wins by precedence: Just Eat It → Whistle.
+      const whistleArmed = whistlePromptActive;
+      const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
+      const eatItArmed = eatItPromptActive;
+      const clickHandler = eatItArmed ? () => onEatItClick(slotName)
+                          : whistleArmed ? () => onWhistleClick(slotName)
+                          : undefined;
+      const armedTitle = eatItArmed
+        ? `🍴 Click to summon the ${animal?.name || 'animal'} immediately.`
+        : whistleArmed
+        ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}.`
+        : `${card.cardName} — Lure. ${animal?.name || card.animalId} arrives in ${card.turnsRemaining} turn${card.turnsRemaining === 1 ? '' : 's'}.`;
+      const armed = eatItArmed || whistleArmed;
       return (
         <motion.button key={card.uid}
           layout
           initial={{ scale: 0.5, opacity: 0, y: 12 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-          title={`${card.cardName} — Lure. ${animal?.name || card.animalId} arrives in ${card.turnsRemaining} turn${card.turnsRemaining === 1 ? '' : 's'}.`}
-          className="px-3 py-2 rounded bg-moss-800 border border-moss-500 text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] cursor-help">
-          <span className="font-mono text-[10px] opacity-70">{slotName} · lure</span>
+          onClick={clickHandler}
+          title={armedTitle}
+          className={`px-3 py-2 rounded text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] ${
+            armed
+              ? (isWhistlePick1
+                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer'
+                  : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600')
+              : 'bg-moss-800 border border-moss-500 cursor-help'
+          }`}>
+          <span className="font-mono text-[10px] opacity-70">{slotName} · lure{isWhistlePick1 ? ' · 🎶' : ''}</span>
           <span className="font-bold text-center">🪱 {card.cardName}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {animal?.icon || '🐾'} {animal?.name || card.animalId} in {card.turnsRemaining}t
@@ -1112,28 +1195,47 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (card.kind === 'animal') {
       const animal = animals?.[card.animalId];
       // Predator-chain hint is hidden when the animal carries hidePredatorChain.
-      // Discovery of the chain (e.g. Salmon → Bear) is part of the design;
-      // surfacing "Bear in 2t" on the slot pill would spoil it.
       const predatorNote = animal?.predatorChain && !animal?.hidePredatorChain
         ? ` · ${animals?.[animal.predatorChain.animalId]?.name || '?'} in ${animal.predatorChain.turnsToTrigger - (card.predatorProgress || 0)}t`
         : '';
+      // Animals are click targets for Shoo, Treat, and Whistle. Precedence:
+      // Shoo → Treat → Whistle.
       const shooArmed = shooPromptActive;
+      const treatArmed = treatPromptActive;
+      const whistleArmed = whistlePromptActive;
+      const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
+      const clickHandler = shooArmed ? () => onShooAnimal(slotName)
+                          : treatArmed ? () => onTreatClick(slotName)
+                          : whistleArmed ? () => onWhistleClick(slotName)
+                          : undefined;
+      const armed = shooArmed || treatArmed || whistleArmed;
+      const armedTitle = shooArmed
+        ? `👋 Click to Shoo this ${animal?.name || 'animal'} away.`
+        : treatArmed
+        ? `🍖 Click to extend ${animal?.name || 'animal'} by 1 turn.`
+        : whistleArmed
+        ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}.`
+        : `${animal?.name || card.animalId} — ${animal?.desc || ''} ${card.durationRemaining} turn${card.durationRemaining === 1 ? '' : 's'} left.${predatorNote}`;
+      const armedLabel = shooArmed ? ' · 👋 click to shoo'
+                       : treatArmed ? ' · 🍖 click to treat'
+                       : whistleArmed ? (isWhistlePick1 ? ' · 🎶' : ' · 🎶 click to swap')
+                       : '';
       return (
         <motion.button key={card.animalId + '-' + slotName}
           layout
           initial={{ scale: 0.5, opacity: 0, y: 12 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-          onClick={shooArmed ? () => onShooAnimal(slotName) : undefined}
-          title={shooArmed
-            ? `👋 Click to Shoo this ${animal?.name || 'animal'} away.`
-            : `${animal?.name || card.animalId} — ${animal?.desc || ''} ${card.durationRemaining} turn${card.durationRemaining === 1 ? '' : 's'} left.${predatorNote}`}
+          onClick={clickHandler}
+          title={armedTitle}
           className={`px-3 py-2 rounded text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] ${
-            shooArmed
-              ? 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600'
+            armed
+              ? (isWhistlePick1
+                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer'
+                  : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600')
               : 'bg-ember-800 border border-ember-500 cursor-help'
           }`}>
-          <span className="font-mono text-[10px] opacity-70">{slotName} · animal{shooArmed ? ' · 👋 click to shoo' : ''}</span>
+          <span className="font-mono text-[10px] opacity-70">{slotName} · animal{armedLabel}</span>
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {(animal?.attack || 0) > 0

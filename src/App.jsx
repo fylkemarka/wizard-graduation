@@ -107,6 +107,27 @@ const CARDS = [
     effects: { block: 6 },
     desc: 'Gain 6 Block.',
     flavor: 'You take half a step back. Let the goose handle this.' },
+  // ---- Handler interplay cards (Animal Summoner slice 2, 2026-05-31) ----
+  // Designed to add per-turn decisions to the Handler loop. Without them
+  // the play loop is "stage → defend → wait → repeat" with no in-turn
+  // choices. These four hit different beats: slot setup (Whistle), patience
+  // payoff (Treat), spike turn (Pack Tactics), impatience option (Just Eat It).
+  { id: 'c-whistle', name: 'Whistle', cost: 1, type: 'skill', rarity: 'basic', lane: 'handler',
+    effects: { whistleSwap: true },
+    desc: 'Pick two stage slots and swap their contents. (Lures, animals, or empty.)',
+    flavor: 'A short, important note. The animals re-arrange themselves accordingly.' },
+  { id: 'c-treat', name: 'Treat', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { treatExtend: 1 },
+    desc: 'Pick a summoned animal. It stays one more turn.',
+    flavor: 'You produce it from a pocket. Frankly, it has been there for some time.' },
+  { id: 'c-pack-tactics', name: 'Pack Tactics', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { packTactics: true, exhaust: true },
+    desc: 'Each of your animals attacks again this turn. Exhaust.',
+    flavor: "On three. Yes, you'll count. They are very busy." },
+  { id: 'c-just-eat-it', name: 'Just Eat It', cost: 2, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { eatLureNow: true, exhaust: true },
+    desc: 'Pick a staged lure. The animal it summons arrives immediately. Exhaust.',
+    flavor: 'You explain, with the gentle authority of a man with no time, that it is, in fact, lunch.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -844,12 +865,14 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
   }
-  // Handler Animal Summoner (2026-05-31, slice 1) — starter lures + Shoo!
+  // Handler Animal Summoner starter — lures + interplay cards.
   if (lane === 'handler') {
     ids.push('cv2-l-fish-food');   // 2-turn → Salmon → 2-more-turn → Bear
     ids.push('cv2-l-birdseed');    // 1-turn → Sparrow
     ids.push('cv2-l-cheese');      // 1-turn → Field Mouse
-    ids.push('c-shoo');            // utility — dismiss a summoned animal
+    ids.push('c-shoo');            // dismiss a summoned animal
+    ids.push('c-whistle');         // swap two stage slots
+    ids.push('c-pack-tactics');    // all animals attack again this turn (exhaust)
   }
   return ids;
 }
@@ -3830,6 +3853,18 @@ export default function App() {
   // Shoo! prompt — armed by playing the Shoo card. Next click on an animal
   // slot dismisses that animal and clears the prompt. Lures are not eligible.
   const [shooPromptActive, setShooPromptActive] = useState(false);
+  // Whistle prompt — armed by playing Whistle. Two-click flow: first click
+  // sets whistlePick1Slot (any slot — lure / animal / empty); second click
+  // swaps contents of the two slots and clears the prompt.
+  const [whistlePromptActive, setWhistlePromptActive] = useState(false);
+  const [whistlePick1Slot, setWhistlePick1Slot] = useState(null);
+  // Treat prompt — armed by playing Treat. Next click on an animal slot
+  // adds +1 to that animal's durationRemaining.
+  const [treatPromptActive, setTreatPromptActive] = useState(false);
+  // Just Eat It prompt — next click on a lure slot transforms that lure
+  // into its animal immediately, recycling the lure card to discard via
+  // the recycleToDiscard buffer.
+  const [eatItPromptActive, setEatItPromptActive] = useState(false);
   // v2.85: pick-one-of-two-to-forget. When an event/sidequest fires the
   // loseRandomCard effect, pre-pick two candidates and surface a modal
   // so the player chooses which one to lose (not silent + not pure RNG).
@@ -5435,6 +5470,10 @@ export default function App() {
     // reset to 0 implicitly since no skill has fired yet).
     setFootnotePromptActive(false);
     setShooPromptActive(false);
+    setWhistlePromptActive(false);
+    setWhistlePick1Slot(null);
+    setTreatPromptActive(false);
+    setEatItPromptActive(false);
     // v2.36: ACTUALLY— state. lastCastSnapshot starts null (no casts yet);
     // arguingBackThisTurn starts 0. Both never persist between combats.
     setLastCastSnapshot(null);
@@ -7614,6 +7653,40 @@ export default function App() {
       setShooPromptActive(true);
       logBits.push(`👋 Shoo armed — click an animal slot to dismiss.`);
     }
+    // Whistle — arm a 2-click swap. First click sets one slot; second click
+    // swaps that slot's contents with the second-clicked slot.
+    if (fx.whistleSwap) {
+      setWhistlePromptActive(true);
+      setWhistlePick1Slot(null);
+      logBits.push(`🎶 Whistle armed — pick two slots to swap.`);
+    }
+    // Treat — arm a 1-click prompt. Click any animal slot → +1 duration.
+    if (fx.treatExtend) {
+      setTreatPromptActive(true);
+      logBits.push(`🍖 Treat armed — pick an animal to extend.`);
+    }
+    // Just Eat It — arm a 1-click prompt. Click any lure slot → transforms
+    // immediately into the animal it summons; lure card → discard.
+    if (fx.eatLureNow) {
+      setEatItPromptActive(true);
+      logBits.push(`🍴 Just Eat It armed — pick a staged lure to summon now.`);
+    }
+    // Pack Tactics — instant. Every animal currently in play attacks again
+    // this turn. Salmon (0 attack) does nothing; animals that already ate
+    // this turn (eatenThisTurn) are skipped since they were busy.
+    if (fx.packTactics) {
+      for (const slotName of ['intro', 'subject', 'target']) {
+        const slot = tray[slotName];
+        if (!slot || slot.kind !== 'animal') continue;
+        if (slot.eatenThisTurn) continue;
+        const animal = ANIMALS[slot.animalId];
+        if (!animal || (animal.attack || 0) <= 0) continue;
+        if (animal.attackPool === 'composure') applyDamageToEnemyComposure(animal.attack);
+        else                                    applyDamageToEnemyHp(animal.attack);
+        if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
+        pushLog(`${animal.icon} ${animal.name} attacks again: ${animal.attack} composure (Pack Tactics).`);
+      }
+    }
     // consumeLoudnessAsDamage (Punchline-style payoff) removed 2026-05-31
     // with the chutzpah → handler pivot. Loudness mechanic ripped entirely.
     // v3.4.19 — tutor a card by slot. Walks the deck for the first
@@ -8359,6 +8432,79 @@ export default function App() {
     if (!shooPromptActive) return;
     setShooPromptActive(false);
     pushLog(`👋 Shoo skill dismissed without picking an animal.`);
+  }
+
+  // Whistle click — first click picks slot 1; second click swaps slot 1 and
+  // slot 2. Clicking the same slot twice cancels the prompt.
+  function whistleClickSlot(slotName) {
+    if (!whistlePromptActive) return;
+    if (!whistlePick1Slot) {
+      setWhistlePick1Slot(slotName);
+      pushLog(`🎶 Whistle — first slot: ${slotName}. Click a second slot to swap.`);
+      return;
+    }
+    if (slotName === whistlePick1Slot) {
+      setWhistlePromptActive(false);
+      setWhistlePick1Slot(null);
+      pushLog(`🎶 Whistle cancelled (same slot picked twice).`);
+      return;
+    }
+    const a = whistlePick1Slot, b = slotName;
+    setTray(p => syncTrayLegacy({ ...p, [a]: tray[b], [b]: tray[a] }));
+    setWhistlePromptActive(false);
+    setWhistlePick1Slot(null);
+    pushLog(`🎶 Whistle — swapped slots ${a} and ${b}.`);
+  }
+
+  function cancelWhistlePrompt() {
+    if (!whistlePromptActive) return;
+    setWhistlePromptActive(false);
+    setWhistlePick1Slot(null);
+    pushLog(`🎶 Whistle dismissed without swapping.`);
+  }
+
+  // Treat click — pick an animal; its durationRemaining +1.
+  function treatClickSlot(slotName) {
+    if (!treatPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const animal = ANIMALS[slot.animalId];
+    setTray(p => syncTrayLegacy({ ...p, [slotName]: { ...slot, durationRemaining: (slot.durationRemaining || 0) + 1 } }));
+    setTreatPromptActive(false);
+    pushLog(`🍖 Treat — ${animal?.name || slot.animalId} stays one more turn.`);
+  }
+
+  function cancelTreatPrompt() {
+    if (!treatPromptActive) return;
+    setTreatPromptActive(false);
+    pushLog(`🍖 Treat dismissed without extending.`);
+  }
+
+  // Just Eat It click — pick a staged lure; it transforms immediately into
+  // its summoned animal. The lure card cycles back to discard via the
+  // recycleToDiscard buffer (same pattern as the normal transform path,
+  // but eatLureNow fires during the player turn, not end-of-turn, so we
+  // setDiscard directly — there's no later overwrite to dodge).
+  function eatItClickSlot(slotName) {
+    if (!eatItPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'lure') return;
+    const animal = ANIMALS[slot.animalId];
+    pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} arrives now.`);
+    if (slot.card) setDiscard(d => [...d, { ...slot.card, uid: uid() }]);
+    setTray(p => syncTrayLegacy({ ...p, [slotName]: {
+      kind: 'animal',
+      animalId: slot.animalId,
+      durationRemaining: animal?.duration || 3,
+      predatorProgress: 0,
+    } }));
+    setEatItPromptActive(false);
+  }
+
+  function cancelEatItPrompt() {
+    if (!eatItPromptActive) return;
+    setEatItPromptActive(false);
+    pushLog(`🍴 Just Eat It dismissed without summoning.`);
   }
 
   // Synchronous draw. Reads deck/discard/hand from closure (the state at
@@ -10444,6 +10590,16 @@ export default function App() {
       shooPromptActive={shooPromptActive}
       onShooAnimal={shooAnimalFromSlot}
       onCancelShoo={cancelShooPrompt}
+      whistlePromptActive={whistlePromptActive}
+      whistlePick1Slot={whistlePick1Slot}
+      onWhistleClick={whistleClickSlot}
+      onCancelWhistle={cancelWhistlePrompt}
+      treatPromptActive={treatPromptActive}
+      onTreatClick={treatClickSlot}
+      onCancelTreat={cancelTreatPrompt}
+      eatItPromptActive={eatItPromptActive}
+      onEatItClick={eatItClickSlot}
+      onCancelEatIt={cancelEatItPrompt}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}
