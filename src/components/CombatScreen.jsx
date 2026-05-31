@@ -1297,26 +1297,18 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             const feedLabel = FEED_NAMES[animal.feedKey] || animal.feedKey;
             const feedReceived = !!card.feedReceived;
             const dur = card.durationRemaining;
-            // Three mutually-exclusive states (Alan, 2026-05-31). The badge
-            // is a pure function of this slot's own dur + feedReceived — the
-            // global luresPlayedThisTurn ledger is NOT consulted, because
-            // feeding only credits animals at dur===2 (per Alan, this turn's
-            // feeding should not show up as "fed" on other animals sharing
-            // the same feedKey).
-            //   1. dur === 2 && feedReceived → green "fed (X)" confirmation
-            //      (must have just been set this turn since dur=3 last turn
-            //      had no feed window).
-            //   2. dur === 2 && !feedReceived → red "feed now" urgent.
-            //   3. dur === 1 → yellow "leaves end of turn" notice.
-            // Anything else (mid-stay, freshly-summoned) → no badge.
+            // The badge is a "do something / be aware" signal — never a
+            // confirmation. Two states only (Alan, 2026-05-31):
+            //   1. dur === 2 && !feedReceived → red "feed now" urgent.
+            //   2. dur === 1 → yellow "leaves end of turn" notice.
+            // A previously-fed animal staying at dur=2 (e.g. via Treat
+            // bumping dur 1→2) used to flip the badge back to "fed" green
+            // every turn — confusing. Now no badge once fed; the player
+            // knows from their action + log that the feed happened.
             let label = null;
             let tone = null;
             let title = null;
-            if (dur === 2 && feedReceived) {
-              label = `🍴 fed (${feedLabel})`;
-              tone = 'bg-moss-900 text-moss-200 border border-moss-500';
-              title = `${animal.name} is satisfied — ${feedLabel} consumed this turn.`;
-            } else if (dur === 2 && !feedReceived) {
+            if (dur === 2 && !feedReceived) {
               label = `⚠ feed now or no exit bonus`;
               tone = 'bg-ember-900 text-ember-200 border border-ember-500';
               title = `Drop a ${feedLabel} card on the Feed slot this turn, or ${animal.name} leaves end of turn with no exit bonus.`;
