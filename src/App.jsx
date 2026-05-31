@@ -8560,35 +8560,73 @@ export default function App() {
 
     // Handler Animal Summoner end-of-turn tick (2026-05-31, slice 1).
     // Process order:
+    //   PRE-PASS — adjacency cannibalism (2026-05-31, slice 2 mechanic):
+    //     If a lure is adjacent to an already-summoned animal of the species
+    //     the lure would summon (e.g. Birdseed next to a Sparrow), the animal
+    //     JUMPS into the lure's slot and EATS the bait. The lure is consumed
+    //     (sent to exiled, no discard cycle), the animal's original slot
+    //     becomes empty, and the animal's attack this turn is skipped — eating
+    //     is the action. Duration is NOT extended.
     //   a. ANIMALS act: attack the enemy, decrement duration, advance
     //      predator-chain progress, transform to predator if chain completes,
-    //      empty the slot if duration reaches 0.
+    //      empty the slot if duration reaches 0. Animals that ate this turn
+    //      skip the attack step.
     //   b. LURES tick: decrement turnsRemaining, transform into the
     //      summoned animal in-place when it reaches 0. Newly arrived
     //      animals wait until the NEXT end-of-turn to act.
     if (selectedCharacter?.lane === 'handler') {
+      const SLOT_ORDER = ['intro', 'subject', 'target'];
+      // Working copy of the tray — pre-pass mutates this before the main loop
+      // iterates so the loop sees the post-cannibalism state.
+      const workingTray = { intro: tray.intro, subject: tray.subject, target: tray.target };
+      const luresEaten = []; // lure cards sent to exiled (eaten, not cycled)
+
+      // Pre-pass: cannibalism check. Walk lures; for each, check both
+      // neighbors for a matching-species animal. First match wins.
+      for (let i = 0; i < SLOT_ORDER.length; i++) {
+        const lureSlot = workingTray[SLOT_ORDER[i]];
+        if (!lureSlot || lureSlot.kind !== 'lure') continue;
+        const neighborIndices = [i - 1, i + 1].filter(n => n >= 0 && n < SLOT_ORDER.length);
+        for (const ni of neighborIndices) {
+          const neighbor = workingTray[SLOT_ORDER[ni]];
+          if (!neighbor || neighbor.kind !== 'animal') continue;
+          if (neighbor.animalId !== lureSlot.animalId) continue;
+          // Match — the neighbor animal eats this lure.
+          const animal = ANIMALS[neighbor.animalId];
+          pushLog(`${animal?.icon || '🐾'} ${animal?.name || neighbor.animalId} jumps over and eats the ${lureSlot.cardName || 'lure'}!`);
+          if (lureSlot.card) luresEaten.push({ ...lureSlot.card, uid: uid() });
+          // Move the animal into the lure's slot, marked as having acted.
+          workingTray[SLOT_ORDER[i]] = { ...neighbor, eatenThisTurn: true };
+          workingTray[SLOT_ORDER[ni]] = null;
+          break; // animal can only eat one lure per turn
+        }
+      }
+
       const nextSlots = {};
       const luresToRecycle = []; // lure cards returned to discard on transform
       let summonerKilledEnemy = false;
-      for (const slotName of ['intro', 'subject', 'target']) {
-        const slot = tray[slotName];
+      for (const slotName of SLOT_ORDER) {
+        const slot = workingTray[slotName];
         if (!slot) { nextSlots[slotName] = null; continue; }
         if (slot.kind === 'animal') {
           const animal = ANIMALS[slot.animalId];
           if (!animal) { nextSlots[slotName] = null; continue; }
-          // Attack
-          if (animal.attackPool === 'composure') {
-            applyDamageToEnemyComposure(animal.attack);
-            pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} composure.`);
-          } else {
-            applyDamageToEnemyHp(animal.attack);
-            pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} HP.`);
-          }
-          if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
-          // Check if attack killed the enemy
-          if ((enemyComposure - animal.attack <= 0 && animal.attackPool === 'composure')
-              || (enemyHp - animal.attack <= 0 && animal.attackPool !== 'composure')) {
-            summonerKilledEnemy = true;
+          // Skip attack if the animal already acted this turn by eating a
+          // lure in the pre-pass. Duration still ticks; flag clears below.
+          if (!slot.eatenThisTurn) {
+            if (animal.attackPool === 'composure') {
+              applyDamageToEnemyComposure(animal.attack);
+              pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} composure.`);
+            } else {
+              applyDamageToEnemyHp(animal.attack);
+              pushLog(`${animal.icon} ${animal.name} attacks: ${animal.attack} HP.`);
+            }
+            if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
+            // Check if attack killed the enemy
+            if ((enemyComposure - animal.attack <= 0 && animal.attackPool === 'composure')
+                || (enemyHp - animal.attack <= 0 && animal.attackPool !== 'composure')) {
+              summonerKilledEnemy = true;
+            }
           }
           // Decrement duration and tick predator chain
           const nextDuration = slot.durationRemaining - 1;
@@ -8607,7 +8645,8 @@ export default function App() {
             pushLog(`${animal.icon} ${animal.name} departs.`);
             nextSlots[slotName] = null;
           } else {
-            nextSlots[slotName] = { ...slot, durationRemaining: nextDuration, predatorProgress: nextPredator };
+            // Clear eatenThisTurn so the animal acts normally next turn.
+            nextSlots[slotName] = { ...slot, durationRemaining: nextDuration, predatorProgress: nextPredator, eatenThisTurn: false };
           }
         } else if (slot.kind === 'lure') {
           const nextTurns = slot.turnsRemaining - 1;
@@ -8640,6 +8679,13 @@ export default function App() {
         // the state-batching race entirely.
         recycleToDiscard.push(...luresToRecycle);
         pushLog(`🪱 ${luresToRecycle.length === 1 ? 'Lure' : 'Lures'} → discard.`);
+      }
+      if (luresEaten.length > 0) {
+        // Eaten lures are CONSUMED, not cycled. Send them straight to
+        // exiled — same safety pattern as the recycle buffer: pushing into a
+        // captured snapshot of exiled here avoids the closure-vs-functional
+        // batching race the recycle path was hit by.
+        setExiled(ex => [...ex, ...luresEaten]);
       }
       if (summonerKilledEnemy) return;
     }
