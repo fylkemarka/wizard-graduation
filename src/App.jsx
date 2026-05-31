@@ -871,12 +871,14 @@ function buildStarterDeckForLane(lane, startingRow = null) {
   }
   // Handler Animal Summoner starter — lures + interplay cards.
   if (lane === 'handler') {
-    ids.push('cv2-l-fish-food');   // 2-turn → Salmon → 2-more-turn → Bear
-    ids.push('cv2-l-birdseed');    // 1-turn → Sparrow
-    ids.push('cv2-l-tender-greens');      // 1-turn → Field Mouse
-    ids.push('c-shoo');            // dismiss a summoned animal
-    ids.push('c-whistle');         // swap two stage slots
-    ids.push('c-pack-tactics');    // all animals attack again this turn (exhaust)
+    ids.push('cv2-l-fish-food');        // 2-turn → Salmon → 2-more-turn → Bear
+    ids.push('cv2-l-birdseed');         // 1-turn → Sparrow
+    ids.push('cv2-l-tender-greens');    // 1-turn → random of Mouse/Rabbit/Buck
+    ids.push('cv2-l-tender-greens');    // second copy — chance at Mouse House row / Tender Greens bonus
+    ids.push('c-shoo');                 // dismiss a summoned animal
+    ids.push('c-whistle');              // swap two stage slots
+    ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
+    ids.push('c-buffet');               // next lure spreads across all empty slots (exhaust)
   }
   return ids;
 }
