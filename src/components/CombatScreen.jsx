@@ -581,7 +581,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         pauseHeldActive={pauseHeldActive} enemy={enemy}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
-        animals={animals} />
+        animals={animals} tutorArmed={tutorArmed} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
           played the "As Hewn-Greaves notes in his footnotes," skill and

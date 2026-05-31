@@ -2848,11 +2848,11 @@ const CHARACTERS = [
     id: 'handler-bruiser',
     name: 'The Handler',
     lane: 'handler',
-    voice: 'Jack Burton / Walter Sobchak',
-    title: 'graduates by refusing to leave the room',
-    desc: 'Spells land because they will not be talked over. Volume is a kind of intelligence. So is staying.',
+    voice: 'Pratchett menagerie-keeper / man who knows a guy with a bear',
+    title: 'graduates by introducing the room to its predators',
+    desc: "Spells are bait. Bait is patient. The bear is on its way — until then, here's a salmon flopping with surprising authority.",
     poolDoc: 'design/HANDLER_V2_DESIGN.md',
-    tagPalette: ['demanding', 'threatening', 'dismissive', 'swaggering', 'direct'],
+    tagPalette: ['patient', 'opportunist', 'fauna', 'ambush', 'wild'],
   },
   {
     id: 'jnsq-fool',
@@ -10453,15 +10453,16 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
   const laneName = lane === 'wit' ? 'Wit'
                  : lane === 'handler' ? 'Handler'
                  :                       'Je Ne Sais Quoi';
-  const laneStat = lane === 'wit' ? '✨' : lane === 'handler' ? '💪' : '🌀';
+  const laneStat = lane === 'wit' ? '✨' : lane === 'handler' ? '🐾' : '🌀';
   // Lane-specific signature-mechanic explainer for the signature step.
   const signatureBody = lane === 'wit' ? (<>
         <p><b>🧵 Long Thread</b> — your defense engine. Every turn you cast a wit Effect AND take no unblocked HP damage, your thread grows by 1. While thread &gt; 0, incoming damage is reduced by <b>min(2, Thread)</b> per swing. The thread decays by 1 on an unblocked hit. Defend like your life depends on the build.</p>
         <p className="mt-2">Other wit-only tools you'll meet: <b>📖 Footnote</b> (attach +1 wit to a phrase permanently — sticks across casts), <b>🛑 Hold on, hold on —</b> (reactive skill: reduce the next enemy swing by your current Thread). Build patiently, finish big.</p>
       </>)
     : lane === 'handler' ? (<>
-        <p><b>🔥 Tunnel Vision</b> — your signature meter. Each handler card played adds +1 to the meter. At <b>5+</b>, you enter <b>RAGE</b> next turn: all handler damage +50%. Ride it for the burst, but you can't play Skills during RAGE.</p>
-        <p className="mt-2">Other handler-only tools: <b>🏚 Doubling Down</b> (corner tokens — bill you if the enemy survives), <b>📢 Saying it Louder</b> (demanding words stack damage), <b>⚡ Hit Me Again</b> (Power — enemy attacks bill the enemy back).</p>
+        <p><b>🪱 Lures &amp; 🐾 Animals</b> — your signature engine. You don't cast spells; you bait the woods. Play a <b>lure</b> card into one of the 3 stage slots. It ticks down for N turns, then transforms in place into the animal it summoned. The animal auto-attacks each turn until its duration expires.</p>
+        <p className="mt-2"><b>Predator chains</b> — some animals are themselves bait. Leave a Salmon in its slot for 2 more turns and a Bear arrives. The "useless flopping fish" is actually a tier-2 setup move.</p>
+        <p className="mt-2">Wait isn't waiting. Stage other lures in parallel slots, defend the active ones, and pick the moment.</p>
       </>)
     : (<>
         <p><b>🎲 Chaos Dice</b> — your signature gamble. After staging a full spell, the <b>🎲 ROLL?</b> toggle appears next to CAST. Toggle it ON to roll 1d6 on the cast:</p>
@@ -10774,54 +10775,38 @@ const WIZARD_TUTORIALS = {
     ],
   },
   handler: {
-    color: 'ember',
-    icon: '🔥',
+    color: 'moss',
+    icon: '🐾',
     title: 'The Handler Playstyle',
-    subtitle: 'Tunnel-vision the kill. Eat the rest later.',
-    overview: 'Handler wins by going RAGE-mode and dumping doubled damage into one enemy before consequences land. You stack a meter by playing handler words, you eat HP-bills if you fail to close, and you have a capstone that does it all at once. You are Walter Sobchak at a meeting that has gone on too long.',
+    subtitle: 'Bait the woods. Let the woods do the work.',
+    overview: "The Handler wins by NOT fighting personally. You stage lures (food, bait), the lures attract animals over time, and the animals fight for you. Some animals are themselves bait for stronger predators. Time is your currency — patience pays in bears. You are the Pratchett menagerie-keeper who knows a guy with a goose.",
     sections: [
       {
-        heading: '🔥 TUNNEL VISION → RAGE (the signature)',
-        body: 'Every handler Word you play adds +1 to the Tunnel Vision meter. At 5+ at the start of your turn you enter RAGE — all handler damage +50%, but you CAN\'T play Skill cards (no Block, no Heal) and you can\'t see next-turn intent. Ride the rage and one-shot the enemy, or break it by playing a non-handler turn before the threshold.',
+        heading: '🪱 LURES → 🐾 ANIMALS (the signature)',
+        body: 'You play lure cards into one of the 3 stage slots. The lure ticks down for N turns, then transforms in place into the animal it summons. The animal auto-attacks at the end of each of your turns until its duration expires. You can stage multiple lures in parallel slots.',
         examples: [
-          { name: 'Foaming at the mouth,', text: 'Handler 3 intro — fills the meter fast.' },
-          { name: 'Bare knuckles.', text: 'Pure handler skill — fills the meter and gives you a turn of pressure.' },
+          { name: 'Birdseed (1E)', text: '1-turn wait → 🐦 Sparrow (3 comp/turn × 2 turns).' },
+          { name: 'Cheese (1E)', text: '1-turn wait → 🐭 Field Mouse (1 comp + 1 draw/turn × 3 turns).' },
         ],
       },
       {
-        heading: '🩸 DOUBLING DOWN — corner tokens',
-        body: 'Some handler Effects carry a `doubleDown` rider. Each one adds a "Backed Into A Corner" token. If the enemy is still alive at end of turn, every token bills you 2 HP. Tokens clear either way. The math is: only commit if you\'re sure of the kill.',
+        heading: '🐻 PREDATOR CHAINS — bait the bait',
+        body: "Some animals are themselves lures. Fish Food summons a Salmon — a weak, flopping fish. But if you leave the Salmon in its slot for 2 more turns, a BEAR arrives (5 comp/turn × 3 turns). The bait-the-bait pattern is the Handler's depth: the 'useless' early animal is actually a tier-2 setup move.",
         examples: [
-          { name: '"and that\'s the LAST word on it."', text: 'doubleDown target. Big damage, but a corner token if you whiff.' },
-          { name: 'or we\'ll see who blinks first.', text: 'doubleDown — the kill-or-bleed contract.' },
+          { name: 'Fish Food → 🐟 Salmon → 🐻 Bear', text: 'The keystone chain. Salmon flops. Bear hunts the flopper. You hunt the predator who hunted the bait.' },
         ],
       },
       {
-        heading: '💨 STORM OUT — commit-and-flee',
-        body: 'A one-shot Effect that costs ALL your remaining energy and ends the turn immediately. Massive damage. Hides next-turn enemy intent (you\'re not looking). The whole turn is committed to one swing. Bring it out when the math says one big number ends the combat.',
-        examples: [
-          { name: 'is officially my last problem.', text: 'The Storm Out target. All-energy spend, no block phase, blind next turn.' },
-        ],
+        heading: 'WAIT IS NOT WAITING',
+        body: "Lure countdowns are turns where you do other things: stage more lures into other slots, play gestures (Shove, Slams Table) to chip the enemy directly, defend with Square Up / c-defend, and pick the moment to swap or commit. The empty slot is the question — what's it going to be filled with, and when?",
       },
       {
-        heading: '👊 HIT ME AGAIN (Power)',
-        body: 'A reactive Power. While installed, every enemy attack that lands on you (blocked or not) adds +1 self-damage to their NEXT swing. You don\'t dodge — you BILL them. Stacks over the combat. Pairs beautifully with low-block handler turns: take the hit, charge them for it.',
-      },
-      {
-        heading: '📣 SAYING IT LOUDER & SMELL WEAKNESS',
-        body: 'Two scaling levers. "I SAID." targets pay +damage per `demanding`-tag Word played this turn — Saying-It-Louder stacks repetition into damage. Smell-Weakness Effects add a predator rider when the enemy is already Vulnerable/Weak — the lane finishes wounded prey faster.',
-        examples: [
-          { name: 'I SAID.', text: 'Scales with the count of demanding Words you stacked this turn.' },
-          { name: 'comes apart in your hands.', text: 'Predator target — extra damage vs Vulnerable enemies.' },
-        ],
-      },
-      {
-        heading: '💥 CAPSTONE — "AND I\'M NOT DONE."',
-        body: 'The synergy target combines all three signature levers in one cast: doubleDown corner token, loud-scaling per demanding-tag, AND predator bonus vs weakened enemies. Pair with "I\'ve barely warmed up," for the modifier chain. This is the lane\'s nuke — and the bill if you miss.',
+        heading: '✊ GESTURES — the direct line',
+        body: 'Gestures bypass the stage system entirely — play them straight from hand for immediate damage. Slams Table (6 comp + Vuln), Pontificate (12 comp, reusable), Quip Eyebrow (strip Block), Headbutt (reduce next enemy attack). Use them when the animals are still incoming and the enemy needs hurting now.',
       },
       {
         heading: 'Your job, in one line',
-        body: 'Stack handler words to 5 Tunnel Vision, RAGE the next turn, and dump everything you have into one corner-token cast. If you don\'t kill, you bleed. That\'s the point.',
+        body: 'Bait early, defend the slots, hold the salmon for 2 turns, watch a bear arrive, repeat.',
       },
     ],
   },
