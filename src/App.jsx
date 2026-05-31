@@ -247,28 +247,28 @@ const CARDS = [
   // exist); becomes useful for handler/jnsq when those lanes get their
   // row systems built.
   { id: 'c-the-tutor', name: 'The Tutor', cost: 3, type: 'skill', rarity: 'common',
-    effects: { tutorArmNextSentence: true, exhaust: true },
+    effects: { tutorArmNextSentence: true, exhaust: true }, fftOnly: true,
     desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your hand, deck, or discard and placed directly in the spell tray, ready to cast. Exhaust.',
     flavor: 'They never stopped grading you. They never will.' },
   // ---- Powers (rest of combat) ----
   { id: 'c-subject-matter-expert', name: 'Subject Matter Expert', cost: 2, type: 'power', rarity: 'uncommon',
-    installPower: { id: 'subjectCheaper' },
+    installPower: { id: 'subjectCheaper' }, fftOnly: true,
     desc: 'Power. All Subject cards cost 1 less for the rest of combat (min 0).',
     flavor: 'They asked you. They keep asking you.' },
   { id: 'c-allow-me-to-introduce', name: 'Allow Me to Introduce Myself', cost: 2, type: 'power', rarity: 'uncommon',
-    installPower: { id: 'introCheaper' },
+    installPower: { id: 'introCheaper' }, fftOnly: true,
     desc: 'Power. All Intro cards cost 1 less for the rest of combat (min 0).',
     flavor: 'They had heard. They wanted to hear it from you.' },
   { id: 'c-intended-effect', name: 'Intended Effect', cost: 3, type: 'power', rarity: 'rare',
-    installPower: { id: 'targetCheaper' },
+    installPower: { id: 'targetCheaper' }, fftOnly: true,
     desc: 'Power. All Effect (target) cards cost 1 less for the rest of combat (min 0).',
     flavor: 'The arrow finds the gap. Did not look for it. Found it.' },
   { id: 'c-keynote-speaker', name: 'Keynote Speaker', cost: 3, type: 'power', rarity: 'rare',
-    installPower: { id: 'offensiveFftAmp25' },
+    installPower: { id: 'offensiveFftAmp25' }, fftOnly: true,
     desc: 'Power. All offensive FFT casts deal +25% damage, including DoT ticks. Rest of combat.',
     flavor: 'The applause was, in retrospect, pre-arranged.' },
   { id: 'c-speak-to-my-agent', name: 'Speak to My Agent', cost: 2, type: 'power', rarity: 'uncommon',
-    installPower: { id: 'defensiveFftAmp25' },
+    installPower: { id: 'defensiveFftAmp25' }, fftOnly: true,
     desc: 'Power. All defensive FFT amounts (Block, Thorns reflect, defense-over-time) +25%. Rest of combat.',
     flavor: 'You no longer take meetings yourself.' },
 
@@ -3268,7 +3268,12 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
     return !!c.setId;
   };
   const supportOnly = (c) => !opts.excludeSpellPieces || !isSpellPieceSlot(c);
-  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c) && supportOnly(c));
+  // FFT-only cards (Tutor, intro/subject/target cost-cut powers, FFT amp
+  // powers) are hidden from non-FFT lanes (Handler, JNSQ) since they have
+  // no spell-piece staging to manipulate. Tagged via fftOnly: true on the
+  // card data; new FFT-only cards just need the same flag to inherit this.
+  const notFFTOnlyForNonFFTLanes = (c) => !c.fftOnly || lane === 'wit';
+  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c) && supportOnly(c) && notFFTOnlyForNonFFTLanes(c));
   if (pool.length === 0) return null;
   // Weight by rarity AND slot together.
   const weightOf = (c) => (rarityWeights[c.rarity] || 0) * (REWARD_SLOT_WEIGHTS[c.slot] || 10);
