@@ -120,7 +120,7 @@ const CARDS = [
     effects: { treatExtend: 1 },
     desc: 'Pick a summoned animal. It stays one more turn.',
     flavor: 'You produce it from a pocket. Frankly, it has been there for some time.' },
-  { id: 'c-pack-tactics', name: 'Pack Tactics', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
+  { id: 'c-pack-tactics', name: 'On Three!', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { packTactics: true, exhaust: true },
     desc: 'Each of your animals attacks again this turn. Exhaust.',
     flavor: "On three. Yes, you'll count. They are very busy." },
@@ -3981,11 +3981,11 @@ export default function App() {
   // play. Exhausts when played.
   const [buffetArmed, setBuffetArmed] = useState(false);
   // Feeding ledger — feedKeys of lures played THIS turn. Resets at end of
-  // turn (after the starvation check). Animals' turnsSinceFed counter
-  // increments on turns where no matching feedKey was played, resets to 0
-  // when one was. At turnsSinceFed >= 3 the animal leaves at end of turn
-  // WITHOUT firing its onExit. Variant 2 of the feeding design: 2-turn
-  // hunger grace period before starvation.
+  // turn. Used for fed-this-turn UI confirmation and to mark new feedReceived
+  // on matching slots. The persistent feedReceived flag on each animal slot
+  // is the actual gate for the exit bonus (Alan, 2026-05-31): feeding does
+  // NOT extend duration — it unlocks the natural final turn AND the onExit
+  // bonus. Unfed animals short-stay at their D-1 turn with no bonus.
   const [luresPlayedThisTurn, setLuresPlayedThisTurn] = useState([]);
   // upgradedAnimals — species IDs that have been trained to T2 at an Inn.
   // getAnimal(id) reads this set and merges ANIMALS[id].upgrade when present
@@ -8714,7 +8714,23 @@ export default function App() {
     setHand(h => h.filter((_, i) => i !== handIdx));
     setDiscard(d => [...d, { ...card, uid: uid() }]);
     setLuresPlayedThisTurn(prev => [...prev, feedKey]);
-    pushLog(`🍴 ${card.name} consumed as feed — ${feedKey} animals topped up this turn.`);
+    // Stamp every matching on-board animal with feedReceived=true so the
+    // exit bonus is unlocked AND further feeding is unnecessary.
+    setTray(prev => {
+      const next = { ...prev };
+      let touched = false;
+      for (const sn of SLOT_ORDER) {
+        const slot = next[sn];
+        if (slot?.kind !== 'animal') continue;
+        const a = getAnimal(slot.animalId);
+        if (a?.feedKey === feedKey) {
+          next[sn] = { ...slot, feedReceived: true };
+          touched = true;
+        }
+      }
+      return touched ? syncTrayLegacy(next) : prev;
+    });
+    pushLog(`🍴 ${card.name} consumed as feed — ${feedKey} animals satisfied.`);
   }
 
   // Whistle click — first click picks slot 1; second click swaps slot 1 and
@@ -9149,6 +9165,13 @@ export default function App() {
       const nextSlots = {};
       const luresToRecycle = []; // lure cards returned to discard on transform
       let summonerKilledEnemy = false;
+      // Feed gate (Alan, 2026-05-31): feeding does NOT extend duration. It
+      // unlocks the natural-exit onExit bonus AND the final turn. If never
+      // fed by the make-or-break turn (animal's D-1 turn on the board), the
+      // animal short-stays — leaves one turn early with no exit bonus.
+      // feedReceived is set persistently on the slot envelope when a matching
+      // feed-key lure is consumed.
+      const isUnfed = (slot, animal) => animal?.feedKey && !slot.feedReceived;
       for (const slotName of SLOT_ORDER) {
         const slot = workingTray[slotName];
         if (!slot) { nextSlots[slotName] = null; continue; }
@@ -9263,9 +9286,10 @@ export default function App() {
             }
             // Continue to duration logic with reset chain counter.
             if (nextDuration <= 0) {
-              if (animal.onExit) applyAnimalOnExit(animal);
-              pushLog(`${animal.icon} ${animal.name} departs.`);
-              // Multi-slot animals (e.g. Mouse House) clear all their spans.
+              if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
+              pushLog(isUnfed(slot, animal)
+                ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
+                : `${animal.icon} ${animal.name} departs.`);
               if (slot.spans && slot.spans.length > 0) {
                 for (const s of slot.spans) nextSlots[s] = null;
               } else {
@@ -9278,12 +9302,26 @@ export default function App() {
                 predatorProgress: nextPredator,
                 adjacentSpawnProgress: 0,
                 eatenThisTurn: false,
-                nextAttackMult: 1, // clear any spent multiplier
+                nextAttackMult: 1,
               };
             }
           } else if (nextDuration <= 0) {
-            if (animal.onExit) applyAnimalOnExit(animal);
-            pushLog(`${animal.icon} ${animal.name} departs.`);
+            if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
+            pushLog(isUnfed(slot, animal)
+              ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
+              : `${animal.icon} ${animal.name} departs.`);
+            if (slot.spans && slot.spans.length > 0) {
+              for (const s of slot.spans) nextSlots[s] = null;
+            } else {
+              nextSlots[slotName] = null;
+            }
+          } else if (nextDuration === 1 && isUnfed(slot, animal)) {
+            // SHORT-STAY: the animal hits its D-1 turn unfed. It leaves now,
+            // one turn before its natural exit, with no exit bonus. This is
+            // the consequence of never feeding during its stay. (Alan,
+            // 2026-05-31: "feeding doesn't add an extra turn — it grants
+            // the last turn AND the exit bonus.")
+            pushLog(`${animal.icon} ${animal.name} slips away unfed — no exit bonus.`);
             if (slot.spans && slot.spans.length > 0) {
               for (const s of slot.spans) nextSlots[s] = null;
             } else {
@@ -9350,31 +9388,8 @@ export default function App() {
           nextSlots[slotName] = slot;
         }
       }
-      // STARVATION CHECK. Grace period per animal = duration - 1 turns
-      // (Alan: "Grace Period should be the standard number of turns an
-      // animal is summoned minus 1"). On the (duration)th unfed turn the
-      // animal leaves AT END OF TURN without firing its onExit. Mouse
-      // House spans clear together.
-      const fedKeys = new Set(luresPlayedThisTurn);
-      for (const slotName of SLOT_ORDER) {
-        const slot = nextSlots[slotName];
-        if (!slot || slot.kind !== 'animal') continue;
-        const animal = getAnimal(slot.animalId);
-        if (!animal || !animal.feedKey) continue;
-        const threshold = animal.duration || 3; // grace+1 = duration
-        const wasFed = fedKeys.has(animal.feedKey);
-        const nextTurnsSinceFed = wasFed ? 0 : (slot.turnsSinceFed || 0) + 1;
-        if (nextTurnsSinceFed >= threshold) {
-          pushLog(`${animal.icon} ${animal.name} starves and slips away. (No exit action.)`);
-          if (slot.spans && slot.spans.length > 0) {
-            for (const s of slot.spans) nextSlots[s] = null;
-          } else {
-            nextSlots[slotName] = null;
-          }
-        } else {
-          nextSlots[slotName] = { ...slot, turnsSinceFed: nextTurnsSinceFed };
-        }
-      }
+      // (Starvation post-pass removed 2026-05-31 — short-stay branch in the
+      // main loop now handles unfed exits one turn earlier.)
 
       // Birds of a Feather self-exhaust: if the tactic is active AND three
       // animals of the SAME species are on the board after this tick, the

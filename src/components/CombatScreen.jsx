@@ -69,6 +69,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // clear it on cancelled drops. The slot pill (inside V2SpellTray) reads
   // and writes via prop callbacks.
   const [dragOverSlot, setDragOverSlot] = useState(null);
+  // Track which hand card is currently being dragged so feed slots can
+  // pre-highlight when the dragged card's feedKey matches them — gives the
+  // player a visible target before they get close to the drop zone.
+  const [draggingHandIdx, setDraggingHandIdx] = useState(null);
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -603,6 +607,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
         onPlayCard={onPlayCard}
         onFeedAnimal={onFeedAnimal}
+        draggingFeedKey={draggingHandIdx != null ? hand?.[draggingHandIdx]?.feedKey : null}
         dragOverSlot={dragOverSlot} setDragOverSlot={setDragOverSlot} />
 
       {/* v2.35: FOOTNOTE picker banner. Surfaces when the player has just
@@ -736,8 +741,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               onDragStart={isLure ? (e) => {
                 e.dataTransfer.setData('text/plain', String(i));
                 e.dataTransfer.effectAllowed = 'move';
+                setDraggingHandIdx(i);
               } : undefined}
-              onDragEnd={isLure ? () => setDragOverSlot(null) : undefined}
+              onDragEnd={isLure ? () => { setDragOverSlot(null); setDraggingHandIdx(null); } : undefined}
               onClick={() => isFootnoteEligible ? onApplyFootnote(card.uid) : onPlayCard(i)}
               disabled={!(playable || isFootnoteEligible)}
               className={`w-[180px] h-72 shrink-0 rounded-lg border-2 p-2.5 text-left flex flex-col gap-1.5 shadow-lg transition-all ${
@@ -884,6 +890,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        eatItPromptActive = false, onEatItClick = () => {},
                        onPlayCard = () => {},
                        onFeedAnimal = () => {},
+                       draggingFeedKey = null,
                        dragOverSlot = null, setDragOverSlot = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
@@ -1285,31 +1292,27 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           {animal?.feedKey && (() => {
             const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
             const feedLabel = FEED_NAMES[animal.feedKey] || animal.feedKey;
-            const grace = Math.max(0, (animal.duration || 3) - 1);
-            const fed = (luresPlayedThisTurn || []).includes(animal.feedKey);
-            const t = card.turnsSinceFed || 0;
-            const willStarve = !fed && t >= grace;
-            // Only show the badge when food matters THIS turn:
-            //   - fed → confirmation it's covered
-            //   - hungry (t >= 1) → reminder to feed soon
-            //   - willStarve → final warning before they leave
-            // Freshly-summoned, comfortably-fed animals don't show anything.
-            if (!fed && !willStarve && t < 1) return null;
-            const tone = willStarve
-              ? 'bg-ember-900 text-ember-200 border border-ember-500'
-              : fed
-                ? 'bg-moss-900 text-moss-200 border border-moss-500'
-                : 'bg-gold-900 text-gold-200 border border-gold-500';
-            const label = willStarve
-              ? `🥀 leaves end of turn`
-              : fed
-                ? `🍴 fed (${feedLabel})`
-                : `⚠ hungry ${t}/${grace} (needs ${feedLabel})`;
+            const fedThisTurn = (luresPlayedThisTurn || []).includes(animal.feedKey);
+            const feedReceived = !!card.feedReceived;
+            // Badge logic:
+            //   - feedReceived (set this turn or a prior turn) → green "fed".
+            //     Hide once it's no longer the feeding turn.
+            //   - !feedReceived AND durationRemaining === 2 → urgent
+            //     "feed now or short-stay" warning. (D-1 turn.)
+            //   - anything else → no badge.
+            if (!feedReceived && card.durationRemaining !== 2) return null;
+            if (feedReceived && !fedThisTurn) return null;
+            const tone = feedReceived
+              ? 'bg-moss-900 text-moss-200 border border-moss-500'
+              : 'bg-ember-900 text-ember-200 border border-ember-500';
+            const label = feedReceived
+              ? `🍴 fed (${feedLabel})`
+              : `⚠ feed now or no exit bonus`;
             return (
               <span className={`font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded text-center leading-tight ${tone}`}
-                    title={willStarve
-                      ? 'Will leave at end of turn without firing exit action.'
-                      : `Animal needs a ${feedLabel} every turn. Grace period: ${grace} missed feed${grace === 1 ? '' : 's'}. Leaves without exit action on the next miss after that.`}>
+                    title={feedReceived
+                      ? `${animal.name} is satisfied — ${feedLabel} consumed this turn.`
+                      : `${animal.name} hasn't been fed yet. Drop a ${feedLabel} card on the Feed slot this turn or it leaves at end of turn with no exit bonus.`}>
                 {label}
               </span>
             );
@@ -1500,20 +1503,25 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             is recorded for the end-of-turn starvation check. */}
         {isHandler && (() => {
           const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
-          const fedKeys = new Set(luresPlayedThisTurn || []);
           const neededKeys = new Set();
+          // Surface a feed slot only when an unfed animal is on its
+          // make-or-break turn (durationRemaining === 2). Earlier in the
+          // animal's stay nothing appears; once fed (feedReceived=true),
+          // nothing reappears (Alan, 2026-05-31).
           for (const sn of ['intro', 'subject', 'target']) {
             const slot = tray?.[sn];
             if (slot?.kind !== 'animal') continue;
             const animal = animals?.[slot.animalId];
             if (!animal?.feedKey) continue;
-            if (fedKeys.has(animal.feedKey)) continue;
+            if (slot.feedReceived) continue;
+            if (slot.durationRemaining !== 2) continue;
             neededKeys.add(animal.feedKey);
           }
           if (neededKeys.size === 0) return null;
           return [...neededKeys].map(fk => {
             const feedName = FEED_NAMES[fk] || fk;
             const isOver = dragOverSlot === `feed:${fk}`;
+            const isMatchingDrag = draggingFeedKey === fk;
             return (
               <div key={`feed-${fk}`}
                 onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
@@ -1526,15 +1534,21 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   const handIdx = parseInt(handIdxRaw, 10);
                   if (!Number.isNaN(handIdx) && onFeedAnimal) onFeedAnimal(handIdx, fk);
                 }}
-                className={`rounded text-xs italic text-center min-w-[140px] min-h-[120px] flex flex-col items-center justify-center transition-all duration-150 p-3 ${
+                className={`rounded text-xs italic text-center min-w-[180px] min-h-[150px] flex flex-col items-center justify-center transition-all duration-150 p-5 ${
                   isOver
-                    ? 'bg-moss-700/70 border-4 border-moss-300 ring-4 ring-moss-400 text-parchment-50 scale-105 shadow-2xl not-italic'
-                    : 'border-2 border-dashed border-amber-500 text-amber-300 opacity-80'
+                    ? 'bg-moss-700/80 border-4 border-moss-300 ring-4 ring-moss-400 text-parchment-50 scale-110 shadow-2xl not-italic'
+                    : isMatchingDrag
+                      ? 'bg-moss-900/40 border-4 border-moss-400 text-moss-100 ring-2 ring-moss-500/60 animate-pulse not-italic'
+                      : 'border-2 border-dashed border-amber-500 text-amber-300 opacity-80'
                 }`}
-                title={`Drag a ${feedName} card here to feed your ${fk} animals this turn (consumes the card).`}>
+                title={`Drag a ${feedName} card here to feed this turn — consumes the card and unlocks the exit bonus.`}>
                 <span className="font-bold uppercase tracking-widest text-xs opacity-90">🍴 Feed</span>
-                <span className="text-[11px] mt-1 not-italic font-mono">{feedName}</span>
-                {isOver && <span className="text-[10px] mt-1 not-italic font-mono">↓ drop to feed</span>}
+                <span className="text-[12px] mt-1 not-italic font-mono">{feedName}</span>
+                {isOver
+                  ? <span className="text-[11px] mt-1 not-italic font-mono">↓ drop to feed</span>
+                  : isMatchingDrag
+                    ? <span className="text-[11px] mt-1 not-italic font-mono">drop here →</span>
+                    : null}
               </div>
             );
           });
@@ -1682,6 +1696,30 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           }
           if (animal.onAttackEffect?.applyVulnerable > 0) {
             parts.push(`Vuln ${animal.onAttackEffect.applyVulnerable}`);
+          }
+          // Exit-bonus preview: if this is the animal's LAST turn (duration 1
+          // ticking to 0) AND it'll have feedReceived, surface the onExit
+          // damage / block / weak in the per-animal line and the total.
+          const fedNow = (luresPlayedThisTurn || []).includes(animal.feedKey);
+          const willHaveFeed = !animal.feedKey || slot.feedReceived || fedNow;
+          if (slot.durationRemaining === 1 && willHaveFeed && animal.onExit) {
+            const ex = animal.onExit;
+            if (ex.damage > 0) {
+              if (isShield) {
+                totalBlock += ex.damage;
+                parts.push(`+${ex.damage} block on exit`);
+              } else {
+                totalDmg += ex.damage;
+                parts.push(`+${ex.damage} dmg on exit`);
+              }
+            }
+            if (ex.block > 0) {
+              totalBlock += ex.block;
+              parts.push(`+${ex.block} block on exit`);
+            }
+            if (ex.applyWeak > 0) {
+              parts.push(`Weak ${ex.applyWeak} on exit`);
+            }
           }
           lines.push(`${animal.icon} ${animal.name}: ${parts.join(' · ')}${atkMult > 1 ? ` (×${atkMult})` : ''}`);
         }
