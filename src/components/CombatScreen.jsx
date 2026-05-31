@@ -846,7 +846,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         damageParts.push(`+${bonus} (Temp HP ${tempHp} × ${r.consumeTempHpAsDamage})`);
       }
     }
-    predicted = { damage, baseDamage, damageParts, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
+    // v3.4.76 (Alan) — preview Loudness gain on chutzpah Bluster casts so
+    // the player sees +N Loudness alongside the damage number.
+    const loudnessGain = fftPre.fft?.rider?.addLoudness || 0;
+    predicted = { damage, baseDamage, damageParts, loudnessGain, riders, stakeBonus: stakeBonus || 0, loudBonus: loudBonus || 0, predatorBonus: predatorBonus || 0, openingBonus: 0, insultBonus: insultBonus || 0, insultMatches: insultMatches || 0, insultMatchedTags: insultMatchedTags || [] };
     // v3.4.21 (Alan): preview the FFT-tier rider that will fire on cast.
     // Most specific match wins (full → partial → same-school). Each tier
     // surfaces its rider as readable chips under the Predicted damage so
@@ -1203,6 +1206,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                       <span className="text-xs text-iris-300 ml-1"
                         title={`Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} (${Math.min(predicted.insultMatches || 0, 3)} match${(predicted.insultMatches || 0) === 1 ? '' : 'es'} × pierce).`}>
                         🎯+{predicted.insultBonus}
+                      </span>
+                    )}
+                    {predicted.loudnessGain > 0 && (
+                      <span className="text-xs text-ember-300 ml-1 inline-block"
+                        title={`This cast will add +${predicted.loudnessGain} Loudness (new total: ${loudness + predicted.loudnessGain}). Spend it later with a finisher.`}>
+                        📢+{predicted.loudnessGain}
                       </span>
                     )}
                   </div>
