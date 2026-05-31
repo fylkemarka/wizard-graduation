@@ -9032,7 +9032,11 @@ export default function App() {
       // this gate the handler ate the penalty every turn because animal
       // envelopes in intro/subject/target counted as "staged words" and
       // castsThisTurn was always 0 (Alan, 2026-05-31).
-      const staged = (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0);
+      // Belt-and-suspenders: exclude summon envelopes from the count too —
+      // even if the lane gate misfires somehow, animal/lure envelopes
+      // shouldn't be billed as "carried staged words."
+      const isWord = (s) => !!s && !isSummonEnvelope(s);
+      const staged = (isWord(tray.intro) ? 1 : 0) + (isWord(tray.subject) ? 1 : 0) + (isWord(tray.target) ? 1 : 0) + ((tray.modifiers || []).filter(isWord).length);
       if (staged > 0) {
         const cost = staged;
         setComposure(c => Math.max(0, c - cost));
