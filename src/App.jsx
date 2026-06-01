@@ -9582,6 +9582,7 @@ export default function App() {
             };
           } else if (animal.adjacentSpawn && !slot.adjacentSpawned
                      && nextAdjSpawn >= animal.adjacentSpawn.turnsToTrigger
+                     && !isUnfed(slot, animal)
                      && (() => {
                           const si = SLOT_ORDER.indexOf(slotName);
                           return [si - 1, si + 1].some(n => {

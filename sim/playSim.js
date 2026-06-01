@@ -1825,7 +1825,7 @@ function handlerEndOfTurnTick(state, combat) {
       const proj = (next[ns] !== undefined) ? next[ns] : work[ns];
       return proj == null;
     });
-    if (animal.adjacentSpawn && !slot.adjacentSpawned && nextAdj >= animal.adjacentSpawn.turnsToTrigger && hasEmptyNb) {
+    if (animal.adjacentSpawn && !slot.adjacentSpawned && nextAdj >= animal.adjacentSpawn.turnsToTrigger && !isUnfed(slot, animal) && hasEmptyNb) {
       for (const n of [si - 1, si + 1]) {
         if (n < 0 || n >= SLOT.length) continue;
         const ns = SLOT[n];
