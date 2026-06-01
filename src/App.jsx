@@ -3784,8 +3784,8 @@ export default function App() {
   // Used to anti-repetition the next roll: if both are the same kind,
   // the next rollIntent excludes that kind. Reset per combat.
   const [lastIntentKinds, setLastIntentKinds] = useState([]);
-  // Loom Familiar steal-cap counter (Alan, 2026-05-31): max 2 discard-hand
-  // intents per combat, never two turns in a row. Reset per combat.
+  // Loom Familiar steal-cap counter (Alan, 2026-05-31): one discard-hand
+  // steal per combat, total. Reset per combat.
   const [enemyDiscardCount, setEnemyDiscardCount] = useState(0);
   // Increments every time a new intent rolls. Used as a render key so
   // the intent box flashes empty-then-back even when the new intent is
@@ -10157,11 +10157,11 @@ export default function App() {
     setLastIntentKinds(newHistory);
     const exclude = (newHistory.length === 2 && newHistory[0] === newHistory[1])
       ? [newHistory[0]] : [];
-    // Loom Familiar steal-cap (Alan, 2026-05-31): never two discard-hand
-    // turns in a row; cap at 2 per combat. Excluding the kind from the
-    // roll cleanly removes it from the pool.
+    // Loom Familiar steal-cap (Alan, 2026-05-31): one discard-hand steal per
+    // combat, total. After the first fires, exclude the kind for the rest of
+    // the fight. Excluding the kind from the roll cleanly removes it.
     const justFiredDiscard = justFiredKind === 'discard-hand';
-    if (enemy?.id === 'e2-loom-familiar' && (justFiredDiscard || enemyDiscardCount >= 2)) {
+    if (enemy?.id === 'e2-loom-familiar' && (justFiredDiscard || enemyDiscardCount >= 1)) {
       if (!exclude.includes('discard-hand')) exclude.push('discard-hand');
     }
     if (enemy) {
