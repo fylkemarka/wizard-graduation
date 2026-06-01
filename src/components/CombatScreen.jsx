@@ -1492,7 +1492,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               <span className="font-mono text-[10px] opacity-70">PACK TACTIC · active</span>
               <span className="font-bold text-center text-sm">📜 {tray.tactic.name}</span>
               <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
-                Stays until replaced
+                {tray.tactic.usesRemaining != null
+                  ? `${tray.tactic.usesRemaining} lure use${tray.tactic.usesRemaining === 1 ? '' : 's'} left`
+                  : 'Stays until replaced'}
               </span>
             </div>
           ) : (

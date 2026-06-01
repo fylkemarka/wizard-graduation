@@ -145,7 +145,7 @@ const CARDS = [
     flavor: "It's contagious, frankly. Try not to make eye contact." },
   { id: 'c-tactic-youth', name: 'Fountain of Youth', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'youth' },
-    desc: 'Tactic: animals summoned while active stay one extra turn.',
+    desc: 'Tactic: your next 3 lure plays summon animals that stay one extra turn. A Buffet that spreads one lure counts as a single use.',
     flavor: 'A small puddle. The animals know about it. Apparently.' },
   { id: 'c-tactic-nurture', name: 'Nurture', cost: 2, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
     tactic: { id: 'nurture' },
@@ -6011,7 +6011,12 @@ export default function App() {
         }
       }
       const previous = tray.tactic;
-      setTray(p => syncTrayLegacy({ ...p, tactic: { ...card } }));
+      // Fountain of Youth is the only charge-limited tactic: it lasts for 3
+      // lure plays (a Buffet spread counts as one), then exhausts.
+      const tacticEnvelope = card.tactic.id === 'youth'
+        ? { ...card, usesRemaining: 3 }
+        : { ...card };
+      setTray(p => syncTrayLegacy({ ...p, tactic: tacticEnvelope }));
       setHand(h => h.filter((_, i) => i !== handIdx));
       if (previous) {
         setDiscard(d => [...d, { ...previous, uid: uid() }]);
@@ -6107,7 +6112,27 @@ export default function App() {
           };
         }
       }
-      setTray(p => syncTrayLegacy({ ...p, ...newSlots }));
+      // Fountain of Youth: this lure play (buffet spread = one play) consumes
+      // one of three charges. When the last charge is spent, the tactic
+      // exhausts to the exile pile.
+      let tacticUpdate = {};
+      let youthExhaustedCard = null;
+      if (isYouth) {
+        const remaining = (tray.tactic.usesRemaining ?? 3) - 1;
+        if (remaining <= 0) {
+          youthExhaustedCard = tray.tactic;
+          tacticUpdate = { tactic: null };
+        } else {
+          tacticUpdate = { tactic: { ...tray.tactic, usesRemaining: remaining } };
+        }
+      }
+      setTray(p => syncTrayLegacy({ ...p, ...newSlots, ...tacticUpdate }));
+      if (youthExhaustedCard) {
+        setExiled(ex => [...ex, { ...youthExhaustedCard, uid: uid() }]);
+        pushLog(`📜 Fountain of Youth runs dry — the tactic exhausts.`);
+      } else if (isYouth) {
+        pushLog(`💧 Fountain of Youth — ${tacticUpdate.tactic.usesRemaining} use${tacticUpdate.tactic.usesRemaining === 1 ? '' : 's'} left.`);
+      }
       setHand(h => h.filter((_, i) => i !== handIdx));
       // Record the feed type for the starvation check at end of turn.
       if (card.feedKey) setLuresPlayedThisTurn(prev => [...prev, card.feedKey]);
