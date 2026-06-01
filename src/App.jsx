@@ -8051,29 +8051,42 @@ export default function App() {
       applyDamageToEnemyComposure(fx.compDmg);
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
     }
+    // Shoo / Whistle / Treat / Just Eat It all arm a click-on-slot prompt and
+    // share the same slot-pill click dispatch (precedence Shoo → Treat →
+    // Whistle in CombatScreen). They MUST be mutually exclusive: if two are
+    // armed at once, the higher-precedence one silently eats the click — e.g.
+    // arming Treat then Shoo made a Treat-click dismiss the animal instead of
+    // extending it ("I used Treat and it disappeared"). Arming any one cancels
+    // the others so the most-recently-played card owns the next click.
+    const armTargetingPrompt = (which) => {
+      setShooPromptActive(which === 'shoo');
+      setWhistlePromptActive(which === 'whistle');
+      if (which !== 'whistle') setWhistlePick1Slot(null);
+      setTreatPromptActive(which === 'treat');
+      setEatItPromptActive(which === 'eatIt');
+    };
     // Shoo! — arm a click-target prompt. Next click on an animal slot
     // dismisses that animal. If no animal is currently in play, the prompt
     // still arms (will fire whenever the next animal arrives).
     if (fx.shooAnimal) {
-      setShooPromptActive(true);
+      armTargetingPrompt('shoo');
       logBits.push(`👋 Shoo armed — click an animal slot to dismiss.`);
     }
     // Whistle — arm a 2-click swap. First click sets one slot; second click
     // swaps that slot's contents with the second-clicked slot.
     if (fx.whistleSwap) {
-      setWhistlePromptActive(true);
-      setWhistlePick1Slot(null);
+      armTargetingPrompt('whistle');
       logBits.push(`🎶 Whistle armed — pick two slots to swap.`);
     }
     // Treat — arm a 1-click prompt. Click any animal slot → +1 duration.
     if (fx.treatExtend) {
-      setTreatPromptActive(true);
+      armTargetingPrompt('treat');
       logBits.push(`🍖 Treat armed — pick an animal to extend.`);
     }
     // Just Eat It — arm a 1-click prompt. Click any lure slot → transforms
     // immediately into the animal it summons; lure card → discard.
     if (fx.eatLureNow) {
-      setEatItPromptActive(true);
+      armTargetingPrompt('eatIt');
       logBits.push(`🍴 Just Eat It armed — pick a staged lure to summon now.`);
     }
     // Buffet — arm a flag. Next lure played fills every empty stage slot.
