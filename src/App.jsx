@@ -4105,6 +4105,13 @@ export default function App() {
   // stormOutFiredRef), SAYING IT LOUDER (loudCount) all ripped 2026-05-31
   // with the chutzpah → handler pivot. No card feeds them any more.
   const tutorFiredThisTurnRef = useRef(false);
+  // Loom Familiar steal handoff. applyEnemyIntent runs DURING endTurn (after
+  // the player's turn, before the new hand is drawn); endTurn then recomposes
+  // every pile from closure values, which would silently overwrite any
+  // setHand/setDiscard the steal did — recycling the "stolen" card right back.
+  // So the steal records the taken cards here, and endTurn exiles them out of
+  // the recycle pipeline before committing piles. Cleared each endTurn.
+  const stolenCardsRef = useRef([]);
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
@@ -9773,7 +9780,18 @@ export default function App() {
     //      synchronously, then commit all related state in one pass.
     // v2.38: endTurnHand is hand minus any Misstep tokens that auto-played
     // above — those went to exile, not discard, and shouldn't recycle.
-    const stagedDiscard = [...discard, ...endTurnHand, ...recycleToDiscard];
+    // Loom Familiar steal: cards taken by applyEnemyIntent (which already ran
+    // above) are recorded in stolenCardsRef. Pull them OUT of the recycle so
+    // they don't shuffle back, and exile them — that's what makes the steal
+    // actually remove a card from play instead of cycling it back into hand.
+    const stolenCards = stolenCardsRef.current;
+    stolenCardsRef.current = [];
+    const stolenUids = new Set(stolenCards.map(c => c.uid));
+    const recyclableHand = stolenUids.size > 0
+      ? endTurnHand.filter(c => !stolenUids.has(c.uid))
+      : endTurnHand;
+    if (stolenCards.length > 0) setExiled(ex => [...ex, ...stolenCards]);
+    const stagedDiscard = [...discard, ...recyclableHand, ...recycleToDiscard];
     const drawn = drawFromPiles(deck, stagedDiscard, HAND_SIZE + extraDrawPerTurn());
     let wDeck     = drawn.deck;
     let wDiscard  = drawn.discard;
@@ -10474,9 +10492,12 @@ export default function App() {
           taken.push(handCopy[pickedIdx]);
           handCopy.splice(pickedIdx, 1);
         }
-        const takenUids = new Set(taken.map(c => c.uid));
-        setHand(prev => prev.filter(c => !takenUids.has(c.uid)));
-        setDiscard(d => [...d, ...taken]);
+        // Hand off to endTurn (see stolenCardsRef): endTurn recomposes piles
+        // from closure values right after this, so any setHand/setDiscard here
+        // gets clobbered and the card recycles back ("still in my hand" bug).
+        // Recording the taken cards lets endTurn pull them OUT of the recycle
+        // pipeline and exile them — the steal is finally felt.
+        stolenCardsRef.current.push(...taken);
         setEnemyDiscardCount(c => c + 1);
         pushLog(`👹 ${e.name}: 🗑 you lose ${taken.length} card${taken.length === 1 ? '' : 's'} (${taken.map(c => c.name || c.phrase || '?').join(', ')}).`);
         setCardLossNotice({ source: e.name, cards: taken });
