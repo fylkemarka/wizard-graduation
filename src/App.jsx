@@ -11050,8 +11050,14 @@ export default function App() {
         offered: rewardChoices.map(c => ({ id: c?.id, setId: c?.setId || null, schoolId: c?.schoolId || null })),
         source: 'combat-reward',
       });
-      setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, { ...cardOrSkip, uid: uid() }]);
-      pushLog(`+ ${cardOrSkip.name} added to deck.`);
+      // Lures come in pairs — a new lure adds 2 copies to the deck so the
+      // summoning engine has enough bait to keep a species cycling (and to
+      // make three-of-a-kind combines reachable). Everything else is 1.
+      const isLure = cardOrSkip.slot === 'lure';
+      const copies = isLure ? 2 : 1;
+      const fresh = Array.from({ length: copies }, () => ({ ...cardOrSkip, uid: uid() }));
+      setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, ...fresh]);
+      pushLog(`+ ${cardOrSkip.name}${copies > 1 ? ` ×${copies}` : ''} added to deck.`);
     } else {
       logEvent(TE.REWARD_SKIP, { offered: rewardChoices.map(c => c?.id), source: 'combat-reward' });
       setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards]);
@@ -12919,6 +12925,11 @@ function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOp
                   <div className="text-[10px] font-normal normal-case mt-0.5 text-ink-700">
                     {syn.row.riderDesc || '(rider)'}
                   </div>
+                </div>
+              )}
+              {card.slot === 'lure' && (
+                <div className="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded text-center leading-tight bg-moss-200 text-moss-900 border border-moss-500">
+                  🪱 comes as a pair (×2)
                 </div>
               )}
               <CardFullBody card={card} lane={lane || null} />
