@@ -1376,15 +1376,22 @@ function clearHandlerSlot(next, slot, slotName) {
 // This is "would a real player want this tactic right now?". Variety is only a
 // tiebreaker (below), so tactic variety emerges from differing board states
 // across combats rather than per-turn thrashing within one fight.
-function tacticSituationalValue(id, animals, haveLure, compPct) {
+// isBoss: on boss tier, pre-staging the board fast is top priority.
+function tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombine) {
   switch (id) {
     // Rabid is ×1.5 damage but bleeds the PLAYER 20% composure per animal
     // attack — only worth it with composure to spare; actively harmful when low.
-    case 'rabid':   return (animals >= 1 && compPct > 0.6) ? 4 + animals : 0;
-    case 'nurture': return haveLure ? 7 : 0;                  // lures resolve instantly — tempo
-    case 'youth':   return haveLure ? 5 : 1;                  // +duration on the next summons
-    case 'feather': return animals === 1 ? 4 : 0;             // needs exactly 1 animal
-    case 'shield':  return 0;                                 // defense-only, gated by needDefense
+    case 'rabid':
+      if (animals < 1) return 0;
+      // On boss with animals already out, accept lower composure threshold.
+      return (isBoss ? compPct > 0.4 : compPct > 0.6) ? 4 + animals + (isBoss ? 2 : 0) : 0;
+    // Nurture resolves lures instantly — highest tempo value, especially vs boss.
+    case 'nurture': return haveLure ? (isBoss ? 10 : 7) : 0;
+    case 'youth':   return haveLure ? 5 : 1;
+    // Feather forces same-species on next lure — key combine enabler when 1 animal out.
+    // On boss, aggressively use feather to build toward a 3-of-a-kind combine.
+    case 'feather': return animals === 1 ? (canCombine && isBoss ? 9 : isBoss ? 7 : 4) : 0;
+    case 'shield':  return 0; // defense-only, gated by needDefense
     default:        return 0;
   }
 }
@@ -1393,6 +1400,12 @@ function pickHandlerTactic(state, combat, needDefense) {
   const animals = SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
   const haveLure = state.hand.some(h => h.type === 'lure');
   const compPct = state.composure / (state.composureMax || 1);
+  const isBoss = combat.enemy?.tier === 'boss';
+  // canCombine: board has an animal whose species supports a 3-of-a-kind combine.
+  const canCombine = SLOT.some(s => {
+    const sl = combat.htray[s];
+    return sl?.kind === 'animal' && !!COMBINE_BY_SPECIES[sl.animalId];
+  });
   // SHIELD routes every animal attack into Block+Poise, so a menagerie under
   // shield deals ZERO composure — only engage it to soak a hit we can't
   // otherwise cover (needDefense), never as a default.
@@ -1404,7 +1417,7 @@ function pickHandlerTactic(state, combat, needDefense) {
     if (id === combat.tactic) continue;
     if (id === 'shield' && !needDefense) continue;
     if (c.tactic.requiresExactlyOneAnimal && animals !== 1) continue;
-    const val = id === 'shield' ? 100 : tacticSituationalValue(id, animals, haveLure, compPct);
+    const val = id === 'shield' ? 100 : tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombine);
     if (val <= 0) continue;
     const engaged = combat.tacticsEngaged[id] || 0;
     // Higher situational value wins; ties broken toward the LESS-used tactic
@@ -1418,7 +1431,7 @@ function pickHandlerTactic(state, combat, needDefense) {
   // meaningfully better for the current board (not just for variety's sake).
   // Shield we always escape once the threat passes, so don't gate swaps off it.
   if (combat.tactic && combat.tactic !== 'shield' && bestId !== 'shield') {
-    const curVal = tacticSituationalValue(combat.tactic, animals, haveLure, compPct);
+    const curVal = tacticSituationalValue(combat.tactic, animals, haveLure, compPct, isBoss, canCombine);
     if (bestVal <= curVal + 2) return -1;
   }
   return best;
@@ -1532,6 +1545,37 @@ function tryHandlerFeed(state, combat) {
   return false;
 }
 
+// Pick the best lure index to play, preferring lures whose species can combine
+// with animals already on the board. Returns hand index, or -1 if none playable.
+// "combine-ready": board has 1 or 2 of a combine-eligible species (field-mouse/
+// rabbit/young-buck) → play tender-greens (which can produce that species).
+// feather tactic will lock the new animal to match the existing one.
+function pickBestLure(state, combat) {
+  const SLOT = ['intro', 'subject', 'target'];
+  // Count existing combine-eligible species on the board.
+  const boardSpeciesCounts = {};
+  for (const s of SLOT) {
+    const sl = combat.htray[s];
+    if (sl?.kind === 'animal' && COMBINE_BY_SPECIES[sl.animalId]) {
+      boardSpeciesCounts[sl.animalId] = (boardSpeciesCounts[sl.animalId] || 0) + 1;
+    }
+  }
+  const wantCombine = Object.values(boardSpeciesCounts).some(n => n >= 1);
+  // Prefer tender-greens when we want a combine (produces combineable species).
+  // Prefer off-starter lures (fish-food/birdseed) for variety when tray is empty.
+  let bestIdx = -1, bestPriority = -1;
+  for (let i = 0; i < state.hand.length; i++) {
+    const c = state.hand[i];
+    if (c.type !== 'lure' || c.cost > state.energy) continue;
+    let priority = 0;
+    if (c.summon?.summonSet === 'tender-greens' && wantCombine) priority = 3;
+    else if (c.summon?.summonSet === 'tender-greens') priority = 1;
+    else priority = 2; // fish-food/birdseed add variety
+    if (priority > bestPriority) { bestPriority = priority; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
 function aiTurnHandler(state, combat) {
   combat.turn++;
   state.energy = energyPerTurnRefill(state);
@@ -1542,6 +1586,7 @@ function aiTurnHandler(state, combat) {
   const SLOT = ['intro', 'subject', 'target'];
   const emptyCount = () => SLOT.filter(s => combat.htray[s] == null).length;
   const animalCount = () => SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
+  const isBoss = combat.enemy?.tier === 'boss';
 
   let safety = 30;
   while (safety-- > 0) {
@@ -1559,8 +1604,8 @@ function aiTurnHandler(state, combat) {
     }
     // 2. Feed an animal on its make-or-break turn.
     if (tryHandlerFeed(state, combat)) continue;
-    // 3. Engage a tactic (variety-biased). Shield only when a hit we can't
-    //    cover with a skill is still incoming.
+    // 3. Engage a tactic. Shield only when the hit would drop us below a
+    //    meaningful HP threshold (30%) AND no skill card can cover it.
     if (state.energy >= 1) {
       let needDefense = false;
       if (incoming > 0) {
@@ -1568,29 +1613,79 @@ function aiTurnHandler(state, combat) {
         const expected = adjustIncoming(state, combat, incoming);
         const pool = targetsComp ? state.poise : state.block;
         const haveSkill = state.hand.some(c => c.type === 'handler-skill' && c.cost <= state.energy && (targetsComp ? c.effects?.poise : c.effects?.block));
-        needDefense = expected > pool + 1 && !haveSkill;
+        const uncovered = Math.max(0, expected - pool);
+        // Shield is a big tempo sacrifice (menagerie deals 0 comp while active),
+        // so only engage it when truly at risk: uncovered hit > 30% of current HP
+        // (or composure for comp-targeting attacks) AND no skill covers it.
+        const damagePct = targetsComp
+          ? uncovered / Math.max(1, state.composure)
+          : uncovered / Math.max(1, state.hp);
+        needDefense = uncovered > 0 && damagePct > 0.3 && !haveSkill;
       }
       const ti = pickHandlerTactic(state, combat, needDefense);
       if (ti >= 0) { playHandlerCard(state, combat, ti); continue; }
     }
-    // 4. Arm Buffet before a lure when 2+ slots are open.
-    if (!combat.buffetArmed && emptyCount() >= 2 && state.hand.some(c => c.type === 'lure')) {
+    // 4. On boss: fast-forward a staged lure with Just Eat It to get animals
+    //    on board sooner — each turn of delay vs a boss is costly.
+    if (isBoss && SLOT.some(s => combat.htray[s]?.kind === 'lure')) {
+      const ei = state.hand.findIndex(c => c.util === 'eatNow' && c.cost <= state.energy);
+      if (ei >= 0) { playHandlerCard(state, combat, ei); continue; }
+    }
+    // 5. Arm Buffet before a lure when feather is active + 2 lures available
+    //    (feather forces species-match, so filling 2 slots = guaranteed combine progress).
+    // Also arm Buffet when 2+ slots open generally.
+    const featherActive = combat.tactic === 'feather';
+    const luresInHand = state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length;
+    const shouldBuffet = !combat.buffetArmed && emptyCount() >= 2 && luresInHand >= 1;
+    const featherBuffetPriority = featherActive && luresInHand >= 2 && emptyCount() >= 2 && !combat.buffetArmed;
+    if (featherBuffetPriority || shouldBuffet) {
       const bi = state.hand.findIndex(c => c.util === 'buffet' && c.cost <= state.energy);
       if (bi >= 0) { playHandlerCard(state, combat, bi); continue; }
     }
-    // 5. Stage a lure into an empty slot.
-    if (emptyCount() > 0) {
-      const li = state.hand.findIndex(c => c.type === 'lure' && c.cost <= state.energy);
+    // 6. Stage a lure — prefer species that build toward a 3-of-a-kind combine.
+    //    Exception: if we have exactly 1 animal + feather tactic in hand + 2 lures
+    //    in hand, DON'T fill the remaining 2 slots immediately — the tactic step
+    //    will engage feather first (next iteration), then fill slots with forced species.
+    //    This "hold-and-feather" path fires in the next loop iteration after feather.
+    const animalCnt = animalCount();
+    const featherInHand = state.hand.some(c => c.type === 'tactic' && c.tactic?.id === 'feather' && c.cost <= state.energy);
+    const lureInHand = state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length;
+    const holdForFeather = animalCnt === 1 && featherInHand && lureInHand >= 2 && combat.tactic !== 'feather';
+    if (emptyCount() > 0 && !holdForFeather) {
+      const li = pickBestLure(state, combat);
       if (li >= 0) { playHandlerCard(state, combat, li); continue; }
     }
-    // 6. On Three! spike when 2+ animals are out.
-    if (animalCount() >= 2) {
+    // 7. On Three! spike — on boss use with 2+ animals (to respect exhaust cost);
+    //    use with any combine-capable board on boss to spike before animals expire.
+    const totalBoardAtk = SLOT.reduce((sum, s) => {
+      const sl = combat.htray[s];
+      if (sl?.kind !== 'animal') return sum;
+      const a = HANDLER_ANIMALS[sl.animalId];
+      return sum + (a?.attack || 0);
+    }, 0);
+    const onThreeWorthIt = isBoss ? totalBoardAtk >= 10 : animalCount() >= 2;
+    if (onThreeWorthIt) {
       const oi = state.hand.findIndex(c => c.util === 'onThree' && c.cost <= state.energy);
       if (oi >= 0) { playHandlerCard(state, combat, oi); continue; }
     }
-    // 7. Sharp Whistle chip with leftover energy.
+    // 8. Sharp Whistle chip with leftover energy.
     const si = state.hand.findIndex(c => c.effects?.compDmg && c.cost <= state.energy);
     if (si >= 0) { playHandlerCard(state, combat, si); continue; }
+    // 9. Fallback: play a crafted effect card (e.g. staff) via verbal cast system.
+    //    The handler has no word cards so it casts with 0 verbal stat — but
+    //    crafted staves still deal base damage (8-14+) scaled by enemy
+    //    effectiveness. Only attempt this once per turn (effectFiredThisTurn gate).
+    if (!combat.tray.effectFiredThisTurn) {
+      const ei = state.hand.findIndex(c => c.type === 'effect' && c.cost <= state.energy && !combat.tray.effectCard);
+      if (ei >= 0) {
+        stageEffect(state, combat, ei);
+        if (combat.tray.effectCard) {
+          castSpell(state, combat);
+          // castSpell clears the tray and sends cards to discard/exiled.
+        }
+        continue;
+      }
+    }
     break;
   }
 
@@ -1707,7 +1802,18 @@ function handlerEndOfTurnTick(state, combat) {
     const nextPred = (slot.predatorProgress || 0) + 1;
     const nextAdj = (slot.adjacentSpawnProgress || 0) + 1;
 
-    if (animal.predatorChain && nextPred >= animal.predatorChain.turnsToTrigger) {
+    // TERRITORIAL (mirror of App.jsx): the chain target only spawns if no
+    // animal of that species is already on the projected board — caps the
+    // Buffet + Fish-Food multi-bear burst. Blocked salmon fall through to a
+    // normal tick (progress held high) and pop once the resident bear leaves.
+    const chainReady = animal.predatorChain && nextPred >= animal.predatorChain.turnsToTrigger;
+    const chainTargetId = animal.predatorChain && animal.predatorChain.animalId;
+    const chainTargetPresent = chainReady && SLOT.some((s) => {
+      if (s === slotName) return false;
+      const proj = (next[s] !== undefined) ? next[s] : work[s];
+      return proj && proj.kind === 'animal' && proj.animalId === chainTargetId;
+    });
+    if (chainReady && !chainTargetPresent) {
       next[slotName] = makeAnimalSlot(animal.predatorChain.animalId, 0, slot.summonSet);
       continue;
     }
@@ -1744,6 +1850,20 @@ function handlerEndOfTurnTick(state, combat) {
   combat.htray = { intro: next.intro ?? null, subject: next.subject ?? null, target: next.target ?? null };
 }
 
+// Task A fix: push any still-staged lure cards back to state.discard so
+// the handler deck doesn't silently shrink across combats. Transformed
+// animals already recycle via state.discard inside handlerEndOfTurnTick;
+// this covers only lures that were still mid-countdown when combat ended.
+function flushStagedLures(state, combat) {
+  if (!combat.isHandler) return;
+  for (const s of ['intro', 'subject', 'target']) {
+    const slot = combat.htray[s];
+    if (slot?.kind === 'lure' && slot.card) {
+      state.discard.push({ ...slot.card });
+    }
+  }
+}
+
 // Run a single combat to completion. Stall detection: if the player
 // goes 5 consecutive turns without dealing any damage to the enemy,
 // the combat is unwinnable (no answer to a verbal-immune enemy, etc.)
@@ -1755,17 +1875,18 @@ function simCombat(state, enemyId) {
   let prevDamageDealt = 0;
   let zeroDamageStreak = 0;
   while (safety-- > 0) {
-    if (state.hp <= 0 || state.composure <= 0) return { combat, outcome: 'lost' };
-    if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) return { combat, outcome: 'won' };
+    if (state.hp <= 0 || state.composure <= 0) { flushStagedLures(state, combat); return { combat, outcome: 'lost' }; }
+    if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) { flushStagedLures(state, combat); return { combat, outcome: 'won' }; }
     aiTurn(state, combat);
     if (combat.totalDamageDealt === prevDamageDealt) {
       zeroDamageStreak++;
-      if (zeroDamageStreak >= 5) return { combat, outcome: 'stall' };
+      if (zeroDamageStreak >= 5) { flushStagedLures(state, combat); return { combat, outcome: 'stall' }; }
     } else {
       zeroDamageStreak = 0;
       prevDamageDealt = combat.totalDamageDealt;
     }
   }
+  flushStagedLures(state, combat);
   return { combat, outcome: (state.hp <= 0 || state.composure <= 0) ? 'lost' : combat.enemyComposure <= 0 ? 'won' : 'stall' };
 }
 
@@ -1855,27 +1976,39 @@ function combatStatRecord(act, tier, enemyId, res) {
 }
 
 // Handler reward draft. Samples 3 distinct cards from HANDLER_REWARD_POOL and
-// picks one, biased toward TACTIC VARIETY — the heuristic the engine models.
+// picks one, biased toward TACTIC VARIETY + burst tools for boss fights.
 // A tactic the deck doesn't yet own is worth far more than a duplicate; among
-// non-tactics, off-starter lures (Fish Food / Birdseed) widen the menagerie.
+// non-tactics, prefer On Three! (boss-burst spike) and additional tender-greens
+// (more combine fodder); off-starter lures widen the menagerie.
 function aiPickHandlerReward(state) {
   const owned = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
   const ownedIds = new Set(owned.map(c => c.id));
   const ownedTactics = new Set(owned.filter(c => c.type === 'tactic').map(c => c.id));
+  const ownedCounts = {};
+  for (const c of owned) ownedCounts[c.id] = (ownedCounts[c.id] || 0) + 1;
   const pool = shuffle(HANDLER_REWARD_POOL.slice());
   const candidates = [];
   for (const id of pool) {
     if (candidates.length >= 3) break;
     candidates.push(HANDLER_CARDS_BY_ID[id]);
   }
+  // Count total lure cards owned (all lure types) to gate lure-density bonus.
+  const ownedLureCount = owned.filter(c => c.type === 'lure').length;
   function score(card) {
     let s = 0;
     if (card.type === 'tactic') {
       s += ownedTactics.has(card.id) ? 3 : 14; // a NEW tactic is the prize
     } else if (card.type === 'lure') {
       s += ownedIds.has(card.id) ? 4 : 9;       // off-starter lures widen the pool
+      // Extra tender-greens are combine-fodder. Below 3 total lures, any lure
+      // card is top priority — lure density prevents stalls.
+      if (ownedLureCount < 3) s += 8;
+      else if (card.id === 'cv2-l-tender-greens' && (ownedCounts[card.id] || 0) < 3) s += 4;
+    } else if (card.util === 'onThree') {
+      // On Three! is the primary boss-burst tool; high value if not yet owned.
+      s += ownedIds.has(card.id) ? 5 : 12;
     } else {
-      s += 6;                                   // utility (On Three!, Buffet, …)
+      s += 6;                                   // utility (Buffet, Just Eat It, …)
     }
     if (card.rarity === 'uncommon') s += 2;
     return s;
@@ -2204,7 +2337,11 @@ function simRun() {
   runStats.finalDeckSize = state.deck.length + state.hand.length + state.discard.length + state.exiled.length;
   runStats.finalSkills = { ...state.skills };
   runStats.finalEquipment = state.equipment.map(e => e.id);
-  runStats.archetype = classifyDeckArchetype([...state.deck, ...state.hand, ...state.discard, ...state.exiled]);
+  // Handler-lane decks contain lure/tactic/handler-util cards — no word/effect
+  // entries — so classifyDeckArchetype always returns 'sampler', burying the
+  // handler's win stats. Override directly when state.isHandler is set.
+  runStats.archetype = state.isHandler ? 'handler'
+    : classifyDeckArchetype([...state.deck, ...state.hand, ...state.discard, ...state.exiled]);
   return runStats;
 }
 
@@ -2266,11 +2403,14 @@ function aggregate(results) {
     else                     bossLossByAct[c.act]++;
   }
 
-  // Per-act enemy KO loss rate
+  // Per-act enemy KO loss rate (also track stalls separately for diagnostics)
   const lossByEnemyId = {};
+  const stallByEnemyId = {};
   for (const c of allCombats) {
     if (c.outcome === 'lost') {
       lossByEnemyId[c.enemyId] = (lossByEnemyId[c.enemyId] || 0) + 1;
+    } else if (c.outcome === 'stall') {
+      stallByEnemyId[c.enemyId] = (stallByEnemyId[c.enemyId] || 0) + 1;
     }
   }
 
@@ -2390,6 +2530,7 @@ function aggregate(results) {
     failedAt,
     bossLossByAct, bossWinByAct,
     lossByEnemyId,
+    stallByEnemyId,
     totalCasts, totalResonated, resonateRate: totalCasts ? totalResonated / totalCasts : 0,
     totalFizzles, fizzleRate: totalCasts > 0 ? totalFizzles / (totalCasts + totalFizzles) : 0,
     avgTurnsByTier,
@@ -2527,6 +2668,13 @@ function buildReport(agg) {
   const lossRanked = Object.entries(agg.lossByEnemyId).sort((a, b) => b[1] - a[1]);
   if (lossRanked.length === 0) lines.push(`- (no KOs — sim is well-behaved or AI too cautious)`);
   for (const [id, count] of lossRanked) {
+    lines.push(`- ${id}: ${count}`);
+  }
+  lines.push('');
+  lines.push(`## Stalls (5 consecutive 0-damage turns — typically handler vs high-block enemies)`);
+  const stallRanked = Object.entries(agg.stallByEnemyId || {}).sort((a, b) => b[1] - a[1]);
+  if (stallRanked.length === 0) lines.push(`- (no stalls)`);
+  for (const [id, count] of stallRanked) {
     lines.push(`- ${id}: ${count}`);
   }
   lines.push('');

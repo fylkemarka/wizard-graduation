@@ -9552,8 +9552,24 @@ export default function App() {
           const nextAdjSpawn = (slot.adjacentSpawnProgress || 0) + 1;
 
           // Predator chain (Salmon → Bear): in-place transform, fresh duration.
-          if (animal.predatorChain && nextPredator >= animal.predatorChain.turnsToTrigger) {
-            const newAnimalId = animal.predatorChain.animalId;
+          // TERRITORIAL (Alan, 2026-06-01): an apex predator won't share range
+          // with its own kind — the chain target only spawns if no animal of
+          // that species is already on the projected board. This caps the
+          // Buffet + Fish-Food "three bears at once" burst that one-shot
+          // normal enemies. Extra salmon keep flopping (normal tick, progress
+          // held high) and pop into a bear only once the resident bear leaves.
+          const chainReady = animal.predatorChain && nextPredator >= animal.predatorChain.turnsToTrigger;
+          const chainTargetId = animal.predatorChain?.animalId;
+          const chainTargetPresent = chainReady && SLOT_ORDER.some((s) => {
+            if (s === slotName) return false;
+            const proj = (nextSlots[s] !== undefined) ? nextSlots[s] : workingTray[s];
+            return proj && proj.kind === 'animal' && proj.animalId === chainTargetId;
+          });
+          if (chainReady && chainTargetPresent) {
+            pushLog(`${animal.icon} The ${animal.name} waits — a ${getAnimal(chainTargetId)?.name || chainTargetId} already holds this territory.`);
+          }
+          if (chainReady && !chainTargetPresent) {
+            const newAnimalId = chainTargetId;
             const newAnimal = getAnimal(newAnimalId);
             pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} attracts a ${newAnimal?.name || newAnimalId}!`);
             nextSlots[slotName] = {
