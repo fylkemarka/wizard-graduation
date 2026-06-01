@@ -71,10 +71,25 @@ Cards are earned, not bought.
 - `src/App.jsx` is the main game file (intentionally large). Per-lane cards
   extracted to `src/cards/{wit,chutzpah,jnsq}-v2.js`. Don't split App.jsx
   further unless asked
-- `sim/playSimV2.js` is a Node-side greedy-AI **mirror** of the gameplay
-  logic — its own card pool, effect dispatcher, cast resolver. **Every
-  card/effect change must land in both.** This duplication is the #1 source
-  of drift bugs; always grep both before considering a change shipped
+- **Two Node-side greedy-AI sims exist — they have forked, not duplicated.**
+  Figure out which one your change touches before editing:
+  - `sim/playSimV2.js` (~4.8k lines) **imports** the live lane files
+    (`src/cards/{wit-v2,handler-v2,jnsq-v2,shared}.js`) — the exact modules
+    `App.jsx` renders — so it cannot drift on card stats/effects. Combat is
+    deliberately simplified (flat per-turn atk roll, stripped enemy table,
+    no `behaviors`). Output: `report-v2*.md`. **This is the faithful
+    card-data mirror.**
+  - `sim/playSim.js` (~2.7k lines) has a **fully inline copy** of the card
+    data (does NOT import the lanes) and the **full combat engine** (real
+    enemy `behaviors`, the Animal Summoner / handler engine, predator
+    chains). Output: `report.md`. Because its cards are inline, **it is the
+    drift trap** — card/effect changes in App.jsx silently diverge here.
+  - Net: card-stat/effect tuning → land in App.jsx + `playSim.js`'s inline
+    table; anything the simplified V2 combat can model → also V2. Handler /
+    staged-card mechanics currently only run in `playSim.js`. **Always grep
+    both before considering a change shipped.** Consolidating the two is an
+    open decision (see ARCHITECTURE_REVIEW.md) — don't delete either without
+    asking Alan.
 - `sim/HUMAN_PLAY_PROFILE.md` holds telemetry-derived behavior signatures
   from real playtest sessions. Use it as ground truth when tuning the sim AI
 - All state in `App` — no Redux/context. Refactor when systems stabilize
@@ -99,8 +114,11 @@ Cards are earned, not bought.
   flow before reporting done
 
 ### Bug-check pattern when something feels off in playtest
-1. Did both App.jsx **and** `sim/playSimV2.js` get the change? Drift bugs
-   look like "the sim says X but the game does Y"
+1. Did the change land in App.jsx **and** the right sim(s)? `playSim.js`
+   has inline card data (the drift trap — card/effect edits MUST be copied
+   here); `playSimV2.js` imports the live lanes (can't drift on cards, but
+   its simplified combat may not model the mechanic). Drift bugs look like
+   "the sim says X but the game does Y" — grep both. See §3 sim notes.
 2. Are setState updaters pure (no side effects inside the prev=>next fn)?
 3. Did a new effect key get branched in every dispatcher (`playCard`,
    `applyEnemyIntent`, sim mirror)?
