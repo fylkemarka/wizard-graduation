@@ -9738,7 +9738,21 @@ export default function App() {
         pendingLures: SLOT_ORDER.map(s => nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])
           .filter(v => v?.kind === 'lure').length,
       });
-      if (summonerKilledEnemy) return;
+      if (summonerKilledEnemy) {
+        // Combat is over — this early return skips the end-of-turn refill
+        // block that normally folds recycleToDiscard into stagedDiscard
+        // (and on into setDiscard). Without flushing here, any lure that
+        // transformed into an animal — or was eaten — on this killing tick
+        // is lost: its card sits only in the local recycleToDiscard buffer,
+        // while its tray slot now holds an animal (no .card), so the next
+        // enterFight's deck rebuild can't recover it. Flush directly; no
+        // batching race exists on this path because the setDiscard(wDiscard)
+        // overwrite lives past this return.
+        if (recycleToDiscard.length > 0) {
+          setDiscard(d => [...d, ...recycleToDiscard]);
+        }
+        return;
+      }
     }
 
     // v2.10: annotation damageOnTurnEnd — composure tick at end of player turn.
