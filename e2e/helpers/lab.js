@@ -8,8 +8,10 @@ import { expect } from '@playwright/test';
 const CHARACTER_NAME = { wit: 'The Scholar', handler: 'The Handler' };
 
 // Open the app and enter Lab Mode for a lane. Lands on the deck-build screen.
-export async function gotoLab(page, lane) {
-  await page.goto('/');
+// Pass { seed } to load with `?seed=N`, which swaps Math.random for a seeded
+// PRNG (see src/devSeed.js) so shuffles/draws/enemy-intent play out identically.
+export async function gotoLab(page, lane, { seed } = {}) {
+  await page.goto(seed != null ? `/?seed=${seed}` : '/');
   // Boots to the title menu. "Begin the Path" (or "Begin a New Path…" when a
   // save exists) → character select.
   await page.getByRole('button', { name: /^Begin/ }).click();
@@ -44,8 +46,8 @@ export async function fightEnemy(page, enemyName) {
 }
 
 // One-shot: lane → optional extra cards → enemy → in combat.
-export async function enterLabCombat(page, { lane, cards = [], enemy }) {
-  await gotoLab(page, lane);
+export async function enterLabCombat(page, { lane, cards = [], enemy, seed }) {
+  await gotoLab(page, lane, { seed });
   for (const c of cards) await addCard(page, c);
   await fightEnemy(page, enemy);
 }
