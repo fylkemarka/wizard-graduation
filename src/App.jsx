@@ -124,7 +124,7 @@ const CARDS = [
     effects: { packTactics: true, exhaust: true },
     desc: 'Each of your animals attacks again this turn. Exhaust.',
     flavor: "On three. Yes, you'll count. They are very busy." },
-  { id: 'c-just-eat-it', name: 'Just Eat It', cost: 2, type: 'skill', rarity: 'common', lane: 'handler',
+  { id: 'c-just-eat-it', name: 'Just Eat It', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { eatLureNow: true, exhaust: true },
     desc: 'Pick a staged lure. The animal it summons arrives immediately. Exhaust.',
     flavor: 'You explain, with the gentle authority of a man with no time, that it is, in fact, lunch.' },
@@ -906,11 +906,7 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     ids.push('c-shoo');                 // dismiss a summoned animal
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
     ids.push('c-buffet');               // next lure spreads across all empty slots (exhaust)
-    // Alan, 2026-05-31: the Handler always opens every combat with the
-    // Summoned Shield tactic pre-engaged in the tray (enterFight seeds
-    // tray.tactic). The player can click it to discard at any time, or
-    // replace it by playing another tactic card from rewards. No random
-    // tactic card is dealt into the opening deck.
+    ids.push('c-tactic-shield');        // Summoned Shield — play to route animal attacks into Block
   }
   return ids;
 }
@@ -5664,12 +5660,8 @@ export default function App() {
     setPeekedNextIntent(null);
     // Powers don't persist between combats.
     setPowers([]);
-    // Reset per-combat counters and player debuffs. Handler always opens
-    // with the Summoned Shield tactic pre-engaged (clickable to discard).
-    const startTactic = selectedCharacter?.lane === 'handler'
-      ? { ...CARDS_BY_ID['c-tactic-shield'], uid: uid() }
-      : null;
-    setTray(initialV2Tray(startTactic ? { tactic: startTactic } : {}));
+    // Reset per-combat counters and player debuffs.
+    setTray(initialV2Tray());
     setAmplifyPlaysThisCombat(0);
     setCastsThisTurn(0);
     setCastsThisCombat(0);
@@ -5926,12 +5918,13 @@ export default function App() {
   }
 
   // Click the active Pack Tactic in the tray to dismiss it — sends the
-  // tactic card to the discard pile and clears the slot. The Handler opens
-  // every combat with Summoned Shield engaged; this is the manual off-switch.
+  // tactic card to the discard pile and clears the slot. This is the manual
+  // off-switch for whichever Pack Tactic is currently engaged.
   function discardActiveTactic() {
     if (stage !== 'combat') return;
     if (!tray.tactic) return;
     const dismissed = tray.tactic;
+    logEvent(TE.TACTIC_CHANGE, { action: 'discard', tacticId: dismissed.tactic?.id || null, enemyId: enemy?.id || null });
     setTray(p => syncTrayLegacy({ ...p, tactic: null }));
     setDiscard(d => [...d, { ...dismissed, uid: uid() }]);
     pushLog(`📜 ${dismissed.name} dismissed — sent to discard.`);
@@ -6031,6 +6024,12 @@ export default function App() {
       const tacticEnvelope = card.tactic.id === 'youth'
         ? { ...card, usesRemaining: 3 }
         : { ...card };
+      logEvent(TE.TACTIC_CHANGE, {
+        action: previous ? 'replace' : 'engage',
+        tacticId: card.tactic.id,
+        replacedTacticId: previous?.tactic?.id || null,
+        enemyId: enemy?.id || null,
+      });
       setTray(p => syncTrayLegacy({ ...p, tactic: tacticEnvelope }));
       setHand(h => h.filter((_, i) => i !== handIdx));
       if (previous) {
@@ -6170,6 +6169,15 @@ export default function App() {
           pushLog(`🪱 ${card.name} placed in slot ${order.indexOf(targetSlots[0]) + 1}. Something arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
         }
       }
+      logEvent(TE.HANDLER_SUMMON, {
+        cardId: card.id,
+        slots: targetSlots.length,
+        buffet: targetSlots.length > 1 && !isNurture,
+        instant: isNurture,
+        feedKey: card.feedKey || null,
+        tactic: activeTacticId || null,
+        enemyId: enemy?.id || null,
+      });
       advanceTutorialStep('lure');
       return;
     }
@@ -8863,6 +8871,19 @@ export default function App() {
     setHand(h => h.filter((_, i) => i !== handIdx));
     setDiscard(d => [...d, { ...card, uid: uid() }]);
     setLuresPlayedThisTurn(prev => [...prev, feedKey]);
+    // Count how many animals this feed actually satisfies (durationRemaining===2
+    // with matching feedKey) — the make-or-break feeds, the player's real
+    // decision. Computed from the tray closure so the emit stays out of the
+    // pure setTray updater below.
+    const feedTargets = ['intro', 'subject', 'target'].filter(sn => {
+      const slot = tray[sn];
+      if (slot?.kind !== 'animal' || slot.durationRemaining !== 2) return false;
+      return getAnimal(slot.animalId)?.feedKey === feedKey;
+    });
+    logEvent(TE.HANDLER_FEED, {
+      cardId: card.id, feedKey, fed: feedTargets.length,
+      enemyId: enemy?.id || null,
+    });
     // Stamp ONLY animals on their make-or-break turn (durationRemaining===2)
     // with feedReceived=true. Earlier-in-stay animals don't get free credit
     // from this turn's feeding — they'll need their own feed next turn when
@@ -9065,6 +9086,20 @@ export default function App() {
     logEvent(TE.TURN_END, {
       enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length,
       trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0),
+      // Handler board state going into end-of-turn (null for other lanes).
+      // animalsOnBoard = summoned animals; pendingLures = staged lures still
+      // counting down to arrival; activeTactic = pack-tactic uptime; block =
+      // defensive cushion (shield routing); luresPlayedThisTurn = feeds +
+      // summons issued this turn.
+      handler: selectedCharacter?.lane === 'handler' ? {
+        animalsOnBoard: ['intro', 'subject', 'target']
+          .map(s => tray[s]).filter(v => v?.kind === 'animal').map(v => v.animalId),
+        pendingLures: ['intro', 'subject', 'target']
+          .map(s => tray[s]).filter(v => v?.kind === 'lure').length,
+        activeTactic: tray.tactic?.tactic?.id || null,
+        block,
+        luresPlayedThisTurn: (luresPlayedThisTurn || []).length,
+      } : null,
       // v2.84: surface multiplier state so vulnerability/sap stories can
       // be diagnosed from telemetry. playerDmgMult > 1 = enemy Vulnerable
       // to our spells; enemyDmgMult > 1 = we're Vulnerable to their
@@ -9209,6 +9244,14 @@ export default function App() {
     //      animals wait until the NEXT end-of-turn to act.
     if (selectedCharacter?.lane === 'handler') {
       const SLOT_ORDER = ['intro', 'subject', 'target'];
+      // Telemetry accumulator for the menagerie's end-of-turn output — the
+      // Handler's "cast." Plain locals (not React state), incremented at each
+      // attack/exit/arrival/block site, emitted once after the tick. Lets a
+      // Handler run be gauged the way wit casts/FFT signals gauge a wit run.
+      const hTick = {
+        composureDealt: 0, hpDealt: 0, blockGained: 0,
+        attacks: 0, arrivals: [], exits: [], shortStays: 0,
+      };
       // Working copy of the tray — pre-pass mutates this before the main loop
       // iterates so the loop sees the post-cannibalism state.
       const workingTray = { intro: tray.intro, subject: tray.subject, target: tray.target };
@@ -9223,12 +9266,13 @@ export default function App() {
         const fx = animal?.onExit;
         if (!fx) return;
         if (fx.damage > 0) {
-          if (fx.damageType === 'physical') applyDamageToEnemyHp(fx.damage);
-          else                              applyDamageToEnemyComposure(fx.damage);
+          if (fx.damageType === 'physical') { applyDamageToEnemyHp(fx.damage); hTick.hpDealt += fx.damage; }
+          else                              { applyDamageToEnemyComposure(fx.damage); hTick.composureDealt += fx.damage; }
           pushLog(`${animal.icon} ${animal.name} parting kick: ${fx.damage} ${fx.damageType === 'physical' ? 'HP' : 'composure'}.`);
         }
         if (fx.block > 0) {
           setBlock(b => b + fx.block);
+          hTick.blockGained += fx.block;
           pushLog(`${animal.icon} ${animal.name} drops +${fx.block} Block on the way out.`);
         }
         if (fx.applyWeak > 0) {
@@ -9392,15 +9436,19 @@ export default function App() {
             const isRabid  = tacticId === 'rabid';
             if (isRabid) atk = Math.round(atk * 1.5);
             const tacticLabel = isRabid ? ' (Rabid ×1.5)' : isShield ? ' (Shield → Block)' : '';
+            hTick.attacks++;
             if (isShield) {
               setBlock(b => b + atk);
+              hTick.blockGained += atk;
               pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block${multLabel}${tacticLabel}.`);
             } else {
               if (animal.attackPool === 'composure') {
                 applyDamageToEnemyComposure(atk);
+                hTick.composureDealt += atk;
                 pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}${tacticLabel}.`);
               } else {
                 applyDamageToEnemyHp(atk);
+                hTick.hpDealt += atk;
                 pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}${tacticLabel}.`);
               }
               if (isRabid) {
@@ -9435,6 +9483,7 @@ export default function App() {
           if (grant) {
             if (grant.block > 0) {
               setBlock(b => b + grant.block);
+              hTick.blockGained += grant.block;
               pushLog(`${animal.icon} ${animal.name} braces: +${grant.block} Block.`);
             }
             if (grant.poise > 0) {
@@ -9497,6 +9546,7 @@ export default function App() {
             // Continue to duration logic with reset chain counter.
             if (nextDuration <= 0) {
               if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
+              hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
               pushLog(isUnfed(slot, animal)
                 ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
                 : `${animal.icon} ${animal.name} departs.`);
@@ -9517,6 +9567,7 @@ export default function App() {
             }
           } else if (nextDuration <= 0) {
             if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
+            hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
             pushLog(isUnfed(slot, animal)
               ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
               : `${animal.icon} ${animal.name} departs.`);
@@ -9531,6 +9582,8 @@ export default function App() {
             // the consequence of never feeding during its stay. (Alan,
             // 2026-05-31: "feeding doesn't add an extra turn — it grants
             // the last turn AND the exit bonus.")
+            hTick.shortStays++;
+            hTick.exits.push({ animalId: slot.animalId, fed: false });
             pushLog(`${animal.icon} ${animal.name} slips away unfed — no exit bonus.`);
             if (slot.spans && slot.spans.length > 0) {
               for (const s of slot.spans) nextSlots[s] = null;
@@ -9578,6 +9631,7 @@ export default function App() {
               }
             }
             const animal = getAnimal(resolvedAnimalId);
+            hTick.arrivals.push(resolvedAnimalId);
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
             // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
@@ -9617,6 +9671,7 @@ export default function App() {
         if (hasTriple) {
           const exhaustCard = tray.tactic;
           pushLog(`📜 Birds of a Feather — three of a kind, the tactic exhausts.`);
+          logEvent(TE.TACTIC_CHANGE, { action: 'exhaust', tacticId: 'feather', enemyId: enemy?.id || null });
           setExiled(ex => [...ex, { ...exhaustCard, uid: uid() }]);
           setTray(p => syncTrayLegacy({ ...p, ...nextSlots, tactic: null }));
         } else {
@@ -9644,6 +9699,24 @@ export default function App() {
         recycleToDiscard.push(...luresEaten);
         pushLog(`🪱 Eaten ${luresEaten.length === 1 ? 'lure' : 'lures'} → discard.`);
       }
+      // Emit the menagerie's end-of-turn output as the Handler's "cast" —
+      // the wit-equivalent per-turn combat signal. Board pressure (animals
+      // left standing + pending lures) lets us read engine cadence/uptime.
+      logEvent(TE.HANDLER_TICK, {
+        enemyId: enemy?.id || null,
+        composureDealt: hTick.composureDealt,
+        hpDealt: hTick.hpDealt,
+        blockGained: hTick.blockGained,
+        attacks: hTick.attacks,
+        arrivals: hTick.arrivals,
+        exits: hTick.exits,
+        shortStays: hTick.shortStays,
+        activeTactic: tray.tactic?.tactic?.id || null,
+        animalsOnBoard: SLOT_ORDER.map(s => nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])
+          .filter(v => v?.kind === 'animal').map(v => v.animalId),
+        pendingLures: SLOT_ORDER.map(s => nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])
+          .filter(v => v?.kind === 'lure').length,
+      });
       if (summonerKilledEnemy) return;
     }
 

@@ -1487,7 +1487,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         <div className="flex-1 flex flex-nowrap items-stretch gap-2 overflow-x-auto">
         {slotPill(tray.intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
         {slotPill(tray.subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
-        {slotPill(tray.target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
+        {slotPill(tray.target, 'target', { empty: isHandler ? 'border-iris-600 text-iris-400' : 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
         {isHandler ? (
           tray.tactic ? (
             <button type="button"

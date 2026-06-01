@@ -190,6 +190,14 @@ export const TelemetryEvents = {
   SPELL_CAST: 'combat.spell_cast',
   TURN_END: 'combat.turn_end',
   ENEMY_BLOCK_CHANGE: 'combat.enemy_block_change',
+  // Handler (Animal Summoner) — lane equivalents of the wit cast/FFT
+  // signals. HANDLER_TICK fires once per end-of-turn with the menagerie's
+  // combat output (the Handler's "cast"); TACTIC_CHANGE tracks pack-tactic
+  // engage/replace/discard uptime.
+  HANDLER_TICK: 'combat.handler_tick',
+  TACTIC_CHANGE: 'combat.tactic_change',
+  HANDLER_FEED: 'combat.handler_feed',
+  HANDLER_SUMMON: 'combat.handler_summon',
   // v3.3 — FFT system engagement (snapshot 7 follow-ups)
   REWARD_SAMPLER_OFFERED: 'reward.sampler_offered',
   COMPENDIUM_OPEN: 'ui.compendium_open',
