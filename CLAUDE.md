@@ -71,25 +71,22 @@ Cards are earned, not bought.
 - `src/App.jsx` is the main game file (intentionally large). Per-lane cards
   extracted to `src/cards/{wit,chutzpah,jnsq}-v2.js`. Don't split App.jsx
   further unless asked
-- **Two Node-side greedy-AI sims exist — they have forked, not duplicated.**
-  Figure out which one your change touches before editing:
-  - `sim/playSimV2.js` (~4.8k lines) **imports** the live lane files
-    (`src/cards/{wit-v2,handler-v2,jnsq-v2,shared}.js`) — the exact modules
-    `App.jsx` renders — so it cannot drift on card stats/effects. Combat is
-    deliberately simplified (flat per-turn atk roll, stripped enemy table,
-    no `behaviors`). Output: `report-v2*.md`. **This is the faithful
-    card-data mirror.**
-  - `sim/playSim.js` (~2.7k lines) has a **fully inline copy** of the card
-    data (does NOT import the lanes) and the **full combat engine** (real
-    enemy `behaviors`, the Animal Summoner / handler engine, predator
-    chains). Output: `report.md`. Because its cards are inline, **it is the
-    drift trap** — card/effect changes in App.jsx silently diverge here.
-  - Net: card-stat/effect tuning → land in App.jsx + `playSim.js`'s inline
-    table; anything the simplified V2 combat can model → also V2. Handler /
-    staged-card mechanics currently only run in `playSim.js`. **Always grep
-    both before considering a change shipped.** Consolidating the two is an
-    open decision (see ARCHITECTURE_REVIEW.md) — don't delete either without
-    asking Alan.
+- **One Node-side greedy-AI sim: `sim/playSimV2.js`** (consolidated 2026-06-01;
+  the old forked `sim/playSim.js` was retired). It **imports the live data**
+  rather than inlining it, so it structurally cannot drift:
+  - Cards: `src/cards/{wit-v2,handler-v2,jnsq-v2,shared}.js` — the exact
+    modules `App.jsx` renders.
+  - Enemies: `src/data/enemies.js`. Animals: `src/data/animals.js`.
+  - It carries the **full handler Animal Summoner engine** (lures → animals,
+    feed gate, predator chain, adjacent-spawn, three-of-a-kind combine, tactics)
+    and the **enemy intent/behavior engine** (real `behaviors`). Run with
+    `node sim/playSimV2.js <N> --lane=<wit|handler>`; output `report-v2[-lane].md`.
+    JNSQ is currently dropped from the sim.
+  - Because the sim imports live card/enemy/animal data, a **card-stat/effect
+    tune** that lives purely in those data modules needs no sim copy. But a
+    new **mechanic** (a new effect key, a new end-of-turn pre-pass, etc.) is
+    hand-written engine logic in BOTH `App.jsx` and `playSimV2.js` — mirror it
+    in both. e.g. the bear-eats-adjacent-salmon pre-pass exists in each.
 - `sim/HUMAN_PLAY_PROFILE.md` holds telemetry-derived behavior signatures
   from real playtest sessions. Use it as ground truth when tuning the sim AI
 - All state in `App` — no Redux/context. Refactor when systems stabilize
@@ -114,11 +111,12 @@ Cards are earned, not bought.
   flow before reporting done
 
 ### Bug-check pattern when something feels off in playtest
-1. Did the change land in App.jsx **and** the right sim(s)? `playSim.js`
-   has inline card data (the drift trap — card/effect edits MUST be copied
-   here); `playSimV2.js` imports the live lanes (can't drift on cards, but
-   its simplified combat may not model the mechanic). Drift bugs look like
-   "the sim says X but the game does Y" — grep both. See §3 sim notes.
+1. Did the change land in App.jsx **and** the sim where it needs to?
+   `playSimV2.js` imports live card/enemy/animal data, so pure data tunes
+   need no sim copy — but new *mechanics* (effect keys, end-of-turn
+   pre-passes) are hand-written engine logic and MUST be mirrored in both
+   App.jsx and `playSimV2.js`. Drift bugs look like "the sim says X but the
+   game does Y." See §3 sim notes.
 2. Are setState updaters pure (no side effects inside the prev=>next fn)?
 3. Did a new effect key get branched in every dispatcher (`playCard`,
    `applyEnemyIntent`, sim mirror)?

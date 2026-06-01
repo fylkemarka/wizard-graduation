@@ -16,45 +16,83 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_
 import { HANDLER_V2, HANDLER_V2_BY_SLOT } from '../src/cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from '../src/cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/cards/shared.js';
+import { ENEMIES as SHARED_ENEMIES } from '../src/data/enemies.js';
+import { ANIMALS } from '../src/data/animals.js';
 
 // =============================================================================
-// 1. ENEMY DATA — light subset copied from playSim.js. Composure / hp /
-// effectiveness / a single average attack-power per enemy is enough for the
-// v2 sim to measure combat outcomes.
+// 1. ENEMY DATA — imported from the SHARED canonical roster (src/data/enemies.js,
+// extracted from App.jsx 2026-06-01). App.jsx imports the same module, so enemy
+// stats + behaviors CANNOT drift between game and sim. Edit enemies there.
+//
+// The shared shape uses { composureMax, hpMax, behaviors, softSpot,
+// insultVulnerabilities? }. The sim historically keyed combat off comp/hp/atk
+// scalars; the adapter below maps the shared shape onto that while preserving
+// the full `behaviors` list so the intent engine can roll the same weighted,
+// telegraphed intents the live game does. `atk` is a derived weighted-average
+// attack value — retained only as an AI planning fallback; real per-turn damage
+// now comes from the rolled intent (see the enemy-turn block in runCombat).
+//
+// EFFECTIVENESS NOTE (2026-06-01): static per-stat enemy effectiveness was
+// removed game-wide on 2026-05-31. The shared roster carries NO effectiveness
+// field; the game reads `enemy?.effectiveness?.[lane] ?? 1.0`, so every enemy is
+// baseline 1.0 unless a Sway card mutates it mid-combat. The sim therefore
+// initializes `enemy.effectiveness = {}` (all reads default to 1.0) — faithful
+// to the live build. The old baked per-enemy resistance matrix was deleted.
 // =============================================================================
 
-// v2.42: each enemy carries `insultVulnerabilities` — the tag list that
-// pierceVulnerableInsult targets cross-reference for bonus damage. Most
-// enemies have 2-3 tags; a few (mindless / boss-of-vanity) deviate. Sim
-// mirrors App.jsx tagging where it overlaps; non-overlapping enemies get
-// thematic defaults (Pratchett-bureaucratic / vain / pedantic etc.).
-const ENEMIES = [
-  // Act 1 — Thread Path (the countryside)
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver',       comp: 22, hp: 999, tier: 'normal', atk: 8, effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
-  { id: 'e2-silk-wraith',   act: 1, name: 'Silk Wraith',         comp: 20, hp: 999, tier: 'normal', atk: 7, effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 0.5 }, insultVulnerabilities: ['observational', 'ironic'] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar',       comp: 24, hp: 999, tier: 'normal', atk: 7, effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty'] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker',   comp: 40, hp: 999, tier: 'elite',  atk: 9, effectiveness: { handler: 1.0, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
-  { id: 'e2-silent-spinner',act: 1, name: 'The Silent Spinner',  comp: 40, hp: 999, tier: 'elite',  atk: 7, effectiveness: { handler: 1.5, wit: 0.7, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['petty', 'observational'] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', comp: 55, hp: 999, tier: 'boss',   atk: 8, effectiveness: { handler: 1.0, wit: 1.2, jnsq: 1.0, physical: 0.5 }, insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'] },
-  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast', comp: 22, hp: 999, tier: 'normal', atk: 6, effectiveness: { handler: 1.0, wit: 0.8, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'observational'] },
-  // Act 2 — Forge Path (the mines and caves)
-  { id: 'e3-geode-crab',    act: 2, name: 'Geode Crab',          comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-glow-mite',     act: 2, name: 'Glow-Mite Swarm',     comp: 18, hp: 10,  tier: 'normal', atk: 6, effectiveness: { handler: 0.7, wit: 0.7, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-crystal-beetle',act: 2, name: 'Crystal Beetle',      comp: 22, hp: 12,  tier: 'normal', atk: 6, effectiveness: { handler: 0.5, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['petty'] },
-  { id: 'e3-quartz-sentinel',act:2, name: 'Quartz Sentinel',     comp: 28, hp: 22,  tier: 'elite',  atk: 8, effectiveness: { handler: 0.7, wit: 1.2, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['academic', 'dismissive'] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer',       comp: 45, hp: 28,  tier: 'elite',  atk: 10,effectiveness: { handler: 1.5, wit: 0.7, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e3-boss-anvil',    act: 2, name: 'The Anvil-Forged',    comp: 50, hp: 50,  tier: 'boss',   atk: 9, effectiveness: { handler: 1.5, wit: 1.0, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'petty', 'absurd'] },
-  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C.', comp: 26, hp: 14, tier: 'normal', atk: 7, effectiveness: { handler: 0.6, wit: 1.1, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['academic', 'petty'] },
-  // Act 3 — Staff Path (the deep forest, final act)
-  { id: 'e1-acolyte',       act: 3, name: 'Lost Acolyte',        comp: 20, hp: 18,  tier: 'normal', atk: 4, effectiveness: { handler: 1.5, wit: 1.0, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'cutting'] },
-  { id: 'e1-imp',           act: 3, name: 'Pact Imp',            comp: 18, hp: 999, tier: 'normal', atk: 4, effectiveness: { handler: 1.0, wit: 1.0, jnsq: 1.5, physical: 1.0 }, insultVulnerabilities: ['dismissive', 'sarcastic'] },
-  { id: 'e1-shrine-rat',    act: 3, name: 'Shrine Rat Pack',     comp: 16, hp: 12,  tier: 'normal', atk: 6, effectiveness: { handler: 0.5, wit: 0.5, jnsq: 1.0, physical: 1.5 }, insultVulnerabilities: [] },
-  { id: 'e1-tutor',         act: 3, name: 'Stern Tutor',         comp: 32, hp: 999, tier: 'elite',  atk: 7, effectiveness: { handler: 0.7, wit: 0.7, jnsq: 2.0, physical: 0.5 }, insultVulnerabilities: ['absurd', 'ironic'] },
-  { id: 'e1-thicket',       act: 3, name: 'Living Thicket',      comp: 55, hp: 38,  tier: 'elite',  atk: 8, effectiveness: { handler: 0.5, wit: 0.5, jnsq: 0.7, physical: 1.0 }, insultVulnerabilities: [] },
-  { id: 'e1-boss-thornlord',act: 3, name: 'The Thornlord',       comp: 95, hp: 115, tier: 'boss',   atk: 9, effectiveness: { handler: 0.75, wit: 1.0, jnsq: 1.3, physical: 1.0 }, insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'] },
-  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather', comp: 36, hp: 32, tier: 'normal', atk: 7, effectiveness: { handler: 0.6, wit: 1.4, jnsq: 1.0, physical: 1.0 }, insultVulnerabilities: ['academic', 'observational'] },
-];
+// Weighted-average attack value across an enemy's attack / attack-multi
+// behaviors. AI planning fallback only; intents drive actual damage.
+function avgAttack(behaviors) {
+  const atks = (behaviors || []).filter(b => b.kind === 'attack' || b.kind === 'attack-multi');
+  if (atks.length === 0) return 0;
+  let wsum = 0, vsum = 0;
+  for (const b of atks) {
+    const w = b.weight || 1;
+    const v = (b.value || 0) * (b.kind === 'attack-multi' ? (b.count || 1) : 1);
+    wsum += w; vsum += v * w;
+  }
+  return Math.round(vsum / Math.max(1, wsum));
+}
+
+const ENEMIES = SHARED_ENEMIES.map(e => ({
+  id: e.id,
+  act: e.act,
+  name: e.name,
+  tier: e.tier,
+  comp: e.composureMax || 0,
+  hp: (e.hpMax == null) ? 999 : e.hpMax,
+  atk: avgAttack(e.behaviors),
+  behaviors: (e.behaviors || []).map(b => ({ ...b })),
+  insultVulnerabilities: e.insultVulnerabilities || [],
+  softSpot: e.softSpot,
+}));
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
+
+// Weighted intent roll, mirroring App.jsx rollIntent (anti-repeat via
+// excludeKinds; falls back to the full pool if filtering empties it).
+function rollIntent(enemy, excludeKinds = []) {
+  const behaviors = enemy.behaviors || [];
+  const filtered = behaviors.filter(b => !excludeKinds.includes(b.kind));
+  const pool = filtered.length > 0 ? filtered : behaviors;
+  if (pool.length === 0) return null;
+  const total = pool.reduce((s, b) => s + (b.weight || 1), 0);
+  let roll = Math.random() * total;
+  for (const b of pool) {
+    roll -= (b.weight || 1);
+    if (roll <= 0) return { ...b };
+  }
+  return { ...pool[0] };
+}
+
+// Expected unblocked damage the CURRENT rolled intent will deal, split by pool.
+// Used by the greedy AI to plan block/poise. Non-attack intents deal 0.
+function expectedIntentDamage(state, enemy) {
+  const it = state.enemyIntent;
+  if (!it || (it.kind !== 'attack' && it.kind !== 'attack-multi')) return { hp: 0, comp: 0 };
+  const hits = it.kind === 'attack-multi' ? (it.count || 1) : 1;
+  const raw = Math.round((it.value || 0) * hits * (state.enemyDmgMult || 1));
+  return (it.pool === 'composure') ? { hp: 0, comp: raw } : { hp: raw, comp: 0 };
+}
 
 const ACTS = [
   { id: 1, bossId: 'e2-boss-tapestry' },
@@ -74,7 +112,7 @@ const ACT_ELITES = {
 };
 
 const STARTING_MAX_HP = 70;
-const STARTING_MAX_COMPOSURE = 30;
+const STARTING_MAX_COMPOSURE = 35;
 const ENERGY_PER_TURN = 3;
 const HAND_SIZE = 6;
 const INTER_ACT_HEAL_RATIO = 0.35; // v2.22: 0.55 → 0.35 (live-play attrition fix)
@@ -82,6 +120,41 @@ const MAX_COMBAT_TURNS = 30;  // safety net
 
 const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
+
+// =============================================================================
+// 1c. HANDLER (Animal Summoner) CARD DATA. Lures come from the shared
+// HANDLER_V2 module (drift-proof); tactics / utility / handler-skills are the
+// sim-AI's card pool, mirroring src/App.jsx's handler deck. Animal stats read
+// from the shared src/data/animals.js ANIMALS table — never inline them here.
+// =============================================================================
+const HANDLER_TACTIC_UTIL = [
+  { id: 'c-tactic-shield',  name: 'Summoned Shield',  cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'shield' } },
+  { id: 'c-tactic-rabid',   name: 'Rabid',            cost: 2, type: 'tactic', rarity: 'uncommon', tactic: { id: 'rabid' } },
+  { id: 'c-tactic-youth',   name: 'Fountain of Youth',cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'youth' } },
+  { id: 'c-tactic-nurture', name: 'Nurture',          cost: 2, type: 'tactic', rarity: 'uncommon', tactic: { id: 'nurture' } },
+  { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 1, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
+  { id: 'c-shoo',        name: 'Shoo!',     cost: 1, type: 'handler-util', rarity: 'basic',    util: 'shoo' },
+  { id: 'c-pack-tactics',name: 'On Three!', cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'onThree', exhaust: true },
+  { id: 'c-just-eat-it', name: 'Just Eat It',cost: 1, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },
+  { id: 'c-buffet',      name: 'Buffet',    cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'buffet', exhaust: true },
+  { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
+  { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
+  { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7, removeWeak: 1 } },
+  { id: 'c-sharp-aside', name: 'Sharp Whistle', cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmg: 4 } },
+];
+const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
+const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
+const COMBINE_BY_SPECIES = { 'field-mouse': 'mouse-house', 'rabbit': 'long-hare', 'young-buck': 'mccloven' };
+const HANDLER_STARTER = [
+  'c-defend-handler', 'c-defend-handler', 'c-compose',
+  'cv2-l-tender-greens', 'cv2-l-tender-greens',
+  'c-shoo', 'c-pack-tactics', 'c-buffet', 'c-tactic-shield',
+];
+const HANDLER_REWARD_POOL = [
+  'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
+  'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
+  'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-aside',
+];
 
 // =============================================================================
 // 2. HELPERS
@@ -102,6 +175,11 @@ function shuffle(arr) {
 }
 
 function buildStarterDeck(lane) {
+  // Handler (Animal Summoner) opens with the lure/tactic/utility starter —
+  // no word-pool, no verbal effect cards. Mirrors App.jsx handler starter.
+  if (lane === 'handler') {
+    return shuffle(HANDLER_STARTER.map(id => ({ ...HANDLER_CARDS_BY_ID[id], uid: uid() })));
+  }
   const pool = LANE_POOL_BY_SLOT[lane];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
   // v2.95: starter shape mirrors App.jsx — 1 intro + 1 subject + 1 effect
@@ -651,16 +729,623 @@ function pickBestModifier(state, energyLeft, tier, bossFight, loudTargetStaged =
   return bestIdx;
 }
 
+// =============================================================================
+// 3b. HANDLER (Animal Summoner) COMBAT ENGINE
+//     Faithful port of the App.jsx end-of-turn menagerie tick + a handler AI
+//     that stages lures, engages tactics (with a VARIETY preference — the
+//     thing this whole engine exists to let the sim model), feeds animals on
+//     their make-or-break turn, and spikes with On Three!. Animal damage is
+//     RAW composure (enemy block absorbs); enemy block/poise pools as live.
+//     Ported from the retired sim/playSim.js 2026-06-01; ANIMALS come from
+//     the shared src/data/animals.js so they cannot drift from the game.
+// =============================================================================
+function handlerDealComposure(combat, amount) {
+  let remaining = amount;
+  if (combat.enemyBlock > 0) { const a = Math.min(combat.enemyBlock, remaining); combat.enemyBlock -= a; remaining -= a; }
+  combat.enemyComposure = Math.max(0, combat.enemyComposure - remaining);
+}
+function handlerDealHp(combat, amount) {
+  let remaining = amount;
+  if (combat.enemyBlock > 0) { const a = Math.min(combat.enemyBlock, remaining); combat.enemyBlock -= a; remaining -= a; }
+  combat.enemyHp = Math.max(0, combat.enemyHp - remaining);
+}
+function makeAnimalSlot(animalId, youthBonus, summonSet) {
+  const a = ANIMALS[animalId];
+  return {
+    kind: 'animal', animalId,
+    durationRemaining: (a?.duration || 3) + (youthBonus || 0),
+    predatorProgress: 0, adjacentSpawnProgress: 0, adjacentSpawned: false,
+    summonSet: summonSet || null, feedReceived: false, nextAttackMult: 1,
+  };
+}
+function resolveLureSpecies(lure, combat) {
+  if (combat.tactic === 'feather') {
+    const existing = ['intro', 'subject', 'target'].map(x => combat.htray[x]).find(v => v?.kind === 'animal');
+    if (existing) return existing.animalId;
+  }
+  const s = lure.summon || lure;
+  let id = (s.animalIds && s.animalIds.length) ? s.animalIds[Math.floor(Math.random() * s.animalIds.length)] : s.animalId;
+  const base = ANIMALS[id];
+  if (base?.elite && Math.random() < 0.035) id = base.elite;
+  return id;
+}
+function handlerAnimalAttack(state, combat, slot, animal, baseMult) {
+  let atk = Math.round(animal.attack * (baseMult || 1) * (slot.nextAttackMult || 1));
+  slot.nextAttackMult = 1;
+  const isShield = combat.tactic === 'shield';
+  const isRabid  = combat.tactic === 'rabid';
+  if (isRabid) atk = Math.round(atk * 1.5);
+  if (isShield) {
+    state.block += atk; state.poise += atk; combat.menagerieBlock += atk;
+  } else {
+    handlerDealComposure(combat, atk);
+    combat.menagerieComposure += atk;
+    combat.totalDamageDealt += atk;
+    if (isRabid) state.composure = Math.max(0, state.composure - Math.max(1, Math.round(atk * 0.2)));
+  }
+  if (animal.onAttack?.draw) drawCards(state, animal.onAttack.draw);
+  if (animal.onAttackEffect?.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * animal.onAttackEffect.applyVulnerable);
+  if (animal.onAttackEffect?.applyWeak > 0)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * animal.onAttackEffect.applyWeak);
+}
+function clearHandlerSlot(next, slot, slotName) {
+  if (slot.spans && slot.spans.length) { for (const s of slot.spans) next[s] = null; }
+  else next[slotName] = null;
+}
+function tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombine) {
+  switch (id) {
+    case 'rabid':
+      if (animals < 1) return 0;
+      return (isBoss ? compPct > 0.4 : compPct > 0.6) ? 4 + animals + (isBoss ? 2 : 0) : 0;
+    case 'nurture': return haveLure ? (isBoss ? 10 : 7) : 0;
+    case 'youth':   return haveLure ? 5 : 1;
+    case 'feather': return animals === 1 ? (canCombine && isBoss ? 9 : isBoss ? 7 : 4) : 0;
+    case 'shield':  return 0;
+    default:        return 0;
+  }
+}
+function pickHandlerTactic(state, combat, needDefense) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const animals = SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
+  const haveLure = state.hand.some(h => h.type === 'lure');
+  const compPct = state.composure / (state.maxComposure || 1);
+  const isBoss = combat.enemy?.tier === 'boss';
+  const canCombine = SLOT.some(s => {
+    const sl = combat.htray[s];
+    return sl?.kind === 'animal' && !!COMBINE_BY_SPECIES[sl.animalId];
+  });
+  let best = -1, bestVal = -Infinity, bestId = null, bestEngaged = Infinity;
+  for (let i = 0; i < state.hand.length; i++) {
+    const c = state.hand[i];
+    if (c.type !== 'tactic' || c.cost > state.energy) continue;
+    const id = c.tactic.id;
+    if (id === combat.tactic) continue;
+    if (id === 'shield' && !needDefense) continue;
+    if (c.tactic.requiresExactlyOneAnimal && animals !== 1) continue;
+    const val = id === 'shield' ? 100 : tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombine);
+    if (val <= 0) continue;
+    const engaged = combat.tacticsEngaged[id] || 0;
+    if (val > bestVal || (val === bestVal && engaged < bestEngaged)) {
+      bestVal = val; best = i; bestId = id; bestEngaged = engaged;
+    }
+  }
+  if (best < 0) return -1;
+  if (combat.tactic && combat.tactic !== 'shield' && bestId !== 'shield') {
+    const curVal = tacticSituationalValue(combat.tactic, animals, haveLure, compPct, isBoss, canCombine);
+    if (bestVal <= curVal + 2) return -1;
+  }
+  return best;
+}
+function stageHandlerLure(state, combat, lure) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const empties = SLOT.filter(s => combat.htray[s] == null);
+  if (empties.length === 0) { state.discard.push(lure); return; }
+  const youthBonus = (combat.tactic === 'youth' && combat.youthUses > 0) ? 1 : 0;
+  const nurture = combat.tactic === 'nurture';
+  const targets = combat.buffetArmed ? empties : [empties[0]];
+  targets.forEach((s, idx) => {
+    const withCard = idx === 0;
+    if (nurture) {
+      const animalId = resolveLureSpecies(lure, combat);
+      combat.htray[s] = makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet);
+      combat.summons++;
+      if (withCard) state.discard.push(lure);
+    } else {
+      combat.htray[s] = {
+        kind: 'lure', card: withCard ? { ...lure } : null,
+        animalIds: lure.summon.animalIds, animalId: lure.summon.animalId,
+        summonSet: lure.summon.summonSet || null,
+        turnsRemaining: lure.summon.turnsToArrive, youthBonus,
+      };
+    }
+  });
+  combat.buffetArmed = false;
+  if (youthBonus) combat.youthUses = Math.max(0, combat.youthUses - 1);
+}
+function applyHandlerUtil(state, combat, card) {
+  const SLOT = ['intro', 'subject', 'target'];
+  if (card.util === 'buffet') { combat.buffetArmed = true; return; }
+  if (card.util === 'onThree') {
+    for (const s of SLOT) {
+      const slot = combat.htray[s];
+      if (slot?.kind !== 'animal') continue;
+      const a = ANIMALS[slot.animalId];
+      if (a && a.attack > 0) handlerAnimalAttack(state, combat, slot, a, 1);
+    }
+    return;
+  }
+  if (card.util === 'eatNow') {
+    const s = SLOT.find(x => combat.htray[x]?.kind === 'lure');
+    if (s) {
+      const lure = combat.htray[s];
+      const animalId = resolveLureSpecies(lure, combat);
+      if (lure.card) state.discard.push({ ...lure.card });
+      combat.htray[s] = makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet);
+      combat.summons++;
+    }
+    return;
+  }
+  if (card.util === 'treat') {
+    let bestS = null, bestAtk = -1;
+    for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind !== 'animal') continue; const a = ANIMALS[sl.animalId]; if ((a?.attack || 0) > bestAtk) { bestAtk = a.attack; bestS = s; } }
+    if (bestS) combat.htray[bestS].durationRemaining += 1;
+  }
+  // 'shoo' intentionally unused by the AI — situational, no greedy value.
+}
+function playHandlerCard(state, combat, idx) {
+  const card = state.hand[idx];
+  state.hand.splice(idx, 1);
+  state.energy -= (card.cost || 0);
+  if (card.type === 'tactic') {
+    if (combat.tactic !== card.tactic.id) combat.tacticChanges++;
+    combat.tactic = card.tactic.id;
+    combat.tacticsEngaged[card.tactic.id] = (combat.tacticsEngaged[card.tactic.id] || 0) + 1;
+    if (card.tactic.id === 'youth') combat.youthUses = 3;
+    state.discard.push(card);
+    return;
+  }
+  if (card.type === 'lure') { stageHandlerLure(state, combat, card); return; }
+  if (card.type === 'handler-skill') {
+    if (card.effects?.block)   state.block += card.effects.block;
+    if (card.effects?.poise)   state.poise += card.effects.poise;
+    if (card.effects?.compDmg) { handlerDealComposure(combat, card.effects.compDmg); combat.totalDamageDealt += card.effects.compDmg; }
+    state.discard.push(card);
+    return;
+  }
+  if (card.type === 'handler-util') {
+    applyHandlerUtil(state, combat, card);
+    if (card.exhaust) state.exiled.push(card); else state.discard.push(card);
+    return;
+  }
+  state.discard.push(card);
+}
+function tryHandlerFeed(state, combat) {
+  const SLOT = ['intro', 'subject', 'target'];
+  for (const s of SLOT) {
+    const slot = combat.htray[s];
+    if (slot?.kind !== 'animal') continue;
+    const a = ANIMALS[slot.animalId];
+    if (!a?.feedKey || slot.feedReceived || slot.durationRemaining !== 2) continue;
+    const li = state.hand.findIndex(c => c.type === 'lure' && c.feedKey === a.feedKey && c.cost <= state.energy);
+    if (li < 0) continue;
+    const lure = state.hand[li];
+    state.hand.splice(li, 1);
+    state.energy -= (lure.cost || 0);
+    slot.feedReceived = true;
+    combat.feeds++;
+    state.discard.push(lure);
+    return true;
+  }
+  return false;
+}
+function pickBestLure(state, combat) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const boardSpeciesCounts = {};
+  for (const s of SLOT) {
+    const sl = combat.htray[s];
+    if (sl?.kind === 'animal' && COMBINE_BY_SPECIES[sl.animalId]) {
+      boardSpeciesCounts[sl.animalId] = (boardSpeciesCounts[sl.animalId] || 0) + 1;
+    }
+  }
+  const wantCombine = Object.values(boardSpeciesCounts).some(n => n >= 1);
+  let bestIdx = -1, bestPriority = -1;
+  for (let i = 0; i < state.hand.length; i++) {
+    const c = state.hand[i];
+    if (c.type !== 'lure' || c.cost > state.energy) continue;
+    let priority = 0;
+    if (c.summon?.summonSet === 'tender-greens' && wantCombine) priority = 3;
+    else if (c.summon?.summonSet === 'tender-greens') priority = 1;
+    else priority = 2;
+    if (priority > bestPriority) { bestPriority = priority; bestIdx = i; }
+  }
+  return bestIdx;
+}
+function handlerAdjustIncoming(combat, raw) {
+  if (raw === 0) return 0;
+  return Math.round(raw * combat.enemyDmgMult);
+}
+function aiTurnHandler(state, combat) {
+  combat.turn++;
+  state.energy = ENERGY_PER_TURN + (combat.turn === 1 && combat.fb.startCombatEnergy ? combat.fb.startCombatEnergy : 0);
+  state.block = 0;
+  state.poise = 0;
+  if (combat.turn === 1) {
+    if (combat.fb.startCombatBlock) state.block += combat.fb.startCombatBlock;
+    if (combat.fb.startCombatPoise) state.poise += combat.fb.startCombatPoise;
+  }
+  drawCards(state, HAND_SIZE + (combat.turn === 1 ? (combat.fb.startCombatDraw || 0) : 0));
+
+  const SLOT = ['intro', 'subject', 'target'];
+  const emptyCount = () => SLOT.filter(s => combat.htray[s] == null).length;
+  const animalCount = () => SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
+  const isBoss = combat.enemy?.tier === 'boss';
+
+  let safety = 30;
+  while (safety-- > 0) {
+    const intent = combat.enemyIntent;
+    const incoming = (intent?.kind === 'attack' || intent?.kind === 'attack-multi') ? intent.value * (intent.count || 1) : 0;
+    if (incoming > 0) {
+      const targetsComp = intent.pool === 'composure';
+      const expected = handlerAdjustIncoming(combat, incoming);
+      const pool = targetsComp ? state.poise : state.block;
+      if (expected > pool + 1) {
+        const di = state.hand.findIndex(c => c.type === 'handler-skill' && c.cost <= state.energy && (targetsComp ? c.effects?.poise : c.effects?.block));
+        if (di >= 0) { playHandlerCard(state, combat, di); continue; }
+      }
+    }
+    if (tryHandlerFeed(state, combat)) continue;
+    if (state.energy >= 1) {
+      let needDefense = false;
+      if (incoming > 0) {
+        const targetsComp = intent.pool === 'composure';
+        const expected = handlerAdjustIncoming(combat, incoming);
+        const pool = targetsComp ? state.poise : state.block;
+        const haveSkill = state.hand.some(c => c.type === 'handler-skill' && c.cost <= state.energy && (targetsComp ? c.effects?.poise : c.effects?.block));
+        const uncovered = Math.max(0, expected - pool);
+        const damagePct = targetsComp
+          ? uncovered / Math.max(1, state.composure)
+          : uncovered / Math.max(1, state.hp);
+        needDefense = uncovered > 0 && damagePct > 0.3 && !haveSkill;
+      }
+      const ti = pickHandlerTactic(state, combat, needDefense);
+      if (ti >= 0) { playHandlerCard(state, combat, ti); continue; }
+    }
+    if (isBoss && SLOT.some(s => combat.htray[s]?.kind === 'lure')) {
+      const ei = state.hand.findIndex(c => c.util === 'eatNow' && c.cost <= state.energy);
+      if (ei >= 0) { playHandlerCard(state, combat, ei); continue; }
+    }
+    const featherActive = combat.tactic === 'feather';
+    const luresInHand = state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length;
+    const shouldBuffet = !combat.buffetArmed && emptyCount() >= 2 && luresInHand >= 1;
+    const featherBuffetPriority = featherActive && luresInHand >= 2 && emptyCount() >= 2 && !combat.buffetArmed;
+    if (featherBuffetPriority || shouldBuffet) {
+      const bi = state.hand.findIndex(c => c.util === 'buffet' && c.cost <= state.energy);
+      if (bi >= 0) { playHandlerCard(state, combat, bi); continue; }
+    }
+    const animalCnt = animalCount();
+    const featherInHand = state.hand.some(c => c.type === 'tactic' && c.tactic?.id === 'feather' && c.cost <= state.energy);
+    const lureInHand = state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length;
+    const holdForFeather = animalCnt === 1 && featherInHand && lureInHand >= 2 && combat.tactic !== 'feather';
+    if (emptyCount() > 0 && !holdForFeather) {
+      const li = pickBestLure(state, combat);
+      if (li >= 0) { playHandlerCard(state, combat, li); continue; }
+    }
+    const totalBoardAtk = SLOT.reduce((sum, s) => {
+      const sl = combat.htray[s];
+      if (sl?.kind !== 'animal') return sum;
+      const a = ANIMALS[sl.animalId];
+      return sum + (a?.attack || 0);
+    }, 0);
+    const onThreeWorthIt = isBoss ? totalBoardAtk >= 10 : animalCount() >= 2;
+    if (onThreeWorthIt) {
+      const oi = state.hand.findIndex(c => c.util === 'onThree' && c.cost <= state.energy);
+      if (oi >= 0) { playHandlerCard(state, combat, oi); continue; }
+    }
+    const si = state.hand.findIndex(c => c.effects?.compDmg && c.cost <= state.energy);
+    if (si >= 0) { playHandlerCard(state, combat, si); continue; }
+    break;
+  }
+
+  handlerEndOfTurnTick(state, combat);
+  if (combat.tactic) combat.tacticTurns[combat.tactic] = (combat.tacticTurns[combat.tactic] || 0) + 1;
+
+  for (const c of state.hand) state.discard.push(c);
+  state.hand = [];
+
+  if (combat.enemyComposure > 0 && combat.enemyHp > 0) {
+    combat.enemyBlock = 0;
+    handlerApplyIntent(state, combat, combat.enemyIntent);
+    combat.enemyDmgMult  = combat.enemyDmgMult  > 1 ? Math.max(1, combat.enemyDmgMult  - 0.5) : combat.enemyDmgMult  < 1 ? Math.min(1, combat.enemyDmgMult  + 0.5) : combat.enemyDmgMult;
+    combat.playerDmgMult = combat.playerDmgMult > 1 ? Math.max(1, combat.playerDmgMult - 0.5) : combat.playerDmgMult < 1 ? Math.min(1, combat.playerDmgMult + 0.5) : combat.playerDmgMult;
+    combat.lastIntentKinds.push(combat.enemyIntent?.kind);
+    if (combat.lastIntentKinds.length > 2) combat.lastIntentKinds.shift();
+    const exclude = (combat.lastIntentKinds.length >= 2 && combat.lastIntentKinds[0] === combat.lastIntentKinds[1]) ? [combat.lastIntentKinds[0]] : [];
+    combat.enemyIntent = rollIntent(combat.enemy, exclude);
+  }
+}
+function handlerApplyIntent(state, combat, intent) {
+  if (!intent) return;
+  if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
+    const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+    const targetsComposure = intent.pool === 'composure';
+    let raw = Math.round(intent.value * combat.enemyDmgMult);
+    let wBlock = state.block, wPoise = state.poise || 0, wHp = state.hp, wComp = state.composure;
+    for (let i = 0; i < hits; i++) {
+      let remaining = raw;
+      if (targetsComposure) {
+        if (wPoise > 0) { const a = Math.min(wPoise, remaining); wPoise -= a; remaining -= a; }
+      } else if (wBlock > 0) {
+        const a = Math.min(wBlock, remaining); wBlock -= a; remaining -= a;
+      }
+      if (targetsComposure) wComp = Math.max(0, wComp - remaining);
+      else                  wHp   = Math.max(0, wHp   - remaining);
+      combat.totalDamageTaken += remaining;
+      if (wHp <= 0 || wComp <= 0) break;
+    }
+    state.block = wBlock; state.poise = wPoise; state.hp = wHp; state.composure = wComp;
+  } else if (intent.kind === 'block') {
+    combat.enemyBlock += intent.value;
+  } else if (intent.kind === 'vulnerable') {
+    combat.enemyDmgMult = Math.min(1.5, combat.enemyDmgMult + 0.25 * intent.value);
+  } else if (intent.kind === 'weak') {
+    combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * intent.value);
+  }
+  if (intent.riders) {
+    const r = intent.riders;
+    if (r.weak)       combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * r.weak);
+    if (r.vulnerable) combat.enemyDmgMult  = Math.min(1.5, combat.enemyDmgMult  + 0.25 * r.vulnerable);
+    if (r.block)      combat.enemyBlock += r.block;
+  }
+}
+function handlerEndOfTurnTick(state, combat) {
+  combat.handlerTicks++;
+  const SLOT = ['intro', 'subject', 'target'];
+  const work = { intro: combat.htray.intro, subject: combat.htray.subject, target: combat.htray.target };
+
+  const onExit = (animal) => {
+    const fx = animal?.onExit; if (!fx) return;
+    if (fx.damage > 0) {
+      if (fx.damageType === 'physical') handlerDealHp(combat, fx.damage);
+      else { handlerDealComposure(combat, fx.damage); combat.menagerieComposure += fx.damage; }
+      combat.totalDamageDealt += fx.damage;
+    }
+    if (fx.block > 0)     { state.block += fx.block; combat.menagerieBlock += fx.block; }
+    if (fx.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * fx.applyWeak);
+    if (fx.healComp > 0)  state.composure = Math.min(state.maxComposure, state.composure + fx.healComp);
+    if (fx.healHp > 0)    state.hp = Math.min(state.maxHp, state.hp + fx.healHp);
+  };
+
+  // PRE-PASS: cannibalism (lure adjacent to same-species animal).
+  for (let i = 0; i < SLOT.length; i++) {
+    const lureSlot = work[SLOT[i]];
+    if (!lureSlot || lureSlot.kind !== 'lure') continue;
+    for (const ni of [i - 1, i + 1].filter(n => n >= 0 && n < SLOT.length)) {
+      const nb = work[SLOT[ni]];
+      if (!nb || nb.kind !== 'animal' || nb.animalId !== lureSlot.animalId) continue;
+      if (lureSlot.card) state.discard.push({ ...lureSlot.card });
+      work[SLOT[i]] = { ...nb, eatenThisTurn: true };
+      work[SLOT[ni]] = null;
+      break;
+    }
+  }
+  // PRE-PASS: hawk strike (5% per field-mouse).
+  for (const s of SLOT) {
+    const slot = work[s];
+    if (!slot || slot.kind !== 'animal' || slot.animalId !== 'field-mouse') continue;
+    if (Math.random() >= 0.05) continue;
+    const h = makeAnimalSlot('hawk', 0, slot.summonSet); h.eatenThisTurn = true;
+    work[s] = h;
+  }
+  // PRE-PASS: three-of-a-kind combine.
+  const first = work[SLOT[0]];
+  const matched = (first?.kind === 'animal' && COMBINE_BY_SPECIES[first.animalId]) ? first.animalId : null;
+  if (matched && SLOT.every(s => work[s]?.kind === 'animal' && work[s].animalId === matched)) {
+    const combineId = COMBINE_BY_SPECIES[matched];
+    const ca = ANIMALS[combineId];
+    work.intro = {
+      kind: 'animal', animalId: combineId, durationRemaining: ca?.duration || 2,
+      predatorProgress: 0, adjacentSpawnProgress: 0, adjacentSpawned: false,
+      summonSet: matched === 'field-mouse' ? 'tender-greens' : null,
+      spans: ['intro', 'subject'], justCombined: true, feedReceived: true, nextAttackMult: 1,
+    };
+    work.subject = { kind: 'occupied', occupiedBy: 'intro' };
+    work.target = null;
+    combat.combines++;
+  }
+  // PRE-PASS: tender-greens row bonus (×1.5 next attack + +3 block/turn, once).
+  const entries = SLOT.map(s => work[s]);
+  const allTG = entries.every(s => s && s.kind === 'animal' && s.summonSet === 'tender-greens');
+  if (allTG && !entries.every(s => s.tgFired)) {
+    for (const s of SLOT) {
+      const sl = work[s];
+      work[s] = { ...sl, nextAttackMult: 1.5, turnGrantTemp: { block: ((sl.turnGrantTemp?.block) || 0) + 3 }, tgFired: true };
+    }
+  }
+
+  // PRE-PASS: bear eats adjacent salmon (+2 turns, consumes salmon). Mirrors
+  // App.jsx (Alan, 2026-06-01). A standing bear eats any salmon staged next to
+  // it; supersedes the territorial "salmon waits" outcome for adjacent salmon.
+  for (const slotName of SLOT) {
+    const bs = work[slotName];
+    if (!bs || bs.kind !== 'animal' || bs.animalId !== 'bear') continue;
+    const bi = SLOT.indexOf(slotName);
+    for (const ni of [bi - 1, bi + 1]) {
+      if (ni < 0 || ni >= SLOT.length) continue;
+      const ns = SLOT[ni];
+      const nb = work[ns];
+      if (nb && nb.kind === 'animal' && nb.animalId === 'salmon') {
+        work[ns] = null;
+        work[slotName] = { ...work[slotName], durationRemaining: (work[slotName].durationRemaining || 0) + 2 };
+      }
+    }
+  }
+
+  // MAIN LOOP.
+  const next = {};
+  const isUnfed = (slot, animal) => animal?.feedKey && !slot.feedReceived;
+  for (const slotName of SLOT) {
+    const slot = work[slotName];
+    if (!slot) { next[slotName] = null; continue; }
+    if (slot.kind === 'occupied') { if (next[slotName] === undefined) next[slotName] = slot; continue; }
+    if (slot.kind === 'lure') {
+      const nt = slot.turnsRemaining - 1;
+      if (nt <= 0) {
+        const animalId = resolveLureSpecies(slot, combat);
+        if (slot.card) state.discard.push({ ...slot.card });
+        combat.summons++;
+        next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
+      } else next[slotName] = { ...slot, turnsRemaining: nt };
+      continue;
+    }
+    const animal = ANIMALS[slot.animalId];
+    if (!animal) { next[slotName] = null; continue; }
+    if (!slot.eatenThisTurn && animal.attack > 0) handlerAnimalAttack(state, combat, slot, animal, 1);
+    const grant = animal.turnGrant || slot.turnGrantTemp;
+    if (grant) { if (grant.block > 0) { state.block += grant.block; combat.menagerieBlock += grant.block; } if (grant.poise > 0) state.poise += grant.poise; }
+
+    let nextDur = slot.justCombined ? slot.durationRemaining : slot.durationRemaining - 1;
+    const nextPred = (slot.predatorProgress || 0) + 1;
+    const nextAdj = (slot.adjacentSpawnProgress || 0) + 1;
+
+    // FEED GATE (Alan, 2026-06-01): the predator chain is the PAYOFF for
+    // feeding. An unfed animal never summons its predator — it just slips
+    // away on its short-stay turn. TERRITORIAL: the chain target only spawns
+    // if no animal of that species is already on the projected board.
+    const chainReady = animal.predatorChain && !isUnfed(slot, animal) && nextPred >= animal.predatorChain.turnsToTrigger;
+    const chainTargetId = animal.predatorChain && animal.predatorChain.animalId;
+    const chainTargetPresent = chainReady && SLOT.some((s) => {
+      if (s === slotName) return false;
+      const proj = (next[s] !== undefined) ? next[s] : work[s];
+      return proj && proj.kind === 'animal' && proj.animalId === chainTargetId;
+    });
+    if (chainReady && !chainTargetPresent) {
+      next[slotName] = makeAnimalSlot(animal.predatorChain.animalId, 0, slot.summonSet);
+      continue;
+    }
+    const sidx = SLOT.indexOf(slotName);
+    const hasEmptyNb = [sidx - 1, sidx + 1].some(n => {
+      if (n < 0 || n >= SLOT.length) return false;
+      const ns = SLOT[n];
+      const proj = (next[ns] !== undefined) ? next[ns] : work[ns];
+      return proj == null;
+    });
+    if (animal.adjacentSpawn && !slot.adjacentSpawned && nextAdj >= animal.adjacentSpawn.turnsToTrigger && !isUnfed(slot, animal) && hasEmptyNb) {
+      for (const n of [sidx - 1, sidx + 1]) {
+        if (n < 0 || n >= SLOT.length) continue;
+        const ns = SLOT[n];
+        const proj = (next[ns] !== undefined) ? next[ns] : work[ns];
+        if (proj == null) { const child = makeAnimalSlot(animal.adjacentSpawn.animalId, 0, slot.summonSet); child.adjacentSpawned = true; next[ns] = child; combat.summons++; }
+      }
+      nextDur = (slot.durationRemaining - 1) + (animal.adjacentSpawn.extendSelfTurns || 0);
+      if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); clearHandlerSlot(next, slot, slotName); }
+      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1 };
+      continue;
+    }
+    if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); clearHandlerSlot(next, slot, slotName); }
+    else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; clearHandlerSlot(next, slot, slotName); }
+    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, justCombined: false };
+  }
+
+  // Birds of a Feather self-exhaust at three-of-a-kind.
+  if (combat.tactic === 'feather') {
+    const counts = {};
+    for (const s of SLOT) { const sl = next[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
+    if (Object.values(counts).some(n => n >= 3)) combat.tactic = null;
+  }
+  combat.htray = { intro: next.intro ?? null, subject: next.subject ?? null, target: next.target ?? null };
+}
+function flushStagedLures(state, combat) {
+  for (const s of ['intro', 'subject', 'target']) {
+    const slot = combat.htray[s];
+    if (slot?.kind === 'lure' && slot.card) state.discard.push({ ...slot.card });
+  }
+}
+// Run a whole handler combat to completion. Returns the V2 runCombat contract:
+// { outcome, turns, telemetry, killedBy? }. Stall = 5 turns no damage dealt.
+function runHandlerCombat(state, enemy, telemetry) {
+  const fb = state.familiarBonus || {};
+  if (fb.startCombatVuln) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fb.startCombatVuln);
+  // Fresh hand each combat (discard whatever lingered, then aiTurnHandler draws).
+  state.discard = [...state.discard, ...state.hand];
+  state.hand = [];
+  const combat = {
+    enemy, fb,
+    enemyComposure: enemy.currentComp, enemyHp: enemy.currentHp, enemyBlock: 0,
+    enemyDmgMult: 1.0, playerDmgMult: 1.0,
+    enemyIntent: rollIntent(enemy), lastIntentKinds: [],
+    htray: { intro: null, subject: null, target: null },
+    tactic: null, youthUses: 0, buffetArmed: false,
+    turn: 0, handlerTicks: 0, tacticChanges: 0,
+    tacticsEngaged: {}, tacticTurns: {},
+    summons: 0, feeds: 0, shortStays: 0, combines: 0,
+    menagerieComposure: 0, menagerieBlock: 0,
+    totalDamageDealt: 0, totalDamageTaken: 0,
+  };
+
+  const flushTelemetry = (outcome) => {
+    telemetry.handlerCombats = (telemetry.handlerCombats || 0) + 1;
+    telemetry.handlerTicks += combat.handlerTicks;
+    telemetry.handlerSummons += combat.summons;
+    telemetry.handlerFeeds += combat.feeds;
+    telemetry.handlerShortStays += combat.shortStays;
+    telemetry.handlerCombines += combat.combines;
+    telemetry.handlerMenagerieComposure += combat.menagerieComposure;
+    telemetry.handlerMenagerieBlock += combat.menagerieBlock;
+    telemetry.handlerTacticChanges += combat.tacticChanges;
+    telemetry.handlerTacticVarietySum += Object.keys(combat.tacticsEngaged).length;
+    for (const id of Object.keys(combat.tacticsEngaged)) {
+      telemetry.handlerTacticEngaged[id] = (telemetry.handlerTacticEngaged[id] || 0) + combat.tacticsEngaged[id];
+    }
+    telemetry.totalDamageDealt += combat.totalDamageDealt;
+  };
+
+  let safety = MAX_COMBAT_TURNS;
+  let prevDamage = 0, zeroStreak = 0;
+  while (safety-- > 0) {
+    if (state.hp <= 0 || state.composure <= 0) { flushStagedLures(state, combat); flushTelemetry('lost'); return { outcome: 'lost', turns: combat.turn, telemetry, killedBy: enemy.id }; }
+    if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) { flushStagedLures(state, combat); flushTelemetry('won'); return { outcome: 'won', turns: combat.turn, telemetry }; }
+    aiTurnHandler(state, combat);
+    if (combat.totalDamageDealt === prevDamage) {
+      if (++zeroStreak >= 5) { flushStagedLures(state, combat); flushTelemetry('stall'); return { outcome: 'stall', turns: combat.turn, telemetry, killedBy: enemy.id }; }
+    } else { zeroStreak = 0; prevDamage = combat.totalDamageDealt; }
+  }
+  flushStagedLures(state, combat);
+  const won = combat.enemyComposure <= 0 || combat.enemyHp <= 0;
+  flushTelemetry(won ? 'won' : 'lost');
+  return { outcome: won ? 'won' : 'lost', turns: combat.turn, telemetry, killedBy: won ? undefined : enemy.id };
+}
+
 function runCombat(state, enemyId, telemetry) {
   const tmpl = ENEMIES_BY_ID[enemyId];
   if (!tmpl) throw new Error(`Unknown enemy ${enemyId}`);
-  // v3.4.44 — match App.jsx DIFFICULTY_MULT (1.25). Sim enemy comp/hp/atk
-  // scaled to mirror what the live build now spawns.
+  // v3.4.44 — match App.jsx DIFFICULTY_MULT (1.25). Sim enemy comp/hp +
+  // per-behavior attack values scaled to mirror enterFight() in App.jsx
+  // (only attack / attack-multi values scale; block / debuff values do not).
   const DIFFICULTY_MULT = 1.25;
   const scaledComp = Math.round((tmpl.comp || 0) * DIFFICULTY_MULT);
   const scaledHp = (tmpl.hp >= 900) ? tmpl.hp : Math.round((tmpl.hp || 0) * DIFFICULTY_MULT);
-  const scaledAtk = Math.max(1, Math.round((tmpl.atk || 0) * DIFFICULTY_MULT));
-  const enemy = { ...tmpl, atk: scaledAtk, comp: scaledComp, hp: scaledHp, startComp: scaledComp, currentComp: scaledComp, currentHp: scaledHp, block: 0 };
+  const scaledBehaviors = (tmpl.behaviors || []).map(b => {
+    if (b.kind === 'attack' || b.kind === 'attack-multi') {
+      return { ...b, value: Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT)) };
+    }
+    return { ...b };
+  });
+  const scaledAtk = Math.max(1, avgAttack(scaledBehaviors));
+  const enemy = { ...tmpl, atk: scaledAtk, comp: scaledComp, hp: scaledHp, behaviors: scaledBehaviors,
+    startComp: scaledComp, currentComp: scaledComp, currentHp: scaledHp, block: 0,
+    // Effectiveness starts empty: all `eff[lane] ?? 1.0` reads default to 1.0
+    // (matches the live game; only a Sway card would write here — unmodeled).
+    effectiveness: {} };
+  // Handler (Animal Summoner) runs use a wholly separate combat engine —
+  // lures → animals → tactics, no verbal tray. Branch out before any of the
+  // verbal per-combat state is initialized. enemy is already DIFFICULTY_MULT-
+  // scaled above, so the handler engine inherits the same difficulty.
+  if (state.lane === 'handler') return runHandlerCombat(state, enemy, telemetry);
+  // Roll the opening intent (the player "sees" it before their first turn,
+  // exactly as App.jsx does via setEnemyIntent(rollIntent(e)) in enterFight).
+  state.enemyIntent = rollIntent(enemy);
+  state.lastIntentKinds = [];
+  state.weaveStacks = 0; // v2.96: Hollow Weaver weave debt (wit/jnsq).
+  state.castedThisTurn = false; // set at end of each player turn; weave reads it.
   state.block = 0;
   state.poise = 0; // v2.9: composure-shield
   state.combatRolls = []; // v2.12: track chaos rolls this combat
@@ -1265,8 +1950,9 @@ function runCombat(state, enemyId, telemetry) {
           }
         }
         const hpRatio = state.maxHp > 0 ? state.hp / state.maxHp : 1;
-        const expectedSwing = enemy.atk;
-        const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+        const eidSwing = expectedIntentDamage(state, enemy);
+        const expectedSwing = eidSwing.hp + eidSwing.comp;
+        const unblockedExpected = Math.max(0, eidSwing.hp - (state.block || 0)) + Math.max(0, eidSwing.comp - (state.poise || 0));
         // v3.0: also require defense to be ACTUALLY THIN. Real humans
         // skip-chip only when defense is tight too (per-snapshot signal);
         // sim was skipping whenever the cast was small, regardless of
@@ -1551,9 +2237,11 @@ function runCombat(state, enemyId, telemetry) {
       // assembles slowly → hold rate 78-83% in sim vs ~38% in human play.
       // Emergency defense (HP <30% AND big hit incoming) still fires
       // before staging, so the sim doesn't suicide-stage when in danger.
-      const incomingMultPre = state.enemyDmgMult || 1;
-      const expectedHitPre = enemy.atk * incomingMultPre;
-      const emergencyHpHit = Math.ceil(expectedHitPre / 2);
+      // v3.5: plan emergency defense against the actual telegraphed intent.
+      // expectedIntentDamage already applies enemyDmgMult and routes by pool,
+      // so emergencyHpHit is the HP-pool damage the next intent will deal (0 if
+      // the intent is a composure attack / block / debuff).
+      const emergencyHpHit = expectedIntentDamage(state, enemy).hp;
       const hpFracForEmergency = state.hp / Math.max(1, state.maxHp);
       const emergencyDefenseNeeded = !state.enemySkipNextAttack
         && hpFracForEmergency < 0.3
@@ -1660,11 +2348,14 @@ function runCombat(state, enemyId, telemetry) {
       //   Block / Defend → HP-pool defense. Threshold: hp < 60% AND block < expected hit.
       //   Poise / Compose → composure defense. Tighter threshold since
       //     composure pool is smaller (30 vs 70 HP).
-      // v2.95: account for Vulnerable on player — incoming hit is amplified.
-      const incomingMult = state.enemyDmgMult || 1;
-      const expectedHit = enemy.atk * incomingMult;
-      const expectedHpHit = Math.ceil(expectedHit / 2);
-      const expectedCompHit = Math.ceil(expectedHit / 2);
+      // v3.5: defend against the actual telegraphed intent. expectedIntentDamage
+      // applies enemyDmgMult (Vulnerable amplification) and routes by pool, so
+      // exactly one of hp/comp is non-zero for an attack intent and both are 0
+      // for block / debuff / weave / discard intents — the AI no longer wastes
+      // defense on turns with no incoming swing.
+      const eid = expectedIntentDamage(state, enemy);
+      const expectedHpHit = eid.hp;
+      const expectedCompHit = eid.comp;
       // v2.95: if enemy attack is being skipped this turn (Talking Over Them),
       // skip all defensive plays — they'd be wasted.
       const incomingThisTurn = state.enemySkipNextAttack ? 0 : expectedHpHit;
@@ -1969,8 +2660,9 @@ function runCombat(state, enemyId, telemetry) {
           // — we still skip if we don't have a cast queued, the doubling next
           // turn is the whole reason to pause.
           const lowDamage = !targetCard || predictedNow < 0.4 * remainingPool;
-          const expectedSwing = enemy.atk;
-          const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+          const eidSwing = expectedIntentDamage(state, enemy);
+          const expectedSwing = eidSwing.hp + eidSwing.comp;
+          const unblockedExpected = Math.max(0, eidSwing.hp - (state.block || 0)) + Math.max(0, eidSwing.comp - (state.poise || 0));
           const wouldSurvive = state.hp - unblockedExpected > 0;
           if (!castNowKills && lowDamage && wouldSurvive) {
             state.energy -= c.cost || 0;
@@ -1998,8 +2690,9 @@ function runCombat(state, enemyId, telemetry) {
       if (stagIdx >= 0) {
         const c = state.hand[stagIdx];
         if ((c.cost || 0) <= state.energy) {
-          const expectedSwing = enemy.atk;
-          const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+          const eidSwing = expectedIntentDamage(state, enemy);
+          const expectedSwing = eidSwing.hp + eidSwing.comp;
+          const unblockedExpected = Math.max(0, eidSwing.hp - (state.block || 0)) + Math.max(0, eidSwing.comp - (state.poise || 0));
           const isMeaningful = unblockedExpected >= 5 || expectedSwing >= 12;
           if (isMeaningful) {
             state.energy -= c.cost || 0;
@@ -2984,8 +3677,9 @@ function runCombat(state, enemyId, telemetry) {
       if (holdOnIdx >= 0) {
         const c = state.hand[holdOnIdx];
         const lt = state.longThread || 0;
-        const expectedSwing = enemy.atk;
-        const unblockedExpected = Math.max(0, expectedSwing - (state.block || 0) - (state.poise || 0));
+        const eidSwing = expectedIntentDamage(state, enemy);
+        const expectedSwing = eidSwing.hp + eidSwing.comp;
+        const unblockedExpected = Math.max(0, eidSwing.hp - (state.block || 0)) + Math.max(0, eidSwing.comp - (state.poise || 0));
         const tougher = (enemy.tier === 'boss' || enemy.tier === 'elite');
         const worthPlaying = (
           (lt >= 2 && expectedSwing > 0) ||
@@ -3053,6 +3747,26 @@ function runCombat(state, enemyId, telemetry) {
         flushThreadPeak();
         return { outcome: 'lost', turns, killedBy: 'wontShutUp', telemetry };
       }
+    }
+
+    // v2.96: Weave debt resolution (wit/jnsq) — fires at the END of the player
+    // turn. Stacks were applied by a Hollow-Weaver-style 'weave' intent on the
+    // PREVIOUS enemy turn. If the player did not cast this turn, all stacks
+    // discharge as composure damage; either way the counter clears (a cast
+    // interrupts the weave). Mirrors App.jsx ~8791. Handler resolves weave
+    // immediately on the intent, so it never accrues stacks here.
+    state.castedThisTurn = castsThisTurn > 0;
+    if (state.lane !== 'handler' && (state.weaveStacks || 0) > 0) {
+      if (!state.castedThisTurn) {
+        const dmg = state.weaveStacks;
+        state.composure = Math.max(0, state.composure - dmg);
+        telemetry.weaveDamage = (telemetry.weaveDamage || 0) + dmg;
+        if (state.composure <= 0) {
+          flushThreadPeak();
+          return { outcome: 'lost', turns, killedBy: 'weave', telemetry };
+        }
+      }
+      state.weaveStacks = 0;
     }
 
     // Enemy turn
@@ -3126,6 +3840,79 @@ function runCombat(state, enemyId, telemetry) {
         return { outcome: 'won', turns, telemetry };
       }
     }
+    // === INTENT RESOLUTION (v3.5 — full port from App.jsx applyEnemyIntent) ===
+    // The enemy acts on the intent it telegraphed last turn (state.enemyIntent,
+    // rolled at the end of the previous enemy turn / at combat start). Attack
+    // and attack-multi feed the `incoming` damage pipeline below; block / weak /
+    // vulnerable / weave / discard-hand resolve here. Riders attached to the
+    // intent apply after the attack lands (see end of enemy turn). A fresh
+    // intent is rolled (with anti-repeat) at the end of this turn.
+    const intent = state.enemyIntent;
+    let intentIncoming = 0;
+    let intentTargetsComposure = false;
+    // Reusable debuff applicator (weak / vulnerable), shared by main-kind
+    // intents and riders. NOT LISTENING absorbs the first stack per combat;
+    // each reflectNextDebuff charge bounces one debuff back as a comp ping.
+    const applyDebuffSim = (kind, value = 1) => {
+      for (let s = 0; s < value; s++) {
+        state.enemyDebuffRolls = (state.enemyDebuffRolls || 0) + 1;
+        if (state.notListeningCharges > 0) {
+          state.notListeningCharges -= 1;
+          telemetry.notListeningAbsorbs = (telemetry.notListeningAbsorbs || 0) + 1;
+          continue;
+        }
+        if (state.reflectNextDebuff > 0) {
+          state.reflectNextDebuff -= 1;
+          enemy.currentComp = Math.max(0, enemy.currentComp - 6);
+          telemetry.passingThoughtMirrorReasoningFires = (telemetry.passingThoughtMirrorReasoningFires || 0) + 1;
+          continue;
+        }
+        state.enemyDebuffLanded = (state.enemyDebuffLanded || 0) + 1;
+        if (kind === 'weak') state.playerDmgMult = Math.max(0.5, (state.playerDmgMult || 1) - 0.25);
+        else                 state.enemyDmgMult  = Math.min(1.5, (state.enemyDmgMult  || 1) + 0.25);
+      }
+    };
+    if (intent) {
+      if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
+        const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+        intentIncoming = (intent.value || 0) * hits;
+        intentTargetsComposure = intent.pool === 'composure';
+      } else if (intent.kind === 'block') {
+        enemy.block += (intent.value || 0);
+      } else if (intent.kind === 'weak') {
+        applyDebuffSim('weak', intent.value || 1);
+      } else if (intent.kind === 'vulnerable') {
+        applyDebuffSim('vulnerable', intent.value || 1);
+      } else if (intent.kind === 'weave') {
+        // wit/jnsq: accrue stacks that fire at end of NEXT player turn if they
+        // don't cast. Handler resolves immediately (Stage B owns handler).
+        if (state.lane === 'handler') {
+          const dmg = intent.value || 1;
+          state.composure = Math.max(0, state.composure - dmg);
+          telemetry.weaveDamage = (telemetry.weaveDamage || 0) + dmg;
+        } else {
+          state.weaveStacks = (state.weaveStacks || 0) + (intent.value || 1);
+        }
+      } else if (intent.kind === 'discard-hand') {
+        // Loom Familiar — remove N cards from hand (prefer non-spell pieces),
+        // exile them. Mirrors App.jsx ~10252.
+        const requested = intent.value || 1;
+        const n = Math.min(requested, state.hand.length);
+        const isSpellPiece = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
+        let taken = 0;
+        for (let k = 0; k < n; k++) {
+          if (state.hand.length === 0) break;
+          const nonSpellIdxs = state.hand.map((c, i) => isSpellPiece(c) ? -1 : i).filter(i => i >= 0);
+          const pool = nonSpellIdxs.length > 0 ? nonSpellIdxs : state.hand.map((_, i) => i);
+          const pickedIdx = pool[Math.floor(rnd() * pool.length)];
+          state.exiled.push(state.hand[pickedIdx]);
+          state.hand.splice(pickedIdx, 1);
+          taken++;
+        }
+        if (taken > 0) telemetry.discardHandStolen = (telemetry.discardHandStolen || 0) + taken;
+      }
+    }
+
     // v2.93: D-1 (Talking Over Them) — colorless flag that zeroes the
     // next enemy attack. We let the rest of the turn flow run (drift,
     // bracing capture, etc.) with incoming=0 so the math chain stays
@@ -3139,14 +3926,14 @@ function runCombat(state, enemyId, telemetry) {
       // is dealt to the enemy as composure damage.
       if (state.skipAndReturnArmed) {
         state.skipAndReturnArmed = false;
-        const returned = Math.round((enemy.atk || 0) * (state.enemyDmgMult || 1));
+        const returned = Math.round((intentIncoming || 0) * (state.enemyDmgMult || 1));
         if (returned > 0) {
           enemy.currentComp = Math.max(0, enemy.currentComp - returned);
           telemetry.skipAndReturnDamage = (telemetry.skipAndReturnDamage || 0) + returned;
         }
       }
     }
-    let incoming = attackSkipped ? 0 : enemy.atk;
+    let incoming = attackSkipped ? 0 : intentIncoming;
     // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
     // turn adds +1 to enemy raw damage. Tracked for telemetry so the cost
     // side is visible in reports.
@@ -3236,63 +4023,24 @@ function runCombat(state, enemyId, telemetry) {
     if (state.enemyDmgMult < 1.0) state.enemyDmgMult = Math.min(1.0, state.enemyDmgMult + 0.25);
     if (state.playerDmgMult > 1.0) state.playerDmgMult = Math.max(1.0, state.playerDmgMult - 0.25);
     if (state.playerDmgMult < 1.0) state.playerDmgMult = Math.min(1.0, state.playerDmgMult + 0.25);
-    // v2.32: Enemy-debuff sampler. The App's intent pool includes Weak/Vuln
-    // intents and riders on attacks; this sim's composite-atk model collapses
-    // intents to a flat damage roll, so we approximate per-turn debuff
-    // application with a stochastic check. Rates calibrated to roughly match
-    // the App's intent distribution but kept conservative — the sim's
-    // per-turn drift already pulls multipliers back toward 1.0 each turn, so
-    // we don't want compounding pressure that the actual App fight wouldn't
-    // produce. Higher rates on boss/elite mirror their richer intent pools.
-    {
-      const dbTier = (enemy.tier === 'boss' ? 1.4 : enemy.tier === 'elite' ? 1.2 : 1.0);
-      const weakChance = 0.06 * dbTier;
-      const vulnChance = 0.04 * dbTier;
-      const weakRoll = rnd() < weakChance;
-      const vulnRoll = rnd() < vulnChance;
-      // Helper: try to apply one debuff stack, with NOT LISTENING absorbing the
-      // first hit per combat. Tracks telemetry on both attempts and absorbs.
-      const tryApply = (kind) => {
-        state.enemyDebuffRolls += 1;
-        if (state.notListeningCharges > 0) {
-          state.notListeningCharges -= 1;
-          telemetry.notListeningAbsorbs = (telemetry.notListeningAbsorbs || 0) + 1;
-          return; // absorbed — no debuff applied
-        }
-        // v2.93 D-2 (Mirror Reasoning): each reflectNextDebuff charge bounces
-        // ONE debuff back as a comp ping and consumes the charge. The debuff
-        // does NOT land on the player.
-        if (state.reflectNextDebuff > 0) {
-          state.reflectNextDebuff -= 1;
-          const ping = 6;
-          enemy.currentComp = Math.max(0, enemy.currentComp - ping);
-          telemetry.passingThoughtMirrorReasoningFires = (telemetry.passingThoughtMirrorReasoningFires || 0) + 1;
-          return;
-        }
-        state.enemyDebuffLanded += 1;
-        if (kind === 'weak') {
-          state.playerDmgMult = Math.max(0.5, (state.playerDmgMult || 1) - 0.25);
-        } else {
-          state.enemyDmgMult = Math.min(1.5, (state.enemyDmgMult || 1) + 0.25);
-        }
-      };
-      if (weakRoll) tryApply('weak');
-      if (vulnRoll) tryApply('vulnerable');
-    }
+    // v3.5: weak/vuln are now driven by real intents (resolved above) + riders
+    // (resolved at end of enemy turn), not a stochastic sampler. The old
+    // per-turn debuff-roll approximation was removed with the intent port.
     incoming = Math.round(incoming * (state.enemyDmgMult || 1));
-    // v2.9: dual-shield routing. Half the incoming is composure (mental
-    // attacks), half is physical. Each is absorbed by its own shield —
-    // a player who built only physical block has zero defense against
-    // the composure half, and vice versa. Forces dual management.
-    let compIncoming = Math.ceil(incoming / 2);
-    let hpIncoming = incoming - compIncoming;
-    // Poise absorbs composure half.
-    if (state.poise > 0) {
+    // v3.5: pool routing (faithful to App.jsx applyEnemyIntent). A composure-
+    // pool attack hits the composure pool, soaked by POISE; any other attack
+    // hits HP, soaked by BLOCK. The two defenses are separate — a player who
+    // built only physical block has no answer to a composure threat, and vice
+    // versa. (Replaces the old 50/50 split, which blurred this distinction.)
+    let compIncoming = intentTargetsComposure ? incoming : 0;
+    let hpIncoming = intentTargetsComposure ? 0 : incoming;
+    // Poise absorbs the composure pool.
+    if (state.poise > 0 && compIncoming > 0) {
       const absorbed = Math.min(state.poise, compIncoming);
       state.poise -= absorbed; compIncoming -= absorbed;
     }
-    // Block absorbs HP half.
-    if (state.block > 0) {
+    // Block absorbs the HP pool.
+    if (state.block > 0 && hpIncoming > 0) {
       const absorbed = Math.min(state.block, hpIncoming);
       state.block -= absorbed; hpIncoming -= absorbed;
     }
@@ -3400,6 +4148,29 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.passingThoughtBracingFires = (telemetry.passingThoughtBracingFires || 0) + 1;
       }
     }
+    // v3.5: intent riders — a combo intent can attach extra side-effects that
+    // fire AFTER the main effect. Keys: weak (player potency down), vulnerable
+    // (player damage taken up), block (enemy gains block). NOT LISTENING absorbs
+    // the first debuff via applyDebuffSim. Mirrors App.jsx ~10344. (The player
+    // already survived the attack above; riders never deal player damage, so
+    // running them post-KO-check is safe.)
+    if (intent && intent.riders) {
+      const r = intent.riders;
+      if (r.weak)       applyDebuffSim('weak', r.weak);
+      if (r.vulnerable) applyDebuffSim('vulnerable', r.vulnerable);
+      if (r.block)      enemy.block += r.block;
+    }
+    // v3.5: roll the NEXT intent (telegraphed for the upcoming player turn),
+    // with anti-repeat over the last 2 kinds — mirrors App.jsx's lastIntentKinds
+    // window. rollIntent falls back to the full pool if the filter empties it.
+    {
+      const justFired = intent?.kind;
+      state.lastIntentKinds = justFired
+        ? [...(state.lastIntentKinds || []), justFired].slice(-2)
+        : (state.lastIntentKinds || []);
+      state.enemyIntent = rollIntent(enemy, state.lastIntentKinds);
+    }
+
     // End-of-turn cleanup
     state.discard.push(...state.hand);
     state.hand = [];
@@ -3588,7 +4359,52 @@ const DEFENSE_REWARDS = [
   { id: 'c-steady', type: 'skill', cost: 1, effects: { poise: 7 }, name: 'Steady Breath' },
 ];
 
+// Handler reward draft. Samples 3 distinct cards from HANDLER_REWARD_POOL and
+// picks one, biased toward TACTIC VARIETY + burst tools for boss fights.
+function aiPickHandlerReward(state) {
+  const owned = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+  const ownedIds = new Set(owned.map(c => c.id));
+  const ownedTactics = new Set(owned.filter(c => c.type === 'tactic').map(c => c.id));
+  const ownedCounts = {};
+  for (const c of owned) ownedCounts[c.id] = (ownedCounts[c.id] || 0) + 1;
+  const pool = shuffle(HANDLER_REWARD_POOL.slice());
+  const candidates = [];
+  for (const id of pool) {
+    if (candidates.length >= 3) break;
+    candidates.push(HANDLER_CARDS_BY_ID[id]);
+  }
+  const ownedLureCount = owned.filter(c => c.type === 'lure').length;
+  function score(card) {
+    let s = 0;
+    if (card.type === 'tactic') {
+      s += ownedTactics.has(card.id) ? 3 : 14;
+    } else if (card.type === 'lure') {
+      s += ownedIds.has(card.id) ? 4 : 9;
+      if (ownedLureCount < 3) s += 8;
+      else if (card.id === 'cv2-l-tender-greens' && (ownedCounts[card.id] || 0) < 3) s += 4;
+    } else if (card.util === 'onThree') {
+      s += ownedIds.has(card.id) ? 5 : 12;
+    } else {
+      s += 6;
+    }
+    if (card.rarity === 'uncommon') s += 2;
+    return s;
+  }
+  const best = candidates.reduce((b, c) => (!b || score(c) > score(b.card) ? { card: c, sc: score(c) } : b), null);
+  return best ? best.card : null;
+}
+
 function awardReward(state) {
+  // Handler (Animal Summoner) drafts from its own pool, biased to tactic
+  // variety + boss-burst tools. No verbal word-pool draft applies.
+  if (state.lane === 'handler') {
+    const card = aiPickHandlerReward(state);
+    if (card) {
+      state.discard.push({ ...card, uid: uid() });
+      state.rewardsTaken.push(card.id);
+    }
+    return;
+  }
   // Count defense cards in current deck.
   const allCards = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
   const blockCount = allCards.filter(c => c.id === 'c-defend' || c.id === 'c-mend').length;
@@ -4053,7 +4869,7 @@ const SIM_FAMILIARS = [
 ];
 
 function simRun(forcedLane = null) {
-  const lane = forcedLane || pickRandom(['wit', 'handler', 'jnsq']);
+  const lane = forcedLane || pickRandom(['wit', 'handler']);
   const familiar = pickRandom(SIM_FAMILIARS);
   const fb = familiar.bonus || {};
   const maxHp = STARTING_MAX_HP + (fb.maxHpBonus || 0);
@@ -4237,6 +5053,18 @@ function simRun(forcedLane = null) {
     // resolved one in combat.
     passingThoughtGrants: 0,
     passingThoughtPlays: 0,
+    // Handler (Animal Summoner) telemetry — accumulated in runHandlerCombat.
+    handlerCombats: 0,
+    handlerTicks: 0,
+    handlerSummons: 0,
+    handlerFeeds: 0,
+    handlerShortStays: 0,
+    handlerCombines: 0,
+    handlerMenagerieComposure: 0,
+    handlerMenagerieBlock: 0,
+    handlerTacticChanges: 0,
+    handlerTacticVarietySum: 0,
+    handlerTacticEngaged: {},
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -4355,6 +5183,22 @@ function aggregate(results) {
     tier1Casts: results.reduce((s, r) => s + (r.tier1Casts || 0), 0),
     tier2Casts: results.reduce((s, r) => s + (r.tier2Casts || 0), 0),
     tier3Casts: results.reduce((s, r) => s + (r.tier3Casts || 0), 0),
+    // Handler (Animal Summoner) metrics.
+    handlerRuns: results.filter(r => r.lane === 'handler').length,
+    handlerWins: results.filter(r => r.lane === 'handler' && r.outcome === 'won').length,
+    handlerCombats: results.reduce((s, r) => s + (r.handlerCombats || 0), 0),
+    handlerSummons: results.reduce((s, r) => s + (r.handlerSummons || 0), 0),
+    handlerFeeds: results.reduce((s, r) => s + (r.handlerFeeds || 0), 0),
+    handlerShortStays: results.reduce((s, r) => s + (r.handlerShortStays || 0), 0),
+    handlerCombines: results.reduce((s, r) => s + (r.handlerCombines || 0), 0),
+    handlerMenagerieComposure: results.reduce((s, r) => s + (r.handlerMenagerieComposure || 0), 0),
+    handlerMenagerieBlock: results.reduce((s, r) => s + (r.handlerMenagerieBlock || 0), 0),
+    handlerTacticChanges: results.reduce((s, r) => s + (r.handlerTacticChanges || 0), 0),
+    handlerTacticVarietySum: results.reduce((s, r) => s + (r.handlerTacticVarietySum || 0), 0),
+    handlerTacticEngaged: results.reduce((acc, r) => {
+      for (const [id, n] of Object.entries(r.handlerTacticEngaged || {})) acc[id] = (acc[id] || 0) + n;
+      return acc;
+    }, {}),
     // v2.24: tunnel-vision / rage metrics.
     rageTriggers: results.reduce((s, r) => s + (r.rageTriggers || 0), 0),
     rageTriggerRuns: results.filter(r => (r.rageTriggers || 0) > 0).length,
@@ -4573,48 +5417,19 @@ function buildReport(agg) {
   lines.push(`- Tier 3 (DEVASTATING): ${agg.tier3Casts} (${pct(agg.tier3Casts/tot)})`);
   lines.push(`- Holds (turn ended without cast — tray persists): ${agg.totalHolds} (${pct(agg.totalHolds / (agg.totalCasts + agg.totalHolds))})`);
   lines.push('');
-  lines.push(`## Handler TUNNEL VISION (v2.24)`);
-  lines.push(`- Total RAGE triggers: ${agg.rageTriggers}`);
-  lines.push(`- Runs with at least one RAGE turn: ${agg.rageTriggerRuns} / ${agg.N} (${pct(agg.rageTriggerRuns / agg.N)})`);
-  lines.push(`- Bare Knuckles casts: ${agg.bareKnucklesCasts} (misfires: ${agg.bareKnucklesMisfires})`);
-  lines.push('');
-  lines.push(`## Handler DOUBLING DOWN (v2.25)`);
-  lines.push(`- Total double-down casts: ${agg.doubleDownCasts}`);
-  lines.push(`- Runs with at least one double-down cast: ${agg.doubleDownRuns} / ${agg.N} (${pct(agg.doubleDownRuns / agg.N)})`);
-  lines.push(`- Corner-token bills (enemy survived → -HP): ${agg.cornerTokenBills}`);
-  lines.push(`- HP lost to corner-tokens: ${agg.cornerTokenDamage}`);
-  lines.push(`- Runs KO'd by corner-tokens: ${agg.cornerTokenKOs}`);
-  lines.push('');
-  lines.push(`## Handler STORMING OUT (v2.26)`);
-  lines.push(`- Storm Out casts: ${agg.stormOutCasts} (avg energy spent: ${agg.stormOutCasts > 0 ? (agg.stormOutEnergySpent / agg.stormOutCasts).toFixed(2) : '0.00'})`);
-  lines.push(`- Runs with at least one Storm Out: ${agg.stormOutRuns} / ${agg.N} (${pct(agg.stormOutRuns / agg.N)})`);
-  lines.push('');
-  lines.push(`## Handler HIT ME AGAIN (v2.27)`);
-  lines.push(`- Hit Me Again installs: ${agg.hitMeAgainInstalls} (runs: ${agg.hitMeAgainInstallRuns} / ${agg.N}, ${pct(agg.hitMeAgainInstallRuns / agg.N)})`);
-  lines.push(`- Total recoil damage to enemies: ${agg.hitMeAgainRecoilTotal}`);
-  lines.push(`- Enemies killed by their own recoil: ${agg.hitMeAgainKills}`);
-  lines.push(`- Avg recoil per install: ${agg.hitMeAgainInstalls > 0 ? (agg.hitMeAgainRecoilTotal / agg.hitMeAgainInstalls).toFixed(1) : '0.0'}`);
-  lines.push('');
-  lines.push(`## Handler SAYING IT LOUDER (v2.29)`);
-  lines.push(`- "I SAID." casts: ${agg.iSaidCasts} (runs: ${agg.iSaidRuns} / ${agg.N}, ${pct(agg.iSaidRuns / agg.N)})`);
-  lines.push(`- Avg loudCount per cast: ${agg.iSaidCasts > 0 ? (agg.loudCountSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
-  lines.push(`- Avg bonus damage per cast: ${agg.iSaidCasts > 0 ? (agg.loudBonusSum / agg.iSaidCasts).toFixed(2) : '0.00'}`);
-  lines.push(`- Total bonus damage from louder: ${agg.loudBonusSum}`);
-  lines.push('');
-  lines.push(`## Handler SMELL WEAKNESS (v2.30)`);
-  lines.push(`- Predator triggers (cast hit while enemy debuffed): ${agg.predatorTriggers} (runs: ${agg.predatorRuns} / ${agg.N}, ${pct(agg.predatorRuns / agg.N)})`);
-  lines.push(`- Total bonus damage from predator: ${agg.predatorBonusTotal}`);
-  lines.push(`- Avg bonus per trigger: ${agg.predatorTriggers > 0 ? (agg.predatorBonusTotal / agg.predatorTriggers).toFixed(2) : '0.00'}`);
-  lines.push('');
-  lines.push(`## Handler SYNERGY CAPSTONE — "AND I'M NOT DONE." (v2.31)`);
-  lines.push(`- Capstone casts: ${agg.andImNotDoneCasts} (runs: ${agg.andImNotDoneRuns} / ${agg.N}, ${pct(agg.andImNotDoneRuns / agg.N)})`);
-  lines.push(`- Total capstone damage: ${agg.andImNotDoneTotalDamage}`);
-  lines.push(`- Avg damage per capstone cast: ${agg.andImNotDoneCasts > 0 ? (agg.andImNotDoneTotalDamage / agg.andImNotDoneCasts).toFixed(2) : '0.00'}`);
-  lines.push('');
-  lines.push(`## Handler NOT LISTENING — "Sorry — what?" SKILL (v2.33)`);
-  lines.push(`- Skill casts: ${agg.notListeningSkillCasts} (runs: ${agg.notListeningSkillRuns} / ${agg.N}, ${pct(agg.notListeningSkillRuns / agg.N)})`);
-  lines.push(`- Total debuff absorbs: ${agg.notListeningAbsorbs}`);
-  lines.push(`- Avg absorbs per skill cast: ${agg.notListeningSkillCasts > 0 ? (agg.notListeningAbsorbs / agg.notListeningSkillCasts).toFixed(2) : '0.00'}`);
+  lines.push(`## Handler ANIMAL SUMMONER (consolidated 2026-06-01)`);
+  lines.push(`- Handler runs: ${agg.handlerRuns} · ${agg.handlerWins} wins (${agg.handlerRuns ? pct(agg.handlerWins / agg.handlerRuns) : '0.0%'})`);
+  lines.push(`- Combats fought: ${agg.handlerCombats}`);
+  lines.push(`- Summons: ${agg.handlerSummons} · feeds: ${agg.handlerFeeds} · short-stays (unfed left early): ${agg.handlerShortStays} · combines: ${agg.handlerCombines}`);
+  lines.push(`- Menagerie composure dealt: ${agg.handlerMenagerieComposure} · block generated: ${agg.handlerMenagerieBlock}`);
+  lines.push(`- Avg summons/combat: ${agg.handlerCombats ? (agg.handlerSummons / agg.handlerCombats).toFixed(2) : '0.00'} · avg feeds/combat: ${agg.handlerCombats ? (agg.handlerFeeds / agg.handlerCombats).toFixed(2) : '0.00'}`);
+  lines.push(`- Tactic changes: ${agg.handlerTacticChanges} · avg distinct tactics/combat: ${agg.handlerCombats ? (agg.handlerTacticVarietySum / agg.handlerCombats).toFixed(2) : '0.00'}`);
+  {
+    const te = agg.handlerTacticEngaged || {};
+    const order = ['shield', 'rabid', 'youth', 'nurture', 'feather'];
+    const parts = order.map(id => `${id} ${te[id] || 0}`);
+    lines.push(`- Tactic engagement: ${parts.join(' · ')}`);
+  }
   lines.push('');
   lines.push(`## Wit LONG THREAD (v2.34)`);
   lines.push(`- Combats reaching LT ≥ 1: ${agg.combatsWithThread} (runs: ${agg.threadRuns} / ${agg.N}, ${pct(agg.threadRuns / agg.N)})`);
@@ -4777,14 +5592,14 @@ if (isMain) {
   const N = parseInt(process.argv[2] || '50', 10);
   // v2.12: optional lane filter as 3rd arg (--lane=wit or just `wit`).
   const laneArg = (process.argv[3] || '').replace(/^--lane=/, '').toLowerCase();
-  const forcedLane = ['wit', 'handler', 'jnsq'].includes(laneArg) ? laneArg : null;
+  const forcedLane = ['wit', 'handler'].includes(laneArg) ? laneArg : null;
   console.log(`Running ${N} v2 playtests${forcedLane ? ` (lane=${forcedLane})` : ''}…`);
   const results = [];
   // v2.53: when no lane filter is supplied, force ROUND-ROBIN across the
   // three lanes so the aggregate report has balanced per-lane telemetry
   // (previously the random picker would skew the distribution and dilute
   // per-lane signal — handler/wit cards' triggers got under-counted).
-  const LANE_ROTATION = ['handler', 'wit', 'jnsq'];
+  const LANE_ROTATION = ['handler', 'wit'];
   for (let i = 0; i < N; i++) {
     const lane = forcedLane || LANE_ROTATION[i % LANE_ROTATION.length];
     results.push(simRun(lane));

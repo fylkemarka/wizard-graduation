@@ -47,6 +47,8 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_S
 // the new direction. FFT system is wit-only.
 import { HANDLER_V2, HANDLER_V2_BY_SLOT } from './cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
+import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
+import { ANIMALS } from './data/animals.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
 import { CardFullBody } from './components/CardFullBody.jsx';
 import { CombatScreen } from './components/CombatScreen.jsx';
@@ -192,15 +194,6 @@ const CARDS = [
     upgrade: { effects: { heal: 8, boostNextHandlerCast: 0.5, exhaust: true } },
     desc: 'Heal 5 HP. Your next Handler Effect this turn deals +50% damage. Exhaust.',
     flavor: 'You\'ve digested worse. You\'ll digest this.' },
-  // Cycle 3: resistance-pierce tech card. The committed deck's answer
-  // to a hostile matchup — your next Effect ignores the enemy's
-  // effectiveness multiplier on the relevant stat. Composure damage only.
-  // One-shot per turn, exhausts.
-  { id: 'c-read-the-room', name: 'Read the Room', cost: 0, type: 'skill', rarity: 'uncommon',
-    effects: { pierceNextCast: true, exhaust: true },
-    upgrade: { effects: { pierceNextCast: true, draw: 1, exhaust: true } },
-    desc: 'Your next Effect this turn ignores enemy resistance. Exhaust.',
-    flavor: 'You speak their language, briefly. They flinch in it.' },
   // v2.97: defensive variants (universal). Three options that each force a
   // different "how to spend my defense energy" decision. Brace rewards
   // safe turns; Reframe trades incoming HP for incoming Composure;
@@ -935,472 +928,8 @@ const STARTER_DECK = buildStarterDeckForLane('wit');
 //   effectiveness — multiplier per stat. 1.0 = baseline. 0 = HARD immune
 //                   (a Lich does not laugh). Values >1 = susceptible.
 // behaviors[*]: { kind, value, weight, telegraph, count? } — unchanged.
-const ENEMIES = [
-  // ===== ACT 3 — The Staff Path (the deep forest, final act) =====
-  { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 25, hpMax: 18, tier: 'normal',
-    softSpot: 'logic', // Wants someone to explain what they're doing here.
-    behaviors: [
-      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
-      { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
-      { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
-    ] },
-  { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 23, hpMax: 999, tier: 'normal',
-    // v2.4: handler 0.7 → 1.0 (less hostile to handler in act 1).
-    softSpot: 'threat', // Bullies fold the moment you don't.
-    behaviors: [
-      { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
-      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
-    ] },
-  { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 20, hpMax: 12, tier: 'normal',
-    // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
-    // partly because Shrine Rat and Thicket were freebies for it.
-    softSpot: 'threat', // Bigger predator energy = scatter.
-    behaviors: [
-      { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
-      { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
-      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 (lunging)' },
-    ] },
-  // v2.17: rogue wizard — was about to claim his staff. Got too close
-  // to the work. The staff turned him to wood. He is, the records will
-  // show, both. The bureaucracy is unclear on the matter.
-  { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather (recently inanimate)',
-    composureMax: 45, hpMax: 32, tier: 'normal',
-    // failure mode: mystical mishap (transformation). Handler 0.6 —
-    // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
-    // wound. Physical 1.0 — he is also wood, axe him.
-    softSpot: 'logic', // Point out that he is a staff. He is, technically, aware.
-    behaviors: [
-      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (the staff turns)' },
-      { kind: 'block',  value: 9, weight: 1, telegraph: '🛡 9 (knots tighten)' },
-      { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (the staff insists)' },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
-    ] },
-  { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 40, hpMax: 999, tier: 'elite',
-    softSpot: 'logic', // Will argue the methodology over the outcome.
-    behaviors: [
-      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
-      { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (cutting remark)' },
-    ] },
-  { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 69, hpMax: 38, tier: 'elite',
-    // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
-    // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
-    softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
-    behaviors: [
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
-      { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
-      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
-    ] },
-  { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 119, hpMax: 115, tier: 'boss',
-    // v2.16: was killing 182/500 handler runs. First pass 0.7→0.85
-    // overcorrected (handler jumped to 41%). Settled at 0.75: still
-    // a handler-hostile boss, just not a trap.
-    softSpot: 'flattery', // Apex predator; flatter the apex.
-    insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
-    behaviors: [
-      { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
-      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (bramble-whisper)' },
-    ] },
-
-  // ===== ACT 1 — The Thread Path (the countryside) =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
-    softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
-    // v2.96: signature mechanic = Weave debt. Each "weave" intent stacks
-    // +N on the player; ending a turn without casting fires ALL stacks as
-    // composure damage and clears. Forces "cast something every turn" —
-    // chip-cast skipping gets punished hard. Standard attacks alternate
-    // with weave intents so the player must defend AND keep the pressure on.
-    behaviors: [
-      { kind: 'weave', value: 2, weight: 3, telegraph: '🪡 Weave +2 (fires as 🎭 if you don\'t cast)' },
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
-      { kind: 'attack', value: 4, pool: 'composure', weight: 1, telegraph: '🎭 4 (half-thought)' },
-    ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 25, hpMax: 999, tier: 'normal',
-    softSpot: 'confusion', // Already half-there. Push it further.
-    behaviors: [
-      // v2.9.2: silk-thread cuts now hit harder + composure-pool option.
-      { kind: 'attack-multi', value: 4, count: 3, weight: 3, telegraph: '⚔ 4×3' },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (silken whisper)' },
-      { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
-      { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
-    ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
-    softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
-    // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
-    // into your hand and pulls a card it "needs to weave with." Forces
-    // hand-management: do you play your key spell pieces this turn or
-    // risk losing them? Lower base attack values to compensate — the
-    // card-loss IS the pressure.
-    behaviors: [
-      // v3.1.2: weight 3 → 2. 37.5% discard rate was locking wit players
-      // out of casts (they only carry 1 of each intro/subject/target;
-      // losing one to a random pull means no cast that cycle until
-      // reshuffle). Now ~25% per turn, paired with the smarter target
-      // filter (prefers utility cards over spell pieces).
-      { kind: 'discard-hand', value: 1, weight: 2, telegraph: '🗑 takes 1 from your hand' },
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
-      { kind: 'attack', value: 4, weight: 2, telegraph: '⚔ 4 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
-      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (lonely-thread)' },
-    ] },
-  // v2.17: ROGUE WIZARDS — first wave. Failed-graduate wizards still
-  // working at their craft, refusing to come back. Names follow the
-  // Pratchett-tone with parenthetical bureaucratic annotations.
-  { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
-    composureMax: 28, hpMax: 999, tier: 'normal',
-    // failure mode: refusal. 50 years on the same hem. Wit can't
-    // out-argue him (heard every version); jnsq breaks his focus.
-    softSpot: 'confusion',
-    behaviors: [
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1 (stitch, weakly)', riders: { weak: 1 } },
-      { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (murmuring about the hem)' },
-      { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (measures, again)' },
-      { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
-    ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 50, hpMax: 999, tier: 'elite',
-    softSpot: 'confusion', // Patterns hate exceptions.
-    behaviors: [
-      // v3.4.53 (Alan: "Pattern-Maker hits too hard, BARELY beat it"). With
-      // the global 1.25× scalar, base 15 → 19 HP burst and 4×3 → 5×3 = 15
-      // HP attack-multi were spiking past the basic Defend ceiling.
-      // Bursts dialed down: 15 → 12 (scales to 15), 4×3 → 3×3 (scales to
-      // 4×3 = 12). 11 + Vuln untouched (14 with vuln is still real).
-      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
-      { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (pattern-wrong)' },
-      // v3.4.80 (Alan: "Pattern Maker hits way too hard on composure").
-      // 13 → 9 (post-scalar 11). Still the highest single-hit composure
-      // attack in the game; next-highest enemy is 8 (post-scalar 10). The
-      // pre-fix 13 scaled to 16 — over half the baseline 30 composure pool
-      // in one telegraph, which read as one-shot territory.
-      { kind: 'attack', value: 9, pool: 'composure', weight: 1, telegraph: '🎭 9 (PATTERN COMPLETE)' },
-      // HP-side burst — the pattern lashes out physically.
-      { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
-    ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
-    softSpot: 'threat', // The vow of silence has limits.
-    behaviors: [
-      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 8,  weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      // v2.9 burst — telegraphed big swing to HP. "Loud silence" is a
-      // breaking-of-the-vow moment.
-      { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
-    ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 69, hpMax: 999, tier: 'boss',
-    softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
-    insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
-    behaviors: [
-      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
-      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (loom-song)' },
-      { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
-    ] },
-
-  // ===== ACT 2 — The Forge Path (the mines and caves) =====
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 28, hpMax: 12, tier: 'normal',
-    // v2.4: sharpened from flat-low to handler-favored. Geodes hate
-    // being loomed over; jnsq just makes them weirder.
-    softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
-    behaviors: [
-      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
-      { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
-      { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
-    ] },
-  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 23, hpMax: 14, tier: 'normal',
-    softSpot: 'confusion', // A swarm of small minds is easily scattered.
-    behaviors: [
-      { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
-      { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
-    ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 28, hpMax: 12, tier: 'normal',
-    // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
-    softSpot: 'threat', // Slow, certain, intimidatable.
-    behaviors: [
-      { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
-      { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
-      { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (carapace)' },
-    ] },
-  // v2.17: rogue wizard — handler-punisher. Tried to forge a ring of
-  // three metals; the ring forged him. The metal absorbs direct threat.
-  { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C. (alloyed)',
-    composureMax: 33, hpMax: 14, tier: 'normal',
-    // failure mode: transformation. Handler resist 0.6 — you can't
-    // bully someone whose identity is partly an iron ring. Jnsq 1.3
-    // because absurdity disrupts the alloy. Physical 1.0 — he is, after
-    // all, also metal.
-    softSpot: 'confusion',
-    behaviors: [
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (alloyed strike)' },
-      { kind: 'block',  value: 7, weight: 2, telegraph: '🛡 7 + ⛧ Weak 1 (the ring sets)', riders: { weak: 1 } },
-      { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9 (the ring tells him to)' },
-      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (the alloy hums)' },
-    ] },
-  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 35, hpMax: 22, tier: 'elite',
-    // v2.4: sharpened to wit-favored. Constructs answer to logic.
-    softSpot: 'logic', // Constructs respond to the logic they were built with.
-    behaviors: [
-      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
-      { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (axiom-strike)' },
-      // v2.9 burst — single-pool HP hammer.
-      { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (RULING)' },
-    ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 57, hpMax: 28, tier: 'elite',
-    // v2.4: handler-favored. The Devourer responds to direct threat
-    // (Walter punches it, it backs off); evades wit and jnsq.
-    softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
-    insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
-    behaviors: [
-      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
-      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 + ⛧ Weak 1', riders: { weak: 1 } },
-      // v2.9 burst — the Devourer's "DEVOUR" is a 1-shot KO risk.
-      { kind: 'attack', value: 18, weight: 1, telegraph: '⚔ 18 (DEVOUR)' },
-    ] },
-  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 63, hpMax: 50, tier: 'boss',
-    // v2.4: Anvil flipped from handler-resist to handler-favored. It's
-    // a forging boss — it understands direct demands. Jnsq is now the
-    // softer side (0.7); wit stays neutral.
-    softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
-    insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
-    behaviors: [
-      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
-      { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (hammer-rhythm)' },
-    ] },
-
-  // ===== TUTORIAL =====
-  // Low-stakes practice partner. All-baseline effectiveness so the
-  // player sees clean numbers. Light incoming damage so they learn
-  // Block without ever being in danger.
-  // ===== SIDEQUEST ENEMIES — gated by sidequest combat nodes =====
-  { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 75, hpMax: 999, tier: 'elite',
-    softSpot: 'logic',
-    insultVulnerabilities: ['dismissive', 'absurd'], // Pedant; absurdity destabilizes him most.
-    behaviors: [
-      { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (citing 1894 paper)', riders: { vulnerable: 1 } },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (clearing throat audibly)' },
-      { kind: 'weak', value: 1, weight: 2, telegraph: '⛧ Weak 1 (sighs at your argument)' },
-      { kind: 'block', value: 12, weight: 1, telegraph: '🛡 12 (citing himself)' },
-    ] },
-
-  { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 30, hpMax: 999, tier: 'normal',
-    softSpot: 'logic',
-    behaviors: [
-      { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (gentle)' },
-      { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
-    ] },
-];
-const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
-
-// ─────────────────────────────────────────────────────────────────────
-// ANIMALS — Handler Animal Summoner engine (slice 1, 2026-05-31)
-// ─────────────────────────────────────────────────────────────────────
-// Animals are summoned entities, not cards. They occupy a stage slot for
-// `duration` turns and attack at end of each player turn.
-//
-// Slot lifecycle:
-//   1. Player stages a LURE card in a slot. Slot becomes
-//      { kind: 'lure', card, turnsRemaining, animalId }.
-//   2. At end of each player turn, lure.turnsRemaining decrements. When it
-//      reaches 0, the lure transforms into an animal in that same slot:
-//      { kind: 'animal', animalId, durationRemaining, predatorProgress }.
-//   3. At end of each player turn, animal attacks the enemy (deals
-//      `attack` to `attackPool`), then duration decrements. When the
-//      animal's duration hits 0, the slot empties.
-//   4. PREDATOR CHAIN: if the animal has a `predatorChain`, predatorProgress
-//      increments at end-of-turn. When it reaches `turnsToTrigger`, the
-//      animal transforms into the predator (fresh duration).
-//
-// Slice-1 deferred: enemies attacking staged cards, three-of-a-kind, mixed
-// combos, adjacency restrictions, treats. See memory:
-// project_wg_chutzpah_animal_summoner for full design notes.
-const ANIMALS = {
-  salmon: {
-    name: 'Salmon',
-    icon: '🐟',
-    // No attack, no defense — the salmon flops. Its job is to wait. The
-    // predator chain (see hidden field below) is the payoff for patience;
-    // surfaced ONLY when the bear actually arrives, not on the card or
-    // the slot pill. Discovery is the design.
-    attack: 0,
-    attackPool: 'composure',
-    duration: 3,
-    feedKey: 'fish',
-    predatorChain: { animalId: 'bear', turnsToTrigger: 2 },
-    hidePredatorChain: true,
-    flavor: 'Flops with surprising authority.',
-    desc: 'Flops. Does nothing. Waits.',
-    // T2 upgrade: bear arrives one turn faster.
-    upgrade: { predatorChain: { animalId: 'bear', turnsToTrigger: 1 } },
-  },
-  sparrow: {
-    name: 'Sparrow',
-    icon: '🐦',
-    attack: 5,
-    attackPool: 'composure',
-    duration: 2,
-    feedKey: 'bird',
-    flavor: "Pecks like it's making a point.",
-    desc: 'Attacks for 5 composure each turn for 2 turns.',
-    upgrade: { attack: 7, duration: 3 },
-  },
-  'field-mouse': {
-    name: 'Field Mouse',
-    icon: '🐭',
-    attack: 2,
-    attackPool: 'composure',
-    duration: 3,
-    feedKey: 'small-land',
-    onAttack: { draw: 1 },
-    onExit: { block: 3, healComp: 2 },
-    flavor: 'A small contribution. Steady.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block and +2 Composure on exit.',
-    upgrade: { attack: 3, onExit: { block: 5, healComp: 3 } },
-    elite: 'mecha-mouse', // 3.5% chance at summon
-  },
-  // Elite (3.5% summon chance) — 50% better numbers on every effect.
-  'mecha-mouse': {
-    name: 'Mecha-Mouse',
-    icon: '🦾',
-    attack: 3,
-    attackPool: 'composure',
-    duration: 3,
-    feedKey: 'small-land',
-    onAttack: { draw: 1 },
-    onExit: { block: 5, healComp: 3 },
-    flavor: 'The field mouse has been upgraded. Considerably.',
-    desc: 'Elite Field Mouse. 3 composure + draw per turn for 3 turns. +5 Block and +3 Composure on exit.',
-  },
-  rabbit: {
-    name: 'Rabbit',
-    icon: '🐰',
-    attack: 2,
-    attackPool: 'composure',
-    duration: 3,
-    feedKey: 'small-land',
-    onAttack: { draw: 1 },
-    onExit: { healComp: 2 },
-    adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
-    flavor: 'There were always going to be more of them.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +2 Composure on exit.',
-    upgrade: { attack: 3, onExit: { healComp: 3 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
-    elite: 'bonzai-bunaroo',
-  },
-  'bonzai-bunaroo': {
-    name: 'Bonzai Bunaroo',
-    icon: '🥋',
-    attack: 3,
-    attackPool: 'composure',
-    duration: 3,
-    feedKey: 'small-land',
-    onAttack: { draw: 1 },
-    onExit: { healComp: 3 },
-    // 50% more spawn extension: 2 → 3.
-    adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 },
-    flavor: 'Disciplined. Smaller. Hits harder than it has any right to.',
-    desc: 'Elite Rabbit. 3 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +3 Composure on exit.',
-  },
-  'young-buck': {
-    name: 'Young Buck',
-    icon: '🦌',
-    attack: 5,
-    attackPool: 'composure',
-    duration: 2,
-    feedKey: 'small-land',
-    onExit: { damage: 6, damageType: 'composure', healHp: 1 },
-    flavor: 'Bold. Brief. Largely correct.',
-    desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 6 composure and heals 1 HP on exit.',
-    upgrade: { attack: 6, duration: 3, onExit: { damage: 8, damageType: 'composure', healHp: 2 } },
-    elite: 'james-deer',
-  },
-  'james-deer': {
-    name: 'James Deer',
-    icon: '🕶️',
-    attack: 8, // 5 × 1.5 = 7.5 → 8
-    attackPool: 'composure',
-    duration: 2,
-    feedKey: 'small-land',
-    onExit: { damage: 9, damageType: 'composure', healHp: 2 }, // 6 × 1.5 = 9; heal 1 × 1.5 → 2
-    flavor: 'Looks the room over slowly. The room looks worse for it.',
-    desc: 'Elite Young Buck. 8 composure / turn for 2 turns. 9 composure kick and 2 HP heal on exit.',
-  },
-  hawk: {
-    name: 'Hawk',
-    icon: '🦅',
-    attack: 4,
-    attackPool: 'composure',
-    duration: 3,
-    feedKey: 'bird',
-    onExit: { applyWeak: 1, weakTurns: 1 },
-    flavor: 'Arrived suddenly. The field mouse, presumably, is no longer a topic.',
-    desc: 'Attacks for 4 composure each turn for 3 turns. Applies Weak 1 to the enemy on exit.',
-    upgrade: { attack: 6, onExit: { applyWeak: 2, weakTurns: 1 } },
-  },
-  // Mouse House — formed when all three slots hold Field Mice. The mice
-  // combine into one Mouse House in the center slot (subject); the
-  // outer slots empty. Mouse House attacks 8 composure each turn for 2
-  // turns AND applies Vulnerable 1 to the enemy each attack.
-  // ---- COMBINE ANIMALS (formed by a three-of-a-kind pre-pass at end of
-  // turn). They never need feeding — feedKey is intentionally absent so the
-  // feed gate (isUnfed) always sees them as "fed" and grants the full
-  // duration + exit bonus. They also don't carry an eatenThisTurn flag on
-  // formation: they attack and grant defense the same turn they combine.
-  'mouse-house': {
-    name: 'Mouse House',
-    icon: '🏠',
-    attack: 8,
-    attackPool: 'composure',
-    duration: 2,
-    onAttackEffect: { applyVulnerable: 1 },
-    onExit: { healComp: 5 },
-    flavor: 'They were, you realise, organising the whole time.',
-    desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 5 Composure on exit.',
-    upgrade: { attack: 10, duration: 3, onExit: { healComp: 7 } },
-  },
-  'long-hare': {
-    name: 'The Long Hare',
-    icon: '🐇',
-    attack: 8,
-    attackPool: 'composure',
-    duration: 2,
-    onAttackEffect: { applyWeak: 1 },
-    turnGrant: { poise: 5 },
-    onExit: { healComp: 5 },
-    flavor: 'It is many. It is one. It is, frankly, late.',
-    desc: 'Attacks for 8 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
-  },
-  mccloven: {
-    name: 'McCloven',
-    icon: '🦌',
-    attack: 10,
-    attackPool: 'composure',
-    duration: 2,
-    turnGrant: { block: 5 },
-    onExit: { healHp: 5 },
-    flavor: 'A great cloven thing has, by collective vote, decided.',
-    desc: 'Attacks for 10 composure each turn for 2 turns. Grants 5 Block per turn. Heals 5 HP on exit.',
-  },
-  bear: {
-    name: 'Bear',
-    icon: '🐻',
-    attack: 9,
-    attackPool: 'composure',
-    duration: 3,
-    feedKey: 'fish',
-    flavor: "He came for the salmon. He's staying for the rest of you.",
-    upgrade: { attack: 11, duration: 4 },
-    desc: 'Attacks for 9 composure each turn for 3 turns.',
-  },
-};
+// ENEMIES / ENEMIES_BY_ID / ANIMALS moved to ./data/enemies.js and
+// ./data/animals.js (2026-06-01) so the sim shares one source of truth.
 
 // Equipment per slot with full tier ladders. `bonus` keys are read by the
 // combat loop at appropriate hooks (start-of-combat, damage calc, etc.).
@@ -3585,7 +3114,7 @@ const STARTING_MAX_HP = 70;
 // Composure — the player's "verbal HP." Some enemies (Tapestry's loom song,
 // the Headmaster's withering remarks) target this instead of HP. Drops to 0
 // = you lose your nerve = defeat. Block and Defense protect both pools.
-const STARTING_MAX_COMPOSURE = 30;
+const STARTING_MAX_COMPOSURE = 35;
 // Each craft skill caps at this level. C3's crafting minigame reads
 // the current level and widens the gauge / softens the chooser.
 const SKILL_MAX = 5;
@@ -3811,9 +3340,6 @@ export default function App() {
   //   playerDmgMult — applied to player outgoing spell damage (was: enemyVuln +50%, playerWeak -25%)
   const [enemyDmgMult, setEnemyDmgMult] = useState(1.0);
   const [playerDmgMult, setPlayerDmgMult] = useState(1.0);
-  // Read the Room — next Effect this turn ignores enemy effectiveness
-  // multiplier. Set true on play, consumed by castStagedSpell.
-  const [pierceNextCast, setPierceNextCast] = useState(false);
   // Iron Stomach — next handler cast this turn deals +N%. Number, not bool
   // (e.g., 0.5 = +50%). Consumed only when a handler-scaling cast fires.
   const [boostNextHandlerCast, setBoostNextHandlerCast] = useState(0);
@@ -5662,7 +5188,6 @@ export default function App() {
     setDmgFloaters([]);
     setEnemyDmgMult(1.0);
     setPlayerDmgMult(1.0);
-    setPierceNextCast(false);
     setBoostNextHandlerCast(0);
     setLastIntentKinds([]);
     setEnemyDiscardCount(0);
@@ -6761,15 +6286,12 @@ export default function App() {
     // v3.4.77 — ALL IN mechanic pulled. stakeAmount stays at 0 (state
     // declared but no UI to change it); HP-deduction + log line gone.
 
-    // Read-the-Room pierce + enemy effectiveness still applies.
     const eff = target.effect || {};
     const stat = eff.scaleBy || target.lane || 'wit';
-    const piercing = pierceNextCast;
-    if (piercing) setPierceNextCast(false);
     // v2.6: damageTypeFlip from "words to actions"-style modifiers.
     const dmgType = flippedDmgType || eff.damageType || 'composure';
-    const enemyMult = piercing ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
-    const physMult = piercing ? 1.0 : (enemy?.effectiveness?.physical ?? 1.0);
+    const enemyMult = enemy?.effectiveness?.[stat] ?? 1.0;
+    const physMult = enemy?.effectiveness?.physical ?? 1.0;
     let dmg = rawDamage;
     if (dmgType === 'physical') dmg = Math.round(dmg * physMult);
     else                        dmg = Math.round(dmg * enemyMult);
@@ -7691,11 +7213,8 @@ export default function App() {
       : (tray[stat] || 0);
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
-    // Read-the-Room consumption: pierce effectiveness on the next cast.
-    const piercing = pierceNextCast;
-    if (piercing) setPierceNextCast(false);
-    const eff_mult = piercing ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
-    const phys_mult = piercing ? 1.0 : (enemy?.effectiveness?.physical ?? 1.0);
+    const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
+    const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
     let dmg = rawSpell;
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
@@ -7710,7 +7229,6 @@ export default function App() {
       pushLog(`💪 handler cast boosted +${Math.round(boostNextHandlerCast * 100)}%.`);
       setBoostNextHandlerCast(0);
     }
-    if (piercing) pushLog(`🎯 cast pierces ${enemy?.name}'s resistance.`);
     const rWith = eff.resonatesWith || [];
     const perTag = eff.resonanceBonus?.perTag || 0;
     const matchedTags = (tray.tags || []).filter(t => rWith.includes(t));
@@ -7863,8 +7381,8 @@ export default function App() {
       : (tray[stat] || 0);
     const rawSpell = base + trayVal * (eff.multiplier || 0);
     const dmgType = eff.damageType || 'composure';
-    const eff_mult = pierceNextCast ? 1.0 : (enemy?.effectiveness?.[stat] ?? 1.0);
-    const phys_mult = pierceNextCast ? 1.0 : (enemy?.effectiveness?.physical ?? 1.0);
+    const eff_mult = enemy?.effectiveness?.[stat] ?? 1.0;
+    const phys_mult = enemy?.effectiveness?.physical ?? 1.0;
     let dmg = rawSpell;
     if (dmgType === 'physical') dmg = Math.round(dmg * phys_mult);
     else                        dmg = Math.round(dmg * eff_mult);
@@ -7890,10 +7408,6 @@ export default function App() {
     if (fx.poise) {
       setPoise(p => p + fx.poise);
       logBits.push(`🪞 +${fx.poise} Poise`);
-    }
-    if (fx.pierceNextCast) {
-      setPierceNextCast(true);
-      logBits.push(`🎯 next cast pierces resistance`);
     }
     if (fx.boostNextHandlerCast) {
       setBoostNextHandlerCast(fx.boostNextHandlerCast);
@@ -9446,6 +8960,32 @@ export default function App() {
         }
       }
 
+      // Pre-pass: BEAR EATS ADJACENT SALMON (Alan, 2026-06-01). A bear that
+      // already holds the board eats any Salmon staged next to it — the
+      // salmon is consumed and the bear's stay extends by +2 turns. This
+      // (not Fish Food, the lure) is how a player keeps a bear alive, and it
+      // gives an unfed salmon a purpose. Supersedes the old "territorial:
+      // extra salmon just waits" outcome for ADJACENT salmon; a non-adjacent
+      // salmon with a bear present still waits in its own chain branch below.
+      for (const slotName of SLOT_ORDER) {
+        const bearSlot = workingTray[slotName];
+        if (!bearSlot || bearSlot.kind !== 'animal' || bearSlot.animalId !== 'bear') continue;
+        const bi = SLOT_ORDER.indexOf(slotName);
+        for (const ni of [bi - 1, bi + 1]) {
+          if (ni < 0 || ni >= SLOT_ORDER.length) continue;
+          const ns = SLOT_ORDER[ni];
+          const neighbor = workingTray[ns];
+          if (neighbor && neighbor.kind === 'animal' && neighbor.animalId === 'salmon') {
+            workingTray[ns] = null;
+            workingTray[slotName] = {
+              ...workingTray[slotName],
+              durationRemaining: (workingTray[slotName].durationRemaining || 0) + 2,
+            };
+            pushLog(`🐻 The Bear eats the adjacent Salmon — it settles in for +2 turns.`);
+          }
+        }
+      }
+
       const nextSlots = {};
       const luresToRecycle = []; // lure cards returned to discard on transform
       let summonerKilledEnemy = false;
@@ -9558,7 +9098,13 @@ export default function App() {
           // Buffet + Fish-Food "three bears at once" burst that one-shot
           // normal enemies. Extra salmon keep flopping (normal tick, progress
           // held high) and pop into a bear only once the resident bear leaves.
-          const chainReady = animal.predatorChain && nextPredator >= animal.predatorChain.turnsToTrigger;
+          // FEED GATE (Alan, 2026-06-01): the predator chain is the PAYOFF for
+          // feeding. An unfed animal never summons its predator — it just slips
+          // away on its short-stay turn like any other unfed animal. Gating the
+          // chain on !isUnfed lets an unfed salmon fall through to the short-stay
+          // branch below instead of turning into a free bear.
+          const chainReady = animal.predatorChain && !isUnfed(slot, animal)
+            && nextPredator >= animal.predatorChain.turnsToTrigger;
           const chainTargetId = animal.predatorChain?.animalId;
           const chainTargetPresent = chainReady && SLOT_ORDER.some((s) => {
             if (s === slotName) return false;

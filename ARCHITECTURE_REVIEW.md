@@ -383,5 +383,10 @@ Total effort if you do items 1-4: about 1.5-2 days. Net savings: ~600 lines, rem
 - **TypeScript migration** — same answer as prior review. Card shape (`effects: { ... }`) is still adding keys monthly via Passing Thoughts. Freezing types now is premature.
 - **`useReducer` for combat state** — see #11.
 - **Replace `applyEnemyIntent`'s 290-line attack-resolution with a damage pipeline** — the sequence (skip → swap → reduction → block-route → hit-me-again recoil → stagger dodge → annotation reflect) is genuinely linear and the alternative (a chain of `Transform` objects) would be more code, not less. The interleaved logging is the real reading-cost; a `pipeline.run(initial, [transforms...])` shape would actually obscure the order.
-- **Merge sim/playSim.js (the old MVP1 sim, 1867 lines) and sim/playSimV2.js (4068 lines)** — unclear how much of the older file is dead. Out of scope for this pass; verify with a `git log sim/playSim.js` before committing to delete.
+- **~~Merge sim/playSim.js and sim/playSimV2.js~~ — DONE 2026-06-01.** Consolidated
+  into a single `sim/playSimV2.js`: ported the enemy intent/behavior engine and
+  the full handler Animal Summoner engine onto the V2 base, extracted enemies +
+  animals into `src/data/{enemies,animals}.js` (imported by both App.jsx and the
+  sim so they can't drift), and deleted the old inline-data `sim/playSim.js`.
+  `humanPolicy.js` is standalone and was kept.
 - **`humanPolicy.js` (299 lines) as a future shared AI input** — interesting design space but currently sim-only and doesn't drive App behavior. Not a structural concern.
