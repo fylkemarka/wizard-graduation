@@ -906,12 +906,11 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     ids.push('c-shoo');                 // dismiss a summoned animal
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
     ids.push('c-buffet');               // next lure spreads across all empty slots (exhaust)
-    // Alan, 2026-05-31: assign one random Pack Tactic (the persistent
-    // tactic-slot modifier cards) at run start so every handler run
-    // opens with a baseline tactic flavor. The player can replace it
-    // later by playing another tactic card from rewards.
-    const HANDLER_TACTIC_POOL = ['c-tactic-shield', 'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather'];
-    ids.push(HANDLER_TACTIC_POOL[Math.floor(Math.random() * HANDLER_TACTIC_POOL.length)]);
+    // Alan, 2026-05-31: the Handler always opens every combat with the
+    // Summoned Shield tactic pre-engaged in the tray (enterFight seeds
+    // tray.tactic). The player can click it to discard at any time, or
+    // replace it by playing another tactic card from rewards. No random
+    // tactic card is dealt into the opening deck.
   }
   return ids;
 }
@@ -1251,34 +1250,34 @@ const ANIMALS = {
   'field-mouse': {
     name: 'Field Mouse',
     icon: '🐭',
-    attack: 3,
+    attack: 2,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
     onExit: { block: 3, healComp: 2 },
     flavor: 'A small contribution. Steady.',
-    desc: 'Attacks for 3 composure AND draws 1 card each turn for 3 turns. +3 Block and +2 Composure on exit.',
-    upgrade: { attack: 4, onExit: { block: 5, healComp: 3 } },
+    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block and +2 Composure on exit.',
+    upgrade: { attack: 3, onExit: { block: 5, healComp: 3 } },
     elite: 'mecha-mouse', // 3.5% chance at summon
   },
   // Elite (3.5% summon chance) — 50% better numbers on every effect.
   'mecha-mouse': {
     name: 'Mecha-Mouse',
     icon: '🦾',
-    attack: 5, // 3 × 1.5 = 4.5 → 5
+    attack: 3,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
     onExit: { block: 5, healComp: 3 },
     flavor: 'The field mouse has been upgraded. Considerably.',
-    desc: 'Elite Field Mouse. 5 composure + draw per turn for 3 turns. +5 Block and +3 Composure on exit.',
+    desc: 'Elite Field Mouse. 3 composure + draw per turn for 3 turns. +5 Block and +3 Composure on exit.',
   },
   rabbit: {
     name: 'Rabbit',
     icon: '🐰',
-    attack: 4,
+    attack: 2,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
@@ -1286,14 +1285,14 @@ const ANIMALS = {
     onExit: { healComp: 2 },
     adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
     flavor: 'There were always going to be more of them.',
-    desc: 'Attacks for 4 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +2 Composure on exit.',
-    upgrade: { attack: 5, onExit: { healComp: 3 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
+    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +2 Composure on exit.',
+    upgrade: { attack: 3, onExit: { healComp: 3 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
     elite: 'bonzai-bunaroo',
   },
   'bonzai-bunaroo': {
     name: 'Bonzai Bunaroo',
     icon: '🥋',
-    attack: 6, // 4 × 1.5 = 6
+    attack: 3,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
@@ -1302,7 +1301,7 @@ const ANIMALS = {
     // 50% more spawn extension: 2 → 3.
     adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 },
     flavor: 'Disciplined. Smaller. Hits harder than it has any right to.',
-    desc: 'Elite Rabbit. 6 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +3 Composure on exit.',
+    desc: 'Elite Rabbit. 3 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +3 Composure on exit.',
   },
   'young-buck': {
     name: 'Young Buck',
@@ -1352,26 +1351,26 @@ const ANIMALS = {
   'mouse-house': {
     name: 'Mouse House',
     icon: '🏠',
-    attack: 12, // field-mouse 2→3 (×1.5): 8 → 12
+    attack: 8,
     attackPool: 'composure',
     duration: 2,
     onAttackEffect: { applyVulnerable: 1 },
     onExit: { healComp: 5 },
     flavor: 'They were, you realise, organising the whole time.',
-    desc: 'Attacks for 12 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 5 Composure on exit.',
-    upgrade: { attack: 15, duration: 3, onExit: { healComp: 7 } },
+    desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 5 Composure on exit.',
+    upgrade: { attack: 10, duration: 3, onExit: { healComp: 7 } },
   },
   'long-hare': {
     name: 'The Long Hare',
     icon: '🐇',
-    attack: 16, // rabbit 2→4 (×2): 8 → 16
+    attack: 8,
     attackPool: 'composure',
     duration: 2,
     onAttackEffect: { applyWeak: 1 },
     turnGrant: { poise: 5 },
     onExit: { healComp: 5 },
     flavor: 'It is many. It is one. It is, frankly, late.',
-    desc: 'Attacks for 16 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
+    desc: 'Attacks for 8 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
   },
   mccloven: {
     name: 'McCloven',
@@ -5665,8 +5664,12 @@ export default function App() {
     setPeekedNextIntent(null);
     // Powers don't persist between combats.
     setPowers([]);
-    // Reset per-combat counters and player debuffs.
-    setTray(initialV2Tray());
+    // Reset per-combat counters and player debuffs. Handler always opens
+    // with the Summoned Shield tactic pre-engaged (clickable to discard).
+    const startTactic = selectedCharacter?.lane === 'handler'
+      ? { ...CARDS_BY_ID['c-tactic-shield'], uid: uid() }
+      : null;
+    setTray(initialV2Tray(startTactic ? { tactic: startTactic } : {}));
     setAmplifyPlaysThisCombat(0);
     setCastsThisTurn(0);
     setCastsThisCombat(0);
@@ -5920,6 +5923,18 @@ export default function App() {
     // v3.4.59 — "I Know Just What to Say" makes the next card played free.
     if (nextCardFree) c = 0;
     return c;
+  }
+
+  // Click the active Pack Tactic in the tray to dismiss it — sends the
+  // tactic card to the discard pile and clears the slot. The Handler opens
+  // every combat with Summoned Shield engaged; this is the manual off-switch.
+  function discardActiveTactic() {
+    if (stage !== 'combat') return;
+    if (!tray.tactic) return;
+    const dismissed = tray.tactic;
+    setTray(p => syncTrayLegacy({ ...p, tactic: null }));
+    setDiscard(d => [...d, { ...dismissed, uid: uid() }]);
+    pushLog(`📜 ${dismissed.name} dismissed — sent to discard.`);
   }
 
   function playCard(handIdx, opts = {}) {
@@ -11449,6 +11464,7 @@ export default function App() {
       buffetArmed={buffetArmed}
       onCancelBuffet={() => { setBuffetArmed(false); pushLog(`🍽 Buffet dismissed.`); }}
       onFeedAnimal={feedAnimalsWithLure}
+      onDiscardTactic={discardActiveTactic}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
       footnotePromptActive={footnotePromptActive}

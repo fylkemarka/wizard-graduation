@@ -63,6 +63,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        buffetArmed = false,
                        onCancelBuffet = () => {},
                        onFeedAnimal = () => {},
+                       onDiscardTactic = () => {},
                        onOpenCompendium, onOpenDeckView }) {
   // Drag state — which empty stage slot is the dragged hand card currently
   // hovering over? Lives at this level so the hand-card's onDragEnd can
@@ -1487,16 +1488,19 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {slotPill(tray.target, 'target', { empty: 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
         {isHandler ? (
           tray.tactic ? (
-            <div className="px-3 py-2 rounded bg-gold-800 border-2 border-gold-400 text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[160px] max-w-[220px]"
-                 title={tray.tactic.desc || tray.tactic.flavor}>
-              <span className="font-mono text-[10px] opacity-70">PACK TACTIC · active</span>
+            <button type="button"
+                 onClick={onDiscardTactic}
+                 className="px-3 py-2 rounded bg-gold-800 border-2 border-gold-400 text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[160px] max-w-[220px] hover:bg-gold-700 hover:border-rose-400 cursor-pointer group"
+                 title={`${tray.tactic.desc || tray.tactic.flavor || ''}\n\nClick to discard this tactic.`}>
+              <span className="font-mono text-[10px] opacity-70 group-hover:hidden">PACK TACTIC · active</span>
+              <span className="font-mono text-[10px] text-rose-300 hidden group-hover:inline">✕ discard tactic</span>
               <span className="font-bold text-center text-sm">📜 {tray.tactic.name}</span>
               <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
                 {tray.tactic.usesRemaining != null
                   ? `${tray.tactic.usesRemaining} lure use${tray.tactic.usesRemaining === 1 ? '' : 's'} left`
                   : 'Stays until replaced'}
               </span>
-            </div>
+            </button>
           ) : (
             <div className="px-3 py-2 rounded border border-dashed border-gold-600 text-gold-500 text-xs italic text-center min-w-[160px] flex flex-col items-center justify-center">
               <span className="font-bold uppercase tracking-widest opacity-80">Pack Tactic</span>
