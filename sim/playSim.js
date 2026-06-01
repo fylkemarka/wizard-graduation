@@ -301,6 +301,84 @@ const STARTING_PICKS_POOL = [
   'w-erm',     'e-bewilder',  // jnsq pair (the branch-out)
 ];
 
+// =============================================================================
+// 1b. HANDLER (Animal Summoner) ENGINE DATA — mirrors src/App.jsx ANIMALS,
+//     src/cards/handler-v2.js lures, and the handler cards in src/App.jsx.
+//     The live handler lane is purely lures → animals → tactics; it has NONE
+//     of the old word-pool model. Animal composure damage applies RAW (the
+//     game-wide effectiveness-per-stat multiplier was removed 2026-05-31,
+//     App.jsx:9043), so handler attacks here are unscaled by enemy
+//     effectiveness — only enemy block absorbs them.
+// =============================================================================
+const HANDLER_ANIMALS = {
+  salmon:        { name: 'Salmon', attack: 0, duration: 3, feedKey: 'fish',
+                   predatorChain: { animalId: 'bear', turnsToTrigger: 2 } },
+  sparrow:       { name: 'Sparrow', attack: 5, duration: 2, feedKey: 'bird' },
+  'field-mouse': { name: 'Field Mouse', attack: 2, duration: 3, feedKey: 'small-land',
+                   onAttack: { draw: 1 }, onExit: { block: 3, healComp: 2 }, elite: 'mecha-mouse' },
+  'mecha-mouse': { name: 'Mecha-Mouse', attack: 3, duration: 3, feedKey: 'small-land',
+                   onAttack: { draw: 1 }, onExit: { block: 5, healComp: 3 } },
+  rabbit:        { name: 'Rabbit', attack: 2, duration: 3, feedKey: 'small-land',
+                   onAttack: { draw: 1 }, onExit: { healComp: 2 },
+                   adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 }, elite: 'bonzai-bunaroo' },
+  'bonzai-bunaroo': { name: 'Bonzai Bunaroo', attack: 3, duration: 3, feedKey: 'small-land',
+                   onAttack: { draw: 1 }, onExit: { healComp: 3 },
+                   adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 } },
+  'young-buck':  { name: 'Young Buck', attack: 5, duration: 2, feedKey: 'small-land',
+                   onExit: { damage: 6, damageType: 'composure', healHp: 1 }, elite: 'james-deer' },
+  'james-deer':  { name: 'James Deer', attack: 8, duration: 2, feedKey: 'small-land',
+                   onExit: { damage: 9, damageType: 'composure', healHp: 2 } },
+  hawk:          { name: 'Hawk', attack: 4, duration: 3, feedKey: 'bird', onExit: { applyWeak: 1 } },
+  'mouse-house': { name: 'Mouse House', attack: 8, duration: 2,
+                   onAttackEffect: { applyVulnerable: 1 }, onExit: { healComp: 5 } },
+  'long-hare':   { name: 'The Long Hare', attack: 8, duration: 2,
+                   onAttackEffect: { applyWeak: 1 }, turnGrant: { poise: 5 }, onExit: { healComp: 5 } },
+  mccloven:      { name: 'McCloven', attack: 10, duration: 2,
+                   turnGrant: { block: 5 }, onExit: { healHp: 5 } },
+  bear:          { name: 'Bear', attack: 9, duration: 3, feedKey: 'fish' },
+};
+const COMBINE_BY_SPECIES = { 'field-mouse': 'mouse-house', 'rabbit': 'long-hare', 'young-buck': 'mccloven' };
+
+// Handler cards (lures / tactics / utility / defends). `slot:'lure'` cards
+// stage into an empty tray slot and count down turnsToArrive. `slot:'tactic'`
+// cards set combat.tactic. The rest are one-shot utility played from hand.
+const HANDLER_CARDS = [
+  { id: 'cv2-l-fish-food', name: 'Fish Food', cost: 1, type: 'lure', rarity: 'basic', feedKey: 'fish',
+    summon: { animalId: 'salmon', turnsToArrive: 2 } },
+  { id: 'cv2-l-birdseed', name: 'Birdseed', cost: 1, type: 'lure', rarity: 'basic', feedKey: 'bird',
+    summon: { animalId: 'sparrow', turnsToArrive: 1 } },
+  { id: 'cv2-l-tender-greens', name: 'Tender Greens', cost: 1, type: 'lure', rarity: 'basic', feedKey: 'small-land',
+    summon: { animalIds: ['field-mouse', 'rabbit', 'young-buck'], turnsToArrive: 1, summonSet: 'tender-greens' } },
+  { id: 'c-tactic-shield',  name: 'Summoned Shield',  cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'shield' } },
+  { id: 'c-tactic-rabid',   name: 'Rabid',            cost: 2, type: 'tactic', rarity: 'uncommon', tactic: { id: 'rabid' } },
+  { id: 'c-tactic-youth',   name: 'Fountain of Youth',cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'youth' } },
+  { id: 'c-tactic-nurture', name: 'Nurture',          cost: 2, type: 'tactic', rarity: 'uncommon', tactic: { id: 'nurture' } },
+  { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 1, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
+  { id: 'c-shoo',        name: 'Shoo!',     cost: 1, type: 'handler-util', rarity: 'basic',    util: 'shoo' },
+  { id: 'c-pack-tactics',name: 'On Three!', cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'onThree', exhaust: true },
+  { id: 'c-just-eat-it', name: 'Just Eat It',cost: 1, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },
+  { id: 'c-buffet',      name: 'Buffet',    cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'buffet', exhaust: true },
+  { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
+  { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
+  { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7 } },
+  { id: 'c-sharp-aside', name: 'Sharp Whistle', cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmg: 4 } },
+];
+const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
+
+// Handler opening deck (mirrors buildStarterDeckForLane('handler'), App.jsx:903).
+const HANDLER_STARTER = [
+  'c-defend-handler', 'c-defend-handler', 'c-compose',
+  'cv2-l-tender-greens', 'cv2-l-tender-greens',
+  'c-shoo', 'c-pack-tactics', 'c-buffet', 'c-tactic-shield',
+];
+// Cards the handler reward picker can draft. Weighted toward tactic VARIETY
+// (the heuristic this whole engine exists to model) plus the off-starter lures.
+const HANDLER_REWARD_POOL = [
+  'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
+  'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
+  'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-aside',
+];
+
 // --- ENEMIES ---
 const ENEMIES = [
   // ACT 1
@@ -689,6 +767,22 @@ function combatStart(state, enemyId) {
     totalDamageDealt: 0,
     totalDamageTaken: 0,
     amplifyPlays: 0,
+    // Handler (Animal Summoner) combat state + metrics.
+    isHandler: !!state.isHandler,
+    htray: { intro: null, subject: null, target: null },
+    tactic: null,            // active tactic id ('shield'|'rabid'|'youth'|'nurture'|'feather')
+    youthUses: 0,            // Fountain of Youth: remaining lure plays that get +1 dur
+    buffetArmed: false,      // next lure fills every empty slot
+    handlerTicks: 0,
+    tacticChanges: 0,
+    tacticsEngaged: {},      // id -> times engaged
+    tacticTurns: {},         // id -> turns active
+    summons: 0,
+    feeds: 0,
+    shortStays: 0,
+    combines: 0,
+    menagerieComposure: 0,
+    menagerieBlock: 0,
   };
   // Equipment-driven combat-start effects.
   let startBlock = 0, healOnStart = 0, startHandBonus = 0, startEnergyBonus = 0;
@@ -957,6 +1051,7 @@ function playSkillOrPower(state, combat, handIdx) {
 
 // ---------- AI ----------
 function aiTurn(state, combat) {
+  if (combat.isHandler) return aiTurnHandler(state, combat);
   combat.turn++;
   // Refill energy + draw.
   state.energy = energyPerTurnRefill(state);
@@ -1172,14 +1267,22 @@ function applyIntent(state, combat, intent) {
     let raw0 = raw; raw = Math.round(raw0 * combat.enemyDmgMult);
     const defense = Math.min(2, state.equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0));
     let wBlock = state.block;
+    let wPoise = state.poise || 0;
     let wHp = state.hp;
     let wComp = state.composure;
+    // Live game (App.jsx ~3659): Block absorbs HP/physical, Poise absorbs
+    // composure — two separate pools. Handler runs carry a poise pool; for
+    // them a composure attack is soaked by poise. Non-handler runs have no
+    // poise, so block soaks everything (unchanged behavior).
+    const compPool = combat.isHandler ? 'poise' : 'block';
     for (let i = 0; i < hits; i++) {
       let remaining = raw;
       if (defense > 0 && remaining > 0) remaining = Math.max(1, remaining - defense);
-      if (wBlock > 0) {
-        const absorbed = Math.min(wBlock, remaining);
-        wBlock -= absorbed; remaining -= absorbed;
+      const soakWithPoise = targetsComposure && compPool === 'poise';
+      if (soakWithPoise) {
+        if (wPoise > 0) { const a = Math.min(wPoise, remaining); wPoise -= a; remaining -= a; }
+      } else if (wBlock > 0) {
+        const a = Math.min(wBlock, remaining); wBlock -= a; remaining -= a;
       }
       if (targetsComposure) wComp = Math.max(0, wComp - remaining);
       else                  wHp   = Math.max(0, wHp   - remaining);
@@ -1187,6 +1290,7 @@ function applyIntent(state, combat, intent) {
       if (wHp <= 0 || wComp <= 0) break;
     }
     state.block = wBlock;
+    state.poise = wPoise;
     state.hp = wHp;
     state.composure = wComp;
   } else if (intent.kind === 'block') {
@@ -1202,6 +1306,442 @@ function applyIntent(state, combat, intent) {
     if (r.vulnerable) combat.enemyDmgMult  = Math.min(1.5, combat.enemyDmgMult  + 0.25 * r.vulnerable);
     if (r.block)      combat.enemyBlock += r.block;
   }
+}
+
+// =============================================================================
+// 3b. HANDLER (Animal Summoner) COMBAT ENGINE
+//     Faithful port of the App.jsx end-of-turn menagerie tick + a handler AI
+//     that stages lures, engages tactics (with a VARIETY preference — the
+//     thing this whole engine exists to let the sim model), feeds animals on
+//     their make-or-break turn, and spikes with On Three!. Animal damage is
+//     RAW composure (enemy block absorbs); enemy block/poise pools as live.
+// =============================================================================
+function handlerDealComposure(combat, amount) {
+  let remaining = amount;
+  if (combat.enemyBlock > 0) { const a = Math.min(combat.enemyBlock, remaining); combat.enemyBlock -= a; remaining -= a; }
+  combat.enemyComposure = Math.max(0, combat.enemyComposure - remaining);
+}
+function handlerDealHp(combat, amount) {
+  let remaining = amount;
+  if (combat.enemyBlock > 0) { const a = Math.min(combat.enemyBlock, remaining); combat.enemyBlock -= a; remaining -= a; }
+  combat.enemyHp = Math.max(0, combat.enemyHp - remaining);
+}
+function makeAnimalSlot(animalId, youthBonus, summonSet) {
+  const a = HANDLER_ANIMALS[animalId];
+  return {
+    kind: 'animal', animalId,
+    durationRemaining: (a?.duration || 3) + (youthBonus || 0),
+    predatorProgress: 0, adjacentSpawnProgress: 0, adjacentSpawned: false,
+    summonSet: summonSet || null, feedReceived: false, nextAttackMult: 1,
+  };
+}
+function resolveLureSpecies(lure, combat) {
+  if (combat.tactic === 'feather') {
+    const existing = ['intro', 'subject', 'target'].map(x => combat.htray[x]).find(v => v?.kind === 'animal');
+    if (existing) return existing.animalId;
+  }
+  const s = lure.summon || lure;
+  let id = (s.animalIds && s.animalIds.length) ? s.animalIds[Math.floor(Math.random() * s.animalIds.length)] : s.animalId;
+  const base = HANDLER_ANIMALS[id];
+  if (base?.elite && Math.random() < 0.035) id = base.elite;
+  return id;
+}
+function handlerAnimalAttack(state, combat, slot, animal, baseMult) {
+  let atk = Math.round(animal.attack * (baseMult || 1) * (slot.nextAttackMult || 1));
+  slot.nextAttackMult = 1;
+  const isShield = combat.tactic === 'shield';
+  const isRabid  = combat.tactic === 'rabid';
+  if (isRabid) atk = Math.round(atk * 1.5);
+  if (isShield) {
+    state.block += atk; state.poise += atk; combat.menagerieBlock += atk;
+  } else {
+    handlerDealComposure(combat, atk);
+    combat.menagerieComposure += atk;
+    combat.totalDamageDealt += atk;
+    if (isRabid) state.composure = Math.max(0, state.composure - Math.max(1, Math.round(atk * 0.2)));
+  }
+  if (animal.onAttack?.draw) drawCards(state, animal.onAttack.draw);
+  // Vulnerable on enemy → our outgoing damage up; Weak on enemy → its damage down.
+  if (animal.onAttackEffect?.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * animal.onAttackEffect.applyVulnerable);
+  if (animal.onAttackEffect?.applyWeak > 0)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * animal.onAttackEffect.applyWeak);
+}
+function clearHandlerSlot(next, slot, slotName) {
+  if (slot.spans && slot.spans.length) { for (const s of slot.spans) next[s] = null; }
+  else next[slotName] = null;
+}
+
+// Pick the best tactic card to play, biased toward VARIETY (tactics engaged
+// fewest times this combat) so the sim exercises all 5 rather than camping one.
+// Situational value of a tactic given the current board — IGNORING variety.
+// This is "would a real player want this tactic right now?". Variety is only a
+// tiebreaker (below), so tactic variety emerges from differing board states
+// across combats rather than per-turn thrashing within one fight.
+function tacticSituationalValue(id, animals, haveLure, compPct) {
+  switch (id) {
+    // Rabid is ×1.5 damage but bleeds the PLAYER 20% composure per animal
+    // attack — only worth it with composure to spare; actively harmful when low.
+    case 'rabid':   return (animals >= 1 && compPct > 0.6) ? 4 + animals : 0;
+    case 'nurture': return haveLure ? 7 : 0;                  // lures resolve instantly — tempo
+    case 'youth':   return haveLure ? 5 : 1;                  // +duration on the next summons
+    case 'feather': return animals === 1 ? 4 : 0;             // needs exactly 1 animal
+    case 'shield':  return 0;                                 // defense-only, gated by needDefense
+    default:        return 0;
+  }
+}
+function pickHandlerTactic(state, combat, needDefense) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const animals = SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
+  const haveLure = state.hand.some(h => h.type === 'lure');
+  const compPct = state.composure / (state.composureMax || 1);
+  // SHIELD routes every animal attack into Block+Poise, so a menagerie under
+  // shield deals ZERO composure — only engage it to soak a hit we can't
+  // otherwise cover (needDefense), never as a default.
+  let best = -1, bestVal = -Infinity, bestId = null, bestEngaged = Infinity;
+  for (let i = 0; i < state.hand.length; i++) {
+    const c = state.hand[i];
+    if (c.type !== 'tactic' || c.cost > state.energy) continue;
+    const id = c.tactic.id;
+    if (id === combat.tactic) continue;
+    if (id === 'shield' && !needDefense) continue;
+    if (c.tactic.requiresExactlyOneAnimal && animals !== 1) continue;
+    const val = id === 'shield' ? 100 : tacticSituationalValue(id, animals, haveLure, compPct);
+    if (val <= 0) continue;
+    const engaged = combat.tacticsEngaged[id] || 0;
+    // Higher situational value wins; ties broken toward the LESS-used tactic
+    // (the variety driver, now subordinate to actually-good plays).
+    if (val > bestVal || (val === bestVal && engaged < bestEngaged)) {
+      bestVal = val; best = i; bestId = id; bestEngaged = engaged;
+    }
+  }
+  if (best < 0) return -1;
+  // If an offensive tactic is already active, only swap when the candidate is
+  // meaningfully better for the current board (not just for variety's sake).
+  // Shield we always escape once the threat passes, so don't gate swaps off it.
+  if (combat.tactic && combat.tactic !== 'shield' && bestId !== 'shield') {
+    const curVal = tacticSituationalValue(combat.tactic, animals, haveLure, compPct);
+    if (bestVal <= curVal + 2) return -1;
+  }
+  return best;
+}
+
+function stageHandlerLure(state, combat, lure) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const empties = SLOT.filter(s => combat.htray[s] == null);
+  if (empties.length === 0) { state.discard.push(lure); return; }
+  const youthBonus = (combat.tactic === 'youth' && combat.youthUses > 0) ? 1 : 0;
+  const nurture = combat.tactic === 'nurture';
+  const targets = combat.buffetArmed ? empties : [empties[0]];
+  targets.forEach((s, idx) => {
+    const withCard = idx === 0; // one card resource cycles back, even via Buffet
+    if (nurture) {
+      const animalId = resolveLureSpecies(lure, combat);
+      combat.htray[s] = makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet);
+      combat.summons++;
+      if (withCard) state.discard.push(lure); // consumed → cycles
+    } else {
+      combat.htray[s] = {
+        kind: 'lure', card: withCard ? { ...lure } : null,
+        animalIds: lure.summon.animalIds, animalId: lure.summon.animalId,
+        summonSet: lure.summon.summonSet || null,
+        turnsRemaining: lure.summon.turnsToArrive, youthBonus,
+      };
+    }
+  });
+  combat.buffetArmed = false;
+  if (youthBonus) combat.youthUses = Math.max(0, combat.youthUses - 1);
+}
+
+function applyHandlerUtil(state, combat, card) {
+  const SLOT = ['intro', 'subject', 'target'];
+  if (card.util === 'buffet') { combat.buffetArmed = true; return; }
+  if (card.util === 'onThree') {
+    for (const s of SLOT) {
+      const slot = combat.htray[s];
+      if (slot?.kind !== 'animal') continue;
+      const a = HANDLER_ANIMALS[slot.animalId];
+      if (a && a.attack > 0) handlerAnimalAttack(state, combat, slot, a, 1);
+    }
+    return;
+  }
+  if (card.util === 'eatNow') {
+    const s = SLOT.find(x => combat.htray[x]?.kind === 'lure');
+    if (s) {
+      const lure = combat.htray[s];
+      const animalId = resolveLureSpecies(lure, combat);
+      if (lure.card) state.discard.push({ ...lure.card });
+      combat.htray[s] = makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet);
+      combat.summons++;
+    }
+    return;
+  }
+  if (card.util === 'treat') {
+    let bestS = null, bestAtk = -1;
+    for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind !== 'animal') continue; const a = HANDLER_ANIMALS[sl.animalId]; if ((a?.attack || 0) > bestAtk) { bestAtk = a.attack; bestS = s; } }
+    if (bestS) combat.htray[bestS].durationRemaining += 1;
+  }
+  // 'shoo' intentionally unused by the AI — situational, no greedy value.
+}
+
+function playHandlerCard(state, combat, idx) {
+  const card = state.hand[idx];
+  state.hand.splice(idx, 1);
+  state.energy -= (card.cost || 0);
+  if (card.type === 'tactic') {
+    if (combat.tactic !== card.tactic.id) combat.tacticChanges++;
+    combat.tactic = card.tactic.id;
+    combat.tacticsEngaged[card.tactic.id] = (combat.tacticsEngaged[card.tactic.id] || 0) + 1;
+    if (card.tactic.id === 'youth') combat.youthUses = 3;
+    state.discard.push(card); // tactic stays active by id; card cycles
+    return;
+  }
+  if (card.type === 'lure') { stageHandlerLure(state, combat, card); return; }
+  if (card.type === 'handler-skill') {
+    if (card.effects?.block)   state.block += card.effects.block;
+    if (card.effects?.poise)   state.poise += card.effects.poise;
+    if (card.effects?.compDmg) { handlerDealComposure(combat, card.effects.compDmg); combat.totalDamageDealt += card.effects.compDmg; }
+    state.discard.push(card);
+    return;
+  }
+  if (card.type === 'handler-util') {
+    applyHandlerUtil(state, combat, card);
+    if (card.exhaust) state.exiled.push(card); else state.discard.push(card);
+    return;
+  }
+  state.discard.push(card);
+}
+
+// Feed an unfed animal on its make-or-break turn (dur===2) with a matching
+// lure — unlocks the final turn + onExit bonus (App.jsx feed gate).
+function tryHandlerFeed(state, combat) {
+  const SLOT = ['intro', 'subject', 'target'];
+  for (const s of SLOT) {
+    const slot = combat.htray[s];
+    if (slot?.kind !== 'animal') continue;
+    const a = HANDLER_ANIMALS[slot.animalId];
+    if (!a?.feedKey || slot.feedReceived || slot.durationRemaining !== 2) continue;
+    const li = state.hand.findIndex(c => c.type === 'lure' && c.feedKey === a.feedKey && c.cost <= state.energy);
+    if (li < 0) continue;
+    const lure = state.hand[li];
+    state.hand.splice(li, 1);
+    state.energy -= (lure.cost || 0);
+    slot.feedReceived = true;
+    combat.feeds++;
+    state.discard.push(lure);
+    return true;
+  }
+  return false;
+}
+
+function aiTurnHandler(state, combat) {
+  combat.turn++;
+  state.energy = energyPerTurnRefill(state);
+  state.block = 0;
+  state.poise = 0;
+  drawCards(state, HAND_SIZE);
+
+  const SLOT = ['intro', 'subject', 'target'];
+  const emptyCount = () => SLOT.filter(s => combat.htray[s] == null).length;
+  const animalCount = () => SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
+
+  let safety = 30;
+  while (safety-- > 0) {
+    // 1. Defend if incoming exceeds the matching pool.
+    const intent = combat.enemyIntent;
+    const incoming = (intent?.kind === 'attack' || intent?.kind === 'attack-multi') ? intent.value * (intent.count || 1) : 0;
+    if (incoming > 0) {
+      const targetsComp = intent.pool === 'composure';
+      const expected = adjustIncoming(state, combat, incoming);
+      const pool = targetsComp ? state.poise : state.block;
+      if (expected > pool + 1) {
+        const di = state.hand.findIndex(c => c.type === 'handler-skill' && c.cost <= state.energy && (targetsComp ? c.effects?.poise : c.effects?.block));
+        if (di >= 0) { playHandlerCard(state, combat, di); continue; }
+      }
+    }
+    // 2. Feed an animal on its make-or-break turn.
+    if (tryHandlerFeed(state, combat)) continue;
+    // 3. Engage a tactic (variety-biased). Shield only when a hit we can't
+    //    cover with a skill is still incoming.
+    if (state.energy >= 1) {
+      let needDefense = false;
+      if (incoming > 0) {
+        const targetsComp = intent.pool === 'composure';
+        const expected = adjustIncoming(state, combat, incoming);
+        const pool = targetsComp ? state.poise : state.block;
+        const haveSkill = state.hand.some(c => c.type === 'handler-skill' && c.cost <= state.energy && (targetsComp ? c.effects?.poise : c.effects?.block));
+        needDefense = expected > pool + 1 && !haveSkill;
+      }
+      const ti = pickHandlerTactic(state, combat, needDefense);
+      if (ti >= 0) { playHandlerCard(state, combat, ti); continue; }
+    }
+    // 4. Arm Buffet before a lure when 2+ slots are open.
+    if (!combat.buffetArmed && emptyCount() >= 2 && state.hand.some(c => c.type === 'lure')) {
+      const bi = state.hand.findIndex(c => c.util === 'buffet' && c.cost <= state.energy);
+      if (bi >= 0) { playHandlerCard(state, combat, bi); continue; }
+    }
+    // 5. Stage a lure into an empty slot.
+    if (emptyCount() > 0) {
+      const li = state.hand.findIndex(c => c.type === 'lure' && c.cost <= state.energy);
+      if (li >= 0) { playHandlerCard(state, combat, li); continue; }
+    }
+    // 6. On Three! spike when 2+ animals are out.
+    if (animalCount() >= 2) {
+      const oi = state.hand.findIndex(c => c.util === 'onThree' && c.cost <= state.energy);
+      if (oi >= 0) { playHandlerCard(state, combat, oi); continue; }
+    }
+    // 7. Sharp Whistle chip with leftover energy.
+    const si = state.hand.findIndex(c => c.effects?.compDmg && c.cost <= state.energy);
+    if (si >= 0) { playHandlerCard(state, combat, si); continue; }
+    break;
+  }
+
+  // End of turn: menagerie acts, then the enemy.
+  handlerEndOfTurnTick(state, combat);
+  if (combat.tactic) combat.tacticTurns[combat.tactic] = (combat.tacticTurns[combat.tactic] || 0) + 1;
+
+  for (const c of state.hand) state.discard.push(c);
+  state.hand = [];
+
+  if (combat.enemyComposure > 0 && combat.enemyHp > 0) {
+    combat.enemyBlock = 0;
+    applyIntent(state, combat, combat.enemyIntent);
+    combat.enemyDmgMult  = combat.enemyDmgMult  > 1 ? Math.max(1, combat.enemyDmgMult  - 0.5) : combat.enemyDmgMult  < 1 ? Math.min(1, combat.enemyDmgMult  + 0.5) : combat.enemyDmgMult;
+    combat.playerDmgMult = combat.playerDmgMult > 1 ? Math.max(1, combat.playerDmgMult - 0.5) : combat.playerDmgMult < 1 ? Math.min(1, combat.playerDmgMult + 0.5) : combat.playerDmgMult;
+    combat.lastIntentKinds.push(combat.enemyIntent?.kind);
+    if (combat.lastIntentKinds.length > 2) combat.lastIntentKinds.shift();
+    const exclude = (combat.lastIntentKinds.length >= 2 && combat.lastIntentKinds[0] === combat.lastIntentKinds[1]) ? [combat.lastIntentKinds[0]] : [];
+    combat.enemyIntent = rollIntent(combat.enemy, exclude);
+  }
+}
+
+// Faithful port of the App.jsx handler end-of-turn tick (App.jsx ~9246).
+function handlerEndOfTurnTick(state, combat) {
+  combat.handlerTicks++;
+  const SLOT = ['intro', 'subject', 'target'];
+  const work = { intro: combat.htray.intro, subject: combat.htray.subject, target: combat.htray.target };
+
+  const onExit = (animal) => {
+    const fx = animal?.onExit; if (!fx) return;
+    if (fx.damage > 0) {
+      if (fx.damageType === 'physical') handlerDealHp(combat, fx.damage);
+      else { handlerDealComposure(combat, fx.damage); combat.menagerieComposure += fx.damage; }
+      combat.totalDamageDealt += fx.damage;
+    }
+    if (fx.block > 0)     { state.block += fx.block; combat.menagerieBlock += fx.block; }
+    if (fx.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * fx.applyWeak);
+    if (fx.healComp > 0)  state.composure = Math.min(state.composureMax, state.composure + fx.healComp);
+    if (fx.healHp > 0)    state.hp = Math.min(state.maxHp, state.hp + fx.healHp);
+  };
+
+  // PRE-PASS: cannibalism (lure adjacent to same-species animal).
+  for (let i = 0; i < SLOT.length; i++) {
+    const lureSlot = work[SLOT[i]];
+    if (!lureSlot || lureSlot.kind !== 'lure') continue;
+    for (const ni of [i - 1, i + 1].filter(n => n >= 0 && n < SLOT.length)) {
+      const nb = work[SLOT[ni]];
+      if (!nb || nb.kind !== 'animal' || nb.animalId !== lureSlot.animalId) continue;
+      if (lureSlot.card) state.discard.push({ ...lureSlot.card });
+      work[SLOT[i]] = { ...nb, eatenThisTurn: true };
+      work[SLOT[ni]] = null;
+      break;
+    }
+  }
+  // PRE-PASS: hawk strike (5% per field-mouse).
+  for (const s of SLOT) {
+    const slot = work[s];
+    if (!slot || slot.kind !== 'animal' || slot.animalId !== 'field-mouse') continue;
+    if (Math.random() >= 0.05) continue;
+    const h = makeAnimalSlot('hawk', 0, slot.summonSet); h.eatenThisTurn = true;
+    work[s] = h;
+  }
+  // PRE-PASS: three-of-a-kind combine.
+  const first = work[SLOT[0]];
+  const matched = (first?.kind === 'animal' && COMBINE_BY_SPECIES[first.animalId]) ? first.animalId : null;
+  if (matched && SLOT.every(s => work[s]?.kind === 'animal' && work[s].animalId === matched)) {
+    const combineId = COMBINE_BY_SPECIES[matched];
+    const ca = HANDLER_ANIMALS[combineId];
+    work.intro = {
+      kind: 'animal', animalId: combineId, durationRemaining: ca?.duration || 2,
+      predatorProgress: 0, adjacentSpawnProgress: 0, adjacentSpawned: false,
+      summonSet: matched === 'field-mouse' ? 'tender-greens' : null,
+      spans: ['intro', 'subject'], justCombined: true, feedReceived: true, nextAttackMult: 1,
+    };
+    work.subject = { kind: 'occupied', occupiedBy: 'intro' };
+    work.target = null;
+    combat.combines++;
+  }
+  // PRE-PASS: tender-greens row bonus (×1.5 next attack + +3 block/turn, once).
+  const entries = SLOT.map(s => work[s]);
+  const allTG = entries.every(s => s && s.kind === 'animal' && s.summonSet === 'tender-greens');
+  if (allTG && !entries.every(s => s.tgFired)) {
+    for (const s of SLOT) {
+      const sl = work[s];
+      work[s] = { ...sl, nextAttackMult: 1.5, turnGrantTemp: { block: ((sl.turnGrantTemp?.block) || 0) + 3 }, tgFired: true };
+    }
+  }
+
+  // MAIN LOOP.
+  const next = {};
+  const isUnfed = (slot, animal) => animal?.feedKey && !slot.feedReceived;
+  for (const slotName of SLOT) {
+    const slot = work[slotName];
+    if (!slot) { next[slotName] = null; continue; }
+    if (slot.kind === 'occupied') { if (next[slotName] === undefined) next[slotName] = slot; continue; }
+    if (slot.kind === 'lure') {
+      const nt = slot.turnsRemaining - 1;
+      if (nt <= 0) {
+        const animalId = resolveLureSpecies(slot, combat);
+        if (slot.card) state.discard.push({ ...slot.card });
+        combat.summons++;
+        next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
+      } else next[slotName] = { ...slot, turnsRemaining: nt };
+      continue;
+    }
+    // animal
+    const animal = HANDLER_ANIMALS[slot.animalId];
+    if (!animal) { next[slotName] = null; continue; }
+    if (!slot.eatenThisTurn && animal.attack > 0) handlerAnimalAttack(state, combat, slot, animal, 1);
+    const grant = animal.turnGrant || slot.turnGrantTemp;
+    if (grant) { if (grant.block > 0) { state.block += grant.block; combat.menagerieBlock += grant.block; } if (grant.poise > 0) state.poise += grant.poise; }
+
+    let nextDur = slot.justCombined ? slot.durationRemaining : slot.durationRemaining - 1;
+    const nextPred = (slot.predatorProgress || 0) + 1;
+    const nextAdj = (slot.adjacentSpawnProgress || 0) + 1;
+
+    if (animal.predatorChain && nextPred >= animal.predatorChain.turnsToTrigger) {
+      next[slotName] = makeAnimalSlot(animal.predatorChain.animalId, 0, slot.summonSet);
+      continue;
+    }
+    const si = SLOT.indexOf(slotName);
+    const hasEmptyNb = [si - 1, si + 1].some(n => {
+      if (n < 0 || n >= SLOT.length) return false;
+      const ns = SLOT[n];
+      const proj = (next[ns] !== undefined) ? next[ns] : work[ns];
+      return proj == null;
+    });
+    if (animal.adjacentSpawn && !slot.adjacentSpawned && nextAdj >= animal.adjacentSpawn.turnsToTrigger && hasEmptyNb) {
+      for (const n of [si - 1, si + 1]) {
+        if (n < 0 || n >= SLOT.length) continue;
+        const ns = SLOT[n];
+        const proj = (next[ns] !== undefined) ? next[ns] : work[ns];
+        if (proj == null) { const child = makeAnimalSlot(animal.adjacentSpawn.animalId, 0, slot.summonSet); child.adjacentSpawned = true; next[ns] = child; combat.summons++; }
+      }
+      nextDur = (slot.durationRemaining - 1) + (animal.adjacentSpawn.extendSelfTurns || 0);
+      if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); clearHandlerSlot(next, slot, slotName); }
+      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1 };
+      continue;
+    }
+    if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); clearHandlerSlot(next, slot, slotName); }
+    else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; clearHandlerSlot(next, slot, slotName); }
+    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, justCombined: false };
+  }
+
+  // Birds of a Feather self-exhaust at three-of-a-kind.
+  if (combat.tactic === 'feather') {
+    const counts = {};
+    for (const s of SLOT) { const sl = next[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
+    if (Object.values(counts).some(n => n >= 3)) combat.tactic = null;
+  }
+  combat.htray = { intro: next.intro ?? null, subject: next.subject ?? null, target: next.target ?? null };
 }
 
 // Run a single combat to completion. Stall detection: if the player
@@ -1239,26 +1779,38 @@ function makeRunState() {
   // commits to at game start so the sim data reflects all three
   // archetype paths instead of always-jnsq. Each lane has equal
   // probability — simulates a player making a one-archetype call.
-  const deck = STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() }));
   const lanes = ['handler', 'wit', 'jnsq'];
   const pickedLane = lanes[Math.floor(Math.random() * lanes.length)];
-  const laneIds = STARTING_PICKS_POOL.filter(id => {
-    const c = CARDS_BY_ID[id];
-    if (!c) return false;
-    if (c.type === 'word') return !!c.stats?.[pickedLane];
-    if (c.type === 'effect') return c.effect?.scaleBy === pickedLane;
-    return false;
-  });
-  for (const id of laneIds.slice(0, 2)) {
-    const c = CARDS_BY_ID[id];
-    if (c) deck.push({ ...c, uid: uid() });
+  const isHandler = pickedLane === 'handler';
+
+  // Handler runs use the Animal Summoner starter (lures + tactics + utility);
+  // wit/jnsq use the word-pool starter + two lane picks.
+  let deck;
+  if (isHandler) {
+    deck = HANDLER_STARTER.map(id => ({ ...HANDLER_CARDS_BY_ID[id], uid: uid() }));
+  } else {
+    deck = STARTER_DECK.map(id => ({ ...CARDS_BY_ID[id], uid: uid() }));
+    const laneIds = STARTING_PICKS_POOL.filter(id => {
+      const c = CARDS_BY_ID[id];
+      if (!c) return false;
+      if (c.type === 'word') return !!c.stats?.[pickedLane];
+      if (c.type === 'effect') return c.effect?.scaleBy === pickedLane;
+      return false;
+    });
+    for (const id of laneIds.slice(0, 2)) {
+      const c = CARDS_BY_ID[id];
+      if (c) deck.push({ ...c, uid: uid() });
+    }
   }
   return {
+    lane: pickedLane,
+    isHandler,
     hp: STARTING_MAX_HP,
     maxHp: STARTING_MAX_HP,
     composure: STARTING_MAX_COMPOSURE,
     composureMax: STARTING_MAX_COMPOSURE,
     block: 0,
+    poise: 0,
     energy: ENERGY_PER_TURN,
     deck: shuffle(deck),
     hand: [],
@@ -1270,6 +1822,66 @@ function makeRunState() {
     skills: { whittling: 0, weaving: 0, smithing: 0, felting: 0 },
     relics: [],
   };
+}
+
+// Build the per-combat stat record pushed into runStats.combats. Handler
+// combats carry extra menagerie/tactic telemetry; wit/jnsq fields stay null
+// so the report aggregator can branch cleanly.
+function combatStatRecord(act, tier, enemyId, res) {
+  const c = res.combat;
+  const rec = {
+    act: act.id, tier, enemyId, outcome: res.outcome,
+    turns: c.turn, fizzles: c.fizzles,
+    castsAttempted: c.castsAttempted, castsResonated: c.castsResonated,
+    damageDealt: c.totalDamageDealt, damageTaken: c.totalDamageTaken,
+    isHandler: !!c.isHandler,
+  };
+  if (c.isHandler) {
+    rec.handler = {
+      ticks: c.handlerTicks,
+      tacticChanges: c.tacticChanges,
+      tacticsEngaged: { ...c.tacticsEngaged },
+      tacticTurns: { ...c.tacticTurns },
+      tacticVariety: Object.keys(c.tacticsEngaged || {}).length,
+      summons: c.summons,
+      feeds: c.feeds,
+      shortStays: c.shortStays,
+      combines: c.combines,
+      menagerieComposure: c.menagerieComposure,
+      menagerieBlock: c.menagerieBlock,
+    };
+  }
+  return rec;
+}
+
+// Handler reward draft. Samples 3 distinct cards from HANDLER_REWARD_POOL and
+// picks one, biased toward TACTIC VARIETY — the heuristic the engine models.
+// A tactic the deck doesn't yet own is worth far more than a duplicate; among
+// non-tactics, off-starter lures (Fish Food / Birdseed) widen the menagerie.
+function aiPickHandlerReward(state) {
+  const owned = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+  const ownedIds = new Set(owned.map(c => c.id));
+  const ownedTactics = new Set(owned.filter(c => c.type === 'tactic').map(c => c.id));
+  const pool = shuffle(HANDLER_REWARD_POOL.slice());
+  const candidates = [];
+  for (const id of pool) {
+    if (candidates.length >= 3) break;
+    candidates.push(HANDLER_CARDS_BY_ID[id]);
+  }
+  function score(card) {
+    let s = 0;
+    if (card.type === 'tactic') {
+      s += ownedTactics.has(card.id) ? 3 : 14; // a NEW tactic is the prize
+    } else if (card.type === 'lure') {
+      s += ownedIds.has(card.id) ? 4 : 9;       // off-starter lures widen the pool
+    } else {
+      s += 6;                                   // utility (On Three!, Buffet, …)
+    }
+    if (card.rarity === 'uncommon') s += 2;
+    return s;
+  }
+  const best = candidates.reduce((b, c) => (!b || score(c) > score(b.card) ? { card: c, sc: score(c) } : b), null);
+  return best ? best.card : null;
 }
 
 // Simulate one path through an act. We don't simulate the actual map
@@ -1315,18 +1927,24 @@ function simAct(state, act, runStats) {
       if (pool.length === 0) continue;
       const enemyId = pool[Math.floor(Math.random() * pool.length)].id;
       const res = simCombat(state, enemyId);
-      runStats.combats.push({ act: act.id, tier, enemyId, outcome: res.outcome, turns: res.combat.turn, fizzles: res.combat.fizzles, castsAttempted: res.combat.castsAttempted, castsResonated: res.combat.castsResonated, damageDealt: res.combat.totalDamageDealt, damageTaken: res.combat.totalDamageTaken });
+      runStats.combats.push(combatStatRecord(act, tier, enemyId, res));
       if (res.outcome !== 'won') return false;
-      // Post-combat card reward (greedy pick: best damaging effect, or block skill if low HP)
-      const weights = tier === 'elite' ? { common: 2, uncommon: 3, rare: 1 } : { common: 4, uncommon: 1 };
-      const candidates = [];
-      for (let i = 0; i < 3; i++) {
-        const c = pickCardByRarity(weights, candidates.map(x => x.id));
-        if (c) candidates.push(c);
-      }
-      if (candidates.length > 0) {
-        const pick = aiPickReward(state, candidates);
+      // Post-combat card reward. Handler runs draft from the Animal Summoner
+      // pool (tactic-variety biased); wit/jnsq use the rarity sampler.
+      if (state.isHandler) {
+        const pick = aiPickHandlerReward(state);
         if (pick) state.deck.push({ ...pick, uid: uid() });
+      } else {
+        const weights = tier === 'elite' ? { common: 2, uncommon: 3, rare: 1 } : { common: 4, uncommon: 1 };
+        const candidates = [];
+        for (let i = 0; i < 3; i++) {
+          const c = pickCardByRarity(weights, candidates.map(x => x.id));
+          if (c) candidates.push(c);
+        }
+        if (candidates.length > 0) {
+          const pick = aiPickReward(state, candidates);
+          if (pick) state.deck.push({ ...pick, uid: uid() });
+        }
       }
     } else if (step === 'rest') {
       // Heal 30%
@@ -1394,7 +2012,7 @@ function simAct(state, act, runStats) {
       }
     } else if (step === 'boss') {
       const res = simCombat(state, act.bossId);
-      runStats.combats.push({ act: act.id, tier: 'boss', enemyId: act.bossId, outcome: res.outcome, turns: res.combat.turn, fizzles: res.combat.fizzles, castsAttempted: res.combat.castsAttempted, castsResonated: res.combat.castsResonated, damageDealt: res.combat.totalDamageDealt, damageTaken: res.combat.totalDamageTaken });
+      runStats.combats.push(combatStatRecord(act, 'boss', act.bossId, res));
       if (res.outcome !== 'won') return false;
       // CRAFTING: pick best material from inventory, simulate gauge based on skill.
       const skillLevel = state.skills[craft] || 0;
@@ -1559,6 +2177,8 @@ function simRun() {
   const state = makeRunState();
   const runStats = {
     won: false,
+    lane: state.lane,
+    isHandler: !!state.isHandler,
     actsCleared: 0,
     combats: [],
     materialsGathered: [],
@@ -1720,8 +2340,53 @@ function aggregate(results) {
     meanSkill[sk] = mean(results.map(r => r.finalSkills?.[sk] || 0));
   }
 
+  // Handler (Animal Summoner) telemetry — only meaningful for handler runs.
+  const handlerRuns = results.filter(r => r.isHandler);
+  const handlerCombats = handlerRuns.flatMap(r => r.combats.filter(c => c.isHandler && c.handler));
+  let handlerAgg = null;
+  if (handlerRuns.length > 0) {
+    const tacticUse = {};   // tactic id -> # combats it was engaged in
+    const tacticTurnsTotal = {}; // tactic id -> total uptime turns
+    let varietySum = 0, ticksSum = 0, changeSum = 0;
+    let summonsSum = 0, feedsSum = 0, shortStaysSum = 0, combinesSum = 0;
+    let compSum = 0, blockSum = 0;
+    for (const c of handlerCombats) {
+      const h = c.handler;
+      varietySum += h.tacticVariety;
+      ticksSum += h.ticks;
+      changeSum += h.tacticChanges;
+      summonsSum += h.summons;
+      feedsSum += h.feeds;
+      shortStaysSum += h.shortStays;
+      combinesSum += h.combines;
+      compSum += h.menagerieComposure;
+      blockSum += h.menagerieBlock;
+      for (const [t, n] of Object.entries(h.tacticsEngaged || {})) {
+        tacticUse[t] = (tacticUse[t] || 0) + 1;
+        tacticTurnsTotal[t] = (tacticTurnsTotal[t] || 0) + (h.tacticTurns?.[t] || 0);
+      }
+    }
+    const nc = handlerCombats.length || 1;
+    handlerAgg = {
+      runs: handlerRuns.length,
+      wins: handlerRuns.filter(r => r.won).length,
+      combats: handlerCombats.length,
+      avgTacticVariety: varietySum / nc,
+      avgSummonsPerCombat: summonsSum / nc,
+      avgFeedsPerCombat: feedsSum / nc,
+      avgShortStaysPerCombat: shortStaysSum / nc,
+      avgCombinesPerCombat: combinesSum / nc,
+      avgMenagerieComposurePerCombat: compSum / nc,
+      avgMenagerieBlockPerCombat: blockSum / nc,
+      avgTacticChangesPerCombat: changeSum / nc,
+      tacticUse,
+      tacticTurnsTotal,
+    };
+  }
+
   return {
     N, wins, winRate: wins / N,
+    handler: handlerAgg,
     failedAt,
     bossLossByAct, bossWinByAct,
     lossByEnemyId,
@@ -1812,6 +2477,29 @@ function buildReport(agg) {
     lines.push(`- **${a}** (n=${n}, ${(wins[a]||0)}W): ${topKillers} | died in ${lossDist}`);
   }
   lines.push('');
+
+  // Handler (Animal Summoner) telemetry — tactic variety/uptime + menagerie
+  // output. Only present when handler runs were sampled.
+  if (agg.handler) {
+    const h = agg.handler;
+    lines.push(`## Handler — Animal Summoner`);
+    lines.push(`- Runs: ${h.runs} (${h.wins}W, ${h.runs ? pct(h.wins / h.runs) : 'n/a'} win rate) · ${h.combats} handler combats`);
+    lines.push(`- Avg tactic variety / combat: **${h.avgTacticVariety.toFixed(2)}** distinct tactics`);
+    lines.push(`- Avg tactic swaps / combat: ${h.avgTacticChangesPerCombat.toFixed(2)}`);
+    lines.push(`- Menagerie output / combat: **${h.avgMenagerieComposurePerCombat.toFixed(1)}** composure · ${h.avgMenagerieBlockPerCombat.toFixed(1)} block`);
+    lines.push(`- Summons / combat: ${h.avgSummonsPerCombat.toFixed(2)} · Feeds: ${h.avgFeedsPerCombat.toFixed(2)} · Short-stays: ${h.avgShortStaysPerCombat.toFixed(2)} · Combines: ${h.avgCombinesPerCombat.toFixed(2)}`);
+    const TACTIC_ORDER = ['shield', 'rabid', 'youth', 'nurture', 'feather'];
+    const tu = h.tacticUse || {};
+    const tt = h.tacticTurnsTotal || {};
+    const tacticKeys = TACTIC_ORDER.filter(t => tu[t]).concat(Object.keys(tu).filter(t => !TACTIC_ORDER.includes(t)));
+    lines.push(`- Tactic engagement (combats engaged · total uptime turns):`);
+    if (tacticKeys.length === 0) lines.push(`  - (none engaged)`);
+    for (const t of tacticKeys) {
+      lines.push(`  - ${t}: ${tu[t]} combats · ${tt[t] || 0} turns`);
+    }
+    lines.push('');
+  }
+
   lines.push(`## Material picks (sorted by frequency)`);
   const matRanked = Object.entries(agg.materialFreq).sort((a, b) => b[1] - a[1]);
   for (const [id, count] of matRanked) {
@@ -1865,3 +2553,7 @@ console.log(`Win rate: ${pct(agg.winRate)}`);
 console.log(`Avg turns / combat: ${agg.avgTurnsAll.toFixed(2)}`);
 console.log(`Resonance hit rate: ${pct(agg.resonateRate)}`);
 console.log(`Fizzle rate: ${pct(agg.fizzleRate)}`);
+if (agg.handler) {
+  const h = agg.handler;
+  console.log(`Handler: ${h.runs} runs, ${pct(h.runs ? h.wins / h.runs : 0)} win · tactic variety ${h.avgTacticVariety.toFixed(2)}/combat · menagerie ${h.avgMenagerieComposurePerCombat.toFixed(1)} comp/combat`);
+}
