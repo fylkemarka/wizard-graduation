@@ -1251,34 +1251,34 @@ const ANIMALS = {
   'field-mouse': {
     name: 'Field Mouse',
     icon: '🐭',
-    attack: 2,
+    attack: 3,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
     onExit: { block: 3, healComp: 1 },
     flavor: 'A small contribution. Steady.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block and +1 Composure on exit.',
-    upgrade: { attack: 3, onExit: { block: 5, healComp: 2 } },
+    desc: 'Attacks for 3 composure AND draws 1 card each turn for 3 turns. +3 Block and +1 Composure on exit.',
+    upgrade: { attack: 4, onExit: { block: 5, healComp: 2 } },
     elite: 'mecha-mouse', // 3.5% chance at summon
   },
   // Elite (3.5% summon chance) — 50% better numbers on every effect.
   'mecha-mouse': {
     name: 'Mecha-Mouse',
     icon: '🦾',
-    attack: 3,
+    attack: 5, // 3 × 1.5 = 4.5 → 5
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
     onExit: { block: 5, healComp: 2 }, // 3 × 1.5 = 4.5 → 5
     flavor: 'The field mouse has been upgraded. Considerably.',
-    desc: 'Elite Field Mouse. 3 composure + draw per turn for 3 turns. +5 Block and +2 Composure on exit.',
+    desc: 'Elite Field Mouse. 5 composure + draw per turn for 3 turns. +5 Block and +2 Composure on exit.',
   },
   rabbit: {
     name: 'Rabbit',
     icon: '🐰',
-    attack: 2,
+    attack: 4,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
@@ -1286,14 +1286,14 @@ const ANIMALS = {
     onExit: { healComp: 1 },
     adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
     flavor: 'There were always going to be more of them.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +1 Composure on exit.',
-    upgrade: { attack: 3, onExit: { healComp: 2 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
+    desc: 'Attacks for 4 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +1 Composure on exit.',
+    upgrade: { attack: 5, onExit: { healComp: 2 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
     elite: 'bonzai-bunaroo',
   },
   'bonzai-bunaroo': {
     name: 'Bonzai Bunaroo',
     icon: '🥋',
-    attack: 3,
+    attack: 6, // 4 × 1.5 = 6
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
@@ -1302,7 +1302,7 @@ const ANIMALS = {
     // 50% more spawn extension: 2 → 3.
     adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 },
     flavor: 'Disciplined. Smaller. Hits harder than it has any right to.',
-    desc: 'Elite Rabbit. 3 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +2 Composure on exit.',
+    desc: 'Elite Rabbit. 6 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +2 Composure on exit.',
   },
   'young-buck': {
     name: 'Young Buck',
@@ -1352,26 +1352,26 @@ const ANIMALS = {
   'mouse-house': {
     name: 'Mouse House',
     icon: '🏠',
-    attack: 8,
+    attack: 12, // field-mouse 2→3 (×1.5): 8 → 12
     attackPool: 'composure',
     duration: 2,
     onAttackEffect: { applyVulnerable: 1 },
     onExit: { healComp: 4 },
     flavor: 'They were, you realise, organising the whole time.',
-    desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 4 Composure on exit.',
-    upgrade: { attack: 10, duration: 3, onExit: { healComp: 6 } },
+    desc: 'Attacks for 12 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 4 Composure on exit.',
+    upgrade: { attack: 15, duration: 3, onExit: { healComp: 6 } },
   },
   'long-hare': {
     name: 'The Long Hare',
     icon: '🐇',
-    attack: 8,
+    attack: 16, // rabbit 2→4 (×2): 8 → 16
     attackPool: 'composure',
     duration: 2,
     onAttackEffect: { applyWeak: 1 },
     turnGrant: { poise: 5 },
     onExit: { healComp: 4 },
     flavor: 'It is many. It is one. It is, frankly, late.',
-    desc: 'Attacks for 8 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 4 Composure on exit.',
+    desc: 'Attacks for 16 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 4 Composure on exit.',
   },
   mccloven: {
     name: 'McCloven',
@@ -9256,7 +9256,7 @@ export default function App() {
       // naturally because workingTray[s].kind === 'animal' check excludes
       // 'occupied' kind. Same for Hawk strike and row bonus below.
 
-      // Pre-pass: HAWK STRIKE. Each turn there is a 10% chance per Field
+      // Pre-pass: HAWK STRIKE. Each turn there is a 5% chance per Field
       // Mouse on the board that a Hawk swoops in and replaces it. The
       // Field Mouse forfeits its turn (no attack, no draw). The Hawk takes
       // over the slot with a fresh duration; it acts normally next turn.
@@ -9264,7 +9264,7 @@ export default function App() {
         const slot = workingTray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
         if (slot.animalId !== 'field-mouse') continue;
-        if (Math.random() >= 0.1) continue;
+        if (Math.random() >= 0.05) continue;
         const hawk = getAnimal('hawk');
         pushLog(`🦅 A Hawk swoops in and snatches the Field Mouse — its turn is forfeited.`);
         workingTray[slotName] = {
