@@ -9517,11 +9517,23 @@ export default function App() {
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
             };
-          } else if (animal.adjacentSpawn && nextAdjSpawn >= animal.adjacentSpawn.turnsToTrigger) {
+          } else if (animal.adjacentSpawn && !slot.adjacentSpawned
+                     && nextAdjSpawn >= animal.adjacentSpawn.turnsToTrigger
+                     && (() => {
+                          const si = SLOT_ORDER.indexOf(slotName);
+                          return [si - 1, si + 1].some(n => {
+                            if (n < 0 || n >= SLOT_ORDER.length) return false;
+                            const ns = SLOT_ORDER[n];
+                            const proj = (nextSlots[ns] !== undefined) ? nextSlots[ns] : workingTray[ns];
+                            return proj == null;
+                          });
+                        })()) {
             // Adjacent-spawn chain (Rabbit): spawn a copy of the configured
             // animalId in each adjacent EMPTY slot. Original extends self
-            // duration by extendSelfTurns. Triggers ONCE per chain cycle
-            // (adjacentSpawnProgress resets after spawn).
+            // duration by extendSelfTurns. Fires ONCE per animal (`adjacentSpawned`
+            // flag) and only when a neighbor is open — otherwise the rabbit would
+            // re-arm every cycle and its turns-left counter would bounce back up,
+            // reading as a glitch. A full board falls through to normal exit logic.
             const slotIdx = SLOT_ORDER.indexOf(slotName);
             const neighborIdxs = [slotIdx - 1, slotIdx + 1].filter(n => n >= 0 && n < SLOT_ORDER.length);
             const spawnId = animal.adjacentSpawn.animalId;
@@ -9541,17 +9553,16 @@ export default function App() {
                   durationRemaining: spawnAnimal?.duration || 3,
                   predatorProgress: 0,
                   adjacentSpawnProgress: 0,
+                  adjacentSpawned: true,
                   summonSet: slot.summonSet || null,
                 };
                 spawned++;
               }
             }
-            if (spawned > 0) {
-              const extend = animal.adjacentSpawn.extendSelfTurns || 0;
-              nextDuration = (slot.durationRemaining - 1) + extend;
-              pushLog(`${animal.icon} ${animal.name} multiplies: +${spawned} ${spawnAnimal?.name || spawnId} adjacent. Original stays ${extend} more turn${extend === 1 ? '' : 's'}.`);
-            }
-            // Continue to duration logic with reset chain counter.
+            const extend = animal.adjacentSpawn.extendSelfTurns || 0;
+            nextDuration = (slot.durationRemaining - 1) + extend;
+            pushLog(`${animal.icon} ${animal.name} multiplies: +${spawned} ${spawnAnimal?.name || spawnId} adjacent. Original stays ${extend} more turn${extend === 1 ? '' : 's'}.`);
+            // Continue to duration logic; one-shot guard set below.
             if (nextDuration <= 0) {
               if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
               hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
@@ -9569,6 +9580,7 @@ export default function App() {
                 durationRemaining: nextDuration,
                 predatorProgress: nextPredator,
                 adjacentSpawnProgress: 0,
+                adjacentSpawned: true,
                 eatenThisTurn: false,
                 nextAttackMult: 1,
               };
