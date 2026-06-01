@@ -360,7 +360,7 @@ const HANDLER_CARDS = [
   { id: 'c-buffet',      name: 'Buffet',    cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'buffet', exhaust: true },
   { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
-  { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7 } },
+  { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7, removeWeak: 1 } },
   { id: 'c-sharp-aside', name: 'Sharp Whistle', cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmg: 4 } },
 ];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -885,6 +885,7 @@ function applySideEffects(state, combat, fx) {
   // Cycle-4 archetype additions:
   if (fx.loseHp)         state.hp = clamp(state.hp - fx.loseHp, 0, state.maxHp);
   if (fx.selfWeak)       combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * fx.selfWeak);
+  if (fx.removeWeak)     combat.playerDmgMult = Math.min(1.0, combat.playerDmgMult + 0.25 * fx.removeWeak);
   if (fx.enemyVulnerable) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * fx.enemyVulnerable);
   // Direct multiplier ops (Sap / Amplify / Dispel + future modifier cards).
   if (fx.enemyDmgMod)  combat.enemyDmgMult  = Math.max(0.5, Math.min(1.5, combat.enemyDmgMult  + fx.enemyDmgMod));
