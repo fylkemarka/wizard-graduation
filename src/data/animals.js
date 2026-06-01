@@ -83,7 +83,7 @@ export const ANIMALS = {
   rabbit: {
     name: 'Rabbit',
     icon: '🐰',
-    attack: 2,
+    attack: 3,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
@@ -91,14 +91,14 @@ export const ANIMALS = {
     onExit: { healComp: 2 },
     adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
     flavor: 'There were always going to be more of them.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +2 Composure on exit.',
-    upgrade: { attack: 3, onExit: { healComp: 3 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
+    desc: 'Attacks for 3 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +2 Composure on exit.',
+    upgrade: { attack: 4, onExit: { healComp: 3 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
     elite: 'bonzai-bunaroo',
   },
   'bonzai-bunaroo': {
     name: 'Bonzai Bunaroo',
     icon: '🥋',
-    attack: 3,
+    attack: 5,
     attackPool: 'composure',
     duration: 3,
     feedKey: 'small-land',
@@ -107,7 +107,7 @@ export const ANIMALS = {
     // 50% more spawn extension: 2 → 3.
     adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 },
     flavor: 'Disciplined. Smaller. Hits harder than it has any right to.',
-    desc: 'Elite Rabbit. 3 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +3 Composure on exit.',
+    desc: 'Elite Rabbit. 5 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +3 Composure on exit.',
   },
   'young-buck': {
     name: 'Young Buck',

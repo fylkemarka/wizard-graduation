@@ -134,6 +134,22 @@ const CARDS = [
     effects: { buffetArmed: true, exhaust: true },
     desc: 'Your next lure is placed in every empty stage slot. Exhaust.',
     flavor: 'A spread, really. You laid it out. Now they come.' },
+  // ---- LURE TUTORS (Alan, 2026-06-01) — consistency cards. With three
+  // lures it was hard to keep bait in hand to feed the menagerie; these
+  // fetch a lure from a given pile so the engine keeps running. They do NOT
+  // exhaust — they cycle back so the player can keep digging.
+  { id: 'c-rummage', name: 'Rummage the Satchel', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { fetchLure: 'deck' },
+    desc: 'Search your draw pile for a lure and put it in your hand.',
+    flavor: 'There is always something at the bottom. There is always more than you packed.' },
+  { id: 'c-back-of-the-bin', name: 'Back of the Bin', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { fetchLure: 'discard' },
+    desc: 'Return a lure from your discard pile to your hand.',
+    flavor: "You don't throw food away. You relocate it. Temporarily." },
+  { id: 'c-something-turns-up', name: 'Something Turns Up', cost: 0, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { fetchLureRandom: true },
+    desc: 'A random lure from your draw pile turns up in your hand.',
+    flavor: 'You weren\'t looking for it. It was, apparently, looking for you.' },
   // ---- TACTICS — persistent cards that bend the animal-summoner engine.
   // A Tactic occupies the modifier slot of the spell tray (relabelled as
   // "Pack Tactics" for handler). Stays until replaced by another tactic.
@@ -3567,6 +3583,10 @@ export default function App() {
   // once (single card consumed; one envelope per slot). Cleared on lure
   // play. Exhausts when played.
   const [buffetArmed, setBuffetArmed] = useState(false);
+  // Lure tutor picker — 'deck' | 'discard' | null. Set when a fetchLure card
+  // (Rummage the Satchel / Back of the Bin) is played; opens an overlay to
+  // pick which lure from that pile is pulled to hand. Cleared on pick/cancel.
+  const [lurePickerSource, setLurePickerSource] = useState(null);
   // Feeding ledger — feedKeys of lures played THIS turn. Resets at end of
   // turn. Used for fed-this-turn UI confirmation and to mark new feedReceived
   // on matching slots. The persistent feedReceived flag on each animal slot
@@ -3654,6 +3674,12 @@ export default function App() {
   // So the steal records the taken cards here, and endTurn exiles them out of
   // the recycle pipeline before committing piles. Cleared each endTurn.
   const stolenCardsRef = useRef([]);
+  // Loom Familiar hard cap: exactly one card-steal per combat. A ref (not
+  // state) so it reads current synchronously inside applyEnemyIntent and the
+  // end-of-turn re-roll, immune to the batched-setState staleness that let
+  // the old enemyDiscardCount guard miss and re-roll a second steal. Reset
+  // in enterFight.
+  const loomStoleThisCombatRef = useRef(false);
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
@@ -5191,6 +5217,7 @@ export default function App() {
     setBoostNextHandlerCast(0);
     setLastIntentKinds([]);
     setEnemyDiscardCount(0);
+    loomStoleThisCombatRef.current = false;
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
     setPeekedNextIntent(null);
@@ -7619,6 +7646,35 @@ export default function App() {
       setBuffetArmed(true);
       logBits.push(`🍽 Buffet armed — your next lure spreads across every empty slot.`);
     }
+    // Lure tutors — fetchLure opens a picker over the named pile; the chosen
+    // lure moves to hand (handled in pickLureFromPile). If the pile holds no
+    // lure the card whiffs (logged) rather than opening an empty picker.
+    if (fx.fetchLure) {
+      const src = fx.fetchLure === 'deck' ? deck : discard;
+      const label = fx.fetchLure === 'deck' ? 'draw pile' : 'discard';
+      if (src.some(c => c.type === 'lure')) {
+        setLurePickerSource(fx.fetchLure);
+        logBits.push(`🪤 Pick a lure from your ${label}.`);
+      } else {
+        logBits.push(`🪤 No lure in your ${label}.`);
+      }
+    }
+    // fetchLureRandom — pull a random lure straight to hand from the draw
+    // pile (falling back to discard if the draw pile holds none), no picker.
+    if (fx.fetchLureRandom) {
+      const deckLures = deck.filter(c => c.type === 'lure');
+      const fromDeck = deckLures.length > 0;
+      const lures = fromDeck ? deckLures : discard.filter(c => c.type === 'lure');
+      if (lures.length === 0) {
+        logBits.push(`🪤 No lure to summon to hand.`);
+      } else {
+        const pick = lures[Math.floor(Math.random() * lures.length)];
+        if (fromDeck) setDeck(d => d.filter(c => c.uid !== pick.uid));
+        else          setDiscard(d => d.filter(c => c.uid !== pick.uid));
+        setHand(h => [...h, pick]);
+        logBits.push(`🪤 ${pick.name} turns up in your hand.`);
+      }
+    }
     // Tap the Glass — agitate the menagerie. Every summoned animal's NEXT
     // attack hits harder by multiplying the slot's nextAttackMult (so it
     // stacks with the Tender Greens row bonus and is consumed/reset by the
@@ -8410,6 +8466,21 @@ export default function App() {
     if (!footnotePromptActive) return;
     setFootnotePromptActive(false);
     pushLog(`📖 Footnote skill dismissed without picking a phrase.`);
+  }
+
+  // Lure tutor — resolve the pick from the open pile picker. Move the chosen
+  // lure (by uid) from its source pile to hand and close the overlay.
+  function pickLureFromPile(cardUid) {
+    const src = lurePickerSource;
+    if (!src) return;
+    const pile = src === 'deck' ? deck : discard;
+    const card = pile.find(c => c.uid === cardUid);
+    setLurePickerSource(null);
+    if (!card) return;
+    if (src === 'deck') setDeck(d => d.filter(c => c.uid !== cardUid));
+    else                setDiscard(d => d.filter(c => c.uid !== cardUid));
+    setHand(h => [...h, card]);
+    pushLog(`🪤 ${card.name} pulled from your ${src === 'deck' ? 'draw pile' : 'discard'} to hand.`);
   }
 
   // Shoo — called from the slotPill click handler when the Shoo prompt is
@@ -9864,7 +9935,7 @@ export default function App() {
     // combat, total. After the first fires, exclude the kind for the rest of
     // the fight. Excluding the kind from the roll cleanly removes it.
     const justFiredDiscard = justFiredKind === 'discard-hand';
-    if (enemy?.id === 'e2-loom-familiar' && (justFiredDiscard || enemyDiscardCount >= 1)) {
+    if (enemy?.id === 'e2-loom-familiar' && (justFiredDiscard || loomStoleThisCombatRef.current)) {
       if (!exclude.includes('discard-hand')) exclude.push('discard-hand');
     }
     if (enemy) {
@@ -10323,6 +10394,14 @@ export default function App() {
       });
       pushLog(`👹 ${e.name}: 🛡 +${intent.value}`);
     } else if (intent.kind === 'discard-hand') {
+      // Hard cap: one steal per combat. If the loom already took a card this
+      // fight, the intent does nothing rather than steal again. The ref reads
+      // current synchronously, so this holds even if a second discard-hand
+      // intent slips through the end-of-turn re-roll exclude.
+      if (loomStoleThisCombatRef.current) {
+        pushLog(`👹 ${e.name}: 🗑 ${intent.telegraph || 'reaches in'} — but it already has its thread. (nothing taken)`);
+        return;
+      }
       // v2.96: Loom Familiar — pulls a card out of the player's hand.
       // v3.1.2: prefer NON-SPELL cards. Spell pieces are rare singletons
       // and losing one to randomness locks players out of casts.
@@ -10353,6 +10432,7 @@ export default function App() {
         // Recording the taken cards lets endTurn pull them OUT of the recycle
         // pipeline and exile them — the steal is finally felt.
         stolenCardsRef.current.push(...taken);
+        loomStoleThisCombatRef.current = true;
         setEnemyDiscardCount(c => c + 1);
         pushLog(`👹 ${e.name}: 🗑 you lose ${taken.length} card${taken.length === 1 ? '' : 's'} (${taken.map(c => c.name || c.phrase || '?').join(', ')}).`);
         setCardLossNotice({ source: e.name, cards: taken });
@@ -11063,6 +11143,14 @@ export default function App() {
   // screen. Lifting the overlays out of the stage routing fixes that.
   const appOverlays = <>
     {forgetTwoPrompt && <ForgetTwoModal cards={forgetTwoPrompt.cards} onPick={resolveForgetTwoChoice} lane={selectedCharacter?.lane || null} />}
+    {lurePickerSource && (
+      <LurePicker
+        source={lurePickerSource}
+        cards={(lurePickerSource === 'deck' ? deck : discard).filter(c => c.type === 'lure')}
+        onPick={pickLureFromPile}
+        onCancel={() => setLurePickerSource(null)}
+        lane={selectedCharacter?.lane || null} />
+    )}
     {chaosRollFlash && <ChaosRollFlash flash={chaosRollFlash} onDismiss={() => setChaosRollFlash(null)} />}
   </>;
   const stageContent = (() => {
@@ -11217,6 +11305,7 @@ export default function App() {
       playerComposure={composure} playerComposureMax={composureMax}
       block={block} poise={poise} energy={energy} hand={hand}
       amplifyPlaysThisCombat={amplifyPlaysThisCombat}
+      getEffectiveCost={effectiveCardCost}
       deck={deck} discard={discard} exiled={exiled} tray={tray}
       energyMax={energyPerTurnRefill()}
       equipment={equipment} powers={powers} relics={relics}
@@ -14284,6 +14373,39 @@ function ForgetTwoModal({ cards, onPick, lane = null }) {
           ))}
         </div>
         <div className="text-[11px] text-parchment-400 italic text-center">Click the card you'd rather lose.</div>
+      </div>
+    </div>
+  );
+}
+
+// Lure tutor picker — shows the lures available in a source pile (draw pile
+// or discard) and pulls the clicked one to hand. Cancel closes without a
+// pick (the tutor card is already spent). Modeled on ForgetTwoModal.
+function LurePicker({ cards, source, onPick, onCancel, lane = null }) {
+  const label = source === 'deck' ? 'draw pile' : 'discard';
+  return (
+    <div className="fixed inset-0 bg-ink-900 bg-opacity-85 flex items-center justify-center z-50 p-6"
+         onClick={onCancel}>
+      <div className="parchment-card-strong p-6 max-w-3xl w-full flex flex-col gap-4 max-h-[92vh] overflow-y-auto"
+           onClick={(e) => e.stopPropagation()}>
+        <div className="text-center">
+          <h2 className="font-display text-3xl text-moss-300">Pick a Lure</h2>
+          <p className="text-sm text-parchment-300 italic mt-1">
+            From your {label} — the lure you choose goes to your hand.
+          </p>
+        </div>
+        <div className="flex gap-4 justify-center flex-wrap">
+          {cards.map(card => (
+            <button key={card.uid} onClick={() => onPick(card.uid)}
+              className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-moss-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+              <CardFullBody card={card} lane={lane || null} />
+            </button>
+          ))}
+        </div>
+        <button onClick={onCancel}
+          className="self-center text-[11px] text-parchment-400 italic hover:text-parchment-200 underline">
+          Never mind. (The card is already spent.)
+        </button>
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        enemyHitFlash, playerHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
                        block, poise, energy, energyMax, hand, deck, discard, exiled = [], tray,
-                       amplifyPlaysThisCombat,
+                       amplifyPlaysThisCombat, getEffectiveCost,
                        equipment, powers, relics, familiar, familiarName,
                        onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
                        castsThisTurn, maxCastsPerTurn,
@@ -688,11 +688,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 
       <div className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
         {hand.map((card, i) => {
-          // Amplify gets +1 cost per prior play this combat. UI shows the
-          // current (escalated) cost so the player doesn't get surprised.
-          const effCost = card.id === 'c-amplify'
-            ? (card.cost || 0) + (amplifyPlaysThisCombat || 0)
-            : (card.cost || 0);
+          // Effective cost reflects EVERY live modifier so the hand never
+          // grays out a card a discount would let you afford: Amplify's
+          // escalation, slot-cheaper powers, and "next card free". App owns
+          // the single source of truth (effectiveCardCost) and hands it down
+          // here as getEffectiveCost — don't re-derive discounts locally or
+          // the pill and the playable-gate drift apart.
+          const rawCost = card.cost || 0;
+          const effCost = getEffectiveCost
+            ? getEffectiveCost(card)
+            : (card.id === 'c-amplify' ? rawCost + (amplifyPlaysThisCombat || 0) : rawCost);
+          const discounted = effCost < rawCost;
           // v2.35: FOOTNOTE picker — eligible cards are Word cards (intro,
           // subject, modifier). When the prompt is active, those cards
           // become clickable for footnoting INSTEAD of playing.
@@ -721,11 +727,15 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                      : card.type === 'power'  ? 'border-gold-500'
                      :                          'border-moss-500';
           const costPillClass = playable
-            ? (escalated ? 'bg-ember-500 text-parchment-50' : 'bg-gold-500 text-ink-800')
+            ? (escalated ? 'bg-ember-500 text-parchment-50'
+               : discounted ? 'bg-moss-500 text-ink-800'
+               : 'bg-gold-500 text-ink-800')
             : 'bg-ink-500 text-parchment-300';
           const costTooltip = escalated
             ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).`
-            : undefined;
+            : discounted
+              ? `Discounted to ${effCost} (base ${rawCost}).`
+              : undefined;
           // v3.4.75 (Alan) — Punchline & other Loudness-consume cards show
           // Punchline / consumeLoudnessAsDamage live-damage preview removed
           // 2026-05-31 with the chutzpah → handler pivot (Loudness ripped).

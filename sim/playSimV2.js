@@ -1388,6 +1388,7 @@ function runCombat(state, enemyId, telemetry) {
   state.enemyIntent = rollIntent(enemy);
   state.lastIntentKinds = [];
   state.weaveStacks = 0; // v2.96: Hollow Weaver weave debt (wit/jnsq).
+  state.loomStole = false; // Loom Familiar: one card-steal per combat, total.
   state.castedThisTurn = false; // set at end of each player turn; weave reads it.
   state.block = 0;
   state.poise = 0; // v2.9: composure-shield
@@ -3936,9 +3937,10 @@ function runCombat(state, enemyId, telemetry) {
         } else {
           state.weaveStacks = (state.weaveStacks || 0) + (intent.value || 1);
         }
-      } else if (intent.kind === 'discard-hand') {
+      } else if (intent.kind === 'discard-hand' && !state.loomStole) {
         // Loom Familiar — remove N cards from hand (prefer non-spell pieces),
-        // exile them. Mirrors App.jsx ~10252.
+        // exile them. Mirrors App.jsx. HARD CAP: one steal per combat — the
+        // `!state.loomStole` guard mirrors App's loomStoleThisCombatRef.
         const requested = intent.value || 1;
         const n = Math.min(requested, state.hand.length);
         const isSpellPiece = (c) => c.slot === 'intro' || c.slot === 'subject' || c.slot === 'target';
@@ -3952,7 +3954,7 @@ function runCombat(state, enemyId, telemetry) {
           state.hand.splice(pickedIdx, 1);
           taken++;
         }
-        if (taken > 0) telemetry.discardHandStolen = (telemetry.discardHandStolen || 0) + taken;
+        if (taken > 0) { telemetry.discardHandStolen = (telemetry.discardHandStolen || 0) + taken; state.loomStole = true; }
       }
     }
 
@@ -4211,7 +4213,12 @@ function runCombat(state, enemyId, telemetry) {
       state.lastIntentKinds = justFired
         ? [...(state.lastIntentKinds || []), justFired].slice(-2)
         : (state.lastIntentKinds || []);
-      state.enemyIntent = rollIntent(enemy, state.lastIntentKinds);
+      // Loom Familiar: once it has stolen this combat, never re-roll another
+      // steal. Mirrors App.jsx's discard-hand exclude.
+      const intentExclude = state.loomStole
+        ? [...state.lastIntentKinds, 'discard-hand']
+        : state.lastIntentKinds;
+      state.enemyIntent = rollIntent(enemy, intentExclude);
     }
 
     // End-of-turn cleanup
