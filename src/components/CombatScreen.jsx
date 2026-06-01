@@ -608,6 +608,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
         onPlayCard={onPlayCard}
         onFeedAnimal={onFeedAnimal}
+        onDiscardTactic={onDiscardTactic}
         draggingFeedKey={draggingHandIdx != null ? hand?.[draggingHandIdx]?.feedKey : null}
         dragOverSlot={dragOverSlot} setDragOverSlot={setDragOverSlot} />
 
@@ -891,6 +892,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        eatItPromptActive = false, onEatItClick = () => {},
                        onPlayCard = () => {},
                        onFeedAnimal = () => {},
+                       onDiscardTactic = () => {},
                        draggingFeedKey = null,
                        dragOverSlot = null, setDragOverSlot = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
