@@ -686,7 +686,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         </div>
       )}
 
-      <div className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
+      <div data-testid="hand" className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
         {hand.map((card, i) => {
           // Effective cost reflects EVERY live modifier so the hand never
           // grays out a card a discount would let you afford: Amplify's
@@ -747,6 +747,11 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           const isLure = card.slot === 'lure' && playable;
           return (
             <motion.button key={card.uid}
+              data-testid="hand-card"
+              data-card-id={card.id}
+              data-card-uid={card.uid}
+              data-eff-cost={effCost}
+              data-playable={playable ? 'true' : 'false'}
               initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22 }}
               draggable={isLure}
@@ -790,7 +795,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             🗂 Deck
           </button>
         )}
-        <button onClick={onEndTurn} className="btn btn-ember text-sm px-4 py-1 ml-auto">End Turn</button>
+        <button onClick={onEndTurn} data-testid="end-turn" className="btn btn-ember text-sm px-4 py-1 ml-auto">End Turn</button>
       </div>
 
       {/* v3.4.28 (Alan): FFT Progress panel — Wit-only set-collection

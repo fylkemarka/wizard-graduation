@@ -12807,7 +12807,20 @@ function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCance
   const [filter, setFilter] = useState('');
   if (!character) return null;
   const lane = character.lane;
-  const pool = LANE_POOL[lane] || [];
+  // Pool = the lane word-pool PLUS the colorless utility cards usable by
+  // this lane (Shoo / Treat / Buffet / Rummage / tactics, etc.) and the
+  // truly-laneless skills/powers (e.g. Food in the Pocket). Those live in
+  // CARDS, not the lane word-pool, so without this the handler could only
+  // add lures. Lets Lab build & test a full kit, not just bait.
+  const pool = useMemo(() => {
+    const base = LANE_POOL[lane] || [];
+    const seen = new Set(base.map(c => c.id));
+    const extras = CARDS.filter(c =>
+      !seen.has(c.id) && c.rarity !== 'basic' &&
+      (c.lane === lane || (!c.lane && (c.type === 'skill' || c.type === 'power')))
+    );
+    return [...base, ...extras];
+  }, [lane]);
   // Static lane color class strings for Tailwind purge safety.
   const laneAccent = lane === 'wit' ? 'text-iris-300' : lane === 'handler' ? 'text-ember-300' : 'text-moss-300';
   const rarityColor = (r) => r === 'basic' ? 'text-parchment-400'
@@ -12864,6 +12877,7 @@ function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCance
 
   const CardEntry = ({ c }) => (
     <button onClick={() => onAdd(c.id)}
+            data-testid="pool-card" data-card-id={c.id}
             className="text-left bg-ink-700 hover:bg-ink-600 border border-ink-500 rounded px-2 py-1
                        flex items-center gap-2 w-full"
             title={`${c.desc || c.flavor || ''}${c.phrase ? `\n"${c.phrase}"` : ''}`}>
@@ -14385,6 +14399,7 @@ function LurePicker({ cards, source, onPick, onCancel, lane = null }) {
   const label = source === 'deck' ? 'draw pile' : 'discard';
   return (
     <div className="fixed inset-0 bg-ink-900 bg-opacity-85 flex items-center justify-center z-50 p-6"
+         data-testid="lure-picker"
          onClick={onCancel}>
       <div className="parchment-card-strong p-6 max-w-3xl w-full flex flex-col gap-4 max-h-[92vh] overflow-y-auto"
            onClick={(e) => e.stopPropagation()}>
