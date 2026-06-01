@@ -841,7 +841,20 @@ function stageHandlerLure(state, combat, lure) {
   if (empties.length === 0) { state.discard.push(lure); return; }
   const youthBonus = (combat.tactic === 'youth' && combat.youthUses > 0) ? 1 : 0;
   const nurture = combat.tactic === 'nurture';
-  const targets = combat.buffetArmed ? empties : [empties[0]];
+  // Buffet + a predator-chain lure (Fish Food → Salmon → Bear) spreads to the
+  // two END slots only, never the middle, so salmon land non-adjacent. Mirrors
+  // App.jsx. (Alan, 2026-06-01.)
+  const summonIds = lure.summon.animalIds || (lure.summon.animalId ? [lure.summon.animalId] : []);
+  const isChainLure = summonIds.some(id => ANIMALS[id]?.predatorChain);
+  let targets;
+  if (combat.buffetArmed && isChainLure) {
+    const ends = [SLOT[0], SLOT[2]].filter(s => combat.htray[s] == null);
+    targets = ends.length > 0 ? ends : [empties[0]];
+  } else if (combat.buffetArmed) {
+    targets = empties;
+  } else {
+    targets = [empties[0]];
+  }
   targets.forEach((s, idx) => {
     const withCard = idx === 0;
     if (nurture) {
@@ -1135,6 +1148,14 @@ function handlerEndOfTurnTick(state, combat) {
     const h = makeAnimalSlot('hawk', 0, slot.summonSet); h.eatenThisTurn = true;
     work[s] = h;
   }
+  // PRE-PASS: hawk grabs fish (10% per salmon). Mirrors App.jsx.
+  for (const s of SLOT) {
+    const slot = work[s];
+    if (!slot || slot.kind !== 'animal' || slot.animalId !== 'salmon') continue;
+    if (Math.random() >= 0.10) continue;
+    const h = makeAnimalSlot('hawk', 0, slot.summonSet); h.eatenThisTurn = true;
+    work[s] = h;
+  }
   // PRE-PASS: three-of-a-kind combine.
   const first = work[SLOT[0]];
   const matched = (first?.kind === 'animal' && COMBINE_BY_SPECIES[first.animalId]) ? first.animalId : null;
@@ -1158,6 +1179,26 @@ function handlerEndOfTurnTick(state, combat) {
     for (const s of SLOT) {
       const sl = work[s];
       work[s] = { ...sl, nextAttackMult: 1.5, turnGrantTemp: { block: ((sl.turnGrantTemp?.block) || 0) + 3 }, tgFired: true };
+    }
+  }
+
+  // PRE-PASS: hawk eats adjacent prey (field-mouse/rabbit/salmon) to stay —
+  // consumes the prey, moves into its square, refreshes to full duration.
+  // Mirrors App.jsx. (Alan, 2026-06-01.)
+  for (const slotName of SLOT) {
+    const hs = work[slotName];
+    if (!hs || hs.kind !== 'animal' || hs.animalId !== 'hawk') continue;
+    const prey = ANIMALS.hawk?.eatsAdjacent || [];
+    const hi = SLOT.indexOf(slotName);
+    for (const ni of [hi - 1, hi + 1]) {
+      if (ni < 0 || ni >= SLOT.length) continue;
+      const ns = SLOT[ni];
+      const nb = work[ns];
+      if (nb && nb.kind === 'animal' && prey.includes(nb.animalId)) {
+        work[ns] = { ...work[slotName], durationRemaining: ANIMALS.hawk?.duration || 3 };
+        work[slotName] = null;
+        break;
+      }
     }
   }
 
@@ -1212,12 +1253,14 @@ function handlerEndOfTurnTick(state, combat) {
     // if no animal of that species is already on the projected board.
     const chainReady = animal.predatorChain && !isUnfed(slot, animal) && nextPred >= animal.predatorChain.turnsToTrigger;
     const chainTargetId = animal.predatorChain && animal.predatorChain.animalId;
-    const chainTargetPresent = chainReady && SLOT.some((s) => {
-      if (s === slotName) return false;
+    // TERRITORIAL CAP: up to 2 of the chain species (bears) at once. Mirrors App.jsx.
+    const MAX_CHAIN_TARGET = 2;
+    const chainTargetCount = chainReady ? SLOT.reduce((n, s) => {
+      if (s === slotName) return n;
       const proj = (next[s] !== undefined) ? next[s] : work[s];
-      return proj && proj.kind === 'animal' && proj.animalId === chainTargetId;
-    });
-    if (chainReady && !chainTargetPresent) {
+      return n + ((proj && proj.kind === 'animal' && proj.animalId === chainTargetId) ? 1 : 0);
+    }, 0) : 0;
+    if (chainReady && chainTargetCount < MAX_CHAIN_TARGET) {
       next[slotName] = makeAnimalSlot(animal.predatorChain.animalId, 0, slot.summonSet);
       continue;
     }

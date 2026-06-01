@@ -5589,8 +5589,19 @@ export default function App() {
       // Buffet — if armed, place the lure in EVERY empty slot at once
       // (one envelope per slot, single card consumed). Otherwise stage in
       // the explicit targetSlot (drag-and-drop) or fall back to first empty.
+      // EXCEPTION (Alan, 2026-06-01): a predator-chain lure (Fish Food →
+      // Salmon → Bear) under Buffet spreads to the two END slots only — never
+      // the middle — so the salmon land on opposite ends and don't sit
+      // adjacent (a bear eats an adjacent salmon). Up to two, matching the
+      // 2-bear cap.
+      const summonIds = card.summon?.animalIds || (card.summon?.animalId ? [card.summon.animalId] : []);
+      const isChainLure = summonIds.some(id => ANIMALS[id]?.predatorChain);
+      const endSlotNames = [order[0], order[order.length - 1]];
       let targetSlots;
-      if (buffetArmed) {
+      if (buffetArmed && isChainLure) {
+        const ends = endSlotNames.filter(s => tray[s] == null);
+        targetSlots = ends.length > 0 ? ends : [emptySlots[0]];
+      } else if (buffetArmed) {
         targetSlots = emptySlots;
       } else if (opts.targetSlot && order.includes(opts.targetSlot) && tray[opts.targetSlot] == null) {
         targetSlots = [opts.targetSlot];
@@ -5695,7 +5706,7 @@ export default function App() {
       if (targetSlots.length > 1 && !isNurture) {
         pushLog(`🍽 Buffet — ${card.name} spreads across ${targetSlots.length} slots (${targetSlots.join(', ')}).`);
       }
-      if (targetSlots.length > 1) setBuffetArmed(false);
+      if (buffetArmed && (targetSlots.length > 1 || isChainLure)) setBuffetArmed(false);
       if (targetSlots.length === 1 && !isNurture) {
         if (card.summon.animalId || featherSpecies) {
           const animalId = featherSpecies || card.summon.animalId;
@@ -8899,6 +8910,28 @@ export default function App() {
         };
       }
 
+      // Pre-pass: HAWK GRABS FISH. Same as the Field Mouse mechanic but at a
+      // higher 10% chance per Salmon on the board — a Hawk swoops in and grabs
+      // the fish before it can flop into anything. The Salmon is gone; the Hawk
+      // takes the slot with fresh duration and acts next turn. (Alan, 2026-06-01.)
+      for (const slotName of SLOT_ORDER) {
+        const slot = workingTray[slotName];
+        if (!slot || slot.kind !== 'animal') continue;
+        if (slot.animalId !== 'salmon') continue;
+        if (Math.random() >= 0.10) continue;
+        const hawk = getAnimal('hawk');
+        pushLog(`🦅 A Hawk swoops in and grabs the Salmon — gone in an instant.`);
+        workingTray[slotName] = {
+          kind: 'animal',
+          animalId: 'hawk',
+          durationRemaining: hawk?.duration || 3,
+          predatorProgress: 0,
+          adjacentSpawnProgress: 0,
+          summonSet: slot.summonSet || null,
+          eatenThisTurn: true,
+        };
+      }
+
       // Pre-pass: THREE-OF-A-KIND COMBINES. When all 3 slots hold the same
       // species AND that species has a combine target, merge into the
       // combine animal anchored at intro spanning into subject. target
@@ -8957,6 +8990,33 @@ export default function App() {
             turnGrantTemp: { ...(s.turnGrantTemp || {}), block: ((s.turnGrantTemp?.block) || 0) + 3 },
             tenderGreensRowBonusFired: true,
           };
+        }
+      }
+
+      // Pre-pass: HAWK EATS ADJACENT PREY (Alan, 2026-06-01). A hawk isn't
+      // lured or fed by seed — to make it STAY, stage a Field Mouse, Rabbit, or
+      // Salmon next to it. The hawk eats one adjacent prey, MOVES into that
+      // square, and refreshes to full duration. Its original slot empties.
+      // Runs after combines so a full mouse-row still merges first.
+      for (const slotName of SLOT_ORDER) {
+        const hawkSlot = workingTray[slotName];
+        if (!hawkSlot || hawkSlot.kind !== 'animal' || hawkSlot.animalId !== 'hawk') continue;
+        const prey = getAnimal('hawk')?.eatsAdjacent || [];
+        const hi = SLOT_ORDER.indexOf(slotName);
+        for (const ni of [hi - 1, hi + 1]) {
+          if (ni < 0 || ni >= SLOT_ORDER.length) continue;
+          const ns = SLOT_ORDER[ni];
+          const neighbor = workingTray[ns];
+          if (neighbor && neighbor.kind === 'animal' && prey.includes(neighbor.animalId)) {
+            const preyName = getAnimal(neighbor.animalId)?.name || neighbor.animalId;
+            workingTray[ns] = {
+              ...workingTray[slotName],
+              durationRemaining: getAnimal('hawk')?.duration || 3,
+            };
+            workingTray[slotName] = null;
+            pushLog(`🦅 The Hawk takes the adjacent ${preyName} and moves into its place — it stays.`);
+            break; // one prey per hawk per turn
+          }
         }
       }
 
@@ -9106,15 +9166,20 @@ export default function App() {
           const chainReady = animal.predatorChain && !isUnfed(slot, animal)
             && nextPredator >= animal.predatorChain.turnsToTrigger;
           const chainTargetId = animal.predatorChain?.animalId;
-          const chainTargetPresent = chainReady && SLOT_ORDER.some((s) => {
-            if (s === slotName) return false;
+          // TERRITORIAL CAP (Alan, 2026-06-01): at most MAX_CHAIN_TARGET of the
+          // chain species (bears) may hold the board at once. Raised from an
+          // effective 1 to 2 — extra salmon keep flopping until a bear leaves.
+          const MAX_CHAIN_TARGET = 2;
+          const chainTargetCount = chainReady ? SLOT_ORDER.reduce((n, s) => {
+            if (s === slotName) return n;
             const proj = (nextSlots[s] !== undefined) ? nextSlots[s] : workingTray[s];
-            return proj && proj.kind === 'animal' && proj.animalId === chainTargetId;
-          });
-          if (chainReady && chainTargetPresent) {
-            pushLog(`${animal.icon} The ${animal.name} waits — a ${getAnimal(chainTargetId)?.name || chainTargetId} already holds this territory.`);
+            return n + ((proj && proj.kind === 'animal' && proj.animalId === chainTargetId) ? 1 : 0);
+          }, 0) : 0;
+          const chainTargetCapped = chainReady && chainTargetCount >= MAX_CHAIN_TARGET;
+          if (chainReady && chainTargetCapped) {
+            pushLog(`${animal.icon} The ${animal.name} waits — the range already holds ${chainTargetCount} ${getAnimal(chainTargetId)?.name || chainTargetId}${chainTargetCount === 1 ? '' : 's'}.`);
           }
-          if (chainReady && !chainTargetPresent) {
+          if (chainReady && !chainTargetCapped) {
             const newAnimalId = chainTargetId;
             const newAnimal = getAnimal(newAnimalId);
             pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} attracts a ${newAnimal?.name || newAnimalId}!`);

@@ -139,10 +139,14 @@ export const ANIMALS = {
     attack: 4,
     attackPool: 'composure',
     duration: 3,
-    feedKey: 'bird',
+    // No feedKey: a hawk is not lured or fed by Birdseed. To make it STAY,
+    // stage a Field Mouse, Rabbit, or Salmon next to it — the hawk eats the
+    // adjacent prey, moves into its square, and refreshes its stay (handled in
+    // the end-of-turn pre-pass). (Alan, 2026-06-01.)
+    eatsAdjacent: ['field-mouse', 'rabbit', 'salmon'],
     onExit: { applyWeak: 1, weakTurns: 1 },
     flavor: 'Arrived suddenly. The field mouse, presumably, is no longer a topic.',
-    desc: 'Attacks for 4 composure each turn for 3 turns. Applies Weak 1 to the enemy on exit.',
+    desc: 'Attacks for 4 composure each turn for 3 turns. Eats an adjacent Field Mouse, Rabbit, or Salmon to stay. Applies Weak 1 to the enemy on exit.',
     upgrade: { attack: 6, onExit: { applyWeak: 2, weakTurns: 1 } },
   },
   goose: {
