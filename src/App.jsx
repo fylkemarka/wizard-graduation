@@ -337,10 +337,20 @@ const CARDS = [
     desc: 'Reduce enemy attack damage by 15% (stacks; caps at −50%).',
     flavor: 'You did not finish your sentence. They did not finish theirs, either.' },
   { id: 'c-amplify', name: 'Amplify', cost: 1, type: 'skill', rarity: 'common',
+    notLanes: ['handler'],
     effects: { playerDmgMod: +0.15 },
     upgrade: { effects: { playerDmgMod: +0.15, draw: 1 } },
     desc: 'Increase your spell potency by 15% (stacks; caps at +50%). Each play this combat costs +1 energy more than the last.',
     flavor: 'You feel taller. It is, demonstrably, a feeling.' },
+  // Handler equivalent of Amplify (which boosts player casts — meaningless
+  // for a summoner). Agitate the tank: every summoned animal's NEXT attack
+  // hits +50% harder, multiplying the slot's nextAttackMult so it stacks
+  // with the Tender Greens row bonus. Exhaust one-shot — dead with an empty
+  // tank, a burst with three sets of teeth.
+  { id: 'c-tap-the-glass', name: 'Tap the Glass', lane: 'handler', cost: 1, type: 'skill', rarity: 'common',
+    effects: { agitateMenagerie: 1.5, exhaust: true },
+    desc: "Each summoned animal's next attack deals +50% damage. Exhaust.",
+    flavor: 'You tap once. Three sets of eyes snap toward the glass.' },
   { id: 'c-dispel', name: 'Dispel', nameByLane: { handler: 'Steady' },
     cost: 0, type: 'skill', rarity: 'uncommon',
     effects: { enemyDmgMod: -0.15, playerDmgMod: +0.15, exhaust: true },
@@ -3417,6 +3427,7 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   // around startRun's clear+set sequence). Fail-safe means "no lane
   // info → only lane-agnostic c-* cards", never wrong-lane offers.
   const matchesLane = (c) => {
+    if (c.notLanes && lane && c.notLanes.includes(lane)) return false; // Excluded for this lane
     if (!c.lane) return true;       // Lane-agnostic — always OK
     if (!lane)   return false;      // No active lane → reject lane-specific
     return c.lane === lane;
@@ -4665,7 +4676,7 @@ export default function App() {
     handler: {
       // DEV_PRESETS for the Handler — Animal Summoner build (2026-05-31 pivot).
       // Each tier seeds a deck representative of what the player can build to.
-      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-shoo', 'c-amplify'],
+      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-shoo', 'c-tap-the-glass'],
       3: ['cv2-l-fish-food', 'cv2-l-tender-greens', 'cv2-l-birdseed', 'c-shoo', 'c-mend'],
       4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-l-tender-greens', 'c-bulwark', 'c-acuity'],
     },
@@ -8069,6 +8080,29 @@ export default function App() {
     if (fx.buffetArmed) {
       setBuffetArmed(true);
       logBits.push(`🍽 Buffet armed — your next lure spreads across every empty slot.`);
+    }
+    // Tap the Glass — agitate the menagerie. Every summoned animal's NEXT
+    // attack hits harder by multiplying the slot's nextAttackMult (so it
+    // stacks with the Tender Greens row bonus and is consumed/reset by the
+    // end-of-turn attack like any other mult). No-op with an empty tank.
+    // Mutations collected then committed via setTray after the loop to
+    // respect the React pure-updater rule.
+    if (fx.agitateMenagerie) {
+      const mult = fx.agitateMenagerie;
+      const updates = {};
+      let count = 0;
+      for (const slotName of ['intro', 'subject', 'target']) {
+        const slot = tray[slotName];
+        if (!slot || slot.kind !== 'animal') continue;
+        updates[slotName] = { ...slot, nextAttackMult: (slot.nextAttackMult || 1) * mult };
+        count++;
+      }
+      if (count > 0) {
+        setTray(p => syncTrayLegacy({ ...p, ...updates }));
+        logBits.push(`🐟 Tap the Glass — ${count} ${count === 1 ? 'animal' : 'animals'} agitated (+${Math.round((mult - 1) * 100)}% next attack).`);
+      } else {
+        logBits.push(`🐟 Tap the Glass — the tank is empty. Nothing stirs.`);
+      }
     }
     // Pack Tactics — instant. Every animal currently in play attacks again
     // this turn. Salmon (0 attack) does nothing; animals that already ate
