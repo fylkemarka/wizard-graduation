@@ -1896,7 +1896,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         if (enemy.phaseShifted) chips.push({ key: 'phase', label: '🕸 thinned', tone: 'text-ember-300' });
         if (enemy.annotation) chips.push({ key: 'ann', label: `📝 ${enemy.annotation.cardName || 'annotated'} (${enemy.annotation.turnsRemaining}t)`, tone: 'text-iris-300' });
         if (weaveStacks > 0) chips.push({ key: 'weave', label: `🪡 Weave ${weaveStacks}`, tone: 'text-ember-300', tooltip: `Weave debt: ${weaveStacks} stack${weaveStacks === 1 ? '' : 's'}. End the turn without casting an FFT and this fires as ${weaveStacks} composure damage and clears. Cast any FFT to neutralize it silently.` });
-        if (riposteCharge > 0) chips.push({ key: 'rip', label: `🛡⚔ Riposte ${riposteCharge}`, tone: 'text-iris-300' });
+        if (riposteCharge > 0) chips.push({ key: 'rip', label: `🛡⚔ Reflexes ${riposteCharge}`, tone: 'text-iris-300' });
         if (braceArmedDraw > 0) chips.push({ key: 'brace', label: `🛡✦ Brace +${braceArmedDraw}`, tone: 'text-moss-300' });
         if (chips.length === 0) return null;
         return (

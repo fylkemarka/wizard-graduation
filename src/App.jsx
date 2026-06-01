@@ -215,11 +215,11 @@ const CARDS = [
     upgrade: { effects: { block: 5, swapNextHitToComp: true, exhaust: true } },
     desc: 'Gain 3 Block. Next HP damage you would take is dealt to your Composure instead. Exhaust.',
     flavor: 'The bruise was a metaphor all along.' },
-  { id: 'c-riposte', name: 'Riposte', cost: 2, type: 'skill', rarity: 'uncommon',
+  { id: 'c-riposte', name: 'Animal Reflexes', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, riposteArmed: 4, exhaust: true },
     upgrade: { effects: { block: 6, riposteArmed: 6, exhaust: true } },
     desc: 'Gain 4 Block. The next enemy attack ALSO deals 4 Composure damage to its source.',
-    flavor: 'They will swing. You will be quoted, in their retreat.' },
+    flavor: 'Something in you twitches first and explains later.' },
   // v3.0 multi-hit: Brace for Many — universal scaling defense. Block
   // gain = bracePerSwing × swing-count in enemy's NEXT attack. A 4×3
   // enemy = 8 block; a 1×12 enemy = 2 block. Lets the player read the
@@ -245,9 +245,9 @@ const CARDS = [
   // pressure the enemy on turns where the big spell isn't ready.
   { id: 'c-sharp-aside', name: 'Sharp Aside', nameByLane: { handler: 'Sharp Whistle' },
     cost: 0, type: 'skill', rarity: 'common',
-    effects: { compDmg: 4, exhaust: true },
-    upgrade: { effects: { compDmg: 6, exhaust: true } },
-    desc: '4 Composure damage. Exhaust.',
+    effects: { compDmg: 4 },
+    upgrade: { effects: { compDmg: 6 } },
+    desc: '4 Composure damage.',
     flavor: 'A small remark with a quiet edge.' },
   { id: 'c-cutting-remark', name: 'Cutting Remark', nameByLane: { handler: 'Sharp Bark' },
     cost: 1, type: 'skill', rarity: 'common',
