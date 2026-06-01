@@ -137,7 +137,7 @@ const CARDS = [
   // "Pack Tactics" for handler). Stays until replaced by another tactic.
   { id: 'c-tactic-shield', name: 'Summoned Shield', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'shield' },
-    desc: 'Tactic: animal attack damage becomes Block for you instead of damage to the enemy.',
+    desc: 'Tactic: animal attack damage becomes Block AND Poise for you instead of damage to the enemy.',
     flavor: 'Each beast turns its body to the door. You may pass between them.' },
   { id: 'c-tactic-rabid', name: 'Rabid', cost: 2, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
     tactic: { id: 'rabid' },
@@ -8094,7 +8094,8 @@ export default function App() {
         if (isRabid) atk = Math.round(atk * 1.5);
         if (isShield) {
           setBlock(b => b + atk);
-          pushLog(`${animal.icon} ${animal.name} braces again: +${atk} Block (Pack Tactics).`);
+          setPoise(p => p + atk);
+          pushLog(`${animal.icon} ${animal.name} braces again: +${atk} Block & Poise (Pack Tactics).`);
         } else {
           if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
           else                                    applyDamageToEnemyHp(atk);
@@ -9436,12 +9437,13 @@ export default function App() {
             const isShield = tacticId === 'shield';
             const isRabid  = tacticId === 'rabid';
             if (isRabid) atk = Math.round(atk * 1.5);
-            const tacticLabel = isRabid ? ' (Rabid ×1.5)' : isShield ? ' (Shield → Block)' : '';
+            const tacticLabel = isRabid ? ' (Rabid ×1.5)' : isShield ? ' (Shield → Block & Poise)' : '';
             hTick.attacks++;
             if (isShield) {
               setBlock(b => b + atk);
+              setPoise(p => p + atk);
               hTick.blockGained += atk;
-              pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block${multLabel}${tacticLabel}.`);
+              pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block & Poise${multLabel}${tacticLabel}.`);
             } else {
               // Capture the POST-damage pool from the ref-backed damage
               // helpers — they accumulate across the loop, so this catches a
