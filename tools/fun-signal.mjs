@@ -296,19 +296,30 @@ if (allSessions) {
     if (r) printAny(r);
   }
 } else {
-  // Find latest session containing a run.end event.
+  // Handler runs often stop early (no run.end), so a finished wit session in
+  // the same file would otherwise shadow them. Prefer the richest Handler
+  // session (most handler_ticks) whenever one exists; only then fall back to
+  // the latest run.end session for wit runs.
   let target = null;
-  for (let i = sessions.length - 1; i >= 0; i--) {
-    if ((sessions[i].events || []).find(e => e.type === 'run.end')) {
-      target = sessions[i];
-      break;
+  let bestTicks = 0;
+  for (const s of sessions) {
+    const n = (s.events || []).filter(e => e.type === 'combat.handler_tick').length;
+    if (n > bestTicks) { bestTicks = n; target = s; }
+  }
+  if (!target) {
+    // No Handler content — find latest session containing a run.end event.
+    for (let i = sessions.length - 1; i >= 0; i--) {
+      if ((sessions[i].events || []).find(e => e.type === 'run.end')) {
+        target = sessions[i];
+        break;
+      }
     }
   }
   if (!target) {
-    // Fallback: pick the latest session with FFT casts or a Handler tick.
+    // Fallback: pick the latest session with FFT casts.
     for (let i = sessions.length - 1; i >= 0; i--) {
       const evs = sessions[i].events || [];
-      if (evs.some(e => e.type === 'wit.fft.cast' || e.type === 'combat.handler_tick')) {
+      if (evs.some(e => e.type === 'wit.fft.cast')) {
         target = sessions[i];
         break;
       }
