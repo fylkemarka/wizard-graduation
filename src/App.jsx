@@ -9365,6 +9365,7 @@ export default function App() {
           adjacentSpawnProgress: 0,
           summonSet: matchedSpecies === 'field-mouse' ? 'tender-greens' : null,
           spans: ['intro', 'subject'],
+          justCombined: true, // formation turn: attack but don't burn a duration tick
         };
         workingTray.subject = { kind: 'occupied', occupiedBy: 'intro' };
         workingTray.target = null;
@@ -9442,13 +9443,21 @@ export default function App() {
               hTick.blockGained += atk;
               pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block${multLabel}${tacticLabel}.`);
             } else {
+              // Capture the POST-damage pool from the ref-backed damage
+              // helpers — they accumulate across the loop, so this catches a
+              // cumulative kill (two animals that each fall short alone but
+              // together drop the enemy). The old check read the stale
+              // closure `enemyComposure`/`enemyHp` and missed those, letting
+              // a dead enemy still fire its intent at the player.
               if (animal.attackPool === 'composure') {
-                applyDamageToEnemyComposure(atk);
+                const post = applyDamageToEnemyComposure(atk);
                 hTick.composureDealt += atk;
+                if (post <= 0) summonerKilledEnemy = true;
                 pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}${tacticLabel}.`);
               } else {
-                applyDamageToEnemyHp(atk);
+                const post = applyDamageToEnemyHp(atk);
                 hTick.hpDealt += atk;
+                if (post <= 0) summonerKilledEnemy = true;
                 pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}${tacticLabel}.`);
               }
               if (isRabid) {
@@ -9467,13 +9476,6 @@ export default function App() {
               applyExpiringWeak(animal.onAttackEffect.applyWeak);
               pushLog(`${animal.icon} ${animal.name} blurs the enemy's swing — Weak ${animal.onAttackEffect.applyWeak}.`);
             }
-            // Check if attack killed the enemy (only when actually attacking)
-            if (!isShield) {
-              if ((enemyComposure - atk <= 0 && animal.attackPool === 'composure')
-                  || (enemyHp - atk <= 0 && animal.attackPool !== 'composure')) {
-                summonerKilledEnemy = true;
-              }
-            }
           }
           // Per-turn passive grants (Long Hare / McCloven / Tender Greens row
           // bonus). Fires every turn the animal is on board, regardless of
@@ -9491,8 +9493,12 @@ export default function App() {
               pushLog(`${animal.icon} ${animal.name} steadies you: +${grant.poise} Poise.`);
             }
           }
-          // Decrement duration and tick chain counters.
-          let nextDuration = slot.durationRemaining - 1;
+          // Decrement duration and tick chain counters. A combine on its
+          // formation turn attacks (payoff) but does NOT spend a duration
+          // tick — otherwise a duration-2 combine that forms and ticks in
+          // the same pass only survives one more turn. It mirrors a fresh
+          // summon waiting a turn, except the combine also gets to swing.
+          let nextDuration = slot.justCombined ? slot.durationRemaining : slot.durationRemaining - 1;
           const nextPredator = (slot.predatorProgress || 0) + 1;
           const nextAdjSpawn = (slot.adjacentSpawnProgress || 0) + 1;
 
@@ -9599,6 +9605,7 @@ export default function App() {
               adjacentSpawnProgress: nextAdjSpawn,
               eatenThisTurn: false,
               nextAttackMult: 1,
+              justCombined: false,
             };
           }
         } else if (slot.kind === 'lure') {
@@ -9788,8 +9795,16 @@ export default function App() {
     }
     setEnemyBlock(0);
 
-    // 3. Enemy intent — skipped if DoT just killed the enemy this turn.
-    if (enemyIntent && !dotKilled) applyEnemyIntent(enemyIntent);
+    // 3. Enemy intent — skipped if DoT just killed the enemy this turn, OR
+    // if any end-of-turn player damage (Handler menagerie, annotation tick)
+    // already dropped the enemy. Reads the synchronous refs so a kill that
+    // lands this tick pre-empts the intent instead of letting a dead enemy
+    // get one last swing in before onEnemyDefeated's setTimeout resolves.
+    // Composure-only enemies have hpMax 0, so only gate on HP when they
+    // actually have an HP pool.
+    const enemyDeadNow = enemyComposureRef.current <= 0
+      || (enemy?.hpMax > 0 && enemyHpRef.current <= 0);
+    if (enemyIntent && !dotKilled && !enemyDeadNow) applyEnemyIntent(enemyIntent);
     if (hp <= 0 || composure <= 0) return;
 
     // v2.34: LONG THREAD bookkeeping. Runs AFTER the enemy intent resolves

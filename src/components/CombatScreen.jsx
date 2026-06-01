@@ -1194,11 +1194,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     // envelope, or an OCCUPIED placeholder (a cell mirrored from a
     // multi-slot animal anchored elsewhere — e.g. Mouse House spans two).
     if (card.kind === 'occupied') {
+      const anchorAnimal = animals?.[tray?.[card.occupiedBy]?.animalId];
+      const anchorName = anchorAnimal?.name || card.occupiedBy;
       return (
         <div className="px-3 py-2 rounded bg-ember-800/40 border border-ember-700 border-dashed text-parchment-100 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] cursor-help"
-             title={`This slot is occupied by the animal anchored in slot ${card.occupiedBy}.`}>
-          <span className="font-mono text-[10px] opacity-70">{slotName} · occupied</span>
-          <span className="font-bold text-center text-base opacity-80">⬅ part of {card.occupiedBy}</span>
+             title={`This slot is occupied by ${anchorName}, which spans more than one slot.`}>
+          <span className="font-bold text-center text-base opacity-80">{anchorAnimal?.icon || '⬅'} part of {anchorName}</span>
         </div>
       );
     }
@@ -1233,7 +1234,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600')
               : 'bg-moss-800 border border-moss-500 cursor-help'
           }`}>
-          <span className="font-mono text-[10px] opacity-70">{slotName} · lure{isWhistlePick1 ? ' · 🎶' : ''}</span>
+          <span className="font-mono text-[10px] opacity-70">lure{isWhistlePick1 ? ' · 🎶' : ''}</span>
           <span className="font-bold text-center">🪱 {card.cardName}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {animal?.icon || '🐾'} {animal?.name || card.animalId} in {card.turnsRemaining}t
@@ -1287,7 +1288,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600')
               : 'bg-ember-800 border border-ember-500 cursor-help'
           }`}>
-          <span className="font-mono text-[10px] opacity-70">{slotName} · animal{armedLabel}</span>
+          {armed && (
+            <span className="font-mono text-[10px] opacity-70">{armedLabel.replace(/^ · /, '')}</span>
+          )}
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {(animal?.attack || 0) > 0
