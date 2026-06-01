@@ -3771,6 +3771,16 @@ export default function App() {
   const [enemyComposure, setEnemyComposure] = useState(0);
   const [enemyHp, setEnemyHp] = useState(0);
   const [enemyBlock, setEnemyBlock] = useState(0);
+  // Synchronous mirrors of the three enemy damage pools. React batches
+  // setState, so when several attacks resolve in ONE tick (the end-of-turn
+  // animal loop, the On Three! re-attack loop, thorns, multi-hit) each
+  // applyDamageToEnemy* call would otherwise read the same stale closure
+  // value and the absolute setState calls clobber each other — only the
+  // last hit lands. These refs accumulate within a tick; a useEffect
+  // re-syncs them after any external setState (enemy turn, regen, init).
+  const enemyComposureRef = useRef(0);
+  const enemyHpRef = useRef(0);
+  const enemyBlockRef = useRef(0);
   const [enemyIntent, setEnemyIntent] = useState(null);
   // v2.7: peeked next intent (from Jnsq's "the next thing you'll do"
   // subject). Cleared when the enemy actually fires that intent.
@@ -4451,6 +4461,14 @@ export default function App() {
       if (raw) setHasSavedRun(true);
     } catch (_) { /* localStorage unavailable; just don't show Continue */ }
   }, []);
+
+  // Keep the synchronous enemy-pool mirrors in lockstep with state after any
+  // external setState (enemy turn, regen, init). The applyDamageToEnemy*
+  // functions also write these refs synchronously so within-tick accumulation
+  // is correct; this effect catches every other mutation path.
+  useEffect(() => { enemyComposureRef.current = enemyComposure; }, [enemyComposure]);
+  useEffect(() => { enemyHpRef.current = enemyHp; }, [enemyHp]);
+  useEffect(() => { enemyBlockRef.current = enemyBlock; }, [enemyBlock]);
 
   // v2.89: auto-dismiss the chaos-roll flash after 3.5s. Player can also
   // click to dismiss early via the modal's backdrop.
@@ -8935,13 +8953,17 @@ export default function App() {
   // Composure damage: block absorbs first, then composure drops.
   function applyDamageToEnemyComposure(damage) {
     let remaining = damage;
-    let newBlock = enemyBlock;
-    let newComposure = enemyComposure;
+    // Read from the synchronous mirrors, not the closure state, so repeated
+    // calls in the same tick (animal loops, On Three!, thorns) accumulate.
+    let newBlock = enemyBlockRef.current;
+    let newComposure = enemyComposureRef.current;
     if (newBlock > 0) {
       const absorbed = Math.min(newBlock, remaining);
       newBlock -= absorbed; remaining -= absorbed;
     }
     newComposure = Math.max(0, newComposure - remaining);
+    enemyBlockRef.current = newBlock;
+    enemyComposureRef.current = newComposure;
     setEnemyBlock(newBlock);
     setEnemyComposure(newComposure);
     showDamageFloater(damage, 'composure');
@@ -8972,13 +8994,15 @@ export default function App() {
   // Physical damage: same block-then-pool flow, but pool is enemy HP.
   function applyDamageToEnemyHp(damage) {
     let remaining = damage;
-    let newBlock = enemyBlock;
-    let newHp = enemyHp;
+    let newBlock = enemyBlockRef.current;
+    let newHp = enemyHpRef.current;
     if (newBlock > 0) {
       const absorbed = Math.min(newBlock, remaining);
       newBlock -= absorbed; remaining -= absorbed;
     }
     newHp = Math.max(0, newHp - remaining);
+    enemyBlockRef.current = newBlock;
+    enemyHpRef.current = newHp;
     setEnemyBlock(newBlock);
     setEnemyHp(newHp);
     showDamageFloater(damage, 'physical');
