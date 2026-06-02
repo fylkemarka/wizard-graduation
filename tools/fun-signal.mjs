@@ -297,14 +297,25 @@ if (allSessions) {
   }
 } else {
   // Handler runs often stop early (no run.end), so a finished wit session in
-  // the same file would otherwise shadow them. Prefer the richest Handler
-  // session (most handler_ticks) whenever one exists; only then fall back to
-  // the latest run.end session for wit runs.
+  // the same file would otherwise shadow them. Among Handler sessions, prefer
+  // the LATEST one that actually ended (has a run.end) — that's the death/win
+  // run the user just played. Only if no Handler session ended do we fall back
+  // to the richest-by-handler_tick session. (Session-isolation rule: a finished
+  // run must win over a longer but unfinished earlier session.)
   let target = null;
-  let bestTicks = 0;
-  for (const s of sessions) {
-    const n = (s.events || []).filter(e => e.type === 'combat.handler_tick').length;
-    if (n > bestTicks) { bestTicks = n; target = s; }
+  const handlerSessions = sessions.filter(isHandlerSession);
+  for (let i = handlerSessions.length - 1; i >= 0; i--) {
+    if ((handlerSessions[i].events || []).some(e => e.type === 'run.end')) {
+      target = handlerSessions[i];
+      break;
+    }
+  }
+  if (!target) {
+    let bestTicks = 0;
+    for (const s of sessions) {
+      const n = (s.events || []).filter(e => e.type === 'combat.handler_tick').length;
+      if (n > bestTicks) { bestTicks = n; target = s; }
+    }
   }
   if (!target) {
     // No Handler content — find latest session containing a run.end event.
