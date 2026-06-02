@@ -10736,6 +10736,87 @@ export default function App() {
     tutorFiredThisTurnRef.current = false;
   }
 
+  // Pure, side-effect-free projection of how much an enemy attack will ACTUALLY
+  // land for, after every deterministic reduction the player has standing.
+  // Mirrors the attack path of applyEnemyIntent EXACTLY — same order, same
+  // per-swing floors, same shield routing — so the math bar can't lie. It
+  // deliberately omits the RNG layer (Drunken Stagger 50% dodge) and the
+  // reflect layers (Thorns / Mirror / Riposte) because those don't reduce what
+  // hits YOU; stagger is surfaced separately as a "may dodge" note. Returns
+  // null for non-attack intents (block / debuff / weave handle their own
+  // telegraph). Kept next to applyEnemyIntent so the two can't drift.
+  function projectIncomingDamage(intent) {
+    if (!intent) return null;
+    if (intent.kind !== 'attack' && intent.kind !== 'attack-multi') return null;
+    const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+    const targetsComposure = intent.pool === 'composure' || !!swapNextHitToComp;
+    const mult = enemyDmgMult || 1;
+
+    // Per-swing base after the multiplier (Weak/Vuln) and self-vulnerability.
+    let perSwing = Math.round(intent.value * mult * (playerIncomingMult || 1));
+    const afterMult = perSwing;
+    // Flat pre-routing adds (apply to every swing, mirroring `raw` reuse).
+    const arguing = arguingBackThisTurn > 0 ? arguingBackThisTurn : 0;
+    if (arguing > 0) perSwing += arguing;
+    const drunkenActive = powers.some(p => p.installPower?.id === 'drunken-confidence' || p.id === 'jv2-p-hold-my-drink');
+    const drunken = (drunkenActive && perSwing > 0) ? 1 : 0;
+    if (drunken > 0) perSwing += drunken;
+    // Annotation reduction, then Beetle absorb (both mutate the shared `raw`).
+    const annAtkRed = annoFx('enemyAtkReduction');
+    if (annAtkRed > 0) perSwing = Math.max(0, perSwing - annAtkRed);
+    const beetle = beetleAbsorb > 0 ? Math.min(beetleAbsorb, perSwing) : 0;
+    if (beetle > 0) perSwing = Math.max(0, perSwing - beetle);
+
+    // Per-swing reduction (defense relics/equipment cap 2 + Long Thread cap 2).
+    const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
+                       + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
+    const threadReduction = Math.min(2, longThread || 0);
+    const reduction = Math.min(2, rawReduction) + threadReduction;
+    const swingReduction = nextAttackSwingReduction > 0 ? nextAttackSwingReduction : 0;
+    const holdOnReduce = holdOnArmed ? (holdOnValue || 0) : 0;
+
+    // Simulate the swing loop deterministically (no dodge RNG, no reflects).
+    let wBlock = block, wPoise = poise, wTempHp = tempHp;
+    let wHp = hp, wComp = Math.max(0, composure - weaveFireDamageRef.current);
+    let totalIncoming = 0, blockAbsorbed = 0, poiseAbsorbed = 0, tempHpAbsorbed = 0;
+    for (let i = 0; i < hits; i++) {
+      // Hold On reduces the FIRST swing's raw before per-swing reduction.
+      let remaining = (i === 0 && holdOnReduce > 0) ? Math.max(0, perSwing - holdOnReduce) : perSwing;
+      if (reduction > 0 && remaining > 0) remaining = Math.max(1, remaining - reduction);
+      if (swingReduction > 0 && remaining > 0) remaining = Math.max(1, remaining - swingReduction);
+      if (escalatingSwingReduction && remaining > 0) remaining = Math.max(0, remaining - i);
+      totalIncoming += remaining;
+      if (targetsComposure) {
+        const ab = Math.min(wPoise, remaining); wPoise -= ab; remaining -= ab; poiseAbsorbed += ab;
+        if (remaining > 0) { const b = wComp; wComp = Math.max(0, wComp - remaining); }
+      } else {
+        const ab = Math.min(wBlock, remaining); wBlock -= ab; remaining -= ab; blockAbsorbed += ab;
+        if (remaining > 0 && wTempHp > 0) { const t = Math.min(wTempHp, remaining); wTempHp -= t; remaining -= t; tempHpAbsorbed += t; }
+        if (remaining > 0) { wHp = Math.max(0, wHp - remaining); }
+      }
+      if (wHp <= 0 || wComp <= 0) break;
+    }
+    const netHp = hp - wHp;
+    const netComposure = Math.max(0, composure - weaveFireDamageRef.current) - wComp;
+    return {
+      pool: targetsComposure ? 'composure' : 'hp',
+      hits,
+      baseSwing: intent.value,
+      afterMult,            // per-swing after Weak/Vuln (+ self-vuln)
+      amplified: afterMult > intent.value,
+      reduced: afterMult < intent.value,
+      arguing, drunken, annAtkRed, beetle,
+      perSwingReduction: reduction,
+      swingReduction,
+      holdOn: holdOnReduce,
+      stagger: !!staggerActive,
+      totalIncoming,        // summed across swings, after all flat/per-swing reductions, before shields
+      blockAbsorbed, poiseAbsorbed, tempHpAbsorbed,
+      netHp, netComposure,
+      maul: !!intent.maul,
+    };
+  }
+
   function applyEnemyIntent(intent) {
     const e = enemy;
     if (!e) return;
@@ -12119,6 +12200,7 @@ export default function App() {
     <CombatScreen
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
+      incomingProjection={projectIncomingDamage(enemyIntent)}
       peekedNextIntent={peekedNextIntent}
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyDmgTurns={enemyDmgTurns} playerDmgTurns={playerDmgTurns}

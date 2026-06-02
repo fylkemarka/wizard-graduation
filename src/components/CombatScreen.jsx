@@ -20,7 +20,7 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUS
 import { ADJACENCY_COMBOS } from '../data/animals.js';
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
 
-export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
+export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, incomingProjection, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
                        enemyDmgTurns = 0, playerDmgTurns = 0,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
@@ -352,6 +352,68 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               effectiveness-system rip. All multipliers are now 1.0 globally
               so the chips were noise (and lying). */}
         </div>
+        {/* v3.4.68 — INCOMING-HIT math bar. Mirrors the player spell-tray
+            breakdown so the enemy attack is no longer "behind the scenes."
+            Every layer that touches the swing gets its own chip: base →
+            amplify/reduce → flat adds → reductions → shields absorbed →
+            the net that actually reaches HP / Composure. Numbers are
+            concrete (not percentages) per the no-math-in-head rule — the
+            chain reads as plain arithmetic, ending in the punchline. */}
+        {incomingProjection && (() => {
+          const p = incomingProjection;
+          const chip = (key, cls, text, title) => (
+            <span key={key} className={`px-1.5 py-0.5 rounded ${cls} cursor-help`} title={title}>{text}</span>
+          );
+          const chips = [];
+          chips.push(chip('base', 'bg-ink-700 text-parchment-100',
+            p.hits > 1 ? `🎯 ${p.baseSwing} × ${p.hits} hits` : `🎯 base ${p.baseSwing}`,
+            p.hits > 1 ? `The enemy swings ${p.hits} times at ${p.baseSwing} each.` : `The enemy's base swing is ${p.baseSwing}.`));
+          if (p.amplified) chips.push(chip('amp', 'bg-ember-800 text-ember-100',
+            `🩸 → ${p.afterMult}/swing`, `You are Vulnerable — each swing is amplified to ${p.afterMult}.`));
+          if (p.reduced) chips.push(chip('red', 'bg-moss-800 text-moss-100',
+            `⛧ → ${p.afterMult}/swing`, `The enemy is Weak — each swing is reduced to ${p.afterMult}.`));
+          if (p.arguing > 0) chips.push(chip('arg', 'bg-iris-800 text-iris-100',
+            `🗣 +${p.arguing}`, `Arguing back: each Actually— you played adds +${p.arguing} to the swing.`));
+          if (p.drunken > 0) chips.push(chip('drunk', 'bg-amber-800 text-amber-100',
+            `🍺 +${p.drunken}`, `Drunken Confidence: +${p.drunken} to every enemy swing while installed.`));
+          if (p.annAtkRed > 0) chips.push(chip('ann', 'bg-iris-900 text-iris-100',
+            `📝 −${p.annAtkRed}`, `Annotation scrubs ${p.annAtkRed} off the swing before shields.`));
+          if (p.beetle > 0) chips.push(chip('beetle', 'bg-moss-900 text-moss-100',
+            `🪲 −${p.beetle}`, `Beetle absorbs ${p.beetle} off the first hit.`));
+          if (p.perSwingReduction > 0) chips.push(chip('def', 'bg-moss-900 text-moss-100',
+            `🛡✦ −${p.perSwingReduction}/swing`, `Defense + Long Thread shave ${p.perSwingReduction} off each swing (min 1 gets through).`));
+          if (p.swingReduction > 0) chips.push(chip('hb', 'bg-moss-900 text-moss-100',
+            `−${p.swingReduction}/swing`, `Headbutt: −${p.swingReduction} off each swing (min 1).`));
+          if (p.holdOn > 0) chips.push(chip('hold', 'bg-iris-900 text-iris-100',
+            `🛑 −${p.holdOn} first`, `Hold On reduces the first swing by ${p.holdOn}.`));
+          chips.push(chip('inc', 'bg-ink-600 text-parchment-50 font-bold',
+            `→ ${p.totalIncoming} incoming`, `After all reductions, ${p.totalIncoming} damage arrives at your shields.`));
+          if (p.blockAbsorbed > 0) chips.push(chip('blk', 'bg-iris-900 text-iris-100',
+            `🛡 −${p.blockAbsorbed}`, `Your Block soaks ${p.blockAbsorbed}.`));
+          if (p.poiseAbsorbed > 0) chips.push(chip('poi', 'bg-moss-900 text-moss-100',
+            `🪞 −${p.poiseAbsorbed}`, `Your Poise soaks ${p.poiseAbsorbed} composure damage.`));
+          if (p.tempHpAbsorbed > 0) chips.push(chip('temp', 'bg-gold-900 text-gold-100',
+            `🎈 −${p.tempHpAbsorbed}`, `Temp HP soaks ${p.tempHpAbsorbed} before real HP.`));
+          const net = p.pool === 'composure' ? p.netComposure : p.netHp;
+          const punchCls = net > 0 ? 'bg-ember-700 text-parchment-50 font-bold border border-ember-400'
+                                   : 'bg-moss-800 text-moss-100 font-bold border border-moss-500';
+          chips.push(chip('net', punchCls,
+            p.pool === 'composure' ? `🎭 ${net} to Composure` : `💥 ${net} to HP`,
+            net > 0
+              ? `This is what actually lands on your ${p.pool === 'composure' ? 'Composure' : 'HP'} after everything above.`
+              : `Fully absorbed — nothing reaches your ${p.pool === 'composure' ? 'Composure' : 'HP'}.`));
+          if (p.stagger) chips.push(chip('stag', 'bg-amber-900 text-amber-100',
+            `🌀 50% dodge`, `Drunken Stagger: each swing has a 50% chance to miss entirely — you may take less, or nothing.`));
+          if (p.maul) chips.push(chip('maul', 'bg-ember-900 text-ember-100',
+            `🦷 mauls`, `If any HP leaks past Block, this attack also tears your strongest animal off the board.`));
+          return (
+            <div className="mt-2 p-2 rounded bg-ember-950/50 border border-ember-800 flex flex-wrap gap-1.5 items-center"
+                 title="What the enemy's attack actually does to you, step by step.">
+              <span className="text-[10px] uppercase tracking-widest text-ember-300">Incoming</span>
+              <div className="flex flex-wrap gap-1.5 text-[11px] font-mono items-center">{chips}</div>
+            </div>
+          );
+        })()}
         {/* v2.65: STATUS row — what YOU have done to the enemy this combat
             (and what they've done to you). Pulled out from the lane-chip
             row to a dedicated band with bigger styling so the player can
