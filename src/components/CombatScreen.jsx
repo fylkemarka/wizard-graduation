@@ -21,6 +21,7 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUS
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
+                       enemyDmgTurns = 0, playerDmgTurns = 0,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
                        hp, maxHp, playerComposure, playerComposureMax,
                        block, poise, energy, energyMax, hand, deck, discard, exiled = [], tray,
@@ -366,27 +367,31 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 WHAT is active; the magnitude is already baked into the
                 displayed Predicted damage + enemy intent values. */}
             {playerDmgMult > 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help"
-                title="Enemy is Vulnerable — your Predicted damage is already amplified. Drifts back to neutral over time.">
+              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help inline-flex items-center gap-1.5"
+                title={`Enemy is Vulnerable — your Predicted damage is already amplified. Lasts ${playerDmgTurns} more turn${playerDmgTurns === 1 ? '' : 's'} (refreshes when re-applied).`}>
                 🩸 ENEMY VULNERABLE
+                <span className="px-1.5 py-0.5 rounded bg-iris-900 text-iris-100 text-xs font-mono">{playerDmgTurns}t</span>
               </span>
             )}
             {playerDmgMult < 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help"
-                title="You are Weak — your Predicted damage is already reduced. Drifts back to neutral over time.">
+              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help inline-flex items-center gap-1.5"
+                title={`You are Weak — your Predicted damage is already reduced. Lasts ${playerDmgTurns} more turn${playerDmgTurns === 1 ? '' : 's'}.`}>
                 ⛧ YOU ARE WEAK
+                <span className="px-1.5 py-0.5 rounded bg-ember-900 text-ember-100 text-xs font-mono">{playerDmgTurns}t</span>
               </span>
             )}
             {enemyDmgMult > 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help"
-                title="You are Vulnerable — the enemy's intent damage is already amplified. Drifts back to neutral over time.">
+              <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help inline-flex items-center gap-1.5"
+                title={`You are Vulnerable — the enemy's intent damage is already amplified. Lasts ${enemyDmgTurns} more turn${enemyDmgTurns === 1 ? '' : 's'}.`}>
                 🩸 YOU ARE VULNERABLE
+                <span className="px-1.5 py-0.5 rounded bg-ember-900 text-ember-100 text-xs font-mono">{enemyDmgTurns}t</span>
               </span>
             )}
             {enemyDmgMult < 1.0 && (
-              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help"
-                title="Enemy is Weak — their intent damage is already reduced. Drifts back to neutral over time.">
+              <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help inline-flex items-center gap-1.5"
+                title={`Enemy is Weak — their intent damage is already reduced. Lasts ${enemyDmgTurns} more turn${enemyDmgTurns === 1 ? '' : 's'} (refreshes when re-applied, e.g. another Sap).`}>
                 ⛧ ENEMY WEAK
+                <span className="px-1.5 py-0.5 rounded bg-iris-900 text-iris-100 text-xs font-mono">{enemyDmgTurns}t</span>
               </span>
             )}
           </div>
@@ -463,19 +468,19 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               enemy intent — the player doesn't need the math here too. */}
           {playerDmgMult < 1.0 && (
             <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-ember-900 text-ember-100 cursor-help"
-                  title={`Weak — your spell potency reduced. Drifts back toward neutral by 0.10/turn.`}>⛧ WEAK</span>
+                  title={`Weak — your spell potency reduced. ${playerDmgTurns} turn${playerDmgTurns === 1 ? '' : 's'} left.`}>⛧ WEAK {playerDmgTurns}t</span>
           )}
           {playerDmgMult > 1.0 && (
             <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-moss-900 text-moss-100 cursor-help"
-                  title={`Strengthened — your spell potency boosted. Drifts back toward neutral by 0.10/turn.`}>💫 STRONG</span>
+                  title={`Strengthened — your spell potency boosted. ${playerDmgTurns} turn${playerDmgTurns === 1 ? '' : 's'} left.`}>💫 STRONG {playerDmgTurns}t</span>
           )}
           {enemyDmgMult > 1.0 && (
             <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-ember-900 text-ember-100 cursor-help"
-                  title={`Vulnerable — incoming enemy attacks deal more damage. Drifts back toward neutral by 0.10/turn.`}>🩸 VULN</span>
+                  title={`Vulnerable — incoming enemy attacks deal more damage. ${enemyDmgTurns} turn${enemyDmgTurns === 1 ? '' : 's'} left.`}>🩸 VULN {enemyDmgTurns}t</span>
           )}
           {enemyDmgMult < 1.0 && (
             <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.5 rounded bg-moss-900 text-moss-100 cursor-help"
-                  title={`Sapped — enemy attacks deal less damage. Drifts back toward neutral by 0.10/turn.`}>🛡 SAPPED</span>
+                  title={`Sapped — enemy attacks deal less damage. ${enemyDmgTurns} turn${enemyDmgTurns === 1 ? '' : 's'} left.`}>🛡 SAPPED {enemyDmgTurns}t</span>
           )}
           {/* Wit-only over-time chips: Hold / Misstep */}
           {holdOnArmed && (

@@ -3356,26 +3356,35 @@ export default function App() {
   // Player debuffs (mirror of enemy ones). Tick down at end of turn.
   // Damage multipliers replace the old Weak/Vulnerable; see combat
   // state declarations below. Helpers clamp to [0.5, 1.5].
-  function adjustEnemyDmg(delta)  { setEnemyDmgMult(m  => Math.max(0.5, Math.min(1.5, m + delta))); }
+  // v3.4.84 (Alan): drift is gone. Each multiplier now carries a turn
+  // counter (enemyDmgTurns / playerDmgTurns). Any shift refreshes that
+  // counter to STATUS_DURATION; at end of turn the counter ticks down by
+  // 1 and the multiplier SNAPS back to 1.0 when it hits 0. The magnitude
+  // still stacks (more Saps = bigger −%), but the duration is now a clean
+  // integer the player can read off the "In effect" badge instead of an
+  // unpredictable fractional drift.
+  const WEAK_VULN_DURATION = 3;
+  const STATUS_DURATION = WEAK_VULN_DURATION;
+  function adjustEnemyDmg(delta)  {
+    setEnemyDmgMult(m  => Math.max(0.5, Math.min(1.5, m + delta)));
+    setEnemyDmgTurns(STATUS_DURATION);
+  }
   // v2.10: pull annotation effect value (0 if no annotation or key missing).
   function annoFx(key) { return enemy?.annotation?.effect?.[key] || 0; }
-  function adjustPlayerDmg(delta) { setPlayerDmgMult(m => Math.max(0.5, Math.min(1.5, m + delta))); }
-  // v3.4.43 (Alan): weak/vuln were permanent damageMult adjustments — paying
-  // 1 energy to permanently debuff was OP. Now expires after WEAK_VULN_DURATION
-  // enemy turns. Applies the mult immediately AND queues a 'weakExpire' /
-  // 'vulnExpire' scheduledEffect that reverses the adjustment on expire.
-  const WEAK_VULN_DURATION = 3;
+  function adjustPlayerDmg(delta) {
+    setPlayerDmgMult(m => Math.max(0.5, Math.min(1.5, m + delta)));
+    setPlayerDmgTurns(STATUS_DURATION);
+  }
+  // Weak/Vuln appliers fold straight into the multiplier + its turn timer;
+  // expiry is handled centrally by the end-of-turn tick (no per-effect
+  // scheduledEffect reversal anymore).
   function applyExpiringWeak(stacks) {
     if (!stacks) return;
-    const delta = -0.25 * stacks;
-    adjustEnemyDmg(delta);
-    setScheduledEffects(s => [...s, { trigger: 'enemy-turn-start', kind: 'weakExpire', amount: -delta, turnsRemaining: WEAK_VULN_DURATION }]);
+    adjustEnemyDmg(-0.25 * stacks);
   }
   function applyExpiringVuln(stacks) {
     if (!stacks) return;
-    const delta = +0.25 * stacks;
-    adjustPlayerDmg(delta);
-    setScheduledEffects(s => [...s, { trigger: 'enemy-turn-start', kind: 'vulnExpire', amount: -delta, turnsRemaining: WEAK_VULN_DURATION }]);
+    adjustPlayerDmg(+0.25 * stacks);
   }
   // Attack counter for everyNthAttack relic hooks (resets each combat).
   // Count of effect cards cast this run (drives everyNthEffect relic).
@@ -3426,6 +3435,13 @@ export default function App() {
   //   playerDmgMult — applied to player outgoing spell damage (was: enemyVuln +50%, playerWeak -25%)
   const [enemyDmgMult, setEnemyDmgMult] = useState(1.0);
   const [playerDmgMult, setPlayerDmgMult] = useState(1.0);
+  // Turn counters for the two multipliers. >0 means the status is live for
+  // that many more turns; ticks down 1/turn and snaps its multiplier home
+  // at 0. Refreshed to STATUS_DURATION on every shift (see adjustEnemyDmg /
+  // adjustPlayerDmg). Surfaced in the "In effect" badges so the player can
+  // see exactly how long Weak / Vulnerable will last.
+  const [enemyDmgTurns, setEnemyDmgTurns] = useState(0);
+  const [playerDmgTurns, setPlayerDmgTurns] = useState(0);
   // Iron Stomach — next handler cast this turn deals +N%. Number, not bool
   // (e.g., 0.5 = +50%). Consumed only when a handler-scaling cast fires.
   const [boostNextHandlerCast, setBoostNextHandlerCast] = useState(0);
@@ -5334,6 +5350,8 @@ export default function App() {
     setDmgFloaters([]);
     setEnemyDmgMult(1.0);
     setPlayerDmgMult(1.0);
+    setEnemyDmgTurns(0);
+    setPlayerDmgTurns(0);
     setBoostNextHandlerCast(0);
     setLastIntentKinds([]);
     setEnemyDiscardCount(0);
@@ -10242,14 +10260,16 @@ export default function App() {
     setPoise(0);
 
     // 3. Debuff decay.
-    // v2.21: drift was 0.5/turn. v2.65: now 0.10/turn. 0.25 was eating
-    // the whole +0.25 stack of Amplify/Sap in a single turn, which made
-    // the cards' "stacks; caps at +50%" text a lie — you could never
-    // actually reach the cap. At 0.10/turn a single play survives 2-3
-    // turns and stacking is achievable. The chip tooltips already say
-    // "drifts toward 1.00 by 0.10/turn" so they're consistent.
-    setEnemyDmgMult(m  => m > 1 ? Math.max(1, m - 0.10) : m < 1 ? Math.min(1, m + 0.10) : m);
-    setPlayerDmgMult(m => m > 1 ? Math.max(1, m - 0.10) : m < 1 ? Math.min(1, m + 0.10) : m);
+    // v3.4.84 (Alan): drift removed — it was impossible to track in your
+    // head and made damage planning fuzzy. Weak / Vulnerable now run on a
+    // discrete turn counter: tick it down by 1, and when it reaches 0 the
+    // multiplier snaps cleanly back to 1.0. Reading enemyDmgTurns /
+    // playerDmgTurns from the render closure (their pre-decrement values)
+    // keeps both setState updaters pure — no nested reads.
+    setEnemyDmgMult(m  => (enemyDmgTurns <= 1 ? 1.0 : m));
+    setPlayerDmgMult(m => (playerDmgTurns <= 1 ? 1.0 : m));
+    setEnemyDmgTurns(t => Math.max(0, t - 1));
+    setPlayerDmgTurns(t => Math.max(0, t - 1));
 
     // 4-5. Compose the new turn's piles + start-of-turn triggers
     //      synchronously, then commit all related state in one pass.
@@ -10554,7 +10574,6 @@ export default function App() {
       let vulnStacks = 0;
       let dormantBurst = 0;
       let bankDoubled = false;
-      let weakExpiring = 0, vulnExpiring = 0;
       for (const eff of scheduledEffects) {
         if (eff.trigger !== 'enemy-turn-start') {
           remaining.push(eff);
@@ -10566,22 +10585,9 @@ export default function App() {
         else if (eff.kind === 'dormantDamage' && eff.turnsRemaining <= 1) {
           dormantBurst += eff.amount;
         }
-        // v3.4.43 — weak/vuln expire ticks. amount field stores the REVERSE
-        // mult delta. When turnsRemaining hits 0, apply the reverse to
-        // restore enemyDmgMult / playerDmgMult.
-        else if (eff.kind === 'weakExpire' && eff.turnsRemaining <= 1) weakExpiring += eff.amount;
-        else if (eff.kind === 'vulnExpire' && eff.turnsRemaining <= 1) vulnExpiring += eff.amount;
         if (eff.turnsRemaining > 1) {
           remaining.push({ ...eff, turnsRemaining: eff.turnsRemaining - 1 });
         }
-      }
-      if (weakExpiring > 0) {
-        adjustEnemyDmg(weakExpiring);
-        pushLog(`💢 Weak debuff expired (enemy attack restored).`);
-      }
-      if (vulnExpiring > 0) {
-        adjustPlayerDmg(vulnExpiring);
-        pushLog(`🩸 Vulnerable debuff expired.`);
       }
       if (weakStacks > 0) {
         applyExpiringWeak(weakStacks);
@@ -11892,6 +11898,7 @@ export default function App() {
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
       peekedNextIntent={peekedNextIntent}
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
+      enemyDmgTurns={enemyDmgTurns} playerDmgTurns={playerDmgTurns}
       enemyHitFlash={enemyHitFlash} playerHitFlash={playerHitFlash} dmgFloaters={dmgFloaters}
       hp={hp} maxHp={maxHp}
       playerComposure={composure} playerComposureMax={composureMax}
