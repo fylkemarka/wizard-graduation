@@ -4,8 +4,10 @@ import { gotoLab, addCard, fightEnemy, handCardById, playCardById, endTurn } fro
 // Verifies the lure-tutor flow: "Rummage the Satchel" opens the LurePicker,
 // and choosing a lure puts it in hand.
 //
-// Determinism: stack Rummage + extra Fish Food so the opening hand holds a
-// Rummage AND the draw pile still holds a lure for it to fetch.
+// Determinism: a seed fixes shuffles/draws so the run is reproducible, and we
+// pick the Fish Food by id in the picker rather than the .first() button — the
+// draw pile also holds the starter Tender Greens, so first-button order is
+// shuffle-dependent and would flake.
 
 const RUMMAGE = 'c-rummage';
 const FISH = 'cv2-l-fish-food';
@@ -20,7 +22,7 @@ async function ensureInHand(page, cardId, maxTurns = 4) {
 }
 
 test('Rummage the Satchel opens the lure picker and pulls a lure to hand', async ({ page }) => {
-  await gotoLab(page, 'handler');
+  await gotoLab(page, 'handler', { seed: 7 });
   for (let i = 0; i < 6; i++) await addCard(page, RUMMAGE);
   for (let i = 0; i < 8; i++) await addCard(page, FISH);
   await fightEnemy(page, 'Loom Familiar');
@@ -35,10 +37,11 @@ test('Rummage the Satchel opens the lure picker and pulls a lure to hand', async
   const picker = page.getByTestId('lure-picker');
   await expect(picker).toBeVisible();
 
-  // Choose the first lure offered.
-  await picker.locator('button').first().click();
+  // Pick the Fish Food specifically (8 were stacked into the deck, so one is
+  // reliably in the draw pile for Rummage to offer).
+  await picker.locator(`[data-card-id="${FISH}"]`).first().click();
 
-  // Picker closes and a lure landed in hand.
+  // Picker closes and a Fish Food landed in hand.
   await expect(picker).toHaveCount(0);
   expect(await handCardById(page, FISH).count()).toBeGreaterThan(fishBefore);
 });

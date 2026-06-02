@@ -14870,6 +14870,7 @@ function LurePicker({ cards, source, onPick, onCancel, lane = null }) {
         <div className="flex gap-4 justify-center flex-wrap">
           {cards.map(card => (
             <button key={card.uid} onClick={() => onPick(card.uid)}
+              data-testid="lure-picker-card" data-card-id={card.id}
               className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-moss-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
               <CardFullBody card={card} lane={lane || null} />
             </button>
