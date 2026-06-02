@@ -642,3 +642,63 @@ structural reorder (snap 12) lifted cadence from 0.17 → 0.29 over two
 cycles. Halfway to Alan's 0.62. Next cycle's defense-threshold tune
 should close another chunk; the stalls signal the AI needs to spend
 more energy on offense in general.
+
+## Observations — 2026-06-02 (snapshot 13 — FIRST HANDLER human, Animal Summoner)
+
+**First real-play snapshot for the Handler lane.** Snapshots 3–12 are all
+wit (FFT cast cadence). Handler plays nothing like wit — no spell tray to
+assemble; the loop is lure → animal → end-of-turn auto-attacks that chip
+ENEMY composure while the enemy chips player HP. So the cadence metric here
+is **lures played / turn**, not casts/turn.
+
+Telemetry: `wg-telemetry-2026-06-02T04-07-11-175Z.json`, session
+`wg-1780372273577-u3ck2a` (death run, killed by **e2-boss-tapestry**, the
+act-1 boss — the same wall that beats unprepared wit, see snap 4). The file
+held 9 sessions; two ended (run.end). `fun-signal.mjs` was picking the
+richest-by-handler_tick session, not the latest ENDED one, so it scored a
+no-death run by mistake — fixed this cycle (prefer latest handler session
+with a run.end).
+
+**Cadence — Handler is ALREADY converged on lure tempo:**
+| Metric | Alan (this run) | Sim (60-run avg) |
+|---|---|---|
+| Lures / turn | **0.78** | **0.78** (5.79 summons / 7.44 turns) |
+| Animals on board (avg) | 1.63 | ~1.6 |
+| Turns reaching ≥3 animals | 45% | — |
+| Feed rate (exits fed) | **67%** (14/21) | ~54% |
+| Defensive-card share | **~35%** (40/115: 19 Step Back, 11 Warding, 10 Compose) | reactive-only |
+| Tactics played | 6 (5 On Three!, 1 Shield) | 0.76 distinct/combat |
+
+Lure tempo matched out of the box — no tune needed, unlike wit's 12-snapshot
+grind. Fun-signal composite **83% (HIGHLY FUN)**; menagerie output 100%
+(12.5 dmg/active turn), board uptime 93%, variety 100% (7 species).
+
+**The gap is SURVIVAL DEPTH, and it is NOT defense.** Sim graduation rate 0%
+(Alan also didn't graduate — died at the act-1 boss). Within act 1 the sim
+is WORSE: 51/60 runs die before clearing it; only 9 clear act 1; Alan won 16
+combats before the boss. Death-cause instrumentation (env `DEATH_CAUSE=1`):
+**HP=40 vs Composure=4** — 87% of sim deaths are HP depletion.
+
+**Tried and REVERTED this cycle:** an HP-aware defensive lean (when hp<55%
+with a body developing and spare energy, bank an extra block skill, mirroring
+Alan's 35% defensive play). Result: HP deaths 40→35 but act-1 clears 9→5 and
+stalls rose — over-defending slowed the composure kill, dragged combats, and
+exposed MORE HP over more turns. Net worse on run depth. Reverted.
+
+**Read:** Handler is a race — menagerie composure output vs enemy HP damage.
+Alan wins it at 12.5 comp/active turn with fast kills; the sim's menagerie is
+too slow (avg 7.4 turns/combat) so HP runs out first. The lever is OFFENSIVE
+TEMPO, not survival: develop the board faster, sequence boosters/predator-
+chain more aggressively, get to ≥3 attacking animals sooner. Defense is a
+trap here — it converts losses into stalls without converting them into wins.
+
+**Queued for next handler cycle (NOT done — needs deeper work than one tune):**
+- Front-load board development: prefer a 2nd/3rd lure over a reactive block
+  when hp is comfortable, to reach the ≥3-animal swing turn earlier.
+- Booster sequencing: the sim under-uses On Three!/Stampede/Murmuration
+  relative to their board state (Alan played 5 On Three!). Lower their board
+  thresholds so they fire on the turn the board is wide, not a turn late.
+- Feed eagerness 54% → ~67% to match Alan, so animals stay long enough to
+  land their full attack arc (short-stays are wasted tempo).
+- Re-measure with `DEATH_CAUSE=1`; target is shifting deaths from HP toward
+  composure-or-win (i.e., the menagerie closing enemies before HP empties).

@@ -1594,7 +1594,7 @@ function runHandlerCombat(state, enemy, telemetry) {
   let safety = MAX_COMBAT_TURNS;
   let prevDamage = 0, zeroStreak = 0;
   while (safety-- > 0) {
-    if (state.hp <= 0 || state.composure <= 0) { flushStagedLures(state, combat); flushTelemetry('lost'); return { outcome: 'lost', turns: combat.turn, telemetry, killedBy: enemy.id }; }
+    if (state.hp <= 0 || state.composure <= 0) { if (typeof globalThis.__deathCause==='object'){const k=state.hp<=0?'hp':'composure';globalThis.__deathCause[k]=(globalThis.__deathCause[k]||0)+1;} flushStagedLures(state, combat); flushTelemetry('lost'); return { outcome: 'lost', turns: combat.turn, telemetry, killedBy: enemy.id }; }
     if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) { flushStagedLures(state, combat); flushTelemetry('won'); return { outcome: 'won', turns: combat.turn, telemetry }; }
     aiTurnHandler(state, combat);
     if (combat.totalDamageDealt === prevDamage) {
@@ -5906,6 +5906,7 @@ if (isMain) {
   const laneArg = (process.argv[3] || '').replace(/^--lane=/, '').toLowerCase();
   const forcedLane = ['wit', 'handler'].includes(laneArg) ? laneArg : null;
   console.log(`Running ${N} v2 playtests${forcedLane ? ` (lane=${forcedLane})` : ''}…`);
+  if (process.env.DEATH_CAUSE) globalThis.__deathCause = { hp: 0, composure: 0 };
   const results = [];
   // v2.53: when no lane filter is supplied, force ROUND-ROBIN across the
   // three lanes so the aggregate report has balanced per-lane telemetry
@@ -5926,6 +5927,7 @@ if (isMain) {
   console.log(`Win rate: ${pct(agg.winRate)}`);
   console.log(`Avg turns/combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
   console.log(`Tier distribution: T1=${agg.tier1Casts} T2=${agg.tier2Casts} T3=${agg.tier3Casts}`);
+  if (globalThis.__deathCause) console.log(`Death cause: HP=${globalThis.__deathCause.hp} Composure=${globalThis.__deathCause.composure}`);
 }
 
 export { simRun, aggregate, buildReport };
