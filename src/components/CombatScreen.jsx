@@ -1811,6 +1811,24 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               parts.push(`${atk} dmg`);
             }
           }
+          // On Three! (Alan, 2026-06-02): each armed extra attack resolves on
+          // the animals' turn using the animal's BASE attack — the one-shot
+          // nextAttackMult is spent by the natural swing above (mirrors the
+          // end-of-turn loop in App.jsx). Surface it as its own chip so the
+          // projected total reflects the rally.
+          const extraAttacks = slot.extraAttacks || 0;
+          if (animal.attack > 0 && extraAttacks > 0) {
+            let xatk = Math.round(animal.attack || 0);
+            if (isRabid) xatk = Math.round(xatk * 1.5);
+            const xTotal = xatk * extraAttacks;
+            if (isShield) {
+              totalBlock += xTotal;
+              parts.push(`+${xTotal} block (On Three!)`);
+            } else {
+              totalDmg += xTotal;
+              parts.push(`+${xTotal} dmg (On Three!)`);
+            }
+          }
           // Per-turn grants (Long Hare poise, McCloven block, Tender Greens
           // row-bonus +3 block).
           const grant = animal.turnGrant || slot.turnGrantTemp;

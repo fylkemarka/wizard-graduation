@@ -11,6 +11,7 @@ const LAST_SUPPER = 'c-last-supper';
 const FULL_POCKETS = 'c-full-pockets';
 const SNACK = 'c-snack';
 const BIRDSEED = 'cv2-l-birdseed';
+const ON_THREE = 'c-pack-tactics';
 
 async function ensureInHand(page, cardId, maxTurns = 5) {
   for (let i = 0; i < maxTurns; i++) {
@@ -108,5 +109,27 @@ test('Full Pockets generates a Snack that costs 1, extends an animal, and does n
   await page.getByText(/click to treat/).first().click();
 
   // Combat survives the Snack play (no render crash).
+  await expect(page.getByTestId('hand')).toBeVisible();
+});
+
+test('On Three! surfaces the extra projected damage in the menagerie math bar', async ({ page }) => {
+  await gotoLab(page, 'handler', { seed: 11 });
+  for (let i = 0; i < 4; i++) await addCard(page, ON_THREE);
+  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
+  await fightEnemy(page, 'Loom Familiar');
+
+  // Get a body on the board to rally.
+  expect(await ensureAnimalStaged(page)).toBeTruthy();
+  // The "🐾 This turn" projection has no rally chip yet. (Match the
+  // parenthesized chip form so we don't collide with the "On Three!" card
+  // sitting in hand.)
+  await expect(page.getByText(/\(On Three!\)/)).toHaveCount(0);
+
+  // Play On Three! — it arms an extra attack on every animal in play.
+  expect(await ensureInHand(page, ON_THREE)).toBeTruthy();
+  await playCardById(page, ON_THREE);
+
+  // The projection now carries the rally's additional damage as its own chip.
+  await expect(page.getByText(/\(On Three!\)/).first()).toBeVisible();
   await expect(page.getByTestId('hand')).toBeVisible();
 });
