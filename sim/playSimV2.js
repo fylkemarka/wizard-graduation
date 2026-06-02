@@ -1019,8 +1019,10 @@ function playHandlerCard(state, combat, idx) {
   state.energy -= openDoorFree ? 0 : (card.cost || 0);
   if (isLure) combat.firstLureUsedThisTurn = true;
   if (card.type === 'power') {
-    // Powers install onto state.powers and are consumed (not returned to any
-    // pile) — mirrors App.jsx, which removes the card from hand into `powers`.
+    // Powers install onto state.powers (once per combat — can't re-install
+    // the same power that combat). The card itself is NOT consumed for the
+    // run: at combat end its object is folded back into discard so it's
+    // re-drawable next combat. Mirrors App.jsx (powers fold into fullDeck).
     if (card.installPower && !hasHandlerPower(state, card.installPower.id)) state.powers.push({ ...card });
     combat.powersInstalled = (combat.powersInstalled || 0) + 1;
     return;
@@ -1492,11 +1494,13 @@ function runHandlerCombat(state, enemy, telemetry) {
   const fb = state.familiarBonus || {};
   if (fb.startCombatVuln) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fb.startCombatVuln);
   // Fresh hand each combat (discard whatever lingered, then aiTurnHandler draws).
-  // Scrub tokens (Snack) so they never seed a fresh combat's deck.
-  state.discard = [...state.discard, ...state.hand].filter(c => !c.token);
+  // Scrub tokens (Snack) so they never seed a fresh combat's deck. Installed
+  // powers from the prior combat fold back into discard so the card is
+  // re-drawable (mirrors App.jsx folding `...powers` into fullDeck) — then the
+  // active install state clears so each combat re-installs from a fresh draw.
+  state.discard = [...state.discard, ...state.hand, ...(state.powers || [])].filter(c => !c.token);
   state.deck = (state.deck || []).filter(c => !c.token);
   state.hand = [];
-  // Powers don't persist between combats (mirrors App.jsx setPowers([])).
   state.powers = [];
   const combat = {
     enemy, fb,

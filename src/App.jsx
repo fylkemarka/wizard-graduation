@@ -5487,11 +5487,16 @@ export default function App() {
       // other transition path that bypasses those merges still have
       // tray/exiled cards intact here, and we don't want them lost.
       const trayCardsIn = extractTrayCardsForReturn(tray);
+      // Powers are once-per-combat installs (removed from circulation when
+      // played, can't be re-cast that combat), but the card itself is NOT
+      // consumed for the run — it returns to the deck so it's re-drawable in
+      // future combats. `powers` still holds last combat's installs here:
+      // setPowers([]) above is async and doesn't mutate this closure value.
       // Filter out tokens (e.g. Full Pockets' Snack): generated cards that
       // must never persist into a fresh combat's deck. A played Snack is
       // exiled, and the combat-end merges fold exiled back into the deck —
       // this filter is the single scrub point that keeps them out.
-      const fullDeck = [...deck, ...hand, ...discard, ...exiled, ...trayCardsIn].filter(c => !c.token);
+      const fullDeck = [...deck, ...hand, ...discard, ...exiled, ...trayCardsIn, ...powers].filter(c => !c.token);
       setExiled([]);
       // v2.13: jnsq +1 hand size at combat start (chaos dice need full
       // trays to roll). Real-play impact only — sim AI runs both ways.
