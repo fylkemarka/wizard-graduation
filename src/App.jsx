@@ -165,9 +165,9 @@ const CARDS = [
     tactic: { id: 'shield' },
     desc: 'Tactic: animal attack damage becomes Block AND Poise for you instead of damage to the enemy.',
     flavor: 'Each beast turns its body to the door. You may pass between them.' },
-  { id: 'c-tactic-rabid', name: 'Rabid', cost: 2, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
+  { id: 'c-tactic-rabid', name: 'Rabid', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
     tactic: { id: 'rabid' },
-    desc: 'Tactic: animal attacks deal 50% more damage. You take 20% of that damage as composure recoil.',
+    desc: 'Tactic: animal attacks deal 50% more damage. You take 10% of that damage as composure recoil.',
     flavor: "It's contagious, frankly. Try not to make eye contact." },
   { id: 'c-tactic-youth', name: 'Fountain of Youth', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'youth' },
@@ -9833,7 +9833,7 @@ export default function App() {
                 pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}${tacticLabel}.`);
               }
               if (isRabid) {
-                const recoil = Math.max(1, Math.round(atk * 0.2));
+                const recoil = Math.max(1, Math.round(atk * 0.1));
                 setComposure(c => Math.max(0, c - recoil));
                 pushLog(`💢 Rabid recoil: -${recoil} composure.`);
               }

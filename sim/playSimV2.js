@@ -129,7 +129,7 @@ const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jn
 // =============================================================================
 const HANDLER_TACTIC_UTIL = [
   { id: 'c-tactic-shield',  name: 'Summoned Shield',  cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'shield' } },
-  { id: 'c-tactic-rabid',   name: 'Rabid',            cost: 2, type: 'tactic', rarity: 'uncommon', tactic: { id: 'rabid' } },
+  { id: 'c-tactic-rabid',   name: 'Rabid',            cost: 1, type: 'tactic', rarity: 'uncommon', tactic: { id: 'rabid' } },
   { id: 'c-tactic-youth',   name: 'Fountain of Youth',cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'youth' } },
   { id: 'c-tactic-nurture', name: 'Nurture',          cost: 2, type: 'tactic', rarity: 'uncommon', tactic: { id: 'nurture' } },
   { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 1, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
@@ -815,7 +815,7 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult) {
     handlerDealComposure(combat, atk);
     combat.menagerieComposure += atk;
     combat.totalDamageDealt += atk;
-    if (isRabid) state.composure = Math.max(0, state.composure - Math.max(1, Math.round(atk * 0.2)));
+    if (isRabid) state.composure = Math.max(0, state.composure - Math.max(1, Math.round(atk * 0.1)));
   }
   if (animal.onAttack?.draw) drawCards(state, animal.onAttack.draw);
   if (animal.onAttackEffect?.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * animal.onAttackEffect.applyVulnerable);
@@ -828,8 +828,10 @@ function clearHandlerSlot(next, slot, slotName) {
 function tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombine) {
   switch (id) {
     case 'rabid':
+      // Cheaper (cost 1) and lower recoil (10%) as of cycle 1 — safe to engage
+      // at lower composure, and a stronger aggressive contender vs nurture.
       if (animals < 1) return 0;
-      return (isBoss ? compPct > 0.4 : compPct > 0.6) ? 4 + animals + (isBoss ? 2 : 0) : 0;
+      return (isBoss ? compPct > 0.25 : compPct > 0.4) ? 6 + animals + (isBoss ? 2 : 0) : 0;
     case 'nurture': return haveLure ? (isBoss ? 10 : 7) : 0;
     case 'youth':   return haveLure ? 5 : 1;
     case 'feather': return animals === 1 ? (canCombine && isBoss ? 9 : isBoss ? 7 : 4) : 0;
@@ -863,9 +865,13 @@ function pickHandlerTactic(state, combat, needDefense) {
     }
   }
   if (best < 0) return -1;
+  // Anti-churn inertia (cycle 1, human-AI calibration): the real player commits
+  // to a tactic rather than toggling mid-combat (sim was switching ~1.36×/combat
+  // vs the human's ~0). Once a non-shield tactic is set, only switch off it for a
+  // decisively better option (+5), not a marginal one.
   if (combat.tactic && combat.tactic !== 'shield' && bestId !== 'shield') {
     const curVal = tacticSituationalValue(combat.tactic, animals, haveLure, compPct, isBoss, canCombine);
-    if (bestVal <= curVal + 2) return -1;
+    if (bestVal <= curVal + 5) return -1;
   }
   return best;
 }
