@@ -165,7 +165,7 @@ export const ENEMIES = [
       // breaking-of-the-vow moment.
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 69, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 63, hpMax: 999, tier: 'boss',
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     behaviors: [
