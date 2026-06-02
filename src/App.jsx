@@ -189,7 +189,7 @@ const CARDS = [
     flavor: 'You explain the arrangement. They settle in, slightly longer than invited.' },
   { id: 'c-well-drilled', name: 'Well-Drilled', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'wellDrilled' },
-    desc: 'Power. Your animals deal +2 attack.',
+    desc: 'Pick a summoned animal. It — and every other copy of it on the board — gains +2 attack for the rest of combat.',
     flavor: 'They have, it turns out, been practising. Quietly. Without you.' },
   { id: 'c-whisperer', name: 'The Whisperer', cost: 2, type: 'power', rarity: 'rare', lane: 'handler',
     installPower: { id: 'whisperer' },
@@ -3654,6 +3654,10 @@ export default function App() {
   // Both are single-click animal-target prompts like Treat.
   const [sacrificePromptActive, setSacrificePromptActive] = useState(false);
   const [gorgePromptActive, setGorgePromptActive] = useState(false);
+  // Well-Drilled power — armed on install. Next click on an animal slot gives
+  // that animal (and every other copy of the same species on the board) a
+  // permanent +2 attack for the rest of combat.
+  const [wellDrilledPromptActive, setWellDrilledPromptActive] = useState(false);
   // The Whisperer power — animal departures bank a draw delivered into the
   // next turn's hand. Instant-play exits (Shoo / Last Supper / Make It Count)
   // bump this during the turn; the end-of-turn tick adds its own departures
@@ -3666,6 +3670,13 @@ export default function App() {
   // once (single card consumed; one envelope per slot). Cleared on lure
   // play. Exhausts when played.
   const [buffetArmed, setBuffetArmed] = useState(false);
+  // Refund stash for the just-played card that armed a targeting/Buffet prompt
+  // (Treat / Gorge / Shoo / Whistle / Last Supper / Just Eat It / Buffet /
+  // Well-Drilled). If the player Dismisses the prompt instead of targeting,
+  // the card snaps back to hand and its energy is refunded — dismissing an
+  // unresolved prompt shouldn't burn the card. Holds the live card ref (same
+  // uid it lands under in discard/exiled/powers) so cancel can pull it back.
+  const [armedRefund, setArmedRefund] = useState(null);
   // Lure tutor picker — 'deck' | 'discard' | null. Set when a fetchLure card
   // (Rummage the Satchel / Back of the Bin) is played; opens an overlay to
   // pick which lure from that pile is pulled to hand. Cleared on pick/cancel.
@@ -5624,6 +5635,20 @@ export default function App() {
     const cost = effectiveCardCost(card);
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
     setEnergy(e => e - cost);
+    // Stash for refund-on-dismiss: if this card only ARMS a prompt (does
+    // nothing else until you target), holding it lets a Dismiss snap the card
+    // + energy back. Replaced/cleared on every play, so resolving the prompt
+    // then acting again can't double-refund. The card ref lands in
+    // discard/exiled/powers under this same uid, so cancel pulls it from there.
+    const armsCancelablePrompt =
+      card.installPower?.id === 'wellDrilled' ||
+      !!(card.effects && (card.effects.shooAnimal || card.effects.whistleSwap
+        || card.effects.treatExtend || card.effects.eatLureNow
+        || card.effects.sacrificeForValue || card.effects.gorge
+        || card.effects.buffetArmed));
+    setArmedRefund(armsCancelablePrompt
+      ? { card, cost, isPower: card.type === 'power', exhaust: !!card.effects?.exhaust }
+      : null);
     // v3.4.59 — consume "I Know Just What to Say" flag if it was the reason
     // this card is free. Don't consume on the card that armed it.
     if (nextCardFree && card?.effects?.nextCardFree !== true) {
@@ -5678,6 +5703,20 @@ export default function App() {
           setHand(h => [...h, tok]);
           pushLog(`🍖 Full Pockets — a Treat turns up in your hand.`);
         }
+      }
+      // Well-Drilled — arm a click-target prompt. armTargetingPrompt is
+      // defined later in this function (const, in TDZ here), so set the
+      // prompt flags inline, clearing the other click prompts for the same
+      // mutual-exclusion guarantee.
+      if (card.installPower?.id === 'wellDrilled') {
+        setShooPromptActive(false);
+        setWhistlePromptActive(false); setWhistlePick1Slot(null);
+        setTreatPromptActive(false);
+        setEatItPromptActive(false);
+        setSacrificePromptActive(false);
+        setGorgePromptActive(false);
+        setWellDrilledPromptActive(true);
+        pushLog(`🎯 Well-Drilled armed — pick an animal; every copy of it gains +2 attack.`);
       }
       // Hit Me Again install hook removed 2026-05-31 (power ripped).
       // v2.47: DRUNKEN CONFIDENCE — telemetry-only install count. The read
@@ -7756,6 +7795,7 @@ export default function App() {
       setEatItPromptActive(which === 'eatIt');
       setSacrificePromptActive(which === 'sacrifice');
       setGorgePromptActive(which === 'gorge');
+      setWellDrilledPromptActive(which === 'wellDrilled');
     };
     // Shoo! — arm a click-target prompt. Next click on an animal slot
     // dismisses that animal. If no animal is currently in play, the prompt
@@ -8686,13 +8726,12 @@ export default function App() {
   const hasHandlerPower = (id) => powers.some(p => p.installPower?.id === id);
 
   // Effective per-hit attack for an animal in a given slot. Folds in the
-  // Well-Drilled power (+2 to every animal) and any permanent per-slot
-  // attackBonus (Gorge's overfeed payoff). The tactic multipliers (Rabid)
-  // and the slot's nextAttackMult are applied by the callers on top of this.
+  // Permanent per-slot attackBonus — Gorge's overfeed payoff and Well-Drilled's
+  // per-animal +2 both stamp this. The tactic multipliers (Rabid) and the
+  // slot's nextAttackMult are applied by the callers on top of this.
   const animalAttackValue = (animal, slot) => {
     let a = animal?.attack || 0;
     if (a <= 0) return a; // a flopper stays a flopper
-    if (hasHandlerPower('wellDrilled')) a += 2;
     a += (slot?.attackBonus || 0);
     return a;
   };
@@ -8773,6 +8812,22 @@ export default function App() {
 
   // Last Supper — send off an animal for Energy equal to its remaining turns
   // and a card. Single-click animal target, like Treat.
+  // Snap a dismissed prompt's arming card back to hand and refund its energy.
+  // The card sits in discard / exiled (or the powers row, for Well-Drilled)
+  // under its original uid, so pull it from the right pile — never duplicate
+  // it. Returns a log suffix (empty when there was nothing to refund).
+  function refundArmedCard() {
+    const r = armedRefund;
+    if (!r || !r.card) return '';
+    setArmedRefund(null);
+    setEnergy(e => e + (r.cost || 0));
+    if (r.isPower)       setPowers(ps => ps.filter(p => p.uid !== r.card.uid));
+    else if (r.exhaust)  setExiled(ex => ex.filter(c => c.uid !== r.card.uid));
+    else                 setDiscard(d => d.filter(c => c.uid !== r.card.uid));
+    setHand(h => [...h, r.card]);
+    return ` ${r.card.name} returns to hand (+${r.cost} energy).`;
+  }
+
   function sacrificeAnimalFromSlot(slotName) {
     if (!sacrificePromptActive) return;
     const slot = tray?.[slotName];
@@ -8792,7 +8847,8 @@ export default function App() {
   function cancelSacrificePrompt() {
     if (!sacrificePromptActive) return;
     setSacrificePromptActive(false);
-    pushLog(`🍽 Last Supper dismissed without picking an animal.`);
+    const refunded = refundArmedCard();
+    pushLog(`🍽 Last Supper dismissed without picking an animal.${refunded}`);
   }
 
   // Gorge — overfeed one animal: +3 turns, and if it was already fed this
@@ -8815,13 +8871,50 @@ export default function App() {
   function cancelGorgePrompt() {
     if (!gorgePromptActive) return;
     setGorgePromptActive(false);
-    pushLog(`🍖 Gorge dismissed without picking an animal.`);
+    const refunded = refundArmedCard();
+    pushLog(`🍖 Gorge dismissed without picking an animal.${refunded}`);
+  }
+
+  // Well-Drilled — designate an animal; it and every other copy of the same
+  // animal currently on the board gain a permanent +2 attack (rest of combat).
+  // Single-click animal target. Stacks via slot.attackBonus, the same channel
+  // Gorge's overfeed bonus uses.
+  function wellDrilledClickSlot(slotName) {
+    if (!wellDrilledPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const species = slot.animalId;
+    const animal = getAnimal(species);
+    let buffed = 0;
+    setTray(p => {
+      const next = { ...p };
+      for (const sn of ['intro', 'subject', 'target']) {
+        const s = next[sn];
+        if (s?.kind === 'animal' && s.animalId === species) {
+          next[sn] = { ...s, attackBonus: (s.attackBonus || 0) + 2 };
+          buffed++;
+        }
+      }
+      return syncTrayLegacy(next);
+    });
+    setWellDrilledPromptActive(false);
+    pushLog(buffed > 1
+      ? `🎯 Well-Drilled — all ${buffed} ${animal?.name || species} gain +2 attack for the rest of combat.`
+      : `🎯 Well-Drilled — ${animal?.name || species} gains +2 attack for the rest of combat.`);
+  }
+
+  function cancelWellDrilledPrompt() {
+    if (!wellDrilledPromptActive) return;
+    setWellDrilledPromptActive(false);
+    const refunded = refundArmedCard();
+    pushLog(`🎯 Well-Drilled dismissed without picking an animal.${refunded}`);
   }
 
   function cancelShooPrompt() {
     if (!shooPromptActive) return;
     setShooPromptActive(false);
-    pushLog(`👋 Shoo skill dismissed without picking an animal.`);
+    const refunded = refundArmedCard();
+    pushLog(`👋 Shoo skill dismissed without picking an animal.${refunded}`);
   }
 
   // Feed-by-drop: drop a lure card onto a Feed slot on the Summoning Pitch
@@ -8884,7 +8977,8 @@ export default function App() {
     if (slotName === whistlePick1Slot) {
       setWhistlePromptActive(false);
       setWhistlePick1Slot(null);
-      pushLog(`🎶 Whistle cancelled (same slot picked twice).`);
+      const refunded = refundArmedCard();
+      pushLog(`🎶 Whistle cancelled (same slot picked twice).${refunded}`);
       return;
     }
     const a = whistlePick1Slot, b = slotName;
@@ -8898,7 +8992,8 @@ export default function App() {
     if (!whistlePromptActive) return;
     setWhistlePromptActive(false);
     setWhistlePick1Slot(null);
-    pushLog(`🎶 Whistle dismissed without swapping.`);
+    const refunded = refundArmedCard();
+    pushLog(`🎶 Whistle dismissed without swapping.${refunded}`);
   }
 
   // Treat click — pick an animal; its durationRemaining +1.
@@ -8917,7 +9012,8 @@ export default function App() {
   function cancelTreatPrompt() {
     if (!treatPromptActive) return;
     setTreatPromptActive(false);
-    pushLog(`🍖 Treat dismissed without extending.`);
+    const refunded = refundArmedCard();
+    pushLog(`🍖 Treat dismissed without extending.${refunded}`);
   }
 
   // Just Eat It click — pick a staged lure; it transforms immediately into
@@ -8944,7 +9040,8 @@ export default function App() {
   function cancelEatItPrompt() {
     if (!eatItPromptActive) return;
     setEatItPromptActive(false);
-    pushLog(`🍴 Just Eat It dismissed without summoning.`);
+    const refunded = refundArmedCard();
+    pushLog(`🍴 Just Eat It dismissed without summoning.${refunded}`);
   }
 
   // Synchronous draw. Reads deck/discard/hand from closure (the state at
@@ -11842,8 +11939,11 @@ export default function App() {
       gorgePromptActive={gorgePromptActive}
       onGorgeClick={gorgeAnimalFromSlot}
       onCancelGorge={cancelGorgePrompt}
+      wellDrilledPromptActive={wellDrilledPromptActive}
+      onWellDrilledClick={wellDrilledClickSlot}
+      onCancelWellDrilled={cancelWellDrilledPrompt}
       buffetArmed={buffetArmed}
-      onCancelBuffet={() => { setBuffetArmed(false); pushLog(`🍽 Buffet dismissed.`); }}
+      onCancelBuffet={() => { setBuffetArmed(false); const refunded = refundArmedCard(); pushLog(`🍽 Buffet dismissed.${refunded}`); }}
       onFeedAnimal={feedAnimalsWithLure}
       onDiscardTactic={discardActiveTactic}
       enemyAnnotation={enemy?.annotation || null}

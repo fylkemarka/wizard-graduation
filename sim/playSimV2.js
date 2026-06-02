@@ -790,9 +790,9 @@ function resolveLureSpecies(lure, combat) {
 }
 function handlerAnimalAttack(state, combat, slot, animal, baseMult) {
   // Effective base attack reflects every live rider (mirrors App.jsx
-  // animalAttackValue): Well Drilled (+2) and any slot.attackBonus from Gorge.
+  // animalAttackValue): any slot.attackBonus from Gorge or Well-Drilled.
   let base = animal.attack;
-  if (base > 0) { if (hasHandlerPower(state, 'wellDrilled')) base += 2; base += (slot.attackBonus || 0); }
+  if (base > 0) { base += (slot.attackBonus || 0); }
   let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1));
   slot.nextAttackMult = 1;
   const isShield = combat.tactic === 'shield';
@@ -1033,6 +1033,17 @@ function playHandlerCard(state, combat, idx) {
       const treat = HANDLER_CARDS_BY_ID['c-snack'];
       if (treat) state.hand.push({ ...treat, uid: uid() });
     }
+    // Well-Drilled — pick a species on the board and stamp +2 attack onto it
+    // and every copy of it (no targeting prompt in the sim; mirror the App's
+    // per-animal slot.attackBonus stamp). Buffs current copies only.
+    if (card.installPower?.id === 'wellDrilled') {
+      const wdSlots = ['intro', 'subject', 'target'];
+      const counts = {};
+      for (const s of wdSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
+      let pick = null, pickN = 0;
+      for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
+      if (pick) for (const s of wdSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal' && sl.animalId === pick) sl.attackBonus = (sl.attackBonus || 0) + 2; }
+    }
     return;
   }
   if (card.type === 'tactic') {
@@ -1147,17 +1158,20 @@ function aiTurnHandler(state, combat) {
     }
     if (tryHandlerFeed(state, combat)) continue;
     // BOOSTER cards (2026-06-01). Effective per-animal attack reflects
-    // Well Drilled (+2) and slot.attackBonus, mirroring the engine.
+    // slot.attackBonus (Gorge / Well-Drilled), mirroring the engine.
     const effAtk = (slot) => {
       const a = ANIMALS[slot.animalId]; let v = a?.attack || 0;
-      if (v > 0) { if (hasHandlerPower(state, 'wellDrilled')) v += 2; v += (slot.attackBonus || 0); }
+      if (v > 0) { v += (slot.attackBonus || 0); }
       return v;
     };
     const liveAnimals = () => SLOT.map(s => combat.htray[s]).filter(sl => sl?.kind === 'animal');
     // Powers — install eagerly (snowball axis), but turn 1 on an empty board
-    // prefer dropping a lure first so a body is on its way.
+    // prefer dropping a lure first so a body is on its way. Well-Drilled stamps
+    // +2 onto an animal already on the board, so it's worthless until a body
+    // exists — hold it until there's something to drill.
     const pi = state.hand.findIndex(c => c.type === 'power' && c.installPower
-      && !hasHandlerPower(state, c.installPower.id) && c.cost <= state.energy);
+      && !hasHandlerPower(state, c.installPower.id) && c.cost <= state.energy
+      && !(c.installPower.id === 'wellDrilled' && animalCount() === 0));
     if (pi >= 0) {
       const wantLureFirst = combat.turn === 1 && animalCount() === 0
         && state.hand.some(c => c.type === 'lure' && c.cost <= state.energy)
@@ -1331,7 +1345,7 @@ function handlerApplyIntent(state, combat, intent) {
         const slot = combat.htray[s];
         if (slot?.kind !== 'animal') continue;
         const a = ANIMALS[slot.animalId]; let atk = a?.attack || 0;
-        if (atk > 0) { if (hasHandlerPower(state, 'wellDrilled')) atk += 2; atk += (slot.attackBonus || 0); }
+        if (atk > 0) { atk += (slot.attackBonus || 0); }
         if (atk > bestAtk) { bestAtk = atk; best = s; }
       }
       if (best) {

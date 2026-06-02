@@ -67,6 +67,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        gorgePromptActive = false,
                        onGorgeClick = () => {},
                        onCancelGorge = () => {},
+                       wellDrilledPromptActive = false,
+                       onWellDrilledClick = () => {},
+                       onCancelWellDrilled = () => {},
                        buffetArmed = false,
                        onCancelBuffet = () => {},
                        onFeedAnimal = () => {},
@@ -635,6 +638,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
         sacrificePromptActive={sacrificePromptActive} onSacrificeClick={onSacrificeClick}
         gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
+        wellDrilledPromptActive={wellDrilledPromptActive} onWellDrilledClick={onWellDrilledClick}
         powers={powers}
         onPlayCard={onPlayCard}
         onFeedAnimal={onFeedAnimal}
@@ -721,6 +725,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="font-bold">🍖 Gorge:</span> click a summoned animal to extend its stay by 3 turns (and +3 attack if it was fed this turn).
           </div>
           <button onClick={onCancelGorge}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {wellDrilledPromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-rust-400 bg-rust-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-rust-100">
+            <span className="font-bold">🎯 Well-Drilled:</span> click a summoned animal — it and every other copy of it on the board gains +2 attack for the rest of combat.
+          </div>
+          <button onClick={onCancelWellDrilled}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
@@ -974,6 +989,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        eatItPromptActive = false, onEatItClick = () => {},
                        sacrificePromptActive = false, onSacrificeClick = () => {},
                        gorgePromptActive = false, onGorgeClick = () => {},
+                       wellDrilledPromptActive = false, onWellDrilledClick = () => {},
                        powers = [],
                        onPlayCard = () => {},
                        onFeedAnimal = () => {},
@@ -987,13 +1003,11 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   const isSummonEnvelope = (v) => v && (v.kind === 'lure' || v.kind === 'animal');
   // Effective per-turn attack for a staged animal, reflecting every live
   // rider so the pill never shows a stale base number ("no math in head"):
-  // Well Drilled power (+2) and any slot.attackBonus (e.g. Gorge on a fed
-  // animal). Flopping animals (attack ≤ 0) stay at 0.
-  const hasTrayPower = (id) => (powers || []).some(p => p.installPower?.id === id);
+  // any slot.attackBonus (e.g. Gorge on a fed animal, or Well-Drilled's
+  // per-animal +2 stamp). Flopping animals (attack ≤ 0) stay at 0.
   const effAnimalAttack = (animal, slotCard) => {
     let a = animal?.attack || 0;
     if (a <= 0) return a;
-    if (hasTrayPower('wellDrilled')) a += 2;
     a += (slotCard?.attackBonus || 0);
     return a;
   };
@@ -1352,14 +1366,16 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const whistleArmed = whistlePromptActive;
       const sacrificeArmed = sacrificePromptActive;
       const gorgeArmed = gorgePromptActive;
+      const wellDrilledArmed = wellDrilledPromptActive;
       const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
       const clickHandler = shooArmed ? () => onShooAnimal(slotName)
                           : treatArmed ? () => onTreatClick(slotName)
                           : whistleArmed ? () => onWhistleClick(slotName)
                           : sacrificeArmed ? () => onSacrificeClick(slotName)
                           : gorgeArmed ? () => onGorgeClick(slotName)
+                          : wellDrilledArmed ? () => onWellDrilledClick(slotName)
                           : undefined;
-      const armed = shooArmed || treatArmed || whistleArmed || sacrificeArmed || gorgeArmed;
+      const armed = shooArmed || treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed;
       const armedTitle = shooArmed
         ? `👋 Click to Shoo this ${animal?.name || 'animal'} away.`
         : treatArmed
@@ -1370,6 +1386,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         ? `🔪 Click to cash in ${animal?.name || 'animal'} for energy + a card.`
         : gorgeArmed
         ? `🍖 Click to gorge ${animal?.name || 'animal'} (+3 turns).`
+        : wellDrilledArmed
+        ? `🎯 Click to drill every ${animal?.name || 'animal'} (+2 attack for the rest of combat).`
         : (() => {
             const shownDur = Math.max(0, (card.durationRemaining || 0) - 1);
             return `${animal?.name || card.animalId} — ${animal?.desc || ''} ${shownDur} turn${shownDur === 1 ? '' : 's'} left.${predatorNote}`;
@@ -1379,6 +1397,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        : whistleArmed ? (isWhistlePick1 ? ' · 🎶' : ' · 🎶 click to swap')
                        : sacrificeArmed ? ' · 🔪 click to cash in'
                        : gorgeArmed ? ' · 🍖 click to gorge'
+                       : wellDrilledArmed ? ' · 🎯 click to drill'
                        : '';
       return (
         <motion.button key={card.animalId + '-' + slotName}

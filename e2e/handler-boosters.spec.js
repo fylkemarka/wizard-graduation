@@ -54,6 +54,47 @@ test('Well-Drilled installs as a power without crashing combat', async ({ page }
   await expect(page.getByTestId('hand')).toBeVisible();
 });
 
+test('Well-Drilled arms a target prompt; drilling an animal does not crash combat', async ({ page }) => {
+  await gotoLab(page, 'handler', { seed: 11 });
+  for (let i = 0; i < 4; i++) await addCard(page, WELL_DRILLED);
+  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
+  await fightEnemy(page, 'Loom Familiar');
+
+  // Need a body on the board to drill.
+  expect(await ensureAnimalStaged(page)).toBeTruthy();
+  expect(await ensureInHand(page, WELL_DRILLED)).toBeTruthy();
+
+  await playCardById(page, WELL_DRILLED);
+
+  // The targeting banner arms.
+  await expect(page.getByText(/Well-Drilled:/)).toBeVisible();
+
+  // Click an armed animal pill to stamp the +2.
+  await page.getByText(/click to drill/).first().click();
+
+  // Prompt dismisses and combat is still alive.
+  await expect(page.getByTestId('hand')).toBeVisible();
+});
+
+test('Dismissing Well-Drilled refunds the card to hand', async ({ page }) => {
+  await gotoLab(page, 'handler', { seed: 11 });
+  for (let i = 0; i < 4; i++) await addCard(page, WELL_DRILLED);
+  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
+  await fightEnemy(page, 'Loom Familiar');
+
+  expect(await ensureAnimalStaged(page)).toBeTruthy();
+  expect(await ensureInHand(page, WELL_DRILLED)).toBeTruthy();
+
+  const before = await handCardById(page, WELL_DRILLED).count();
+  await playCardById(page, WELL_DRILLED);
+  await expect(page.getByText(/Well-Drilled:/)).toBeVisible();
+
+  // Dismiss without targeting — the card should snap back to hand.
+  await page.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(page.getByText(/Well-Drilled:/)).toHaveCount(0);
+  expect(await handCardById(page, WELL_DRILLED).count()).toBe(before);
+});
+
 test('Last Supper opens the sacrifice prompt and cashing in an animal does not crash', async ({ page }) => {
   await gotoLab(page, 'handler', { seed: 11 });
   for (let i = 0; i < 4; i++) await addCard(page, LAST_SUPPER);
