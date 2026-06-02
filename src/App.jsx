@@ -2698,6 +2698,13 @@ const uid = () => `u${++_uid}`;
 // a row. Falls back to the full behavior list if every option is excluded
 // (e.g. an enemy whose only behaviors share one kind).
 function rollIntent(enemy, excludeKinds = []) {
+  // E2E hook: ?forceMaul makes the next intent roll pick this enemy's maul
+  // behavior (consumed once), so the maul render path is regression-testable
+  // without hunting a fragile RNG seed. No-op when absent or enemy has no maul.
+  if (typeof window !== 'undefined' && window.__forceMaul) {
+    const maulB = enemy.behaviors.find(b => b.maul);
+    if (maulB) { window.__forceMaul = false; return { ...maulB }; }
+  }
   const filtered = enemy.behaviors.filter(b => !excludeKinds.includes(b.kind));
   const pool = filtered.length > 0 ? filtered : enemy.behaviors;
   const total = pool.reduce((s, b) => s + (b.weight || 1), 0);
@@ -3760,6 +3767,12 @@ export default function App() {
   // survives the same-endTurn stale-closure window between the animal tick and
   // applyEnemyIntent. Consumed (and cleared) when the enemy next attacks.
   const redirectEnemyAttackRef = useRef(false);
+  // Maul (Alan, 2026-06-02): the handler end-of-turn tick writes the
+  // post-tick board here so applyEnemyIntent — which runs later in the same
+  // endTurn, after the tick's setTray has been queued but not yet flushed to
+  // the `tray` closure — can read the CURRENT board synchronously. null for
+  // non-handler lanes (no animals to maul).
+  const boardForMaulRef = useRef(null);
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
@@ -8704,6 +8717,34 @@ export default function App() {
     setShooPromptActive(false);
   }
 
+  // Maul — when an enemy's mauling attack leaks any damage past Block, it also
+  // tears the strongest animal off the board (Alan, 2026-06-02; handler-only).
+  // The leftover HP damage is dealt by the normal attack path in
+  // applyEnemyIntent; this just removes the body. No exit payoff — it's
+  // killed, not sent off. Reads boardForMaulRef (the post-tick snapshot)
+  // because applyEnemyIntent runs after the end-of-turn tick's tray setState
+  // is queued but not yet flushed to the `tray` closure.
+  const maulStrongestAnimal = () => {
+    const board = boardForMaulRef.current;
+    if (!board) return;
+    let best = null, bestAtk = -1;
+    for (const s of ['intro', 'subject', 'target']) {
+      const slot = board[s];
+      if (slot?.kind !== 'animal') continue;
+      const atk = animalAttackValue(getAnimal(slot.animalId), slot);
+      if (atk > bestAtk) { bestAtk = atk; best = s; }
+    }
+    if (!best) return;
+    const slot = board[best];
+    const animal = getAnimal(slot.animalId);
+    const updates = {};
+    if (Array.isArray(slot.spans)) for (const s of slot.spans) updates[s] = null;
+    else updates[best] = null;
+    setTray(p => syncTrayLegacy({ ...p, ...updates }));
+    noteAnimalDeparted();
+    pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is mauled off the board — you didn't block it all.`);
+  };
+
   // Last Supper — send off an animal for Energy equal to its remaining turns
   // and a card. Single-click animal target, like Treat.
   function sacrificeAnimalFromSlot(slotName) {
@@ -9836,6 +9877,10 @@ export default function App() {
         pendingLures: SLOT_ORDER.map(s => nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])
           .filter(v => v?.kind === 'lure').length,
       });
+      // Maul: snapshot the post-tick board for applyEnemyIntent, which runs
+      // later this endTurn before the tray setState has flushed to closure.
+      boardForMaulRef.current = Object.fromEntries(
+        SLOT_ORDER.map(s => [s, nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s]]));
       if (summonerKilledEnemy) {
         // Combat is over — this early return skips the end-of-turn refill
         // block that normally folds recycleToDiscard into stagedDiscard
@@ -10746,6 +10791,9 @@ export default function App() {
       // point). Either pool moving downward counts as "the hit landed."
       if (wHp < hp || wComp < composure) setUnblockedThisTurn(true);
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
+      // Maul rider: a mauling attack that leaks ANY HP past Block also tears
+      // the strongest animal off the board. Fully blocked → menagerie safe.
+      if (intent.maul && wHp < hp) maulStrongestAnimal();
       // v2.10: reactive annotation damage on enemy attack.
       const annReactive = annoFx('damageOnEnemyAttack');
       if (annReactive > 0) {

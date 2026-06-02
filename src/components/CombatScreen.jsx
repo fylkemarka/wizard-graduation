@@ -117,7 +117,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       const riderMatch = tg.match(/(\+ [^()]+)$/);
       const riderTail = riderMatch && !labelMatch ? ' ' + riderMatch[1] : '';
       let body = count ? `${eff}×${count}` : `${eff}`;
-      return { display: `${poolIcon} ${body}${label}${riderTail}`, reduced, amplified, rawValue: raw, effValue: eff };
+      // Maul attacks lead with 🦷 so the threat reads at a glance: block it
+      // all or the strongest animal is torn off the board.
+      const maulMark = intent.maul ? '🦷 ' : '';
+      return { display: `${maulMark}${poolIcon} ${body}${label}${riderTail}`, reduced, amplified, rawValue: raw, effValue: eff };
     }
     // v3.4.81 (Alan: "Weave + 2 is unclear. What does weave do? What's it
     // hit for?") — surface the projected composure damage if the player
@@ -151,6 +154,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       }
       if (intent.pool === 'composure') {
         lines.push('Composure attacks bypass HP. Lose all Composure and you fail by losing your nerve.');
+      }
+      if (intent.maul) {
+        lines.push('🦷 Maul: if any of this leaks past your Block, your strongest animal is torn off the board. Block it ALL to keep your menagerie.');
       }
     } else if (intent.kind === 'block') {
       lines.push(`🛡 Gains ${intent.value} Block — absorbs your damage to it until its next turn.`);

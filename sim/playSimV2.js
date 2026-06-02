@@ -1281,6 +1281,7 @@ function handlerApplyIntent(state, combat, intent) {
     }
     const targetsComposure = intent.pool === 'composure';
     let raw = Math.round(intent.value * combat.enemyDmgMult);
+    const hpBefore = state.hp;
     let wBlock = state.block, wPoise = state.poise || 0, wHp = state.hp, wComp = state.composure;
     for (let i = 0; i < hits; i++) {
       let remaining = raw;
@@ -1295,6 +1296,27 @@ function handlerApplyIntent(state, combat, intent) {
       if (wHp <= 0 || wComp <= 0) break;
     }
     state.block = wBlock; state.poise = wPoise; state.hp = wHp; state.composure = wComp;
+    // Maul: any HP leaked past block also tears the strongest animal off the
+    // board. Mirrors App.jsx maulStrongestAnimal. No exit payoff — killed.
+    if (intent.maul && wHp < hpBefore) {
+      const SLOT = ['intro', 'subject', 'target'];
+      let best = null, bestAtk = -1;
+      for (const s of SLOT) {
+        const slot = combat.htray[s];
+        if (slot?.kind !== 'animal') continue;
+        const a = ANIMALS[slot.animalId]; let atk = a?.attack || 0;
+        if (atk > 0) { if (hasHandlerPower(state, 'wellDrilled')) atk += 2; atk += (slot.attackBonus || 0); }
+        if (atk > bestAtk) { bestAtk = atk; best = s; }
+      }
+      if (best) {
+        const slot = combat.htray[best];
+        if (Array.isArray(slot.spans)) for (const s of slot.spans) combat.htray[s] = null;
+        else combat.htray[best] = null;
+        combat.mauls = (combat.mauls || 0) + 1;
+        if (typeof globalThis.__maulCount === 'number') globalThis.__maulCount++;
+        if (hasHandlerPower(state, 'whisperer')) combat.whisperPending = (combat.whisperPending || 0) + 1;
+      }
+    }
   } else if (intent.kind === 'block') {
     combat.enemyBlock += intent.value;
   } else if (intent.kind === 'vulnerable') {
@@ -5906,7 +5928,7 @@ if (isMain) {
   const laneArg = (process.argv[3] || '').replace(/^--lane=/, '').toLowerCase();
   const forcedLane = ['wit', 'handler'].includes(laneArg) ? laneArg : null;
   console.log(`Running ${N} v2 playtests${forcedLane ? ` (lane=${forcedLane})` : ''}…`);
-  if (process.env.DEATH_CAUSE) globalThis.__deathCause = { hp: 0, composure: 0 };
+  if (process.env.DEATH_CAUSE) { globalThis.__deathCause = { hp: 0, composure: 0 }; globalThis.__maulCount = 0; }
   const results = [];
   // v2.53: when no lane filter is supplied, force ROUND-ROBIN across the
   // three lanes so the aggregate report has balanced per-lane telemetry
@@ -5928,6 +5950,7 @@ if (isMain) {
   console.log(`Avg turns/combat: ${agg.avgTurnsPerCombat.toFixed(2)}`);
   console.log(`Tier distribution: T1=${agg.tier1Casts} T2=${agg.tier2Casts} T3=${agg.tier3Casts}`);
   if (globalThis.__deathCause) console.log(`Death cause: HP=${globalThis.__deathCause.hp} Composure=${globalThis.__deathCause.composure}`);
+  if (typeof globalThis.__maulCount === 'number') console.log(`Mauls fired: ${globalThis.__maulCount}`);
 }
 
 export { simRun, aggregate, buildReport };

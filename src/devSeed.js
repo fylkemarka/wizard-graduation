@@ -29,6 +29,10 @@ export function installSeedFromUrl() {
     // testable without hunting a fragile RNG seed. No-op when absent.
     const forced = params.get('forceSwoop');
     if (forced === 'owl' || forced === 'hawk') window.__forceSwoop = forced;
+    // E2E hook: ?forceMaul makes the next enemy intent roll pick that enemy's
+    // maul behavior (consumed once in rollIntent), so the maul render path is
+    // regression-testable without hunting a fragile RNG seed. No-op when absent.
+    if (params.get('forceMaul') != null) window.__forceMaul = true;
     const raw = params.get('seed');
     if (raw === null) return false;
     seed = Number(raw);

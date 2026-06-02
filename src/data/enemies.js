@@ -95,6 +95,9 @@ export const ENEMIES = [
       { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (silken whisper)' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
+      // Maul (Alan, 2026-06-02): silk-snare. Block it ALL or it drags your
+      // strongest animal off into the web. ~22% of rolls.
+      { kind: 'attack', maul: true, value: 7, weight: 2, telegraph: '🦷 7 — silk-snare (unblocked → lose your strongest animal)' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
@@ -166,6 +169,9 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (loom-song)' },
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
+      // Maul (Alan, 2026-06-02): the Walker weaves your strongest beast into
+      // the tapestry. Block it all or lose it. Boss-tier stakes, ~25% of rolls.
+      { kind: 'attack', maul: true, value: 10, weight: 2, telegraph: '🦷 10 — woven under (unblocked → your strongest animal goes into the pattern)' },
     ] },
 
   // ===== ACT 2 — The Forge Path (the mines and caves) =====
