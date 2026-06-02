@@ -141,6 +141,20 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
   { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7, removeWeak: 1 } },
   { id: 'c-sharp-aside', name: 'Sharp Whistle', cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmg: 4 } },
+  // ---- BOOSTER / BUFF cards (2026-06-01). Mirror src/App.jsx CARDS. Powers
+  // install onto state.powers; the engine reads them via hasHandlerPower().
+  // The new effect-key skills are routed in playHandlerCard / applyHandlerSkill.
+  { id: 'c-house-rules',   name: 'House Rules',     cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'houseRules' } },
+  { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
+  { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
+  { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
+  { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 1, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
+  { id: 'c-last-supper',   name: 'Last Supper',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { sacrificeForValue: true } },
+  { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
+  { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
+  { id: 'c-stampede',      name: 'Stampede',        cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
+  { id: 'c-gorge',         name: 'Gorge',           cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
+  { id: 'c-snack',         name: 'Snack',           cost: 0, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1, exhaust: true } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -154,6 +168,8 @@ const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
   'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
   'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-aside',
+  'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
+  'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
 ];
 
 // =============================================================================
@@ -749,13 +765,16 @@ function handlerDealHp(combat, amount) {
   if (combat.enemyBlock > 0) { const a = Math.min(combat.enemyBlock, remaining); combat.enemyBlock -= a; remaining -= a; }
   combat.enemyHp = Math.max(0, combat.enemyHp - remaining);
 }
-function makeAnimalSlot(animalId, youthBonus, summonSet) {
+// Handler powers (2026-06-01) install onto state.powers, mirroring App.jsx.
+function hasHandlerPower(state, id) { return (state.powers || []).some(p => p.installPower?.id === id); }
+function makeAnimalSlot(animalId, youthBonus, summonSet, durBonus) {
   const a = ANIMALS[animalId];
   return {
     kind: 'animal', animalId,
-    durationRemaining: (a?.duration || 3) + (youthBonus || 0),
+    durationRemaining: (a?.duration || 3) + (youthBonus || 0) + (durBonus || 0),
     predatorProgress: 0, adjacentSpawnProgress: 0, adjacentSpawned: false,
-    summonSet: summonSet || null, feedReceived: false, nextAttackMult: 1,
+    summonSet: summonSet || null, feedReceived: false, fedThisTurn: false, nextAttackMult: 1,
+    attackBonus: 0,
   };
 }
 function resolveLureSpecies(lure, combat) {
@@ -770,7 +789,11 @@ function resolveLureSpecies(lure, combat) {
   return id;
 }
 function handlerAnimalAttack(state, combat, slot, animal, baseMult) {
-  let atk = Math.round(animal.attack * (baseMult || 1) * (slot.nextAttackMult || 1));
+  // Effective base attack reflects every live rider (mirrors App.jsx
+  // animalAttackValue): Well Drilled (+2) and any slot.attackBonus from Gorge.
+  let base = animal.attack;
+  if (base > 0) { if (hasHandlerPower(state, 'wellDrilled')) base += 2; base += (slot.attackBonus || 0); }
+  let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1));
   slot.nextAttackMult = 1;
   const isShield = combat.tactic === 'shield';
   const isRabid  = combat.tactic === 'rabid';
@@ -859,7 +882,7 @@ function stageHandlerLure(state, combat, lure) {
     const withCard = idx === 0;
     if (nurture) {
       const animalId = resolveLureSpecies(lure, combat);
-      combat.htray[s] = makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet);
+      combat.htray[s] = makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet, hasHandlerPower(state, 'houseRules') ? 1 : 0);
       combat.summons++;
       if (withCard) state.discard.push(lure);
     } else {
@@ -892,7 +915,7 @@ function applyHandlerUtil(state, combat, card) {
       const lure = combat.htray[s];
       const animalId = resolveLureSpecies(lure, combat);
       if (lure.card) state.discard.push({ ...lure.card });
-      combat.htray[s] = makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet);
+      combat.htray[s] = makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet, hasHandlerPower(state, 'houseRules') ? 1 : 0);
       combat.summons++;
     }
     return;
@@ -900,14 +923,108 @@ function applyHandlerUtil(state, combat, card) {
   if (card.util === 'treat') {
     let bestS = null, bestAtk = -1;
     for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind !== 'animal') continue; const a = ANIMALS[sl.animalId]; if ((a?.attack || 0) > bestAtk) { bestAtk = a.attack; bestS = s; } }
-    if (bestS) combat.htray[bestS].durationRemaining += 1;
+    if (bestS) { combat.htray[bestS].durationRemaining += 1; combat.htray[bestS].feedReceived = true; combat.htray[bestS].fedThisTurn = true; }
   }
   // 'shoo' intentionally unused by the AI — situational, no greedy value.
+}
+// Whisperer exit-note shared by the end-of-turn tick and instant-play exits
+// (Last Supper / Make It Count). Banks a draw for next turn.
+function noteHandlerExit(state, combat, n = 1) {
+  if (hasHandlerPower(state, 'whisperer')) combat.whisperPending = (combat.whisperPending || 0) + n;
+}
+// Booster skill effect resolution (2026-06-01). Mirrors App.jsx applySideEffects
+// handlers + the click-target prompt resolvers (sacrifice/gorge auto-target here
+// since the sim has no UI). Returns nothing; mutates state/combat.
+function applyHandlerSkill(state, combat, card) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const animals = () => SLOT.map(s => ({ s, slot: combat.htray[s] }))
+    .filter(x => x.slot?.kind === 'animal');
+  const fx = card.effects || {};
+  if (fx.block) state.block += fx.block;
+  if (fx.poise) state.poise += fx.poise;
+  if (fx.compDmg) { handlerDealComposure(combat, fx.compDmg); combat.totalDamageDealt += fx.compDmg; }
+  // Murmuration — 3 composure per bird in play.
+  if (fx.compDmgPerBird) {
+    const birds = animals().filter(x => ANIMALS[x.slot.animalId]?.feedKey === 'bird').length;
+    const dmg = fx.compDmgPerBird * birds;
+    if (dmg > 0) { handlerDealComposure(combat, dmg); combat.totalDamageDealt += dmg; }
+  }
+  // Stampede — every small-land animal attacks again this turn.
+  if (fx.smallLandAttackAgain) {
+    for (const { slot } of animals()) {
+      const a = ANIMALS[slot.animalId];
+      if (a?.feedKey === 'small-land' && a.attack > 0) handlerAnimalAttack(state, combat, slot, a, 1);
+    }
+  }
+  // Last Supper — cash in one animal: energy = max(1, remaining-1), draw 1.
+  // Auto-target the lowest-attack animal with the most remaining turns.
+  if (fx.sacrificeForValue) {
+    const list = animals();
+    if (list.length) {
+      list.sort((p, q) => {
+        const ap = ANIMALS[p.slot.animalId]?.attack || 0, aq = ANIMALS[q.slot.animalId]?.attack || 0;
+        if (ap !== aq) return ap - aq;
+        return (q.slot.durationRemaining || 0) - (p.slot.durationRemaining || 0);
+      });
+      const tgt = list[0];
+      const turnsLeft = Math.max(1, (tgt.slot.durationRemaining || 1) - 1);
+      state.energy += turnsLeft;
+      drawCards(state, 1);
+      noteHandlerExit(state, combat);
+      clearHandlerSlot(combat.htray, tgt.slot, tgt.s);
+    }
+  }
+  // Make It Count — every animal attacks for double, then leaves play.
+  if (fx.sacrificeAllForBurst) {
+    let departed = 0;
+    for (const { s, slot } of animals()) {
+      const a = ANIMALS[slot.animalId];
+      if (a?.attack > 0) handlerAnimalAttack(state, combat, slot, a, 2);
+      clearHandlerSlot(combat.htray, slot, s);
+      departed++;
+    }
+    if (departed) noteHandlerExit(state, combat, departed);
+  }
+  // Gorge — pick a fed animal: +3 turns, +3 permanent attack if fed this turn.
+  if (fx.gorge) {
+    const list = animals();
+    if (list.length) {
+      const fed = list.filter(x => x.slot.fedThisTurn);
+      const pool = fed.length ? fed : list;
+      pool.sort((p, q) => (ANIMALS[q.slot.animalId]?.attack || 0) - (ANIMALS[p.slot.animalId]?.attack || 0));
+      const tgt = pool[0];
+      tgt.slot.durationRemaining += 3;
+      if (tgt.slot.fedThisTurn) tgt.slot.attackBonus = (tgt.slot.attackBonus || 0) + 3;
+    }
+  }
+  // Snack — treat-like: extend the lowest-duration animal by 1.
+  if (fx.treatExtend) {
+    const list = animals();
+    if (list.length) {
+      list.sort((p, q) => (p.slot.durationRemaining || 0) - (q.slot.durationRemaining || 0));
+      const tgt = list[0];
+      tgt.slot.durationRemaining += fx.treatExtend;
+      tgt.slot.feedReceived = true;
+      tgt.slot.fedThisTurn = true;
+    }
+  }
 }
 function playHandlerCard(state, combat, idx) {
   const card = state.hand[idx];
   state.hand.splice(idx, 1);
-  state.energy -= (card.cost || 0);
+  // Open Door Policy: first lure each turn costs 0. Mirrors App.jsx
+  // effectiveCardCost + firstLureUsedThisTurn.
+  const isLure = card.type === 'lure';
+  const openDoorFree = isLure && hasHandlerPower(state, 'openDoor') && !combat.firstLureUsedThisTurn;
+  state.energy -= openDoorFree ? 0 : (card.cost || 0);
+  if (isLure) combat.firstLureUsedThisTurn = true;
+  if (card.type === 'power') {
+    // Powers install onto state.powers and are consumed (not returned to any
+    // pile) — mirrors App.jsx, which removes the card from hand into `powers`.
+    if (card.installPower && !hasHandlerPower(state, card.installPower.id)) state.powers.push({ ...card });
+    combat.powersInstalled = (combat.powersInstalled || 0) + 1;
+    return;
+  }
   if (card.type === 'tactic') {
     if (combat.tactic !== card.tactic.id) combat.tacticChanges++;
     combat.tactic = card.tactic.id;
@@ -918,10 +1035,10 @@ function playHandlerCard(state, combat, idx) {
   }
   if (card.type === 'lure') { stageHandlerLure(state, combat, card); return; }
   if (card.type === 'handler-skill') {
-    if (card.effects?.block)   state.block += card.effects.block;
-    if (card.effects?.poise)   state.poise += card.effects.poise;
-    if (card.effects?.compDmg) { handlerDealComposure(combat, card.effects.compDmg); combat.totalDamageDealt += card.effects.compDmg; }
-    state.discard.push(card);
+    applyHandlerSkill(state, combat, card);
+    if (card.token) { /* token: vanishes, never returns to a pile */ }
+    else if (card.effects?.exhaust) state.exiled.push(card);
+    else state.discard.push(card);
     return;
   }
   if (card.type === 'handler-util') {
@@ -944,6 +1061,7 @@ function tryHandlerFeed(state, combat) {
     state.hand.splice(li, 1);
     state.energy -= (lure.cost || 0);
     slot.feedReceived = true;
+    slot.fedThisTurn = true;
     combat.feeds++;
     state.discard.push(lure);
     return true;
@@ -985,7 +1103,15 @@ function aiTurnHandler(state, combat) {
     if (combat.fb.startCombatBlock) state.block += combat.fb.startCombatBlock;
     if (combat.fb.startCombatPoise) state.poise += combat.fb.startCombatPoise;
   }
-  drawCards(state, HAND_SIZE + (combat.turn === 1 ? (combat.fb.startCombatDraw || 0) : 0));
+  combat.firstLureUsedThisTurn = false;
+  const whisperDraw = combat.whisperPending || 0;
+  combat.whisperPending = 0;
+  drawCards(state, HAND_SIZE + whisperDraw + (combat.turn === 1 ? (combat.fb.startCombatDraw || 0) : 0));
+  // Full Pockets: gain a Snack token in hand each turn.
+  if (hasHandlerPower(state, 'fullPockets')) {
+    const snack = HANDLER_CARDS_BY_ID['c-snack'];
+    if (snack) state.hand.push({ ...snack, uid: uid() });
+  }
 
   const SLOT = ['intro', 'subject', 'target'];
   const emptyCount = () => SLOT.filter(s => combat.htray[s] == null).length;
@@ -1006,6 +1132,51 @@ function aiTurnHandler(state, combat) {
       }
     }
     if (tryHandlerFeed(state, combat)) continue;
+    // BOOSTER cards (2026-06-01). Effective per-animal attack reflects
+    // Well Drilled (+2) and slot.attackBonus, mirroring the engine.
+    const effAtk = (slot) => {
+      const a = ANIMALS[slot.animalId]; let v = a?.attack || 0;
+      if (v > 0) { if (hasHandlerPower(state, 'wellDrilled')) v += 2; v += (slot.attackBonus || 0); }
+      return v;
+    };
+    const liveAnimals = () => SLOT.map(s => combat.htray[s]).filter(sl => sl?.kind === 'animal');
+    // Powers — install eagerly (snowball axis), but turn 1 on an empty board
+    // prefer dropping a lure first so a body is on its way.
+    const pi = state.hand.findIndex(c => c.type === 'power' && c.installPower
+      && !hasHandlerPower(state, c.installPower.id) && c.cost <= state.energy);
+    if (pi >= 0) {
+      const wantLureFirst = combat.turn === 1 && animalCount() === 0
+        && state.hand.some(c => c.type === 'lure' && c.cost <= state.energy)
+        && state.energy < (state.hand[pi].cost || 0) + 1;
+      if (!wantLureFirst) { playHandlerCard(state, combat, pi); continue; }
+    }
+    // Make It Count — burst finisher: fire when doubled board attack clears
+    // the enemy's remaining composure (it exhausts and empties the board).
+    const burstIdx = state.hand.findIndex(c => c.effects?.sacrificeAllForBurst && c.cost <= state.energy);
+    if (burstIdx >= 0) {
+      const dbl = liveAnimals().reduce((sum, sl) => sum + 2 * effAtk(sl), 0);
+      if (dbl > 0 && dbl >= combat.enemyComposure - combat.enemyBlock) { playHandlerCard(state, combat, burstIdx); continue; }
+    }
+    // Snack (token, free) — extend the lowest-duration animal when one exists.
+    const snackIdx = state.hand.findIndex(c => c.token && c.effects?.treatExtend);
+    if (snackIdx >= 0 && liveAnimals().length > 0) { playHandlerCard(state, combat, snackIdx); continue; }
+    // Murmuration — worth it with 2+ birds in play.
+    const birds = liveAnimals().filter(sl => ANIMALS[sl.animalId]?.feedKey === 'bird').length;
+    if (birds >= 2) {
+      const mi = state.hand.findIndex(c => c.effects?.compDmgPerBird && c.cost <= state.energy);
+      if (mi >= 0) { playHandlerCard(state, combat, mi); continue; }
+    }
+    // Stampede — worth it with 2+ small-land animals in play.
+    const smallLand = liveAnimals().filter(sl => ANIMALS[sl.animalId]?.feedKey === 'small-land').length;
+    if (smallLand >= 2) {
+      const stIdx = state.hand.findIndex(c => c.effects?.smallLandAttackAgain && c.cost <= state.energy);
+      if (stIdx >= 0) { playHandlerCard(state, combat, stIdx); continue; }
+    }
+    // Gorge — overfeed a fed, attacking animal for +3 turns / +3 attack.
+    const gorgeIdx = state.hand.findIndex(c => c.effects?.gorge && c.cost <= state.energy);
+    if (gorgeIdx >= 0 && liveAnimals().some(sl => sl.fedThisTurn && effAtk(sl) > 0)) {
+      playHandlerCard(state, combat, gorgeIdx); continue;
+    }
     if (state.energy >= 1) {
       let needDefense = false;
       if (incoming > 0) {
@@ -1055,13 +1226,22 @@ function aiTurnHandler(state, combat) {
     }
     const si = state.hand.findIndex(c => c.effects?.compDmg && c.cost <= state.energy);
     if (si >= 0) { playHandlerCard(state, combat, si); continue; }
+    // Last Supper — cash an animal in for energy + a card when a lure is
+    // stuck in hand for want of energy and there's a body to spare (dur ≥ 2).
+    const lsIdx = state.hand.findIndex(c => c.effects?.sacrificeForValue && c.cost <= state.energy);
+    if (lsIdx >= 0) {
+      const stuckLure = state.hand.some(c => c.type === 'lure' && c.cost > state.energy);
+      const spare = liveAnimals().some(sl => (sl.durationRemaining || 0) >= 2);
+      if (stuckLure && spare) { playHandlerCard(state, combat, lsIdx); continue; }
+    }
     break;
   }
 
   handlerEndOfTurnTick(state, combat);
   if (combat.tactic) combat.tacticTurns[combat.tactic] = (combat.tacticTurns[combat.tactic] || 0) + 1;
 
-  for (const c of state.hand) state.discard.push(c);
+  // Tokens (Full Pockets' Snack) vanish at end of turn — never to discard/deck.
+  for (const c of state.hand) if (!c.token) state.discard.push(c);
   state.hand = [];
 
   if (combat.enemyComposure > 0 && combat.enemyHp > 0) {
@@ -1113,6 +1293,10 @@ function handlerEndOfTurnTick(state, combat) {
   combat.handlerTicks++;
   const SLOT = ['intro', 'subject', 'target'];
   const work = { intro: combat.htray.intro, subject: combat.htray.subject, target: combat.htray.target };
+
+  // The Whisperer: any animal leaving play banks a draw for next turn.
+  const whispererInstalled = hasHandlerPower(state, 'whisperer');
+  const noteExit = () => { if (whispererInstalled) combat.whisperPending = (combat.whisperPending || 0) + 1; };
 
   const onExit = (animal) => {
     const fx = animal?.onExit; if (!fx) return;
@@ -1233,7 +1417,7 @@ function handlerEndOfTurnTick(state, combat) {
         const animalId = resolveLureSpecies(slot, combat);
         if (slot.card) state.discard.push({ ...slot.card });
         combat.summons++;
-        next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
+        next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet, hasHandlerPower(state, 'houseRules') ? 1 : 0);
       } else next[slotName] = { ...slot, turnsRemaining: nt };
       continue;
     }
@@ -1279,13 +1463,13 @@ function handlerEndOfTurnTick(state, combat) {
         if (proj == null) { const child = makeAnimalSlot(animal.adjacentSpawn.animalId, 0, slot.summonSet); child.adjacentSpawned = true; next[ns] = child; combat.summons++; }
       }
       nextDur = (slot.durationRemaining - 1) + (animal.adjacentSpawn.extendSelfTurns || 0);
-      if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); clearHandlerSlot(next, slot, slotName); }
-      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1 };
+      if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
+      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, fedThisTurn: false };
       continue;
     }
-    if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); clearHandlerSlot(next, slot, slotName); }
-    else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; clearHandlerSlot(next, slot, slotName); }
-    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, justCombined: false };
+    if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
+    else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; noteExit(); clearHandlerSlot(next, slot, slotName); }
+    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, justCombined: false, fedThisTurn: false };
   }
 
   // Birds of a Feather self-exhaust at three-of-a-kind.
@@ -1308,8 +1492,12 @@ function runHandlerCombat(state, enemy, telemetry) {
   const fb = state.familiarBonus || {};
   if (fb.startCombatVuln) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fb.startCombatVuln);
   // Fresh hand each combat (discard whatever lingered, then aiTurnHandler draws).
-  state.discard = [...state.discard, ...state.hand];
+  // Scrub tokens (Snack) so they never seed a fresh combat's deck.
+  state.discard = [...state.discard, ...state.hand].filter(c => !c.token);
+  state.deck = (state.deck || []).filter(c => !c.token);
   state.hand = [];
+  // Powers don't persist between combats (mirrors App.jsx setPowers([])).
+  state.powers = [];
   const combat = {
     enemy, fb,
     enemyComposure: enemy.currentComp, enemyHp: enemy.currentHp, enemyBlock: 0,
@@ -1322,6 +1510,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     summons: 0, feeds: 0, shortStays: 0, combines: 0,
     menagerieComposure: 0, menagerieBlock: 0,
     totalDamageDealt: 0, totalDamageTaken: 0,
+    whisperPending: 0, firstLureUsedThisTurn: false, powersInstalled: 0,
   };
 
   const flushTelemetry = (outcome) => {

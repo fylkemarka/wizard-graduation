@@ -60,6 +60,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        eatItPromptActive = false,
                        onEatItClick = () => {},
                        onCancelEatIt = () => {},
+                       sacrificePromptActive = false,
+                       onSacrificeClick = () => {},
+                       onCancelSacrifice = () => {},
+                       gorgePromptActive = false,
+                       onGorgeClick = () => {},
+                       onCancelGorge = () => {},
                        buffetArmed = false,
                        onCancelBuffet = () => {},
                        onFeedAnimal = () => {},
@@ -606,6 +612,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         whistlePromptActive={whistlePromptActive} whistlePick1Slot={whistlePick1Slot} onWhistleClick={onWhistleClick}
         treatPromptActive={treatPromptActive} onTreatClick={onTreatClick}
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
+        sacrificePromptActive={sacrificePromptActive} onSacrificeClick={onSacrificeClick}
+        gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
+        powers={powers}
         onPlayCard={onPlayCard}
         onFeedAnimal={onFeedAnimal}
         onDiscardTactic={onDiscardTactic}
@@ -669,6 +678,28 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="font-bold">🍴 Just Eat It:</span> click a staged lure to summon its animal right now.
           </div>
           <button onClick={onCancelEatIt}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {sacrificePromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-rust-400 bg-rust-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-rust-100">
+            <span className="font-bold">🔪 Last Supper:</span> click a summoned animal to cash it in — gain energy equal to its remaining turns and draw a card.
+          </div>
+          <button onClick={onCancelSacrifice}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {gorgePromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-rust-400 bg-rust-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-rust-100">
+            <span className="font-bold">🍖 Gorge:</span> click a summoned animal to extend its stay by 3 turns (and +3 attack if it was fed this turn).
+          </div>
+          <button onClick={onCancelGorge}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
@@ -905,6 +936,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        whistlePromptActive = false, whistlePick1Slot = null, onWhistleClick = () => {},
                        treatPromptActive = false, onTreatClick = () => {},
                        eatItPromptActive = false, onEatItClick = () => {},
+                       sacrificePromptActive = false, onSacrificeClick = () => {},
+                       gorgePromptActive = false, onGorgeClick = () => {},
+                       powers = [],
                        onPlayCard = () => {},
                        onFeedAnimal = () => {},
                        onDiscardTactic = () => {},
@@ -915,6 +949,18 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   // / FFT detection only treats raw cards as content; envelopes are rendered
   // separately as summon pills below.
   const isSummonEnvelope = (v) => v && (v.kind === 'lure' || v.kind === 'animal');
+  // Effective per-turn attack for a staged animal, reflecting every live
+  // rider so the pill never shows a stale base number ("no math in head"):
+  // Well Drilled power (+2) and any slot.attackBonus (e.g. Gorge on a fed
+  // animal). Flopping animals (attack ≤ 0) stay at 0.
+  const hasTrayPower = (id) => (powers || []).some(p => p.installPower?.id === id);
+  const effAnimalAttack = (animal, slotCard) => {
+    let a = animal?.attack || 0;
+    if (a <= 0) return a;
+    if (hasTrayPower('wellDrilled')) a += 2;
+    a += (slotCard?.attackBonus || 0);
+    return a;
+  };
   const introCard = isSummonEnvelope(tray.intro) ? null : tray.intro;
   const subjectCard = isSummonEnvelope(tray.subject) ? null : tray.subject;
   const targetCard = isSummonEnvelope(tray.target) ? null : (tray.target || tray.effectCard);
@@ -1263,23 +1309,31 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const predatorNote = animal?.predatorChain && !animal?.hidePredatorChain
         ? ` · ${animals?.[animal.predatorChain.animalId]?.name || '?'} in ${animal.predatorChain.turnsToTrigger - (card.predatorProgress || 0)}t`
         : '';
-      // Animals are click targets for Shoo, Treat, and Whistle. Precedence:
-      // Shoo → Treat → Whistle.
+      // Animals are click targets for Shoo, Treat, Whistle, Sacrifice, and
+      // Gorge. Precedence: Shoo → Treat → Whistle → Sacrifice → Gorge.
       const shooArmed = shooPromptActive;
       const treatArmed = treatPromptActive;
       const whistleArmed = whistlePromptActive;
+      const sacrificeArmed = sacrificePromptActive;
+      const gorgeArmed = gorgePromptActive;
       const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
       const clickHandler = shooArmed ? () => onShooAnimal(slotName)
                           : treatArmed ? () => onTreatClick(slotName)
                           : whistleArmed ? () => onWhistleClick(slotName)
+                          : sacrificeArmed ? () => onSacrificeClick(slotName)
+                          : gorgeArmed ? () => onGorgeClick(slotName)
                           : undefined;
-      const armed = shooArmed || treatArmed || whistleArmed;
+      const armed = shooArmed || treatArmed || whistleArmed || sacrificeArmed || gorgeArmed;
       const armedTitle = shooArmed
         ? `👋 Click to Shoo this ${animal?.name || 'animal'} away.`
         : treatArmed
         ? `🍖 Click to extend ${animal?.name || 'animal'} by 1 turn.`
         : whistleArmed
         ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}.`
+        : sacrificeArmed
+        ? `🔪 Click to cash in ${animal?.name || 'animal'} for energy + a card.`
+        : gorgeArmed
+        ? `🍖 Click to gorge ${animal?.name || 'animal'} (+3 turns).`
         : (() => {
             const shownDur = Math.max(0, (card.durationRemaining || 0) - 1);
             return `${animal?.name || card.animalId} — ${animal?.desc || ''} ${shownDur} turn${shownDur === 1 ? '' : 's'} left.${predatorNote}`;
@@ -1287,6 +1341,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const armedLabel = shooArmed ? ' · 👋 click to shoo'
                        : treatArmed ? ' · 🍖 click to treat'
                        : whistleArmed ? (isWhistlePick1 ? ' · 🎶' : ' · 🎶 click to swap')
+                       : sacrificeArmed ? ' · 🔪 click to cash in'
+                       : gorgeArmed ? ' · 🍖 click to gorge'
                        : '';
       return (
         <motion.button key={card.animalId + '-' + slotName}
@@ -1309,7 +1365,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {(animal?.attack || 0) > 0
-              ? `${animal.attack} dmg / turn · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`
+              ? `${effAnimalAttack(animal, card)} dmg / turn · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`
               : `(flops) · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`}
             {predatorNote}
           </span>

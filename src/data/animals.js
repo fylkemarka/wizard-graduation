@@ -161,6 +161,32 @@ export const ANIMALS = {
     desc: 'Attacks for 6 composure each turn for 2 turns. Parting hiss: 5 composure on exit.',
     upgrade: { attack: 8, onExit: { damage: 7, damageType: 'composure' } },
   },
+  // Birdseed variety (2026-06-01, Flock pass — addresses playtest note #2:
+  // "need more animals summoned with birdseed"). Crow = steady uptime;
+  // Owl = the thinking bird, exposes weakness on each peck.
+  crow: {
+    name: 'Crow',
+    icon: '🐦‍⬛',
+    attack: 5,
+    attackPool: 'composure',
+    duration: 3,
+    feedKey: 'bird',
+    flavor: 'It has counted you. It will remember the number.',
+    desc: 'Attacks for 5 composure each turn for 3 turns.',
+    upgrade: { attack: 7, duration: 3 },
+  },
+  owl: {
+    name: 'Owl',
+    icon: '🦉',
+    attack: 3,
+    attackPool: 'composure',
+    duration: 3,
+    feedKey: 'bird',
+    onAttackEffect: { applyVulnerable: 1 },
+    flavor: 'It asks the obvious question. The enemy has no good answer.',
+    desc: 'Attacks for 3 composure and applies Vulnerable 1 each turn for 3 turns.',
+    upgrade: { attack: 5, onAttackEffect: { applyVulnerable: 1 } },
+  },
   // Mouse House — formed when all three slots hold Field Mice. The mice
   // combine into one Mouse House in the center slot (subject); the
   // outer slots empty. Mouse House attacks 8 composure each turn for 2

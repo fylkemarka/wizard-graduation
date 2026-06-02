@@ -100,8 +100,8 @@ const CARDS = [
   // are NOT affected (the bait is still being eaten). Cycles back to discard.
   { id: 'c-shoo', name: 'Shoo!', cost: 1, type: 'skill', rarity: 'basic',
     effects: { shooAnimal: true },
-    desc: 'Dismiss one of your summoned animals.',
-    flavor: "It's been lovely. Yes, lovely. Goodbye." },
+    desc: 'Send off one of your animals: it triggers its exit effect now and lashes out for its attack.',
+    flavor: "It's been lovely. Yes, lovely. Goodbye. Mind the door." },
   // Handler-specific defend. The Handler outsources fighting to the
   // menagerie, so personal defense is softer than the colorless +8 c-defend.
   // Mirrors c-defend in shape: 1 energy, +N block, cycles back via discard.
@@ -173,6 +173,66 @@ const CARDS = [
     tactic: { id: 'feather', requiresExactlyOneAnimal: true },
     desc: 'Tactic: requires exactly one animal in play. Any new animal summoned matches the existing species. Self-exhausts when three of the same animal are on the field.',
     flavor: "A field full of one thing. They've been doing this for some time." },
+
+  // ====================================================================
+  // HANDLER ARCHETYPE PASS (2026-06-01) — adds draftable game plans on top
+  // of the stage→wait→repeat loop (playtest note #4: utility cards lacked
+  // depth). Four archetypes: THE TRAINER (persistent summon powers), THE
+  // BUTCHER (sacrifice/cash-in), THE FLOCK (tribal by feedKey), THE GLUTTON
+  // (feed-as-resource). See memory: wg-handler-playtest-20260601.
+  // ====================================================================
+  // ---- THE TRAINER — powers that shape every future summon. The lane had
+  // no persistent powers of its own; this is the install-and-snowball axis.
+  { id: 'c-house-rules', name: 'House Rules', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'houseRules' },
+    desc: 'Power. Every animal you summon from a lure enters with +1 duration.',
+    flavor: 'You explain the arrangement. They settle in, slightly longer than invited.' },
+  { id: 'c-well-drilled', name: 'Well-Drilled', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'wellDrilled' },
+    desc: 'Power. Your animals deal +2 attack.',
+    flavor: 'They have, it turns out, been practising. Quietly. Without you.' },
+  { id: 'c-whisperer', name: 'The Whisperer', cost: 2, type: 'power', rarity: 'rare', lane: 'handler',
+    installPower: { id: 'whisperer' },
+    desc: 'Power. Whenever one of your animals leaves play, draw 1 next turn.',
+    flavor: 'You have a quiet word with each of them as they go. They tell you things.' },
+  { id: 'c-open-door', name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare', lane: 'handler',
+    installPower: { id: 'openDoor' },
+    desc: 'Power. The first lure you play each turn costs 0.',
+    flavor: 'The door is always open. The first one in never pays.' },
+  // ---- THE BUTCHER — the board is ammunition. Shoo (reworked above) is the
+  // basic cash-in; these two are the payoff. Pairs with The Whisperer.
+  { id: 'c-last-supper', name: 'Last Supper', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { sacrificeForValue: true },
+    desc: 'Send off one of your animals. Gain Energy equal to its remaining turns and draw 1.',
+    flavor: 'A generous portion. A fond farewell. A faint sense of having planned this.' },
+  { id: 'c-make-it-count', name: 'Make It Count', cost: 2, type: 'skill', rarity: 'rare', lane: 'handler',
+    effects: { sacrificeAllForBurst: true, exhaust: true },
+    desc: 'Each of your animals attacks for double, then leaves play. Exhaust.',
+    flavor: 'You give the signal you swore you would only give once.' },
+  // ---- THE FLOCK — commit to one feedKey family. Murmuration scales with
+  // birds; Stampede is a small-land Pack Tactics.
+  { id: 'c-murmuration', name: 'Murmuration', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { compDmgPerBird: 3 },
+    desc: 'Deal 3 composure for each bird you have in play.',
+    flavor: 'They move as one. The enemy is, briefly, outnumbered by a single idea.' },
+  { id: 'c-stampede', name: 'Stampede', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { smallLandAttackAgain: true, exhaust: true },
+    desc: 'Each small-land animal you control attacks again this turn. Exhaust.',
+    flavor: 'It starts with one. It is, by the third, a policy.' },
+  // ---- THE GLUTTON — feeding stops being a tax and becomes the build.
+  // Full Pockets keeps food in hand (playtest note #1); Gorge overfeeds.
+  { id: 'c-full-pockets', name: 'Full Pockets', cost: 1, type: 'power', rarity: 'common', lane: 'handler',
+    installPower: { id: 'fullPockets' },
+    desc: 'Power. At the start of each turn, gain a Snack.',
+    flavor: 'You are never not carrying something edible. It is, frankly, a condition.' },
+  { id: 'c-snack', name: 'Snack', cost: 0, type: 'skill', rarity: 'basic', lane: 'handler', token: true,
+    effects: { treatExtend: 1, exhaust: true },
+    desc: 'Pick an animal. It stays one more turn. Exhaust.',
+    flavor: 'Produced from a pocket. Warm, somehow. Best not to ask.' },
+  { id: 'c-gorge', name: 'Gorge', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { gorge: true },
+    desc: 'Pick an animal: it stays +3 turns. If it was already fed this turn, it also gains +3 attack permanently.',
+    flavor: 'Too much, really. That was always the plan.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
@@ -3579,6 +3639,19 @@ export default function App() {
   // into its animal immediately, recycling the lure card to discard via
   // the recycleToDiscard buffer.
   const [eatItPromptActive, setEatItPromptActive] = useState(false);
+  // Butcher prompts — Last Supper (sacrifice an animal for Energy + draw)
+  // and Gorge (extend +3, plus permanent +3 attack if already fed this turn).
+  // Both are single-click animal-target prompts like Treat.
+  const [sacrificePromptActive, setSacrificePromptActive] = useState(false);
+  const [gorgePromptActive, setGorgePromptActive] = useState(false);
+  // The Whisperer power — animal departures bank a draw delivered into the
+  // next turn's hand. Instant-play exits (Shoo / Last Supper / Make It Count)
+  // bump this during the turn; the end-of-turn tick adds its own departures
+  // via a local accumulator. Flushed into the new hand at the refill block.
+  const [whisperDrawsPending, setWhisperDrawsPending] = useState(0);
+  // Open Door Policy power — the FIRST lure played each turn costs 0. This
+  // flag flips once a lure is staged and resets at end of turn.
+  const [firstLureUsedThisTurn, setFirstLureUsedThisTurn] = useState(false);
   // Buffet armed — the NEXT lure played fills EVERY empty stage slot at
   // once (single card consumed; one envelope per slot). Cleared on lure
   // play. Exhausts when played.
@@ -5275,6 +5348,10 @@ export default function App() {
     setWhistlePick1Slot(null);
     setTreatPromptActive(false);
     setEatItPromptActive(false);
+    setSacrificePromptActive(false);
+    setGorgePromptActive(false);
+    setWhisperDrawsPending(0);
+    setFirstLureUsedThisTurn(false);
     setBuffetArmed(false);
     setLuresPlayedThisTurn([]);
     // v2.36: ACTUALLY— state. lastCastSnapshot starts null (no casts yet);
@@ -5410,7 +5487,11 @@ export default function App() {
       // other transition path that bypasses those merges still have
       // tray/exiled cards intact here, and we don't want them lost.
       const trayCardsIn = extractTrayCardsForReturn(tray);
-      const fullDeck = [...deck, ...hand, ...discard, ...exiled, ...trayCardsIn];
+      // Filter out tokens (e.g. Full Pockets' Snack): generated cards that
+      // must never persist into a fresh combat's deck. A played Snack is
+      // exiled, and the combat-end merges fold exiled back into the deck —
+      // this filter is the single scrub point that keeps them out.
+      const fullDeck = [...deck, ...hand, ...discard, ...exiled, ...trayCardsIn].filter(c => !c.token);
       setExiled([]);
       // v2.13: jnsq +1 hand size at combat start (chaos dice need full
       // trays to roll). Real-play impact only — sim AI runs both ways.
@@ -5475,6 +5556,8 @@ export default function App() {
     if (card?.slot === 'intro' && hasPower('introCheaper')) c = Math.max(0, c - 1);
     if (card?.slot === 'subject' && hasPower('subjectCheaper')) c = Math.max(0, c - 1);
     if (card?.slot === 'target' && hasPower('targetCheaper')) c = Math.max(0, c - 1);
+    // Open Door Policy — the first lure played each turn costs 0.
+    if (card?.slot === 'lure' && hasPower('openDoor') && !firstLureUsedThisTurn) c = 0;
     // v3.4.59 — "I Know Just What to Say" makes the next card played free.
     if (nextCardFree) c = 0;
     return c;
@@ -5609,7 +5692,8 @@ export default function App() {
       // Occupied placeholder slots (Mouse House spans) are NOT empty.
       const emptySlots = order.filter(s => tray[s] == null);
       if (emptySlots.length === 0) {
-        setEnergy(e => e + (card.cost || 0));
+        // Refund the EFFECTIVE cost (Open Door may have made this lure free).
+        setEnergy(e => e + cost);
         pushLog(`🪱 No empty stage slot for ${card.name} — refunded.`);
         return;
       }
@@ -5679,7 +5763,7 @@ export default function App() {
           newSlots[s] = {
             kind: 'animal',
             animalId: resolvedId,
-            durationRemaining: (animal?.duration || 3) + (isYouth ? 1 : 0),
+            durationRemaining: (animal?.duration || 3) + (isYouth ? 1 : 0) + (hasHandlerPower('houseRules') ? 1 : 0),
             predatorProgress: 0,
             adjacentSpawnProgress: 0,
             summonSet: card.summon.summonSet || null,
@@ -5722,6 +5806,8 @@ export default function App() {
         pushLog(`💧 Fountain of Youth — ${tacticUpdate.tactic.usesRemaining} use${tacticUpdate.tactic.usesRemaining === 1 ? '' : 's'} left.`);
       }
       setHand(h => h.filter((_, i) => i !== handIdx));
+      // Open Door Policy: this lure consumed the free-first-lure slot.
+      setFirstLureUsedThisTurn(true);
       // Record the feed type for the starvation check at end of turn.
       if (card.feedKey) setLuresPlayedThisTurn(prev => [...prev, card.feedKey]);
       if (isNurture) {
@@ -7616,6 +7702,8 @@ export default function App() {
       if (which !== 'whistle') setWhistlePick1Slot(null);
       setTreatPromptActive(which === 'treat');
       setEatItPromptActive(which === 'eatIt');
+      setSacrificePromptActive(which === 'sacrifice');
+      setGorgePromptActive(which === 'gorge');
     };
     // Shoo! — arm a click-target prompt. Next click on an animal slot
     // dismisses that animal. If no animal is currently in play, the prompt
@@ -7640,6 +7728,88 @@ export default function App() {
     if (fx.eatLureNow) {
       armTargetingPrompt('eatIt');
       logBits.push(`🍴 Just Eat It armed — pick a staged lure to summon now.`);
+    }
+    // Last Supper — arm a 1-click prompt. Click an animal → it departs for
+    // Energy equal to its remaining turns plus a card (resolved in
+    // sacrificeAnimalFromSlot).
+    if (fx.sacrificeForValue) {
+      armTargetingPrompt('sacrifice');
+      logBits.push(`🍽 Last Supper armed — pick an animal to send off.`);
+    }
+    // Gorge — arm a 1-click prompt. Click an animal → +3 turns (and +3
+    // permanent attack if already fed this turn; resolved in gorgeAnimalFromSlot).
+    if (fx.gorge) {
+      armTargetingPrompt('gorge');
+      logBits.push(`🍖 Gorge armed — pick an animal to overfeed.`);
+    }
+    // Murmuration — deal composure for each bird currently in play. Birds are
+    // animals with feedKey 'bird' (sparrow / goose / crow / owl).
+    if (fx.compDmgPerBird) {
+      const birds = ['intro', 'subject', 'target'].filter(s => {
+        const slot = tray[s];
+        return slot?.kind === 'animal' && getAnimal(slot.animalId)?.feedKey === 'bird';
+      }).length;
+      const dmg = fx.compDmgPerBird * birds;
+      if (dmg > 0) {
+        applyDamageToEnemyComposure(dmg);
+        logBits.push(`🐦 Murmuration: ${dmg} composure (${birds} bird${birds === 1 ? '' : 's'})`);
+      } else {
+        logBits.push(`🐦 Murmuration — no birds in play.`);
+      }
+    }
+    // Stampede — every small-land animal attacks again this turn. Pack-Tactics
+    // semantics, narrowed to feedKey 'small-land'. Draws are accumulated and
+    // drawn once after the loop to avoid the drawCards stale-closure clobber.
+    if (fx.smallLandAttackAgain) {
+      const slotMultUpdates = {};
+      let count = 0;
+      let drawTotal = 0;
+      for (const slotName of ['intro', 'subject', 'target']) {
+        const slot = tray[slotName];
+        if (!slot || slot.kind !== 'animal' || slot.eatenThisTurn) continue;
+        const animal = getAnimal(slot.animalId);
+        if (!animal || animal.feedKey !== 'small-land' || (animal.attack || 0) <= 0) continue;
+        const atkMult = slot.nextAttackMult || 1;
+        const atk = Math.round(animalAttackValue(animal, slot) * atkMult);
+        if (atkMult > 1) slotMultUpdates[slotName] = { ...slot, nextAttackMult: 1 };
+        if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
+        else                                   applyDamageToEnemyHp(atk);
+        if (animal.onAttack?.draw) drawTotal += animal.onAttack.draw;
+        pushLog(`${animal.icon} ${animal.name} stampedes: ${atk} composure again.`);
+        count++;
+      }
+      if (Object.keys(slotMultUpdates).length > 0) setTray(p => syncTrayLegacy({ ...p, ...slotMultUpdates }));
+      if (drawTotal > 0) drawCards(drawTotal);
+      logBits.push(count > 0 ? `🦌 Stampede ×${count}` : `🦌 Stampede — no small-land animals.`);
+    }
+    // Make It Count — every animal attacks for double, then leaves play.
+    if (fx.sacrificeAllForBurst) {
+      const whisp = hasHandlerPower('whisperer');
+      let count = 0;
+      let whisperBank = 0;
+      for (const slotName of ['intro', 'subject', 'target']) {
+        const slot = tray[slotName];
+        if (!slot || slot.kind !== 'animal') continue;
+        const animal = getAnimal(slot.animalId);
+        const atk = animalAttackValue(animal, slot) * 2;
+        if (atk > 0) {
+          if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
+          else                                   applyDamageToEnemyHp(atk);
+          pushLog(`${animal.icon} ${animal.name} gives everything: ${atk} ${animal.attackPool === 'composure' ? 'composure' : 'HP'}.`);
+        }
+        applyAnimalExitEffects(animal);
+        if (whisp) whisperBank++;
+        count++;
+      }
+      if (count > 0) {
+        setTray(p => {
+          const n = { ...p };
+          for (const s of ['intro', 'subject', 'target']) if (n[s]?.kind === 'animal') n[s] = null;
+          return syncTrayLegacy(n);
+        });
+        if (whisperBank > 0) setWhisperDrawsPending(d => d + whisperBank);
+      }
+      logBits.push(count > 0 ? `💥 Make It Count — ${count} sent` : `💥 Make It Count — no animals in play.`);
     }
     // Buffet — arm a flag. Next lure played fills every empty stage slot.
     if (fx.buffetArmed) {
@@ -7717,7 +7887,7 @@ export default function App() {
         const animal = getAnimal(slot.animalId);
         if (!animal || (animal.attack || 0) <= 0) continue;
         const atkMult = slot.nextAttackMult || 1;
-        let atk = Math.round(animal.attack * atkMult);
+        let atk = Math.round(animalAttackValue(animal, slot) * atkMult);
         if (atkMult > 1) slotMultUpdates[slotName] = { ...slot, nextAttackMult: 1 };
         if (isRabid) atk = Math.round(atk * 1.5);
         if (isShield) {
@@ -8483,17 +8653,113 @@ export default function App() {
     pushLog(`🪤 ${card.name} pulled from your ${src === 'deck' ? 'draw pile' : 'discard'} to hand.`);
   }
 
-  // Shoo — called from the slotPill click handler when the Shoo prompt is
-  // armed AND the target slot contains an animal. Empties the slot, consumes
-  // the prompt. Lures and empty slots are NOT clickable.
+  // Handler power read — installed powers live on the `powers` array; the
+  // Trainer/Glutton powers (wellDrilled, houseRules, whisperer, openDoor,
+  // fullPockets) are all read via their installPower id.
+  const hasHandlerPower = (id) => powers.some(p => p.installPower?.id === id);
+
+  // Effective per-hit attack for an animal in a given slot. Folds in the
+  // Well-Drilled power (+2 to every animal) and any permanent per-slot
+  // attackBonus (Gorge's overfeed payoff). The tactic multipliers (Rabid)
+  // and the slot's nextAttackMult are applied by the callers on top of this.
+  const animalAttackValue = (animal, slot) => {
+    let a = animal?.attack || 0;
+    if (a <= 0) return a; // a flopper stays a flopper
+    if (hasHandlerPower('wellDrilled')) a += 2;
+    a += (slot?.attackBonus || 0);
+    return a;
+  };
+
+  // Fire an animal's onExit payload immediately (Shoo / Last Supper / Make It
+  // Count). Mirrors the end-of-turn applyAnimalOnExit but without the hTick
+  // telemetry accumulator, which only exists inside endTurn.
+  const applyAnimalExitEffects = (animal) => {
+    const fx = animal?.onExit;
+    if (!fx) return;
+    if (fx.damage > 0) {
+      if (fx.damageType === 'physical') applyDamageToEnemyHp(fx.damage);
+      else                              applyDamageToEnemyComposure(fx.damage);
+      pushLog(`${animal.icon} ${animal.name} parting kick: ${fx.damage} ${fx.damageType === 'physical' ? 'HP' : 'composure'}.`);
+    }
+    if (fx.block > 0) { setBlock(b => b + fx.block); pushLog(`${animal.icon} ${animal.name} drops +${fx.block} Block on the way out.`); }
+    if (fx.applyWeak > 0) { applyExpiringWeak(fx.applyWeak); pushLog(`${animal.icon} ${animal.name} parting screech — Weak ${fx.applyWeak} on enemy.`); }
+    if (fx.healComp > 0) { setComposure(c => Math.min(composureMax, c + fx.healComp)); pushLog(`${animal.icon} ${animal.name} nuzzles you — +${fx.healComp} composure.`); }
+    if (fx.healHp > 0) { setHp(h => Math.min(maxHp, h + fx.healHp)); pushLog(`${animal.icon} ${animal.name} leaves you a kindness — +${fx.healHp} HP.`); }
+  };
+
+  // Note an animal leaving play for The Whisperer — banks a draw delivered
+  // into the next turn's hand. No-op unless the power is installed.
+  const noteAnimalDeparted = (n = 1) => {
+    if (hasHandlerPower('whisperer')) setWhisperDrawsPending(d => d + n);
+  };
+
+  // Shoo (reworked) — called from the slotPill click handler when the Shoo
+  // prompt is armed AND the target slot contains an animal. The animal
+  // triggers its exit effect now and lashes out for one last attack, then
+  // departs. Lures and empty slots are NOT clickable.
   function shooAnimalFromSlot(slotName) {
     if (!shooPromptActive) return;
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'animal') return;
     const animal = getAnimal(slot.animalId);
-    pushLog(`👋 Shoo! ${animal?.icon || ''} ${animal?.name || slot.animalId} departs.`);
+    pushLog(`👋 Shoo! ${animal?.icon || ''} ${animal?.name || slot.animalId} lashes out and departs.`);
+    const atk = animalAttackValue(animal, slot);
+    if (atk > 0) {
+      if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
+      else                                   applyDamageToEnemyHp(atk);
+      pushLog(`${animal.icon} ${animal.name} parting blow: ${atk} ${animal.attackPool === 'composure' ? 'composure' : 'HP'}.`);
+    }
+    applyAnimalExitEffects(animal);
+    noteAnimalDeparted();
     setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
     setShooPromptActive(false);
+  }
+
+  // Last Supper — send off an animal for Energy equal to its remaining turns
+  // and a card. Single-click animal target, like Treat.
+  function sacrificeAnimalFromSlot(slotName) {
+    if (!sacrificePromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const animal = getAnimal(slot.animalId);
+    // "Remaining turns" = the value the pill shows the player (durationRemaining - 1),
+    // floored at 1 so a sacrifice is always worth at least the card it cost.
+    const turnsLeft = Math.max(1, (slot.durationRemaining || 1) - 1);
+    setEnergy(e => e + turnsLeft);
+    drawCards(1);
+    noteAnimalDeparted();
+    setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
+    setSacrificePromptActive(false);
+    pushLog(`🍽 Last Supper — ${animal?.name || slot.animalId} departs. +${turnsLeft} Energy, draw 1.`);
+  }
+
+  function cancelSacrificePrompt() {
+    if (!sacrificePromptActive) return;
+    setSacrificePromptActive(false);
+    pushLog(`🍽 Last Supper dismissed without picking an animal.`);
+  }
+
+  // Gorge — overfeed one animal: +3 turns, and if it was already fed this
+  // turn, a permanent +3 attack. Single-click animal target.
+  function gorgeAnimalFromSlot(slotName) {
+    if (!gorgePromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const animal = getAnimal(slot.animalId);
+    const wasFed = !!slot.fedThisTurn;
+    const next = { ...slot, durationRemaining: (slot.durationRemaining || 0) + 3 };
+    if (wasFed) next.attackBonus = (slot.attackBonus || 0) + 3;
+    setTray(p => syncTrayLegacy({ ...p, [slotName]: next }));
+    setGorgePromptActive(false);
+    pushLog(wasFed
+      ? `🍖 Gorge — ${animal?.name || slot.animalId} stays +3 turns AND gains +3 attack permanently.`
+      : `🍖 Gorge — ${animal?.name || slot.animalId} stays +3 turns.`);
+  }
+
+  function cancelGorgePrompt() {
+    if (!gorgePromptActive) return;
+    setGorgePromptActive(false);
+    pushLog(`🍖 Gorge dismissed without picking an animal.`);
   }
 
   function cancelShooPrompt() {
@@ -8541,7 +8807,7 @@ export default function App() {
         if (slot.durationRemaining !== 2) continue;
         const a = getAnimal(slot.animalId);
         if (a?.feedKey === feedKey) {
-          next[sn] = { ...slot, feedReceived: true };
+          next[sn] = { ...slot, feedReceived: true, fedThisTurn: true };
           touched = true;
         }
       }
@@ -8585,7 +8851,9 @@ export default function App() {
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'animal') return;
     const animal = getAnimal(slot.animalId);
-    setTray(p => syncTrayLegacy({ ...p, [slotName]: { ...slot, durationRemaining: (slot.durationRemaining || 0) + 1 } }));
+    // A Treat (or Snack) counts as feeding this turn — it satisfies the feed
+    // gate AND enables Gorge's overfeed attack bonus if played afterward.
+    setTray(p => syncTrayLegacy({ ...p, [slotName]: { ...slot, durationRemaining: (slot.durationRemaining || 0) + 1, feedReceived: true, fedThisTurn: true } }));
     setTreatPromptActive(false);
     pushLog(`🍖 Treat — ${animal?.name || slot.animalId} stays one more turn.`);
   }
@@ -8611,7 +8879,7 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
       kind: 'animal',
       animalId: slot.animalId,
-      durationRemaining: animal?.duration || 3,
+      durationRemaining: (animal?.duration || 3) + (hasHandlerPower('houseRules') ? 1 : 0),
       predatorProgress: 0,
     } }));
     setEatItPromptActive(false);
@@ -8869,6 +9137,12 @@ export default function App() {
     // recycle cards into the new discard without losing them to the
     // subsequent setDiscard(wDiscard) overwrite).
     const recycleToDiscard = [];
+    // The Whisperer power — count animals that leave during this end-of-turn
+    // tick. Folded (with whisperDrawsPending from instant-play exits this
+    // turn) into the new hand at the refill block. endTurn-scoped so the
+    // refill block can read it after the handler tick mutates it.
+    let whisperFromTick = 0;
+    const whispererInstalled = hasHandlerPower('whisperer');
 
     // Handler Animal Summoner end-of-turn tick (2026-05-31, slice 1).
     // Process order:
@@ -9149,7 +9423,7 @@ export default function App() {
           // duration-tick branches).
           if (!slot.eatenThisTurn && animal.attack > 0) {
             const atkMult = slot.nextAttackMult || 1;
-            let atk = Math.round(animal.attack * atkMult);
+            let atk = Math.round(animalAttackValue(animal, slot) * atkMult);
             const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
             const tacticId = tray.tactic?.tactic?.id;
             const isShield = tacticId === 'shield';
@@ -9312,6 +9586,7 @@ export default function App() {
             if (nextDuration <= 0) {
               if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
               hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
+              if (whispererInstalled) whisperFromTick++;
               pushLog(isUnfed(slot, animal)
                 ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
                 : `${animal.icon} ${animal.name} departs.`);
@@ -9328,12 +9603,14 @@ export default function App() {
                 adjacentSpawnProgress: 0,
                 adjacentSpawned: true,
                 eatenThisTurn: false,
+                fedThisTurn: false,
                 nextAttackMult: 1,
               };
             }
           } else if (nextDuration <= 0) {
             if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
             hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
+            if (whispererInstalled) whisperFromTick++;
             pushLog(isUnfed(slot, animal)
               ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
               : `${animal.icon} ${animal.name} departs.`);
@@ -9350,6 +9627,7 @@ export default function App() {
             // the last turn AND the exit bonus.")
             hTick.shortStays++;
             hTick.exits.push({ animalId: slot.animalId, fed: false });
+            if (whispererInstalled) whisperFromTick++;
             pushLog(`${animal.icon} ${animal.name} slips away unfed — no exit bonus.`);
             if (slot.spans && slot.spans.length > 0) {
               for (const s of slot.spans) nextSlots[s] = null;
@@ -9364,6 +9642,7 @@ export default function App() {
               predatorProgress: nextPredator,
               adjacentSpawnProgress: nextAdjSpawn,
               eatenThisTurn: false,
+              fedThisTurn: false,
               nextAttackMult: 1,
               justCombined: false,
             };
@@ -9403,11 +9682,13 @@ export default function App() {
             // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
             // Fountain of Youth tactic: +1 duration to fresh summons.
+            // House Rules power: +1 duration to anything summoned from a lure.
             const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
+            const houseBonus = hasHandlerPower('houseRules') ? 1 : 0;
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: resolvedAnimalId,
-              durationRemaining: (animal?.duration || 3) + youthBonus,
+              durationRemaining: (animal?.duration || 3) + youthBonus + houseBonus,
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
@@ -9713,9 +9994,12 @@ export default function App() {
     const stolenCards = stolenCardsRef.current;
     stolenCardsRef.current = [];
     const stolenUids = new Set(stolenCards.map(c => c.uid));
-    const recyclableHand = stolenUids.size > 0
+    const recyclableHand = (stolenUids.size > 0
       ? endTurnHand.filter(c => !stolenUids.has(c.uid))
-      : endTurnHand;
+      : endTurnHand)
+      // Tokens (Full Pockets' Snack) never recycle — an unplayed one simply
+      // vanishes at end of turn rather than polluting the discard/deck.
+      .filter(c => !c.token);
     if (stolenCards.length > 0) setExiled(ex => [...ex, ...stolenCards]);
     const stagedDiscard = [...discard, ...recyclableHand, ...recycleToDiscard];
     const drawn = drawFromPiles(deck, stagedDiscard, HAND_SIZE + extraDrawPerTurn());
@@ -9784,6 +10068,31 @@ export default function App() {
       pushLog(bits.join(' · '));
     }
 
+    // Full Pockets — gain a Snack token in hand at the start of each turn.
+    if (powers.some(p => p.installPower?.id === 'fullPockets')) {
+      const snack = CARDS.find(c => c.id === 'c-snack');
+      if (snack) {
+        wHand.push({ ...snack, uid: uid() });
+        pushLog(`🍪 Full Pockets — a Snack turns up in your hand.`);
+      }
+    }
+    // The Whisperer — deliver the banked draws (instant-play exits earlier
+    // this turn + this end-of-turn tick's departures) into the new hand.
+    const whisperTotal = whisperDrawsPending + whisperFromTick;
+    if (whisperTotal > 0) {
+      for (let i = 0; i < whisperTotal; i++) {
+        if (wDeck.length === 0) {
+          if (wDiscard.length === 0) break;
+          wDeck = shuffle(wDiscard);
+          wDiscard = [];
+        }
+        const c = wDeck.shift();
+        wHand.push({ ...c, uid: uid() });
+      }
+      pushLog(`🐾 The Whisperer — +${whisperTotal} card${whisperTotal === 1 ? '' : 's'} from departed animals.`);
+      setWhisperDrawsPending(0);
+    }
+
     // v2.38: SAYING SOMETHING WRONG — decrement pending Misstep timers and
     // deliver any that hit zero into the new turn's hand. Decrement runs
     // EVERY endTurn (it's the "two turns later" clock); a delay-2 cast on
@@ -9838,6 +10147,8 @@ export default function App() {
     setCastsThisTurn(0);
     // Handler feeding ledger — clear for next turn after starvation check ran.
     setLuresPlayedThisTurn([]);
+    // Open Door Policy — the free-first-lure window refreshes next turn.
+    setFirstLureUsedThisTurn(false);
     // Stake reset removed 2026-05-31 (ALL IN ripped).
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
@@ -11347,6 +11658,12 @@ export default function App() {
       eatItPromptActive={eatItPromptActive}
       onEatItClick={eatItClickSlot}
       onCancelEatIt={cancelEatItPrompt}
+      sacrificePromptActive={sacrificePromptActive}
+      onSacrificeClick={sacrificeAnimalFromSlot}
+      onCancelSacrifice={cancelSacrificePrompt}
+      gorgePromptActive={gorgePromptActive}
+      onGorgeClick={gorgeAnimalFromSlot}
+      onCancelGorge={cancelGorgePrompt}
       buffetArmed={buffetArmed}
       onCancelBuffet={() => { setBuffetArmed(false); pushLog(`🍽 Buffet dismissed.`); }}
       onFeedAnimal={feedAnimalsWithLure}
