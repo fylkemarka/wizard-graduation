@@ -37,14 +37,14 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 2,
     predatorRoll: {
-      chance: 0.5,
+      chance: 0.65,
       table: [
         { weight: 65, ids: ['hawk', 'owl'] },
         { weight: 35, ids: ['bear'] },
       ],
     },
     flavor: 'Flops with surprising authority. Something is always watching.',
-    desc: 'Flops for 2 turns. Each turn, 50% chance to attract a predator — usually a bird, sometimes a bear. If nothing comes, it just leaves.',
+    desc: 'Flops for 2 turns. Each turn, 65% chance to attract a predator — usually a bird, sometimes a bear. If nothing comes, it just leaves.',
   },
   'rabid-scrubjay': {
     name: 'Rabid Scrubjay',
