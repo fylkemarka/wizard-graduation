@@ -51,9 +51,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        tutorFlash = null,
                        tutorArmed = false,
                        animals = {}, luresPlayedThisTurn = [],
-                       shooPromptActive = false,
-                       onShooAnimal = () => {},
-                       onCancelShoo = () => {},
                        whistlePromptActive = false, whistlePick1Slot = null,
                        onWhistleClick = () => {},
                        onCancelWhistle = () => {},
@@ -707,7 +704,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
         animals={animals} luresPlayedThisTurn={luresPlayedThisTurn} tutorArmed={tutorArmed}
-        shooPromptActive={shooPromptActive} onShooAnimal={onShooAnimal}
         whistlePromptActive={whistlePromptActive} whistlePick1Slot={whistlePick1Slot} onWhistleClick={onWhistleClick}
         treatPromptActive={treatPromptActive} onTreatClick={onTreatClick}
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
@@ -733,17 +729,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="font-bold">📖 Footnote:</span> click a Word card (intro / subject / modifier) in your hand or discard to attach a permanent +1 wit footnote.
           </div>
           <button onClick={onCancelFootnote}
-            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
-            Dismiss
-          </button>
-        </div>
-      )}
-      {shooPromptActive && (
-        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
-          <div className="text-sm text-gold-100">
-            <span className="font-bold">👋 Shoo!</span> click a summoned animal in the spell tray to dismiss it. (Lures are not eligible — wait for them to arrive first.)
-          </div>
-          <button onClick={onCancelShoo}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
@@ -1097,7 +1082,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        weaveStacks = 0, riposteCharge = 0, braceArmedDraw = 0,
                        wordsBank = 0, crescendoBuildup = 0, crescendoBuildupRows = [],
                        animals = {}, luresPlayedThisTurn = [], tutorArmed = false,
-                       shooPromptActive = false, onShooAnimal = () => {},
                        whistlePromptActive = false, whistlePick1Slot = null, onWhistleClick = () => {},
                        treatPromptActive = false, onTreatClick = () => {},
                        eatItPromptActive = false, onEatItClick = () => {},
@@ -1474,9 +1458,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const predatorNote = animal?.predatorChain && !animal?.hidePredatorChain
         ? ` · ${animals?.[animal.predatorChain.animalId]?.name || '?'} in ${animal.predatorChain.turnsToTrigger - (card.predatorProgress || 0)}t`
         : '';
-      // Animals are click targets for Shoo, Treat, Whistle, Sacrifice, and
-      // Gorge. Precedence: Shoo → Treat → Whistle → Sacrifice → Gorge.
-      const shooArmed = shooPromptActive;
+      // Animals are click targets for Treat, Whistle, Sacrifice, and Gorge.
+      // Precedence: Treat → Whistle → Sacrifice → Gorge.
       const treatArmed = treatPromptActive;
       const whistleArmed = whistlePromptActive;
       const sacrificeArmed = sacrificePromptActive;
@@ -1484,18 +1467,15 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const wellDrilledArmed = wellDrilledPromptActive;
       const houseRulesArmed = houseRulesPromptActive;
       const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
-      const clickHandler = shooArmed ? () => onShooAnimal(slotName)
-                          : treatArmed ? () => onTreatClick(slotName)
+      const clickHandler = treatArmed ? () => onTreatClick(slotName)
                           : whistleArmed ? () => onWhistleClick(slotName)
                           : sacrificeArmed ? () => onSacrificeClick(slotName)
                           : gorgeArmed ? () => onGorgeClick(slotName)
                           : wellDrilledArmed ? () => onWellDrilledClick(slotName)
                           : houseRulesArmed ? () => onHouseRulesClick(slotName)
                           : undefined;
-      const armed = shooArmed || treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed;
-      const armedTitle = shooArmed
-        ? `👋 Click to Shoo this ${animal?.name || 'animal'} away.`
-        : treatArmed
+      const armed = treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed;
+      const armedTitle = treatArmed
         ? `🍖 Click to extend ${animal?.name || 'animal'} by 1 turn.`
         : whistleArmed
         ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}.`
@@ -1511,8 +1491,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             const shownDur = Math.max(0, (card.durationRemaining || 0) - 1);
             return `${animal?.name || card.animalId} — ${animal?.desc || ''} ${shownDur} turn${shownDur === 1 ? '' : 's'} left.${predatorNote}`;
           })();
-      const armedLabel = shooArmed ? ' · 👋 click to shoo'
-                       : treatArmed ? ' · 🍖 click to treat'
+      const armedLabel = treatArmed ? ' · 🍖 click to treat'
                        : whistleArmed ? (isWhistlePick1 ? ' · 🎶' : ' · 🎶 click to swap')
                        : sacrificeArmed ? ' · 🔪 click to cash in'
                        : gorgeArmed ? ' · 🍖 click to gorge'

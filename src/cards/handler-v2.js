@@ -15,7 +15,7 @@ const LANE = 'handler';
 
 // =============================================================================
 // STARTER CARDS — formerly Square Up + Shove. Both removed 2026-05-31.
-// The Handler doesn't fight; the animals do. Starter is just lures + Shoo +
+// The Handler doesn't fight; the animals do. Starter is just lures +
 // colorless utility.
 // =============================================================================
 const STARTER_CARDS = [];

@@ -94,14 +94,6 @@ const CARDS = [
   // mechanic with the Animal Summoner engine. No card now feeds or consumes
   // Loudness. State machinery remains in place (dormant) until the new engine
   // either repurposes or fully retires it.
-  // Shoo! — Handler utility. Lets the player dismiss a currently summoned
-  // animal to free up a stage slot. Plays from hand; arms a click-target
-  // prompt; the next click on an animal slot dismisses that animal. Lures
-  // are NOT affected (the bait is still being eaten). Cycles back to discard.
-  { id: 'c-shoo', name: 'Shoo!', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { shooAnimal: true },
-    desc: 'Send off one of your animals: it triggers its exit effect now and lashes out for its attack.',
-    flavor: "It's been lovely. Yes, lovely. Goodbye. Mind the door." },
   // Handler-specific defend. The Handler outsources fighting to the
   // menagerie, so personal defense is softer than the colorless +8 c-defend.
   // Mirrors c-defend in shape: 1 energy, +N block, cycles back via discard.
@@ -214,8 +206,8 @@ const CARDS = [
     installPower: { id: 'peckingOrder' },
     desc: 'Power. When an enemy mauls, it takes your weakest animal instead of your strongest.',
     flavor: 'Someone has to go first. The committee has determined it will not be the big one.' },
-  // ---- THE BUTCHER — the board is ammunition. Shoo (reworked above) is the
-  // basic cash-in; these two are the payoff. Pairs with The Whisperer.
+  // ---- THE BUTCHER — the board is ammunition. These two cash the board in
+  // for value. Pairs with The Whisperer.
   { id: 'c-last-supper', name: 'Last Supper', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { sacrificeForValue: true },
     desc: 'Send off one of your animals. Gain Energy equal to its remaining turns and draw 1.',
@@ -3670,9 +3662,6 @@ export default function App() {
   // without applying. The skill is exhausted at play time either way —
   // the prompt is the payoff window.
   const [footnotePromptActive, setFootnotePromptActive] = useState(false);
-  // Shoo! prompt — armed by playing the Shoo card. Next click on an animal
-  // slot dismisses that animal and clears the prompt. Lures are not eligible.
-  const [shooPromptActive, setShooPromptActive] = useState(false);
   // Whistle prompt — armed by playing Whistle. Two-click flow: first click
   // sets whistlePick1Slot (any slot — lure / animal / empty); second click
   // swaps contents of the two slots and clears the prompt.
@@ -3699,7 +3688,7 @@ export default function App() {
   // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
   const [houseRulesPromptActive, setHouseRulesPromptActive] = useState(false);
   // The Whisperer power — animal departures bank a draw delivered into the
-  // next turn's hand. Instant-play exits (Shoo / Last Supper / Make It Count)
+  // next turn's hand. Instant-play exits (Last Supper / Make It Count)
   // bump this during the turn; the end-of-turn tick adds its own departures
   // via a local accumulator. Flushed into the new hand at the refill block.
   const [whisperDrawsPending, setWhisperDrawsPending] = useState(0);
@@ -3711,7 +3700,7 @@ export default function App() {
   // play. Exhausts when played.
   const [buffetArmed, setBuffetArmed] = useState(false);
   // Refund stash for the just-played card that armed a targeting/Buffet prompt
-  // (Treat / Gorge / Shoo / Whistle / Last Supper / Just Eat It / Buffet /
+  // (Treat / Gorge / Whistle / Last Supper / Just Eat It / Buffet /
   // Well-Drilled). If the player Dismisses the prompt instead of targeting,
   // the card snaps back to hand and its energy is refunded — dismissing an
   // unresolved prompt shouldn't burn the card. Holds the live card ref (same
@@ -4403,8 +4392,8 @@ export default function App() {
     handler: {
       // DEV_PRESETS for the Handler — Animal Summoner build (2026-05-31 pivot).
       // Each tier seeds a deck representative of what the player can build to.
-      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-shoo', 'c-tap-the-glass'],
-      3: ['cv2-l-fish-food', 'cv2-l-tender-greens', 'cv2-l-birdseed', 'c-shoo', 'c-mend'],
+      2: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-treat', 'c-tap-the-glass'],
+      3: ['cv2-l-fish-food', 'cv2-l-tender-greens', 'cv2-l-birdseed', 'c-treat', 'c-mend'],
       4: ['cv2-l-fish-food', 'cv2-l-fish-food', 'cv2-l-tender-greens', 'c-bulwark', 'c-acuity'],
     },
     jnsq: {
@@ -5449,7 +5438,6 @@ export default function App() {
     // instances are rebuilt at combat start (uids re-issued, footnotes
     // reset to 0 implicitly since no skill has fired yet).
     setFootnotePromptActive(false);
-    setShooPromptActive(false);
     setWhistlePromptActive(false);
     setWhistlePick1Slot(null);
     setTreatPromptActive(false);
@@ -5707,7 +5695,7 @@ export default function App() {
     const armsCancelablePrompt =
       card.installPower?.id === 'wellDrilled' ||
       card.installPower?.id === 'houseRules' ||
-      !!(card.effects && (card.effects.shooAnimal || card.effects.whistleSwap
+      !!(card.effects && (card.effects.whistleSwap
         || card.effects.treatExtend || card.effects.eatLureNow
         || card.effects.sacrificeForValue || card.effects.gorge
         || card.effects.buffetArmed || card.effects.narrowLure));
@@ -5775,7 +5763,6 @@ export default function App() {
       // prompt flags inline, clearing the other click prompts for the same
       // mutual-exclusion guarantee.
       if (card.installPower?.id === 'wellDrilled') {
-        setShooPromptActive(false);
         setWhistlePromptActive(false); setWhistlePick1Slot(null);
         setTreatPromptActive(false);
         setEatItPromptActive(false);
@@ -5786,7 +5773,6 @@ export default function App() {
         pushLog(`🎯 Well-Drilled armed — pick an animal; every copy of it gains +2 attack.`);
       }
       if (card.installPower?.id === 'houseRules') {
-        setShooPromptActive(false);
         setWhistlePromptActive(false); setWhistlePick1Slot(null);
         setTreatPromptActive(false);
         setEatItPromptActive(false);
@@ -7862,15 +7848,14 @@ export default function App() {
       applyDamageToEnemyComposure(fx.compDmg);
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
     }
-    // Shoo / Whistle / Treat / Just Eat It all arm a click-on-slot prompt and
-    // share the same slot-pill click dispatch (precedence Shoo → Treat →
-    // Whistle in CombatScreen). They MUST be mutually exclusive: if two are
-    // armed at once, the higher-precedence one silently eats the click — e.g.
-    // arming Treat then Shoo made a Treat-click dismiss the animal instead of
-    // extending it ("I used Treat and it disappeared"). Arming any one cancels
-    // the others so the most-recently-played card owns the next click.
+    // Whistle / Treat / Just Eat It all arm a click-on-slot prompt and
+    // share the same slot-pill click dispatch (precedence Treat → Whistle in
+    // CombatScreen). They MUST be mutually exclusive: if two are armed at
+    // once, the higher-precedence one silently eats the click — e.g. arming
+    // Treat then another prompt made a Treat-click do the wrong thing
+    // ("I used Treat and it disappeared"). Arming any one cancels the others
+    // so the most-recently-played card owns the next click.
     const armTargetingPrompt = (which) => {
-      setShooPromptActive(which === 'shoo');
       setWhistlePromptActive(which === 'whistle');
       if (which !== 'whistle') setWhistlePick1Slot(null);
       setTreatPromptActive(which === 'treat');
@@ -7880,13 +7865,6 @@ export default function App() {
       setWellDrilledPromptActive(which === 'wellDrilled');
       setHouseRulesPromptActive(which === 'houseRules');
     };
-    // Shoo! — arm a click-target prompt. Next click on an animal slot
-    // dismisses that animal. If no animal is currently in play, the prompt
-    // still arms (will fire whenever the next animal arrives).
-    if (fx.shooAnimal) {
-      armTargetingPrompt('shoo');
-      logBits.push(`👋 Shoo armed — click an animal slot to dismiss.`);
-    }
     // Whistle — arm a 2-click swap. First click sets one slot; second click
     // swaps that slot's contents with the second-clicked slot.
     if (fx.whistleSwap) {
@@ -8832,7 +8810,7 @@ export default function App() {
     return a;
   };
 
-  // Fire an animal's onExit payload immediately (Shoo / Last Supper / Make It
+  // Fire an animal's onExit payload immediately (Last Supper / Make It
   // Count). Mirrors the end-of-turn applyAnimalOnExit but without the hTick
   // telemetry accumulator, which only exists inside endTurn.
   const applyAnimalExitEffects = (animal) => {
@@ -8856,27 +8834,6 @@ export default function App() {
     if (hasHandlerPower('whisperer')) setWhisperDrawsPending(d => d + n);
   };
 
-  // Shoo (reworked) — called from the slotPill click handler when the Shoo
-  // prompt is armed AND the target slot contains an animal. The animal
-  // triggers its exit effect now and lashes out for one last attack, then
-  // departs. Lures and empty slots are NOT clickable.
-  function shooAnimalFromSlot(slotName) {
-    if (!shooPromptActive) return;
-    const slot = tray?.[slotName];
-    if (!slot || slot.kind !== 'animal') return;
-    const animal = getAnimal(slot.animalId);
-    pushLog(`👋 Shoo! ${animal?.icon || ''} ${animal?.name || slot.animalId} lashes out and departs.`);
-    const atk = animalAttackValue(animal, slot);
-    if (atk > 0) {
-      if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
-      else                                   applyDamageToEnemyHp(atk);
-      pushLog(`${animal.icon} ${animal.name} parting blow: ${atk} ${animal.attackPool === 'composure' ? 'composure' : 'HP'}.`);
-    }
-    applyAnimalExitEffects(animal);
-    noteAnimalDeparted();
-    setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
-    setShooPromptActive(false);
-  }
 
   // Maul — when an enemy's mauling attack leaks any damage past Block, it also
   // tears the strongest animal off the board (Alan, 2026-06-02; handler-only).
@@ -9089,13 +9046,6 @@ export default function App() {
     setNarrowChooserOpen(false);
     const refunded = refundArmedCard();
     pushLog(`🍂 Acquired Taste dismissed without narrowing a lure.${refunded}`);
-  }
-
-  function cancelShooPrompt() {
-    if (!shooPromptActive) return;
-    setShooPromptActive(false);
-    const refunded = refundArmedCard();
-    pushLog(`👋 Shoo skill dismissed without picking an animal.${refunded}`);
   }
 
   // Feed-by-drop: drop a lure card onto a Feed slot on the Summoning Pitch
@@ -9507,7 +9457,7 @@ export default function App() {
       // onExit helper — fires when an animal departs by natural duration
       // expiry. Handles damage (Young Buck's 6-comp kick), block (Field
       // Mouse's +3 block), and Weak debuff (Hawk's parting screech).
-      // Doesn't fire on Shoo or predator-chain / adjacent-spawn transforms
+      // Doesn't fire on predator-chain / adjacent-spawn transforms
       // — only natural exit.
       const applyAnimalOnExit = (animal) => {
         const fx = animal?.onExit;
@@ -12302,9 +12252,6 @@ export default function App() {
       tutorArmed={tutorArmed}
       animals={effectiveAnimals}
       luresPlayedThisTurn={luresPlayedThisTurn}
-      shooPromptActive={shooPromptActive}
-      onShooAnimal={shooAnimalFromSlot}
-      onCancelShoo={cancelShooPrompt}
       whistlePromptActive={whistlePromptActive}
       whistlePick1Slot={whistlePick1Slot}
       onWhistleClick={whistleClickSlot}
@@ -13792,7 +13739,7 @@ function LabDeckBuildScreen({ character, deck, onAdd, onRemove, onStart, onCance
   if (!character) return null;
   const lane = character.lane;
   // Pool = the lane word-pool PLUS the colorless utility cards usable by
-  // this lane (Shoo / Treat / Buffet / Rummage / tactics, etc.) and the
+  // this lane (Treat / Buffet / Rummage / tactics, etc.) and the
   // truly-laneless skills/powers (e.g. Food in the Pocket). Those live in
   // CARDS, not the lane word-pool, so without this the handler could only
   // add lures. Lets Lab build & test a full kit, not just bait.

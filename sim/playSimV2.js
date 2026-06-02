@@ -133,7 +133,6 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-tactic-youth',   name: 'Fountain of Youth',cost: 0, type: 'tactic', rarity: 'common',   tactic: { id: 'youth' } },
   { id: 'c-tactic-nurture', name: 'Nurture',          cost: 0, type: 'tactic', rarity: 'uncommon', tactic: { id: 'nurture' } },
   { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 0, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
-  { id: 'c-shoo',        name: 'Shoo!',     cost: 1, type: 'handler-util', rarity: 'basic',    util: 'shoo' },
   { id: 'c-pack-tactics',name: 'On Three!', cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'onThree', exhaust: true },
   { id: 'c-just-eat-it', name: 'Just Eat It',cost: 0, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },
   { id: 'c-buffet',      name: 'Buffet',    cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'buffet', exhaust: true },
@@ -172,7 +171,7 @@ const HANDLER_REWARD_POOL = [
   'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-aside',
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
-  'c-shoo', 'c-narrow',
+  'c-narrow',
 ];
 
 // =============================================================================
@@ -947,7 +946,6 @@ function applyHandlerUtil(state, combat, card) {
     for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind !== 'animal') continue; const a = ANIMALS[sl.animalId]; if ((a?.attack || 0) > bestAtk) { bestAtk = a.attack; bestS = s; } }
     if (bestS) { combat.htray[bestS].durationRemaining += 1; combat.htray[bestS].feedReceived = true; combat.htray[bestS].fedThisTurn = true; }
   }
-  // 'shoo' intentionally unused by the AI — situational, no greedy value.
 }
 // Whisperer exit-note shared by the end-of-turn tick and instant-play exits
 // (Last Supper / Make It Count). Banks a draw for next turn.
