@@ -232,7 +232,7 @@ const CARDS = [
     effects: { treatExtend: 1 },
     desc: 'Pick an animal. It stays one more turn.',
     flavor: 'Produced from a pocket. Warm, somehow. Best not to ask.' },
-  { id: 'c-gorge', name: 'Gorge', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
+  { id: 'c-gorge', name: 'Gorge', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { gorge: true },
     desc: 'Pick an animal: it stays +3 turns. If it was already fed this turn, it also gains +3 attack permanently.',
     flavor: 'Too much, really. That was always the plan.' },
