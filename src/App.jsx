@@ -223,12 +223,12 @@ const CARDS = [
   // Full Pockets keeps food in hand (playtest note #1); Gorge overfeeds.
   { id: 'c-full-pockets', name: 'Full Pockets', cost: 2, type: 'power', rarity: 'common', lane: 'handler',
     installPower: { id: 'fullPockets' },
-    desc: 'Power. At the start of each turn, add a Snack to your hand.',
+    desc: 'Add a Treat to your hand.',
     flavor: 'You are never not carrying something edible. It is, frankly, a condition.' },
-  // Snack is a token: it cycles like a normal card during combat (no exhaust,
-  // so it discards and can be redrawn), but `token: true` scrubs it at the
-  // next combat's deck reconstitution so it never persists into the run deck.
-  { id: 'c-snack', name: 'Snack', cost: 1, type: 'skill', rarity: 'basic', lane: 'handler', token: true,
+  // Token Treat handed out by Full Pockets. Functionally identical to the
+  // real Treat card (treatExtend), but `token: true` scrubs it at the next
+  // combat's deck reconstitution so it never persists into the run deck.
+  { id: 'c-snack', name: 'Treat', cost: 1, type: 'skill', rarity: 'basic', lane: 'handler', token: true,
     effects: { treatExtend: 1 },
     desc: 'Pick an animal. It stays one more turn.',
     flavor: 'Produced from a pocket. Warm, somehow. Best not to ask.' },
@@ -5668,6 +5668,17 @@ export default function App() {
     if (card.type === 'power') {
       setPowers(ps => [...ps, card]);
       setHand(h => h.filter((_, i) => i !== handIdx));
+      // Full Pockets — a one-time payoff: drop a single Treat token into hand
+      // on install (no longer mints one every turn). uid built outside the
+      // updater so the functional setHand stays pure under StrictMode.
+      if (card.installPower?.id === 'fullPockets') {
+        const treat = CARDS.find(c => c.id === 'c-snack');
+        if (treat) {
+          const tok = { ...treat, uid: uid() };
+          setHand(h => [...h, tok]);
+          pushLog(`🍖 Full Pockets — a Treat turns up in your hand.`);
+        }
+      }
       // Hit Me Again install hook removed 2026-05-31 (power ripped).
       // v2.47: DRUNKEN CONFIDENCE — telemetry-only install count. The read
       // path is `powers.some(p => p.installPower?.id === 'drunken-confidence')`
@@ -10222,14 +10233,6 @@ export default function App() {
       pushLog(bits.join(' · '));
     }
 
-    // Full Pockets — gain a Snack token in hand at the start of each turn.
-    if (powers.some(p => p.installPower?.id === 'fullPockets')) {
-      const snack = CARDS.find(c => c.id === 'c-snack');
-      if (snack) {
-        wHand.push({ ...snack, uid: uid() });
-        pushLog(`🍪 Full Pockets — a Snack turns up in your hand.`);
-      }
-    }
     // The Whisperer — deliver the banked draws (instant-play exits earlier
     // this turn + this end-of-turn tick's departures) into the new hand.
     const whisperTotal = whisperDrawsPending + whisperFromTick;

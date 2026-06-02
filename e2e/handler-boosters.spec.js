@@ -78,37 +78,33 @@ test('Last Supper opens the sacrifice prompt and cashing in an animal does not c
   await expect(page.getByTestId('hand')).toBeVisible();
 });
 
-test('Full Pockets generates a Snack that costs 1, extends an animal, and does not exhaust', async ({ page }) => {
+test('Full Pockets adds a single Treat to hand on play (one-time), and the Treat extends an animal', async ({ page }) => {
   await gotoLab(page, 'handler', { seed: 11 });
   for (let i = 0; i < 4; i++) await addCard(page, FULL_POCKETS);
   for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
   await fightEnemy(page, 'Loom Familiar');
 
-  // Install Full Pockets (the 2-cost power) so it starts minting Snacks.
+  // Put a body on the board first so the Treat has something to extend.
+  expect(await ensureAnimalStaged(page)).toBeTruthy();
+
+  // No Treat token yet — Full Pockets no longer mints one every turn.
+  expect(await handCardById(page, SNACK).count()).toBe(0);
+
+  // Play Full Pockets: it installs as a power AND drops exactly one Treat into
+  // hand THIS turn (the one-time payoff), without exhausting.
   expect(await ensureInHand(page, FULL_POCKETS)).toBeTruthy();
   await playCardById(page, FULL_POCKETS);
   await expect(page.getByText('Full Pockets').first()).toBeVisible();
 
-  // Stage a birdseed so a fresh animal lands on the board next turn — at the
-  // same start-of-turn the Snack is minted. The Snack is a token (it vanishes
-  // at end of turn), so the body and the Snack must coincide; we can't end
-  // another turn between getting the Snack and treating with it.
-  expect(await ensureInHand(page, BIRDSEED)).toBeTruthy();
-  await playCardById(page, BIRDSEED);
-  await endTurn(page);
-  await expect(page.getByTestId('hand')).toBeVisible();
-
-  // Bird is now on the board and a Snack has been minted into hand this turn.
-  expect(await handCardById(page, SNACK).count()).toBeGreaterThan(0);
-  const snack = handCardById(page, SNACK).first();
-  // The Snack reads cost 1 (no longer a free token).
-  await expect(snack).toHaveAttribute('data-eff-cost', '1');
+  expect(await handCardById(page, SNACK).count()).toBe(1);
+  const treat = handCardById(page, SNACK).first();
+  await expect(treat).toHaveAttribute('data-eff-cost', '1');
 
   await playCardById(page, SNACK);
   // Treat prompt arms — click an animal to extend it.
   await page.getByText(/click to treat/).first().click();
 
-  // Combat survives the Snack play (no render crash).
+  // Combat survives the Treat play (no render crash).
   await expect(page.getByTestId('hand')).toBeVisible();
 });
 

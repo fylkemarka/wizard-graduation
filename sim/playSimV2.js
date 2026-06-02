@@ -154,7 +154,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
   { id: 'c-stampede',      name: 'Stampede',        cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
   { id: 'c-gorge',         name: 'Gorge',           cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
-  { id: 'c-snack',         name: 'Snack',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
+  { id: 'c-snack',         name: 'Treat',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -1028,6 +1028,11 @@ function playHandlerCard(state, combat, idx) {
     // re-drawable next combat. Mirrors App.jsx (powers fold into fullDeck).
     if (card.installPower && !hasHandlerPower(state, card.installPower.id)) state.powers.push({ ...card });
     combat.powersInstalled = (combat.powersInstalled || 0) + 1;
+    // Full Pockets — one-time Treat token into hand on install (no per-turn mint).
+    if (card.installPower?.id === 'fullPockets') {
+      const treat = HANDLER_CARDS_BY_ID['c-snack'];
+      if (treat) state.hand.push({ ...treat, uid: uid() });
+    }
     return;
   }
   if (card.type === 'tactic') {
@@ -1115,11 +1120,6 @@ function aiTurnHandler(state, combat) {
   const whisperDraw = combat.whisperPending || 0;
   combat.whisperPending = 0;
   drawCards(state, HAND_SIZE + whisperDraw + (combat.turn === 1 ? (combat.fb.startCombatDraw || 0) : 0));
-  // Full Pockets: gain a Snack token in hand each turn.
-  if (hasHandlerPower(state, 'fullPockets')) {
-    const snack = HANDLER_CARDS_BY_ID['c-snack'];
-    if (snack) state.hand.push({ ...snack, uid: uid() });
-  }
 
   const SLOT = ['intro', 'subject', 'target'];
   const emptyCount = () => SLOT.filter(s => combat.htray[s] == null).length;
