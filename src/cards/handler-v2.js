@@ -34,8 +34,8 @@ const STARTER_CARDS = [];
 const LURE_CARDS = [
   { id: 'cv2-l-fish-food', name: 'Fish Food', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'basic', tier: 1, feedKey: 'fish',
-    summon: { animalId: 'salmon', turnsToArrive: 2 },
-    desc: 'Stage. A Salmon arrives in 2 turns. Feeds: fish.',
+    summon: { animalId: 'salmon', turnsToArrive: 1 },
+    desc: 'Stage. A Salmon arrives next turn. Feeds: fish.',
     flavor: 'Smells of yesterday. The salmon, apparently, has no objections.' },
   { id: 'cv2-l-birdseed', name: 'Birdseed', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'basic', tier: 1, feedKey: 'bird',
