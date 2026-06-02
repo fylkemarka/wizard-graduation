@@ -1469,12 +1469,16 @@ function handlerEndOfTurnTick(state, combat) {
       }
       nextDur = (slot.durationRemaining - 1) + (animal.adjacentSpawn.extendSelfTurns || 0);
       if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
-      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, fedThisTurn: false };
+      // FEED RETRIGGER (mirrors App.jsx): an extension to 2+ turns is a fresh
+      // feed cycle — clear stale fed status so the animal must be fed again
+      // before its next make-or-break. Preserved at nextDur===1 so the dur-2
+      // feed still carries the last turn + exit bonus.
+      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
       continue;
     }
     if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
     else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; noteExit(); clearHandlerSlot(next, slot, slotName); }
-    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, justCombined: false, fedThisTurn: false };
+    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, justCombined: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
   }
 
   // Birds of a Feather self-exhaust at three-of-a-kind.

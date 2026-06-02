@@ -9612,6 +9612,9 @@ export default function App() {
                 adjacentSpawned: true,
                 eatenThisTurn: false,
                 fedThisTurn: false,
+                // FEED RETRIGGER: adjacent-spawn extension is a new cycle —
+                // clear stale fed status (see normal-tick branch below).
+                feedReceived: nextDuration >= 2 ? false : slot.feedReceived,
                 nextAttackMult: 1,
               };
             }
@@ -9651,6 +9654,14 @@ export default function App() {
               adjacentSpawnProgress: nextAdjSpawn,
               eatenThisTurn: false,
               fedThisTurn: false,
+              // FEED RETRIGGER (Alan, 2026-06-02): a feed satisfies ONE cycle
+              // (the dur-2 make-or-break → dur-1 → exit). If an extension
+              // (Gorge / Treat / adjacent-spawn) pushes the animal back to 2+
+              // turns, that's a fresh cycle — clear the stale fed status so it
+              // must be fed again before its next make-or-break. Preserved at
+              // nextDuration===1 so the original dur-2 feed still carries the
+              // last turn AND the exit bonus.
+              feedReceived: nextDuration >= 2 ? false : slot.feedReceived,
               nextAttackMult: 1,
               justCombined: false,
             };
