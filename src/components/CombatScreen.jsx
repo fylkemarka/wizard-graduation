@@ -17,6 +17,7 @@ import { CardFullBody } from './CardFullBody.jsx';
 import { PileView } from './PileView.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
+import { ADJACENCY_COMBOS } from '../data/animals.js';
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, peekedNextIntent,
@@ -71,6 +72,13 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        wellDrilledPromptActive = false,
                        onWellDrilledClick = () => {},
                        onCancelWellDrilled = () => {},
+                       houseRulesPromptActive = false,
+                       onHouseRulesClick = () => {},
+                       onCancelHouseRules = () => {},
+                       narrowChooserOpen = false,
+                       narrowCandidates = [],
+                       onNarrowLure = () => {},
+                       onCancelNarrow = () => {},
                        buffetArmed = false,
                        onCancelBuffet = () => {},
                        onFeedAnimal = () => {},
@@ -644,6 +652,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         sacrificePromptActive={sacrificePromptActive} onSacrificeClick={onSacrificeClick}
         gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
         wellDrilledPromptActive={wellDrilledPromptActive} onWellDrilledClick={onWellDrilledClick}
+        houseRulesPromptActive={houseRulesPromptActive} onHouseRulesClick={onHouseRulesClick}
         powers={powers}
         onPlayCard={onPlayCard}
         onFeedAnimal={onFeedAnimal}
@@ -744,6 +753,43 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
+        </div>
+      )}
+      {houseRulesPromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-rust-400 bg-rust-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-rust-100">
+            <span className="font-bold">🏠 House Rules:</span> click a summoned animal — it and every other copy of it on the board stays 2 more turns.
+          </div>
+          <button onClick={onCancelHouseRules}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {narrowChooserOpen && (
+        <div className="mb-2 p-3 rounded border-2 border-moss-400 bg-moss-900/40">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="text-sm text-moss-100">
+              <span className="font-bold">🍂 Acquired Taste:</span> pick a lure, then the creature it should stop summoning (for the rest of combat). A lure never narrows below 2 creatures.
+            </div>
+            <button onClick={onCancelNarrow}
+              className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm shrink-0">
+              Dismiss
+            </button>
+          </div>
+          <div className="flex flex-col gap-2">
+            {narrowCandidates.map(cand => (
+              <div key={cand.cardId} className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-parchment-200 font-semibold">{cand.cardName}:</span>
+                {cand.species.map(sp => (
+                  <button key={sp.id} onClick={() => onNarrowLure(cand.cardId, sp.id)}
+                    className="px-2 py-1 bg-ink-700 text-parchment-100 rounded border border-moss-500 hover:bg-moss-700 text-sm">
+                    {sp.icon} {sp.name} ✕
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {buffetArmed && (
@@ -996,6 +1042,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        sacrificePromptActive = false, onSacrificeClick = () => {},
                        gorgePromptActive = false, onGorgeClick = () => {},
                        wellDrilledPromptActive = false, onWellDrilledClick = () => {},
+                       houseRulesPromptActive = false, onHouseRulesClick = () => {},
                        powers = [],
                        onPlayCard = () => {},
                        onFeedAnimal = () => {},
@@ -1373,6 +1420,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const sacrificeArmed = sacrificePromptActive;
       const gorgeArmed = gorgePromptActive;
       const wellDrilledArmed = wellDrilledPromptActive;
+      const houseRulesArmed = houseRulesPromptActive;
       const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
       const clickHandler = shooArmed ? () => onShooAnimal(slotName)
                           : treatArmed ? () => onTreatClick(slotName)
@@ -1380,8 +1428,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                           : sacrificeArmed ? () => onSacrificeClick(slotName)
                           : gorgeArmed ? () => onGorgeClick(slotName)
                           : wellDrilledArmed ? () => onWellDrilledClick(slotName)
+                          : houseRulesArmed ? () => onHouseRulesClick(slotName)
                           : undefined;
-      const armed = shooArmed || treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed;
+      const armed = shooArmed || treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed;
       const armedTitle = shooArmed
         ? `👋 Click to Shoo this ${animal?.name || 'animal'} away.`
         : treatArmed
@@ -1394,6 +1443,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         ? `🍖 Click to gorge ${animal?.name || 'animal'} (+3 turns).`
         : wellDrilledArmed
         ? `🎯 Click to drill every ${animal?.name || 'animal'} (+2 attack for the rest of combat).`
+        : houseRulesArmed
+        ? `🏠 Click to keep every ${animal?.name || 'animal'} +2 turns.`
         : (() => {
             const shownDur = Math.max(0, (card.durationRemaining || 0) - 1);
             return `${animal?.name || card.animalId} — ${animal?.desc || ''} ${shownDur} turn${shownDur === 1 ? '' : 's'} left.${predatorNote}`;
@@ -1404,6 +1455,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        : sacrificeArmed ? ' · 🔪 click to cash in'
                        : gorgeArmed ? ' · 🍖 click to gorge'
                        : wellDrilledArmed ? ' · 🎯 click to drill'
+                       : houseRulesArmed ? ' · 🏠 click to keep'
                        : '';
       return (
         <motion.button key={card.animalId + '-' + slotName}
@@ -1915,6 +1967,35 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           }
           if (parts.length === 0) continue;
           lines.push(`${animal.icon} ${animal.name}: ${parts.join(' · ')}${atkMult > 1 ? ` (×${atkMult})` : ''}`);
+        }
+        // Adjacency combos — two specific species in neighbouring slots fire a
+        // joint special attack once per pair-type. Mirrors the App.jsx
+        // end-of-turn pre-pass; surfaced as its own chip so the projected
+        // total reflects the combo (per the no-hidden-math rule).
+        const order = ['intro', 'subject', 'target'];
+        const comboSeen = new Set();
+        for (let i = 0; i < order.length - 1; i++) {
+          const sA = tray?.[order[i]];
+          const sB = tray?.[order[i + 1]];
+          if (!sA || sA.kind !== 'animal' || sA.eatenThisTurn) continue;
+          if (!sB || sB.kind !== 'animal' || sB.eatenThisTurn) continue;
+          const combo = ADJACENCY_COMBOS.find(c =>
+            (c.a === sA.animalId && c.b === sB.animalId) ||
+            (c.a === sB.animalId && c.b === sA.animalId));
+          if (!combo) continue;
+          const key = [combo.a, combo.b].sort().join('+');
+          if (comboSeen.has(key)) continue;
+          comboSeen.add(key);
+          const cParts = [];
+          if (combo.damage > 0) {
+            if (isShield) { totalBlock += combo.damage; cParts.push(`+${combo.damage} block`); }
+            else { totalDmg += combo.damage; cParts.push(`${combo.damage} dmg`); }
+          }
+          if (combo.applyWeak > 0) cParts.push(`Weak ${combo.applyWeak}`);
+          if (combo.applyVulnerable > 0) cParts.push(`Vuln ${combo.applyVulnerable}`);
+          if (combo.draw > 0) { totalDraw += combo.draw; cParts.push(`+${combo.draw} 📥`); }
+          if (combo.block > 0) { totalBlock += combo.block; cParts.push(`+${combo.block} block`); }
+          lines.push(`✨ COMBO ${combo.name}: ${cParts.join(' · ')}`);
         }
         if (lines.length === 0) return null;
         return (

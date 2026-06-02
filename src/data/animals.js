@@ -258,3 +258,33 @@ export const ANIMALS = {
     desc: 'Attacks for 9 composure each turn for 3 turns. Eats an adjacent Salmon for +2 turns.',
   },
 };
+
+// ─────────────────────────────────────────────────────────────────────
+// ADJACENCY COMBOS (Alan, 2026-06-02)
+// ─────────────────────────────────────────────────────────────────────
+// When two specific species sit in ADJACENT stage slots, they perform a
+// joint special attack — once per pair-type per turn, every turn the pair
+// holds. Animals can't be repositioned (they land where the lure was
+// placed), so lining up a combo is a planned-but-luck-influenced payoff.
+// Each combo is the convergence target of the lure-narrowing skill: narrow
+// a multi-species lure down to its two combo species and the pair becomes
+// reliable. Pairs are chosen to NOT collide with the eat-adjacent pre-passes
+// (bear↔salmon, raptor↔prey).
+//
+// Mirrored as a pre-pass in BOTH App.jsx (end-of-turn tick) and
+// sim/playSimV2.js. `a`/`b` are unordered. Effect keys: damage/pool (the
+// special attack), plus optional applyWeak / applyVulnerable / draw / block.
+export const ADJACENCY_COMBOS = [
+  {
+    a: 'field-mouse', b: 'rabbit',
+    name: 'Warren Rush', icon: '🐭',
+    damage: 6, pool: 'composure', draw: 1,
+    desc: 'Field Mouse beside Rabbit: a scurrying rush for 6 composure and draw 1.',
+  },
+  {
+    a: 'goose', b: 'raven',
+    name: 'Fowl Play', icon: '🪿',
+    damage: 8, pool: 'composure', applyWeak: 1,
+    desc: 'Goose beside Raven: a mobbing for 8 composure and Weak 1.',
+  },
+];

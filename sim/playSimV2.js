@@ -17,7 +17,7 @@ import { HANDLER_V2, HANDLER_V2_BY_SLOT } from '../src/cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from '../src/cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/cards/shared.js';
 import { ENEMIES as SHARED_ENEMIES } from '../src/data/enemies.js';
-import { ANIMALS } from '../src/data/animals.js';
+import { ANIMALS, ADJACENCY_COMBOS } from '../src/data/animals.js';
 
 // =============================================================================
 // 1. ENEMY DATA — imported from the SHARED canonical roster (src/data/enemies.js,
@@ -155,6 +155,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-stampede',      name: 'Stampede',        cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
   { id: 'c-gorge',         name: 'Gorge',           cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
   { id: 'c-snack',         name: 'Treat',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
+  { id: 'c-narrow',        name: 'Acquired Taste',  cost: 1, type: 'handler-skill', rarity: 'common', effects: { narrowLure: true } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -162,7 +163,7 @@ const COMBINE_BY_SPECIES = { 'field-mouse': 'mouse-house', 'rabbit': 'long-hare'
 const HANDLER_STARTER = [
   'c-defend-handler', 'c-defend-handler', 'c-compose',
   'cv2-l-tender-greens', 'cv2-l-tender-greens',
-  'c-shoo', 'c-pack-tactics', 'c-buffet', 'c-tactic-shield',
+  'c-pack-tactics', 'c-buffet', 'c-tactic-shield',
 ];
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
@@ -170,6 +171,7 @@ const HANDLER_REWARD_POOL = [
   'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-aside',
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
+  'c-shoo', 'c-narrow',
 ];
 
 // =============================================================================
@@ -783,7 +785,15 @@ function resolveLureSpecies(lure, combat) {
     if (existing) return existing.animalId;
   }
   const s = lure.summon || lure;
-  let id = (s.animalIds && s.animalIds.length) ? s.animalIds[Math.floor(Math.random() * s.animalIds.length)] : s.animalId;
+  // Acquired Taste narrowing — drop excluded species from the pool, floor 2.
+  const cardId = lure.cardId || lure.id;
+  let pool = s.animalIds;
+  if (pool && pool.length && combat.lureNarrowing && combat.lureNarrowing[cardId]) {
+    const excluded = combat.lureNarrowing[cardId];
+    const kept = pool.filter(x => !excluded.includes(x));
+    if (kept.length >= 2) pool = kept;
+  }
+  let id = (pool && pool.length) ? pool[Math.floor(Math.random() * pool.length)] : s.animalId;
   const base = ANIMALS[id];
   if (base?.elite && Math.random() < 0.035) id = base.elite;
   return id;
@@ -882,7 +892,7 @@ function stageHandlerLure(state, combat, lure) {
     const withCard = idx === 0;
     if (nurture) {
       const animalId = resolveLureSpecies(lure, combat);
-      combat.htray[s] = makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet, hasHandlerPower(state, 'houseRules') ? 1 : 0);
+      combat.htray[s] = makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet);
       combat.summons++;
       if (withCard) state.discard.push(lure);
     } else {
@@ -917,7 +927,7 @@ function applyHandlerUtil(state, combat, card) {
       const lure = combat.htray[s];
       const animalId = resolveLureSpecies(lure, combat);
       if (lure.card) state.discard.push({ ...lure.card });
-      combat.htray[s] = makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet, hasHandlerPower(state, 'houseRules') ? 1 : 0);
+      combat.htray[s] = makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet);
       combat.summons++;
     }
     return;
@@ -1000,6 +1010,29 @@ function applyHandlerSkill(state, combat, card) {
       if (tgt.slot.fedThisTurn) tgt.slot.attackBonus = (tgt.slot.attackBonus || 0) + 3;
     }
   }
+  // Acquired Taste — narrow a variable lure toward an adjacency combo. AI:
+  // find a narrowable lure (pool ≥3 after current exclusions) whose pool
+  // contains both halves of an ADJACENCY_COMBOS pair, then exclude a species
+  // OUTSIDE that pair so the combo species become more likely. Floor of 2.
+  if (fx.narrowLure) {
+    const seen = new Set();
+    const lures = [...state.deck, ...state.hand, ...state.discard]
+      .filter(c => c?.type === 'lure' && c.summon?.animalIds && c.summon.animalIds.length >= 3);
+    let done = false;
+    for (const c of lures) {
+      if (done || seen.has(c.id)) continue;
+      seen.add(c.id);
+      const excluded = combat.lureNarrowing[c.id] || [];
+      const kept = c.summon.animalIds.filter(id => !excluded.includes(id));
+      if (kept.length < 3) continue;
+      const combo = ADJACENCY_COMBOS.find(cb => kept.includes(cb.a) && kept.includes(cb.b));
+      if (!combo) continue;
+      const dropTarget = kept.find(id => id !== combo.a && id !== combo.b);
+      if (!dropTarget) continue;
+      combat.lureNarrowing[c.id] = [...excluded, dropTarget];
+      done = true;
+    }
+  }
   // Snack — treat-like: extend the lowest-duration animal by 1.
   if (fx.treatExtend) {
     const list = animals();
@@ -1043,6 +1076,17 @@ function playHandlerCard(state, combat, idx) {
       let pick = null, pickN = 0;
       for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
       if (pick) for (const s of wdSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal' && sl.animalId === pick) sl.attackBonus = (sl.attackBonus || 0) + 2; }
+    }
+    // House Rules — pick the most-common species on the board and stamp +2
+    // duration onto it and every copy. Mirrors App.jsx pick-an-animal shape
+    // (Alan, 2026-06-02). No targeting prompt in the sim.
+    if (card.installPower?.id === 'houseRules') {
+      const hrSlots = ['intro', 'subject', 'target'];
+      const counts = {};
+      for (const s of hrSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
+      let pick = null, pickN = 0;
+      for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
+      if (pick) for (const s of hrSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal' && sl.animalId === pick) sl.durationRemaining = (sl.durationRemaining || 0) + 2; }
     }
     return;
   }
@@ -1204,6 +1248,22 @@ function aiTurnHandler(state, combat) {
     const gorgeIdx = state.hand.findIndex(c => c.effects?.gorge && c.cost <= state.energy);
     if (gorgeIdx >= 0 && liveAnimals().some(sl => sl.fedThisTurn && effAtk(sl) > 0)) {
       playHandlerCard(state, combat, gorgeIdx); continue;
+    }
+    // Acquired Taste — narrow a variable lure toward an adjacency combo, but
+    // only when a 3-species lure with a reachable combo pair still exists.
+    const narrowIdx = state.hand.findIndex(c => c.effects?.narrowLure && c.cost <= state.energy);
+    if (narrowIdx >= 0) {
+      const seenN = new Set();
+      const canNarrow = [...state.deck, ...state.hand, ...state.discard].some(c => {
+        if (c?.type !== 'lure' || !c.summon?.animalIds || c.summon.animalIds.length < 3 || seenN.has(c.id)) return false;
+        seenN.add(c.id);
+        const excluded = combat.lureNarrowing[c.id] || [];
+        const kept = c.summon.animalIds.filter(id => !excluded.includes(id));
+        if (kept.length < 3) return false;
+        const combo = ADJACENCY_COMBOS.find(cb => kept.includes(cb.a) && kept.includes(cb.b));
+        return !!(combo && kept.find(id => id !== combo.a && id !== combo.b));
+      });
+      if (canNarrow) { playHandlerCard(state, combat, narrowIdx); continue; }
     }
     if (state.energy >= 1) {
       let needDefense = false;
@@ -1516,6 +1576,37 @@ function handlerEndOfTurnTick(state, combat) {
     combat.enemyBlock = Math.max(0, combat.enemyBlock - a.birdTheft);
   }
 
+  // PRE-PASS: ADJACENCY COMBOS (Alan, 2026-06-02). Two specific species in
+  // adjacent slots fire a joint special attack once per pair-type per turn.
+  // Mirrors App.jsx end-of-turn pre-pass. Fires before the per-animal loop so
+  // a combo's debuff lands ahead of the swarm's swings.
+  {
+    const comboFired = new Set();
+    for (let i = 0; i < SLOT.length - 1; i++) {
+      const sA = work[SLOT[i]];
+      const sB = work[SLOT[i + 1]];
+      if (!sA || sA.kind !== 'animal' || sA.eatenThisTurn) continue;
+      if (!sB || sB.kind !== 'animal' || sB.eatenThisTurn) continue;
+      const combo = ADJACENCY_COMBOS.find(c =>
+        (c.a === sA.animalId && c.b === sB.animalId) ||
+        (c.a === sB.animalId && c.b === sA.animalId));
+      if (!combo) continue;
+      const key = [combo.a, combo.b].sort().join('+');
+      if (comboFired.has(key)) continue;
+      comboFired.add(key);
+      if (combo.damage > 0) {
+        if (combo.pool === 'composure') { handlerDealComposure(combat, combo.damage); combat.menagerieComposure += combo.damage; }
+        else handlerDealHp(combat, combo.damage);
+        combat.totalDamageDealt += combo.damage;
+      }
+      if (combo.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * combo.applyWeak);
+      if (combo.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * combo.applyVulnerable);
+      if (combo.draw > 0) drawCards(state, combo.draw);
+      if (combo.block > 0) { state.block += combo.block; combat.menagerieBlock += combo.block; }
+      combat.combos = (combat.combos || 0) + 1;
+    }
+  }
+
   // MAIN LOOP.
   const next = {};
   const isUnfed = (slot, animal) => animal?.feedKey && !slot.feedReceived;
@@ -1529,7 +1620,7 @@ function handlerEndOfTurnTick(state, combat) {
         const animalId = resolveLureSpecies(slot, combat);
         if (slot.card) state.discard.push({ ...slot.card });
         combat.summons++;
-        next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet, hasHandlerPower(state, 'houseRules') ? 1 : 0);
+        next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
       } else next[slotName] = { ...slot, turnsRemaining: nt };
       continue;
     }
@@ -1632,6 +1723,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     enemyIntent: rollIntent(enemy), lastIntentKinds: [],
     htray: { intro: null, subject: null, target: null },
     tactic: null, youthUses: 0, buffetArmed: false,
+    lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,
     tacticsEngaged: {}, tacticTurns: {},
     summons: 0, feeds: 0, shortStays: 0, combines: 0,

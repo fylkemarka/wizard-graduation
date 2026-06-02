@@ -48,7 +48,7 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_S
 import { HANDLER_V2, HANDLER_V2_BY_SLOT } from './cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
-import { ANIMALS } from './data/animals.js';
+import { ANIMALS, ADJACENCY_COMBOS } from './data/animals.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
 import { CardFullBody } from './components/CardFullBody.jsx';
 import { CombatScreen } from './components/CombatScreen.jsx';
@@ -98,7 +98,7 @@ const CARDS = [
   // animal to free up a stage slot. Plays from hand; arms a click-target
   // prompt; the next click on an animal slot dismisses that animal. Lures
   // are NOT affected (the bait is still being eaten). Cycles back to discard.
-  { id: 'c-shoo', name: 'Shoo!', cost: 1, type: 'skill', rarity: 'basic',
+  { id: 'c-shoo', name: 'Shoo!', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { shooAnimal: true },
     desc: 'Send off one of your animals: it triggers its exit effect now and lashes out for its attack.',
     flavor: "It's been lovely. Yes, lovely. Goodbye. Mind the door." },
@@ -150,6 +150,14 @@ const CARDS = [
     effects: { fetchLureRandom: true },
     desc: 'A random lure from your draw pile turns up in your hand.',
     flavor: 'You weren\'t looking for it. It was, apparently, looking for you.' },
+  // ---- LURE NARROWING — shape a variable lure toward a known species so
+  // adjacency combos become reachable. Gated: a lure never narrows below 2
+  // possible creatures, and the narrowing resets every combat. (Alan,
+  // 2026-06-02 — deck-paths convergence; pairs with ADJACENCY_COMBOS.)
+  { id: 'c-narrow', name: 'Acquired Taste', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { narrowLure: true },
+    desc: 'Pick a lure and one creature it summons; that lure stops summoning that creature for the rest of combat. (A lure never narrows below 2 creatures.)',
+    flavor: 'You explain, at length, what they will and will not be eating. They develop opinions.' },
   // ---- TACTICS — persistent cards that bend the animal-summoner engine.
   // A Tactic occupies the modifier slot of the spell tray (relabelled as
   // "Pack Tactics" for handler). Stays until replaced by another tactic.
@@ -185,7 +193,7 @@ const CARDS = [
   // no persistent powers of its own; this is the install-and-snowball axis.
   { id: 'c-house-rules', name: 'House Rules', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'houseRules' },
-    desc: 'Power. Every animal you summon from a lure enters with +1 duration.',
+    desc: 'Pick a summoned animal. It — and every other copy of it on the board — stays 2 more turns.',
     flavor: 'You explain the arrangement. They settle in, slightly longer than invited.' },
   { id: 'c-well-drilled', name: 'Well-Drilled', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'wellDrilled' },
@@ -985,7 +993,6 @@ function buildStarterDeckForLane(lane, startingRow = null) {
   if (lane === 'handler') {
     ids.push('cv2-l-tender-greens');    // 1-turn → random of Mouse/Rabbit/Buck
     ids.push('cv2-l-tender-greens');    // second copy — chance at Mouse House row / Tender Greens bonus
-    ids.push('c-shoo');                 // dismiss a summoned animal
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
     ids.push('c-buffet');               // next lure spreads across all empty slots (exhaust)
     ids.push('c-tactic-shield');        // Summoned Shield — play to route animal attacks into Block
@@ -3677,6 +3684,10 @@ export default function App() {
   // that animal (and every other copy of the same species on the board) a
   // permanent +2 attack for the rest of combat.
   const [wellDrilledPromptActive, setWellDrilledPromptActive] = useState(false);
+  // House Rules power — armed on install. Next click on an animal slot gives
+  // that animal (and every other copy of the same species on the board) +2
+  // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
+  const [houseRulesPromptActive, setHouseRulesPromptActive] = useState(false);
   // The Whisperer power — animal departures bank a draw delivered into the
   // next turn's hand. Instant-play exits (Shoo / Last Supper / Make It Count)
   // bump this during the turn; the end-of-turn tick adds its own departures
@@ -3700,6 +3711,13 @@ export default function App() {
   // (Rummage the Satchel / Back of the Bin) is played; opens an overlay to
   // pick which lure from that pile is pulled to hand. Cleared on pick/cancel.
   const [lurePickerSource, setLurePickerSource] = useState(null);
+  // Lure narrowing (Acquired Taste) — per-combat map of lure cardId → array
+  // of excluded animalIds. A narrowed lure drops those species from its
+  // random summon pool, but never below 2 possible creatures (floor enforced
+  // at exclusion time). Resets every combat. narrowChooserOpen drives the
+  // pick-a-lure-then-a-species overlay.
+  const [lureNarrowing, setLureNarrowing] = useState({});
+  const [narrowChooserOpen, setNarrowChooserOpen] = useState(false);
   // Feeding ledger — feedKeys of lures played THIS turn. Resets at end of
   // turn. Used for fed-this-turn UI confirmation and to mark new feedReceived
   // on matching slots. The persistent feedReceived flag on each animal slot
@@ -3730,6 +3748,17 @@ export default function App() {
     }
     return out;
   })();
+  // narrowedPool — apply Acquired Taste exclusions to a lure's summon pool.
+  // Given the lure's cardId and its full animalIds array, drops any excluded
+  // species; if that would leave fewer than 2 options the exclusion is
+  // ignored (floor of 2) so a lure is never reduced to a single species.
+  const narrowedPool = (cardId, ids) => {
+    if (!ids || ids.length === 0) return ids;
+    const excluded = lureNarrowing[cardId];
+    if (!excluded || excluded.length === 0) return ids;
+    const kept = ids.filter(id => !excluded.includes(id));
+    return kept.length >= 2 ? kept : ids;
+  };
   // v2.85: pick-one-of-two-to-forget. When an event/sidequest fires the
   // loseRandomCard effect, pre-pick two candidates and surface a modal
   // so the player chooses which one to lose (not silent + not pure RNG).
@@ -4277,7 +4306,7 @@ export default function App() {
       deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
     handler: {
-      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-shoo', 'c-defend-handler'],
+      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-pack-tactics', 'c-defend-handler'],
       deck: ['c-defend-handler', 'c-compose'],
     },
     jnsq: {
@@ -5421,6 +5450,8 @@ export default function App() {
     setFirstLureUsedThisTurn(false);
     setBuffetArmed(false);
     setLuresPlayedThisTurn([]);
+    setLureNarrowing({});
+    setNarrowChooserOpen(false);
     // v2.36: ACTUALLY— state. lastCastSnapshot starts null (no casts yet);
     // arguingBackThisTurn starts 0. Both never persist between combats.
     setLastCastSnapshot(null);
@@ -5665,10 +5696,11 @@ export default function App() {
     // discard/exiled/powers under this same uid, so cancel pulls it from there.
     const armsCancelablePrompt =
       card.installPower?.id === 'wellDrilled' ||
+      card.installPower?.id === 'houseRules' ||
       !!(card.effects && (card.effects.shooAnimal || card.effects.whistleSwap
         || card.effects.treatExtend || card.effects.eatLureNow
         || card.effects.sacrificeForValue || card.effects.gorge
-        || card.effects.buffetArmed));
+        || card.effects.buffetArmed || card.effects.narrowLure));
     setArmedRefund(armsCancelablePrompt
       ? { card, cost, isPower: card.type === 'power', exhaust: !!card.effects?.exhaust }
       : null);
@@ -5739,8 +5771,20 @@ export default function App() {
         setEatItPromptActive(false);
         setSacrificePromptActive(false);
         setGorgePromptActive(false);
+        setHouseRulesPromptActive(false);
         setWellDrilledPromptActive(true);
         pushLog(`🎯 Well-Drilled armed — pick an animal; every copy of it gains +2 attack.`);
+      }
+      if (card.installPower?.id === 'houseRules') {
+        setShooPromptActive(false);
+        setWhistlePromptActive(false); setWhistlePick1Slot(null);
+        setTreatPromptActive(false);
+        setEatItPromptActive(false);
+        setSacrificePromptActive(false);
+        setGorgePromptActive(false);
+        setWellDrilledPromptActive(false);
+        setHouseRulesPromptActive(true);
+        pushLog(`🏠 House Rules armed — pick an animal; every copy of it stays +2 turns.`);
       }
       // Hit Me Again install hook removed 2026-05-31 (power ripped).
       // v2.47: DRUNKEN CONFIDENCE — telemetry-only install count. The read
@@ -5864,9 +5908,10 @@ export default function App() {
         const s = targetSlots[i];
         if (isNurture) {
           // Resolve the animal NOW, build animal envelope directly.
+          const nurturePool = card.summon.animalIds ? narrowedPool(card.id, card.summon.animalIds) : null;
           let resolvedId = featherSpecies
             || card.summon.animalId
-            || (card.summon.animalIds ? card.summon.animalIds[Math.floor(Math.random() * card.summon.animalIds.length)] : null);
+            || (nurturePool ? nurturePool[Math.floor(Math.random() * nurturePool.length)] : null);
           // 3.5% elite roll on instant Nurture summons too.
           const baseForRoll = ANIMALS[resolvedId];
           if (baseForRoll?.elite && Math.random() < 0.035) {
@@ -5878,7 +5923,7 @@ export default function App() {
           newSlots[s] = {
             kind: 'animal',
             animalId: resolvedId,
-            durationRemaining: (animal?.duration || 3) + (isYouth ? 1 : 0) + (hasHandlerPower('houseRules') ? 1 : 0),
+            durationRemaining: (animal?.duration || 3) + (isYouth ? 1 : 0),
             predatorProgress: 0,
             adjacentSpawnProgress: 0,
             summonSet: card.summon.summonSet || null,
@@ -7820,6 +7865,7 @@ export default function App() {
       setSacrificePromptActive(which === 'sacrifice');
       setGorgePromptActive(which === 'gorge');
       setWellDrilledPromptActive(which === 'wellDrilled');
+      setHouseRulesPromptActive(which === 'houseRules');
     };
     // Shoo! — arm a click-target prompt. Next click on an animal slot
     // dismisses that animal. If no animal is currently in play, the prompt
@@ -7953,6 +7999,19 @@ export default function App() {
         else          setDiscard(d => d.filter(c => c.uid !== pick.uid));
         setHand(h => [...h, pick]);
         logBits.push(`🪤 ${pick.name} turns up in your hand.`);
+      }
+    }
+    // Acquired Taste — open the narrow chooser. Player picks a lure (from any
+    // pile, or a staged one) and a species to drop from its summon pool. The
+    // exclusion is applied at resolveLureSpecies for the rest of combat; the
+    // 2-species floor is enforced in addNarrowExclusion.
+    if (fx.narrowLure) {
+      const candidates = buildNarrowCandidates();
+      if (candidates.length === 0) {
+        logBits.push(`🍂 No variable lure to narrow.`);
+      } else {
+        setNarrowChooserOpen(true);
+        logBits.push(`🍂 Pick a lure and a creature to refuse.`);
       }
     }
     // Tap the Glass — agitate the menagerie. Every summoned animal's NEXT
@@ -8934,6 +8993,88 @@ export default function App() {
     pushLog(`🎯 Well-Drilled dismissed without picking an animal.${refunded}`);
   }
 
+  // House Rules — designate an animal; it and every other copy of the same
+  // species currently on the board stay +2 turns. Single-click animal target,
+  // mirroring Well-Drilled. Stacks onto durationRemaining.
+  function houseRulesClickSlot(slotName) {
+    if (!houseRulesPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const species = slot.animalId;
+    const animal = getAnimal(species);
+    let buffed = 0;
+    setTray(p => {
+      const next = { ...p };
+      for (const sn of ['intro', 'subject', 'target']) {
+        const s = next[sn];
+        if (s?.kind === 'animal' && s.animalId === species) {
+          next[sn] = { ...s, durationRemaining: (s.durationRemaining || 0) + 2 };
+          buffed++;
+        }
+      }
+      return syncTrayLegacy(next);
+    });
+    setHouseRulesPromptActive(false);
+    setArmedRefund(null);
+    pushLog(buffed > 1
+      ? `🏠 House Rules — all ${buffed} ${animal?.name || species} stay +2 turns.`
+      : `🏠 House Rules — ${animal?.name || species} stays +2 turns.`);
+  }
+
+  function cancelHouseRulesPrompt() {
+    if (!houseRulesPromptActive) return;
+    setHouseRulesPromptActive(false);
+    const refunded = refundArmedCard();
+    pushLog(`🏠 House Rules dismissed without picking an animal.${refunded}`);
+  }
+
+  // Acquired Taste — scan every pile (and staged lures) for variable lures
+  // that can still be narrowed: their summon pool, after current exclusions,
+  // must hold ≥3 species so removing one more keeps the 2-species floor.
+  // Returns one entry per unique lure cardId with the species still on offer.
+  function buildNarrowCandidates() {
+    const seen = new Set();
+    const out = [];
+    const stagedLures = ['intro', 'subject', 'target']
+      .map(s => tray?.[s])
+      .filter(v => v?.kind === 'lure')
+      .map(v => ({ id: v.cardId, name: v.cardName, summon: { animalIds: v.animalIds } }));
+    const pileCards = [...deck, ...hand, ...discard, ...exiled].filter(c => c?.type === 'lure');
+    for (const c of [...stagedLures, ...pileCards]) {
+      const ids = CARDS_BY_ID[c.id]?.summon?.animalIds || c.summon?.animalIds;
+      if (!ids || ids.length < 3 || seen.has(c.id)) continue;
+      const excluded = lureNarrowing[c.id] || [];
+      const kept = ids.filter(id => !excluded.includes(id));
+      if (kept.length < 3) continue;
+      seen.add(c.id);
+      out.push({
+        cardId: c.id,
+        cardName: CARDS_BY_ID[c.id]?.name || c.name,
+        species: kept.map(id => ({ id, name: ANIMALS[id]?.name || id, icon: ANIMALS[id]?.icon || '🐾' })),
+      });
+    }
+    return out;
+  }
+
+  function addNarrowExclusion(cardId, animalId) {
+    const ids = CARDS_BY_ID[cardId]?.summon?.animalIds || [];
+    const after = [...(lureNarrowing[cardId] || []), animalId];
+    const kept = ids.filter(id => !after.includes(id));
+    if (kept.length < 2) return; // floor of 2 — shouldn't reach via gated UI
+    setLureNarrowing(prev => ({ ...prev, [cardId]: after }));
+    setNarrowChooserOpen(false);
+    setArmedRefund(null);
+    const animal = ANIMALS[animalId];
+    pushLog(`🍂 ${CARDS_BY_ID[cardId]?.name || cardId} will no longer summon ${animal?.icon || ''} ${animal?.name || animalId}.`);
+  }
+
+  function cancelNarrowChooser() {
+    if (!narrowChooserOpen) return;
+    setNarrowChooserOpen(false);
+    const refunded = refundArmedCard();
+    pushLog(`🍂 Acquired Taste dismissed without narrowing a lure.${refunded}`);
+  }
+
   function cancelShooPrompt() {
     if (!shooPromptActive) return;
     setShooPromptActive(false);
@@ -9609,6 +9750,49 @@ export default function App() {
       // feedReceived is set persistently on the slot envelope when a matching
       // feed-key lure is consumed.
       const isUnfed = (slot, animal) => animal?.feedKey && !slot.feedReceived;
+
+      // Pre-pass: ADJACENCY COMBOS (Alan, 2026-06-02). Two specific species in
+      // adjacent slots perform a joint special attack — once per pair-type per
+      // turn. Animals can't be repositioned (they land where the lure was
+      // placed), so lining a combo up is a planned-but-luck-influenced payoff;
+      // the lure-narrowing skill is what makes a pair reliable. Fires here,
+      // before the per-animal loop, so a combo's debuff (Weak/Vuln) lands
+      // before the swarm's normal swings. Mirrored in sim/playSimV2.js.
+      const comboFiredPairs = new Set();
+      for (let i = 0; i < SLOT_ORDER.length - 1; i++) {
+        const sA = workingTray[SLOT_ORDER[i]];
+        const sB = workingTray[SLOT_ORDER[i + 1]];
+        if (!sA || sA.kind !== 'animal' || sA.eatenThisTurn) continue;
+        if (!sB || sB.kind !== 'animal' || sB.eatenThisTurn) continue;
+        const combo = ADJACENCY_COMBOS.find(c =>
+          (c.a === sA.animalId && c.b === sB.animalId) ||
+          (c.a === sB.animalId && c.b === sA.animalId));
+        if (!combo) continue;
+        const key = [combo.a, combo.b].sort().join('+');
+        if (comboFiredPairs.has(key)) continue; // one fire per pair-type per turn
+        comboFiredPairs.add(key);
+        hTick.attacks++;
+        const bits = [];
+        if (combo.damage > 0) {
+          if (combo.pool === 'composure') {
+            const post = applyDamageToEnemyComposure(combo.damage);
+            hTick.composureDealt += combo.damage;
+            if (post <= 0) summonerKilledEnemy = true;
+            bits.push(`${combo.damage} composure`);
+          } else {
+            const post = applyDamageToEnemyHp(combo.damage);
+            hTick.hpDealt += combo.damage;
+            if (post <= 0) summonerKilledEnemy = true;
+            bits.push(`${combo.damage} HP`);
+          }
+        }
+        if (combo.applyWeak > 0) { applyExpiringWeak(combo.applyWeak); bits.push(`Weak ${combo.applyWeak}`); }
+        if (combo.applyVulnerable > 0) { applyExpiringVuln(combo.applyVulnerable); bits.push(`Vulnerable ${combo.applyVulnerable}`); }
+        if (combo.draw > 0) { drawCards(combo.draw); bits.push(`draw ${combo.draw}`); }
+        if (combo.block > 0) { setBlock(b => b + combo.block); hTick.blockGained += combo.block; bits.push(`+${combo.block} Block`); }
+        pushLog(`✨ ${combo.icon} COMBO — ${combo.name}: ${bits.join(', ')}.`);
+      }
+
       for (const slotName of SLOT_ORDER) {
         const slot = workingTray[slotName];
         if (!slot) { nextSlots[slotName] = null; continue; }
@@ -9914,8 +10098,11 @@ export default function App() {
               if (existing) resolvedAnimalId = existing.animalId;
             }
             if (!resolvedAnimalId) {
-              resolvedAnimalId = slot.animalIds && slot.animalIds.length > 0
-                ? slot.animalIds[Math.floor(Math.random() * slot.animalIds.length)]
+              const pool = slot.animalIds && slot.animalIds.length > 0
+                ? narrowedPool(slot.cardId, slot.animalIds)
+                : null;
+              resolvedAnimalId = pool && pool.length > 0
+                ? pool[Math.floor(Math.random() * pool.length)]
                 : slot.animalId;
             }
             // 3.5% elite-summon roll. If the chosen species has an elite
@@ -9936,13 +10123,11 @@ export default function App() {
             // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
             // Fountain of Youth tactic: +1 duration to fresh summons.
-            // House Rules power: +1 duration to anything summoned from a lure.
             const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
-            const houseBonus = hasHandlerPower('houseRules') ? 1 : 0;
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: resolvedAnimalId,
-              durationRemaining: (animal?.duration || 3) + youthBonus + houseBonus,
+              durationRemaining: (animal?.duration || 3) + youthBonus,
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
@@ -11955,6 +12140,13 @@ export default function App() {
       wellDrilledPromptActive={wellDrilledPromptActive}
       onWellDrilledClick={wellDrilledClickSlot}
       onCancelWellDrilled={cancelWellDrilledPrompt}
+      houseRulesPromptActive={houseRulesPromptActive}
+      onHouseRulesClick={houseRulesClickSlot}
+      onCancelHouseRules={cancelHouseRulesPrompt}
+      narrowChooserOpen={narrowChooserOpen}
+      narrowCandidates={narrowChooserOpen ? buildNarrowCandidates() : []}
+      onNarrowLure={addNarrowExclusion}
+      onCancelNarrow={cancelNarrowChooser}
       buffetArmed={buffetArmed}
       onCancelBuffet={() => { setBuffetArmed(false); const refunded = refundArmedCard(); pushLog(`🍽 Buffet dismissed.${refunded}`); }}
       onFeedAnimal={feedAnimalsWithLure}

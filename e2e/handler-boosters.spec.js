@@ -12,6 +12,9 @@ const FULL_POCKETS = 'c-full-pockets';
 const SNACK = 'c-snack';
 const BIRDSEED = 'cv2-l-birdseed';
 const ON_THREE = 'c-pack-tactics';
+const HOUSE_RULES = 'c-house-rules';
+const NARROW = 'c-narrow';
+const TENDER_GREENS = 'cv2-l-tender-greens';
 
 async function ensureInHand(page, cardId, maxTurns = 5) {
   for (let i = 0; i < maxTurns; i++) {
@@ -168,5 +171,45 @@ test('On Three! surfaces the extra projected damage in the menagerie math bar', 
 
   // The projection now carries the rally's additional damage as its own chip.
   await expect(page.getByText(/\(On Three!\)/).first()).toBeVisible();
+  await expect(page.getByTestId('hand')).toBeVisible();
+});
+
+test('House Rules arms a pick-an-animal prompt; keeping an animal does not crash', async ({ page }) => {
+  await gotoLab(page, 'handler', { seed: 11 });
+  for (let i = 0; i < 4; i++) await addCard(page, HOUSE_RULES);
+  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
+  await fightEnemy(page, 'Loom Familiar');
+
+  expect(await ensureAnimalStaged(page)).toBeTruthy();
+  expect(await ensureInHand(page, HOUSE_RULES)).toBeTruthy();
+
+  await playCardById(page, HOUSE_RULES);
+
+  // The pick banner arms (no longer a passive board-wide buff).
+  await expect(page.getByText(/House Rules:/)).toBeVisible();
+
+  // Click an armed animal pill to stamp the +2 duration.
+  await page.getByText(/click to keep/).first().click();
+
+  // Prompt dismisses and combat is still alive.
+  await expect(page.getByTestId('hand')).toBeVisible();
+});
+
+test('Acquired Taste opens the narrow chooser and excluding a species does not crash', async ({ page }) => {
+  await gotoLab(page, 'handler', { seed: 11 });
+  for (let i = 0; i < 4; i++) await addCard(page, NARROW);
+  for (let i = 0; i < 8; i++) await addCard(page, TENDER_GREENS);
+  await fightEnemy(page, 'Loom Familiar');
+
+  expect(await ensureInHand(page, NARROW)).toBeTruthy();
+  await playCardById(page, NARROW);
+
+  // The chooser opens listing the narrowable lure (Tender Greens, 3 species).
+  await expect(page.getByText(/Acquired Taste:/)).toBeVisible();
+  await expect(page.getByText(/Tender Greens:/)).toBeVisible();
+
+  // Click a species button to drop it from the pool; the chooser closes.
+  await page.getByRole('button', { name: /Young Buck/ }).first().click();
+  await expect(page.getByText(/Acquired Taste:/)).toHaveCount(0);
   await expect(page.getByTestId('hand')).toBeVisible();
 });
