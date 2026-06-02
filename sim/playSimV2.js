@@ -1156,6 +1156,23 @@ function pickBestLure(state, combat) {
     }
   }
   const wantCombine = Object.values(boardSpeciesCounts).some(n => n >= 1);
+  // Feed-discipline (Alan calibration, 2026-06-02): a feedKey is "scarce" when
+  // on-board unfed animals that will need it soon (dur ≤ 3) outnumber the
+  // matching lures in hand. Don't burn a scarce lure on a fresh summon — hold
+  // it to feed, so the existing animal sustains instead of leaving unfed (the
+  // 747 short-stays were the greedy AI over-summoning into a board it couldn't
+  // feed). Combine plays (priority 3) still override the reservation.
+  const needByKey = {};
+  for (const s of SLOT) {
+    const sl = combat.htray[s];
+    if (sl?.kind !== 'animal') continue;
+    const a = ANIMALS[sl.animalId];
+    if (!a?.feedKey || sl.feedReceived || (sl.durationRemaining || 0) > 3) continue;
+    needByKey[a.feedKey] = (needByKey[a.feedKey] || 0) + 1;
+  }
+  const haveByKey = {};
+  for (const c of state.hand) if (c.type === 'lure' && c.feedKey) haveByKey[c.feedKey] = (haveByKey[c.feedKey] || 0) + 1;
+  const scarce = (k) => k && (needByKey[k] || 0) >= (haveByKey[k] || 0) && (needByKey[k] || 0) > 0;
   let bestIdx = -1, bestPriority = -1;
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
@@ -1164,9 +1181,11 @@ function pickBestLure(state, combat) {
     if (c.summon?.summonSet === 'tender-greens' && wantCombine) priority = 3;
     else if (c.summon?.summonSet === 'tender-greens') priority = 1;
     else priority = 2;
+    // Reserve a scarce feed lure (unless it's a combine play).
+    if (priority < 3 && scarce(c.feedKey)) priority = -1;
     if (priority > bestPriority) { bestPriority = priority; bestIdx = i; }
   }
-  return bestIdx;
+  return bestIdx >= 0 && bestPriority >= 0 ? bestIdx : -1;
 }
 function handlerAdjustIncoming(combat, raw) {
   if (raw === 0) return 0;
