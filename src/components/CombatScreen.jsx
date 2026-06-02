@@ -1544,6 +1544,23 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               : `(flops) · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`}
             {predatorNote}
           </span>
+          {(() => {
+            // Lifespan pip-train (Human-AI rec 2026-06-02): show remaining
+            // turns as a visible countdown FROM SUMMON, not just the text or
+            // the "leaves" badge on the last turn. Filled = turns left.
+            const remaining = Math.max(0, (card.durationRemaining || 0) - 1);
+            const summonLife = Math.max(0, (animal?.duration ?? 1) - 1);
+            const total = Math.max(remaining, summonLife, 1);
+            return (
+              <span className="flex gap-0.5 mt-0.5" title={`${remaining} of ${total} turn${total === 1 ? '' : 's'} left.`}>
+                {Array.from({ length: total }).map((_, i) => (
+                  <span key={i} className={`inline-block w-1.5 h-1.5 rounded-full ${
+                    i < remaining ? 'bg-gold-300' : 'bg-ember-950 border border-ember-600'
+                  }`} />
+                ))}
+              </span>
+            );
+          })()}
           {animal?.feedKey && (() => {
             const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
             const feedLabel = FEED_NAMES[animal.feedKey] || animal.feedKey;
