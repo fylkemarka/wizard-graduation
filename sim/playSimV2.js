@@ -1264,6 +1264,18 @@ function handlerApplyIntent(state, combat, intent) {
   if (!intent) return;
   if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
     const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
+    // Spittle Peck (Rabid Scrubjay onExit): redirect the whole attack onto the
+    // enemy's composure; the player takes no hit. Mirrors App.jsx. Armed during
+    // handlerEndOfTurnTick, which runs before this on the same end-of-turn.
+    if (state.redirectEnemyAttack) {
+      state.redirectEnemyAttack = false;
+      const returned = Math.max(0, Math.round(intent.value * combat.enemyDmgMult) * hits);
+      if (returned > 0) {
+        combat.enemyComposure = Math.max(0, combat.enemyComposure - returned);
+        combat.totalDamageDealt += returned;
+      }
+      return;
+    }
     const targetsComposure = intent.pool === 'composure';
     let raw = Math.round(intent.value * combat.enemyDmgMult);
     let wBlock = state.block, wPoise = state.poise || 0, wHp = state.hp, wComp = state.composure;
@@ -1314,6 +1326,9 @@ function handlerEndOfTurnTick(state, combat) {
     if (fx.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * fx.applyWeak);
     if (fx.healComp > 0)  state.composure = Math.min(state.maxComposure, state.composure + fx.healComp);
     if (fx.healHp > 0)    state.hp = Math.min(state.maxHp, state.hp + fx.healHp);
+    // Spittle Peck (Rabid Scrubjay): arm the redirect; consumed when the enemy
+    // next attacks. Mirrors App.jsx redirectEnemyAttackRef.
+    if (fx.redirectEnemyAttack) state.redirectEnemyAttack = true;
   };
 
   // PRE-PASS: cannibalism (lure adjacent to same-species animal).
@@ -1407,6 +1422,19 @@ function handlerEndOfTurnTick(state, combat) {
         work[slotName] = { ...work[slotName], durationRemaining: (work[slotName].durationRemaining || 0) + 2 };
       }
     }
+  }
+
+  // PRE-PASS: Raven Bird Theft (2026-06-02). On the turn a Raven is set to
+  // exit (durationRemaining === 1, its last attack happens this tick), strip
+  // `birdTheft` Block from the enemy BEFORE any animal attacks. Mirrors
+  // App.jsx. Unfed ravens short-stay and never reach their payoff turn.
+  for (const slotName of SLOT) {
+    const s = work[slotName];
+    if (!s || s.kind !== 'animal') continue;
+    const a = ANIMALS[s.animalId];
+    if (!a?.birdTheft || s.durationRemaining !== 1) continue;
+    if (a.feedKey && !s.feedReceived) continue;
+    combat.enemyBlock = Math.max(0, combat.enemyBlock - a.birdTheft);
   }
 
   // MAIN LOOP.
@@ -1589,6 +1617,7 @@ function runCombat(state, enemyId, telemetry) {
   state.lastIntentKinds = [];
   state.weaveStacks = 0; // v2.96: Hollow Weaver weave debt (wit/jnsq).
   state.loomStole = false; // Loom Familiar: one card-steal per combat, total.
+  state.redirectEnemyAttack = false; // Spittle Peck: cleared per combat.
   state.castedThisTurn = false; // set at end of each player turn; weave reads it.
   state.block = 0;
   state.poise = 0; // v2.9: composure-shield
@@ -4176,6 +4205,17 @@ function runCombat(state, enemyId, telemetry) {
           enemy.currentComp = Math.max(0, enemy.currentComp - returned);
           telemetry.skipAndReturnDamage = (telemetry.skipAndReturnDamage || 0) + returned;
         }
+      }
+    }
+    // Spittle Peck (Rabid Scrubjay onExit): redirect the enemy's attack onto
+    // itself. Mirrors App.jsx redirectEnemyAttackRef consumption.
+    if (!attackSkipped && state.redirectEnemyAttack) {
+      state.redirectEnemyAttack = false;
+      attackSkipped = true;
+      const returned = Math.round((intentIncoming || 0) * (state.enemyDmgMult || 1));
+      if (returned > 0) {
+        enemy.currentComp = Math.max(0, enemy.currentComp - returned);
+        telemetry.spittlePeckDamage = (telemetry.spittlePeckDamage || 0) + returned;
       }
     }
     let incoming = attackSkipped ? 0 : intentIncoming;

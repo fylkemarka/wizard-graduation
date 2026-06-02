@@ -3756,6 +3756,10 @@ export default function App() {
   // the old enemyDiscardCount guard miss and re-roll a second steal. Reset
   // in enterFight.
   const loomStoleThisCombatRef = useRef(false);
+  // Spittle Peck (Rabid Scrubjay onExit): armed synchronously so the redirect
+  // survives the same-endTurn stale-closure window between the animal tick and
+  // applyEnemyIntent. Consumed (and cleared) when the enemy next attacks.
+  const redirectEnemyAttackRef = useRef(false);
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
@@ -5294,6 +5298,7 @@ export default function App() {
     setLastIntentKinds([]);
     setEnemyDiscardCount(0);
     loomStoleThisCombatRef.current = false;
+    redirectEnemyAttackRef.current = false;
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
     setPeekedNextIntent(null);
@@ -7751,7 +7756,7 @@ export default function App() {
       logBits.push(`🍖 Gorge armed — pick an animal to overfeed.`);
     }
     // Murmuration — deal composure for each bird currently in play. Birds are
-    // animals with feedKey 'bird' (sparrow / goose / crow / owl).
+    // animals with feedKey 'bird' (rabid-scrubjay / goose / raven / owl).
     if (fx.compDmgPerBird) {
       const birds = ['intro', 'subject', 'target'].filter(s => {
         const slot = tray[s];
@@ -8693,6 +8698,7 @@ export default function App() {
     if (fx.applyWeak > 0) { applyExpiringWeak(fx.applyWeak); pushLog(`${animal.icon} ${animal.name} parting screech — Weak ${fx.applyWeak} on enemy.`); }
     if (fx.healComp > 0) { setComposure(c => Math.min(composureMax, c + fx.healComp)); pushLog(`${animal.icon} ${animal.name} nuzzles you — +${fx.healComp} composure.`); }
     if (fx.healHp > 0) { setHp(h => Math.min(maxHp, h + fx.healHp)); pushLog(`${animal.icon} ${animal.name} leaves you a kindness — +${fx.healHp} HP.`); }
+    if (fx.redirectEnemyAttack) { redirectEnemyAttackRef.current = true; pushLog(`${animal.icon} ${animal.name} — Spittle Peck: the enemy's next attack turns on itself.`); }
   };
 
   // Note an animal leaving play for The Whisperer — banks a draw delivered
@@ -9213,6 +9219,10 @@ export default function App() {
           setHp(h => Math.min(maxHp, h + fx.healHp));
           pushLog(`${animal.icon} ${animal.name} leaves you with a kindness — +${fx.healHp} HP.`);
         }
+        if (fx.redirectEnemyAttack) {
+          redirectEnemyAttackRef.current = true;
+          pushLog(`${animal.icon} ${animal.name} — Spittle Peck: the enemy's next attack turns on itself.`);
+        }
       };
 
       // Pre-pass: cannibalism check. Walk lures; for each, check both
@@ -9396,6 +9406,28 @@ export default function App() {
             };
             pushLog(`🐻 The Bear eats the adjacent Salmon — it settles in for +2 turns.`);
           }
+        }
+      }
+
+      // Pre-pass: RAVEN BIRD THEFT (2026-06-02). On the turn a Raven is set to
+      // exit (durationRemaining === 1, i.e. its last attack happens this tick),
+      // it strips `birdTheft` Block from the enemy BEFORE any animal attacks —
+      // so the burst that follows lands on bare composure. Uses enemyBlockRef
+      // for the synchronous value (setEnemyBlock is async). Skips unfed ravens,
+      // which short-stay and never reach their payoff turn.
+      for (const slotName of SLOT_ORDER) {
+        const slot = workingTray[slotName];
+        if (!slot || slot.kind !== 'animal') continue;
+        const animal = getAnimal(slot.animalId);
+        if (!animal?.birdTheft || slot.durationRemaining !== 1) continue;
+        if (animal.feedKey && !slot.feedReceived) continue; // unfed short-stays; no payoff
+        const stripped = Math.min(enemyBlockRef.current, animal.birdTheft);
+        if (stripped > 0) {
+          enemyBlockRef.current = Math.max(0, enemyBlockRef.current - animal.birdTheft);
+          setEnemyBlock(b => Math.max(0, b - animal.birdTheft));
+          pushLog(`${animal.icon} ${animal.name} — Bird Theft: strips ${stripped} Block from the enemy.`);
+        } else {
+          pushLog(`${animal.icon} ${animal.name} — Bird Theft: the enemy had no Block to take.`);
         }
       }
 
@@ -10410,6 +10442,28 @@ export default function App() {
         } else {
           pushLog(`🤐 ${e.name}: you spoke right through it. (Talking Over Them)`);
         }
+        return;
+      }
+      // Spittle Peck (Rabid Scrubjay onExit): the enemy turns its own attack
+      // on itself. Consumed synchronously via the ref so the redirect armed
+      // during this same endTurn's animal tick isn't lost to stale state. The
+      // full swing lands on the enemy's composure; the player takes no hit. We
+      // bypass enemy Block here (its block has already faded for the player
+      // turn — same assumption skipAndReturn relies on).
+      if (redirectEnemyAttackRef.current) {
+        redirectEnemyAttackRef.current = false;
+        const swings = hits;
+        const per = Math.round(intent.value * enemyDmgMult);
+        const returned = Math.max(0, per * swings);
+        if (returned > 0) {
+          setEnemyComposure(c => {
+            const after = Math.max(0, c - returned);
+            if (after === 0 && c > 0) setTimeout(() => onEnemyDefeated(), 200);
+            return after;
+          });
+          showDamageFloater(returned, 'composure');
+        }
+        pushLog(`🐦 Spittle Peck: ${e.name} attacks itself for ${returned} composure.`);
         return;
       }
       // v2.9: dual-shield routing.

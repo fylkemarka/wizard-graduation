@@ -83,15 +83,22 @@ test('Full Pockets generates a Snack that costs 1, extends an animal, and does n
   for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
   await fightEnemy(page, 'Loom Familiar');
 
-  // Body on the board first (Snack needs an animal to extend).
-  expect(await ensureAnimalStaged(page)).toBeTruthy();
-  // Install Full Pockets (the 2-cost power).
+  // Install Full Pockets (the 2-cost power) so it starts minting Snacks.
   expect(await ensureInHand(page, FULL_POCKETS)).toBeTruthy();
   await playCardById(page, FULL_POCKETS);
   await expect(page.getByText('Full Pockets').first()).toBeVisible();
 
-  // A Snack should turn up in hand at the start of a turn — end the turn to tick it in.
-  expect(await ensureInHand(page, SNACK)).toBeTruthy();
+  // Stage a birdseed so a fresh animal lands on the board next turn — at the
+  // same start-of-turn the Snack is minted. The Snack is a token (it vanishes
+  // at end of turn), so the body and the Snack must coincide; we can't end
+  // another turn between getting the Snack and treating with it.
+  expect(await ensureInHand(page, BIRDSEED)).toBeTruthy();
+  await playCardById(page, BIRDSEED);
+  await endTurn(page);
+  await expect(page.getByTestId('hand')).toBeVisible();
+
+  // Bird is now on the board and a Snack has been minted into hand this turn.
+  expect(await handCardById(page, SNACK).count()).toBeGreaterThan(0);
   const snack = handCardById(page, SNACK).first();
   // The Snack reads cost 1 (no longer a free token).
   await expect(snack).toHaveAttribute('data-eff-cost', '1');

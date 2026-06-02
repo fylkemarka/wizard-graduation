@@ -42,16 +42,18 @@ export const ANIMALS = {
     // T2 upgrade: bear arrives one turn faster.
     upgrade: { predatorChain: { animalId: 'bear', turnsToTrigger: 1 } },
   },
-  sparrow: {
-    name: 'Sparrow',
+  'rabid-scrubjay': {
+    name: 'Rabid Scrubjay',
     icon: '🐦',
-    attack: 5,
+    attack: 4,
     attackPool: 'composure',
-    duration: 2,
+    duration: 3,
     feedKey: 'bird',
-    flavor: "Pecks like it's making a point.",
-    desc: 'Attacks for 5 composure each turn for 2 turns.',
-    upgrade: { attack: 7, duration: 3 },
+    // Spittle Peck: on exit, the enemy's next attack is turned back on them.
+    onExit: { redirectEnemyAttack: true, healComp: 1 },
+    flavor: 'Foams a little. Means well. Aims worse — at everyone but you.',
+    desc: 'Attacks for 4 composure each turn for 3 turns. Spittle Peck: on exit, the enemy turns their next attack on themselves. +1 composure on exit.',
+    upgrade: { attack: 6, onExit: { redirectEnemyAttack: true, healComp: 3, healHp: 1 } },
   },
   'field-mouse': {
     name: 'Field Mouse',
@@ -154,26 +156,31 @@ export const ANIMALS = {
     icon: '🪿',
     attack: 6,
     attackPool: 'composure',
-    duration: 2,
-    feedKey: 'bird',
-    onExit: { damage: 5, damageType: 'composure' },
-    flavor: 'It has strong opinions about your personal space.',
-    desc: 'Attacks for 6 composure each turn for 2 turns. Parting hiss: 5 composure on exit.',
-    upgrade: { attack: 8, onExit: { damage: 7, damageType: 'composure' } },
-  },
-  // Birdseed variety (2026-06-01, Flock pass — addresses playtest note #2:
-  // "need more animals summoned with birdseed"). Crow = steady uptime;
-  // Owl = the thinking bird, exposes weakness on each peck.
-  crow: {
-    name: 'Crow',
-    icon: '🐦‍⬛',
-    attack: 5,
-    attackPool: 'composure',
     duration: 3,
     feedKey: 'bird',
-    flavor: 'It has counted you. It will remember the number.',
-    desc: 'Attacks for 5 composure each turn for 3 turns.',
-    upgrade: { attack: 7, duration: 3 },
+    onExit: { damage: 4, damageType: 'composure' },
+    flavor: 'It has strong opinions about your personal space.',
+    desc: 'Attacks for 6 composure each turn for 3 turns. Parting hiss: 4 composure on exit.',
+    upgrade: { attack: 8, duration: 3, onExit: { damage: 5, damageType: 'composure', healHp: 2 } },
+  },
+  // Birdseed variety (2026-06-01, Flock pass — addresses playtest note #2:
+  // "need more animals summoned with birdseed"). Raven = burst + armor strip;
+  // Owl = the thinking bird, exposes weakness on each peck.
+  raven: {
+    name: 'Raven',
+    icon: '🐦‍⬛',
+    attack: 6,
+    attackPool: 'composure',
+    duration: 2,
+    feedKey: 'bird',
+    // Bird Theft: on the turn the raven is set to exit (durationRemaining === 1),
+    // before any animal attacks, strip `birdTheft` Block from the enemy.
+    // Handled in the end-of-turn pre-pass (mirrors hawk/bear). (2026-06-02.)
+    birdTheft: 6,
+    onExit: { healHp: 1 },
+    flavor: 'It has counted you. It will remember the number. It will also take your things.',
+    desc: 'Attacks for 6 composure each turn for 2 turns. Bird Theft: strips 6 Block from the enemy on the turn it exits. +1 HP on exit.',
+    upgrade: { attack: 8, birdTheft: 9, onExit: { healHp: 2, healComp: 2 } },
   },
   owl: {
     name: 'Owl',
