@@ -124,11 +124,13 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
     }
     // v3.4.81 (Alan: "Weave + 2 is unclear. What does weave do? What's it
     // hit for?") — surface the projected composure damage if the player
-    // doesn't cast: current stacks + this turn's add.
+    // doesn't strike back: current stacks + this turn's add. 2026-06-02: the
+    // clear condition is now "deal damage to the enemy" (lane-agnostic), not
+    // "cast" — so the Handler can play around it too.
     if (intent.kind === 'weave') {
       const projected = (weaveStacks || 0) + intent.value;
       return {
-        display: `🪡 Weave +${intent.value} → ${projected} 🎭 if no cast`,
+        display: `🪡 Weave +${intent.value} → ${projected} 🎭 if you don't hit it`,
         reduced: false, amplified: false,
         rawValue: intent.value, effValue: projected,
       };
@@ -168,9 +170,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       // v3.4.81: Hollow Weaver's signature mechanic. Most players have
       // never seen "Weave" anywhere else; the tooltip is their teacher.
       const projected = (weaveStacks || 0) + intent.value;
-      lines.push(`🪡 Adds ${intent.value} to your Weave debt (currently ${weaveStacks || 0}, becoming ${projected}).`);
-      lines.push(`If you END YOUR TURN without casting an FFT, the entire Weave debt fires as composure damage and resets.`);
-      lines.push(`Cast any FFT this turn and the Weave silently clears — no damage.`);
+      lines.push(`🪡 Weave debt: adds ${intent.value} (currently ${weaveStacks || 0}, becoming ${projected}).`);
+      lines.push(`At the end of your NEXT turn the whole debt fires as composure damage and resets — UNLESS you dealt damage to the Weaver that turn.`);
+      lines.push(`Hurt it at all (a wit cast that lands, or one of your animals attacking) and the Weave clears harmlessly.`);
     }
     if (intent.riders) {
       const r = intent.riders;
@@ -2018,7 +2020,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         const chips = [];
         if (enemy.phaseShifted) chips.push({ key: 'phase', label: '🕸 thinned', tone: 'text-ember-300' });
         if (enemy.annotation) chips.push({ key: 'ann', label: `📝 ${enemy.annotation.cardName || 'annotated'} (${enemy.annotation.turnsRemaining}t)`, tone: 'text-iris-300' });
-        if (weaveStacks > 0) chips.push({ key: 'weave', label: `🪡 Weave ${weaveStacks}`, tone: 'text-ember-300', tooltip: `Weave debt: ${weaveStacks} stack${weaveStacks === 1 ? '' : 's'}. End the turn without casting an FFT and this fires as ${weaveStacks} composure damage and clears. Cast any FFT to neutralize it silently.` });
+        if (weaveStacks > 0) chips.push({ key: 'weave', label: `🪡 Weave ${weaveStacks}`, tone: 'text-ember-300', tooltip: `Weave debt: ${weaveStacks}. Fires for ${weaveStacks} composure damage at the end of this turn UNLESS you deal damage to the Weaver — a landed cast or an animal attack clears it harmlessly.` });
         if (riposteCharge > 0) chips.push({ key: 'rip', label: `🛡⚔ Reflexes ${riposteCharge}`, tone: 'text-iris-300' });
         if (braceArmedDraw > 0) chips.push({ key: 'brace', label: `🛡✦ Brace +${braceArmedDraw}`, tone: 'text-moss-300' });
         if (chips.length === 0) return null;

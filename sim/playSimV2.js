@@ -1126,6 +1126,12 @@ function aiTurnHandler(state, combat) {
   const animalCount = () => SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
   const isBoss = combat.enemy?.tier === 'boss';
 
+  // Hollow Weaver — snapshot cumulative damage so the end-of-turn weave check
+  // can tell whether the player struck the enemy this turn (cast skills like
+  // Tap the Glass + the animal tick both bump totalDamageDealt). Mirrors
+  // App.jsx damagedEnemyThisTurnRef.
+  combat.dmgDealtAtTurnStart = combat.totalDamageDealt;
+
   let safety = 30;
   while (safety-- > 0) {
     const intent = combat.enemyIntent;
@@ -1254,6 +1260,18 @@ function aiTurnHandler(state, combat) {
   handlerEndOfTurnTick(state, combat);
   if (combat.tactic) combat.tacticTurns[combat.tactic] = (combat.tacticTurns[combat.tactic] || 0) + 1;
 
+  // Hollow Weaver — Weave fires now unless the player damaged the enemy this
+  // turn (cast or animal attack). Lane-agnostic; mirrors App.jsx endTurn.
+  if ((combat.weaveStacks || 0) > 0) {
+    const damaged = combat.totalDamageDealt > combat.dmgDealtAtTurnStart;
+    if (!damaged) {
+      const dmg = combat.weaveStacks;
+      state.composure = Math.max(0, state.composure - dmg);
+      combat.weaveDamage = (combat.weaveDamage || 0) + dmg;
+    }
+    combat.weaveStacks = 0;
+  }
+
   // Tokens (Full Pockets' Snack) vanish at end of turn — never to discard/deck.
   for (const c of state.hand) if (!c.token) state.discard.push(c);
   state.hand = [];
@@ -1331,6 +1349,10 @@ function handlerApplyIntent(state, combat, intent) {
     combat.enemyDmgMult = Math.min(1.5, combat.enemyDmgMult + 0.25 * intent.value);
   } else if (intent.kind === 'weak') {
     combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * intent.value);
+  } else if (intent.kind === 'weave') {
+    // Hollow Weaver — accrue stacks; they fire at the end of the next player
+    // turn unless the player damaged the enemy. Mirrors App.jsx.
+    combat.weaveStacks = (combat.weaveStacks || 0) + (intent.value || 1);
   }
   if (intent.riders) {
     const r = intent.riders;
@@ -1602,6 +1624,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     menagerieComposure: 0, menagerieBlock: 0,
     totalDamageDealt: 0, totalDamageTaken: 0,
     whisperPending: 0, firstLureUsedThisTurn: false, powersInstalled: 0,
+    weaveStacks: 0, dmgDealtAtTurnStart: 0, weaveDamage: 0,
   };
 
   const flushTelemetry = (outcome) => {
@@ -1619,6 +1642,7 @@ function runHandlerCombat(state, enemy, telemetry) {
       telemetry.handlerTacticEngaged[id] = (telemetry.handlerTacticEngaged[id] || 0) + combat.tacticsEngaged[id];
     }
     telemetry.totalDamageDealt += combat.totalDamageDealt;
+    telemetry.weaveDamage = (telemetry.weaveDamage || 0) + (combat.weaveDamage || 0);
   };
 
   let safety = MAX_COMBAT_TURNS;
@@ -4074,14 +4098,15 @@ function runCombat(state, enemyId, telemetry) {
       }
     }
 
-    // v2.96: Weave debt resolution (wit/jnsq) — fires at the END of the player
-    // turn. Stacks were applied by a Hollow-Weaver-style 'weave' intent on the
-    // PREVIOUS enemy turn. If the player did not cast this turn, all stacks
-    // discharge as composure damage; either way the counter clears (a cast
-    // interrupts the weave). Mirrors App.jsx ~8791. Handler resolves weave
-    // immediately on the intent, so it never accrues stacks here.
+    // Weave debt resolution (wit/jnsq) — fires at the END of the player turn.
+    // Stacks were applied by a Hollow-Weaver-style 'weave' intent on the
+    // PREVIOUS enemy turn. Lane-agnostic rule (Alan, 2026-06-02): the weave
+    // fires unless the player dealt damage to the enemy this turn. For
+    // wit/jnsq a resolved cast is the damage source, so castsThisTurn > 0 is
+    // the proxy here (the AI only casts to hurt the enemy). The Handler runs
+    // its own combat path with a damage-delta check. Mirrors App.jsx endTurn.
     state.castedThisTurn = castsThisTurn > 0;
-    if (state.lane !== 'handler' && (state.weaveStacks || 0) > 0) {
+    if ((state.weaveStacks || 0) > 0) {
       if (!state.castedThisTurn) {
         const dmg = state.weaveStacks;
         state.composure = Math.max(0, state.composure - dmg);
@@ -4209,15 +4234,9 @@ function runCombat(state, enemyId, telemetry) {
       } else if (intent.kind === 'vulnerable') {
         applyDebuffSim('vulnerable', intent.value || 1);
       } else if (intent.kind === 'weave') {
-        // wit/jnsq: accrue stacks that fire at end of NEXT player turn if they
-        // don't cast. Handler resolves immediately (Stage B owns handler).
-        if (state.lane === 'handler') {
-          const dmg = intent.value || 1;
-          state.composure = Math.max(0, state.composure - dmg);
-          telemetry.weaveDamage = (telemetry.weaveDamage || 0) + dmg;
-        } else {
-          state.weaveStacks = (state.weaveStacks || 0) + (intent.value || 1);
-        }
+        // Accrue stacks that fire at end of the next player turn unless the
+        // player dealt damage. (Handler runs its own combat path.)
+        state.weaveStacks = (state.weaveStacks || 0) + (intent.value || 1);
       } else if (intent.kind === 'discard-hand' && !state.loomStole) {
         // Loom Familiar — remove N cards from hand (prefer non-spell pieces),
         // exile them. Mirrors App.jsx. HARD CAP: one steal per combat — the

@@ -76,13 +76,14 @@ export const ENEMIES = [
   // ===== ACT 1 — The Thread Path (the countryside) =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
-    // v2.96: signature mechanic = Weave debt. Each "weave" intent stacks
-    // +N on the player; ending a turn without casting fires ALL stacks as
-    // composure damage and clears. Forces "cast something every turn" —
-    // chip-cast skipping gets punished hard. Standard attacks alternate
-    // with weave intents so the player must defend AND keep the pressure on.
+    // v2.96 / 2026-06-02: signature mechanic = Weave debt. Each "weave" intent
+    // stacks +N on the player. The debt fires at the end of your NEXT turn as
+    // composure damage UNLESS you dealt damage to the Weaver that turn — then
+    // it clears harmlessly. Lane-agnostic: wit clears it with a cast, the
+    // Handler with an animal attack. Forces "keep hurting it every turn."
+    // Standard attacks alternate with weave so you must defend AND press.
     behaviors: [
-      { kind: 'weave', value: 2, weight: 3, telegraph: '🪡 Weave +2 (fires as 🎭 if you don\'t cast)' },
+      { kind: 'weave', value: 2, weight: 3, telegraph: '🪡 Weave +2 — fires as 🎭 next turn unless you damage it' },
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
       { kind: 'attack', value: 4, pool: 'composure', weight: 1, telegraph: '🎭 4 (half-thought)' },

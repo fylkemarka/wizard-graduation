@@ -3773,6 +3773,19 @@ export default function App() {
   // the `tray` closure — can read the CURRENT board synchronously. null for
   // non-handler lanes (no animals to maul).
   const boardForMaulRef = useRef(null);
+  // Hollow Weaver (Alan, 2026-06-02): true once the player has dealt ANY
+  // damage to the enemy this turn — a wit cast that hits OR a Handler animal
+  // attack. Read at end-of-turn to decide whether the Weave fires. Tracked in
+  // a ref (not state) so casts and the synchronous end-of-turn animal tick
+  // both register before the weave check reads it in the same endTurn.
+  const damagedEnemyThisTurnRef = useRef(false);
+  // Composure damage dealt by a Weave fire this endTurn. The fire runs BEFORE
+  // applyEnemyIntent in the same synchronous endTurn; applyEnemyIntent then
+  // rebuilds the player's composure absolutely from the stale closure value
+  // (`let wComp = composure`) and would clobber the fire's functional update.
+  // Stash the fire amount here so wComp can subtract it — keeping both writes
+  // consistent. Reset at turn start / combat start.
+  const weaveFireDamageRef = useRef(0);
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
@@ -5407,6 +5420,8 @@ export default function App() {
     setNotListeningCharges(0);
     // v2.96: Hollow Weaver weave debt — reset per combat.
     setWeaveStacks(0);
+    damagedEnemyThisTurnRef.current = false;
+    weaveFireDamageRef.current = 0;
     // v3.0: braceArmedDraw + riposteCharge live in pendingTriggers and
     // were cleared by the setPendingTriggers({}) above. Only the
     // non-trigger hpLossThisTurn accumulator needs an explicit reset.
@@ -8955,6 +8970,7 @@ export default function App() {
 
   // Composure damage: block absorbs first, then composure drops.
   function applyDamageToEnemyComposure(damage) {
+    if (damage > 0) damagedEnemyThisTurnRef.current = true;
     let remaining = damage;
     // Read from the synchronous mirrors, not the closure state, so repeated
     // calls in the same tick (animal loops, On Three!, thorns) accumulate.
@@ -8996,6 +9012,7 @@ export default function App() {
 
   // Physical damage: same block-then-pool flow, but pool is enemy HP.
   function applyDamageToEnemyHp(damage) {
+    if (damage > 0) damagedEnemyThisTurnRef.current = true;
     let remaining = damage;
     let newBlock = enemyBlockRef.current;
     let newHp = enemyHpRef.current;
@@ -9144,18 +9161,6 @@ export default function App() {
         setComposure(c => Math.max(0, c - cost));
         pushLog(`🧠 Pre-staging: -${cost} composure (focused on next turn, not on them).`);
       }
-      // v2.96: Hollow Weaver — Weave debt fires when you end a turn without
-      // casting. All stacks discharge as composure damage and the counter
-      // clears. Pre-staging cost above also applies — the debt is on top.
-      if (weaveStacks > 0) {
-        const dmg = weaveStacks;
-        setComposure(c => Math.max(0, c - dmg));
-        pushLog(`🪡 Weave fires: -${dmg} composure (you didn't cast — the thought finishes itself).`);
-        setWeaveStacks(0);
-      }
-    } else if (selectedCharacter?.lane !== 'handler' && weaveStacks > 0) {
-      // Cast happened — the weave is interrupted. Clear the stacks silently.
-      setWeaveStacks(0);
     }
 
     // 1. End-of-turn power triggers.
@@ -9916,6 +9921,28 @@ export default function App() {
       pushLog(`📝 Margin notes: -${annTurnEnd} comp.`);
     }
 
+    // Hollow Weaver — Weave debt resolves here, AFTER every player-side
+    // end-of-turn damage source (the Handler animal tick above, annotation
+    // ticks, casts during the turn). The rule is now lane-agnostic (Alan,
+    // 2026-06-02): if you dealt ANY damage to the enemy this turn the weave is
+    // interrupted and clears silently; if you didn't, all stacks fire as
+    // composure damage. Wit clears it by landing a cast; the Handler clears it
+    // by having an animal attack. The damagedEnemyThisTurnRef is reset below,
+    // once the new player turn's hand is drawn.
+    if (weaveStacks > 0) {
+      if (damagedEnemyThisTurnRef.current) {
+        setWeaveStacks(0);
+      } else {
+        const dmg = weaveStacks;
+        setComposure(c => Math.max(0, c - dmg));
+        // Folded into applyEnemyIntent's wComp below so its absolute
+        // setComposure(wComp) doesn't overwrite this fire on attack turns.
+        weaveFireDamageRef.current = dmg;
+        pushLog(`🪡 Weave fires: -${dmg} composure (you struck nothing this turn — the thought finishes itself).`);
+        setWeaveStacks(0);
+      }
+    }
+
     // v3.4.12 (Alan bug): DoT tick MOVED ABOVE the enemy intent. Previously
     // the enemy intent fired first, then DoT killed the enemy — but the
     // intent's side effects (e.g. Loom Familiar's steal-card modal) had
@@ -10272,6 +10299,10 @@ export default function App() {
     setEnergy(wEnergy);
     // v2.9: reset per-turn cast cap.
     setCastsThisTurn(0);
+    // Hollow Weaver — arm a fresh "did you strike this turn?" window for the
+    // new player turn. The weave check above already consumed last turn's.
+    damagedEnemyThisTurnRef.current = false;
+    weaveFireDamageRef.current = 0;
     // Handler feeding ledger — clear for next turn after starvation check ran.
     setLuresPlayedThisTurn([]);
     // Open Door Policy — the free-first-lure window refreshes next turn.
@@ -10656,7 +10687,7 @@ export default function App() {
       let wPoise = poise;
       let wHp = hp;
       let wTempHp = tempHp; // v3.4.67 — Ballooning Temp HP buffer; committed below.
-      let wComp = composure;
+      let wComp = Math.max(0, composure - weaveFireDamageRef.current);
       // v2.27: Hit Me Again — per-swing recoil + charge accrual. Each swing
       // first eats `charges` self-damage on the enemy (composure if hp:999
       // sentinel, else HP — physical pool first if HP is real). Then resolves
@@ -10903,22 +10934,14 @@ export default function App() {
         pushLog(`👹 ${e.name}: 🗑 ${intent.telegraph || 'discard'} — no cards to take.`);
       }
     } else if (intent.kind === 'weave') {
-      // v2.96: Hollow Weaver — stacks Weave on the player. End-of-turn
-      // check: if the player ended their turn WITHOUT casting, all Weave
-      // stacks fire as composure damage and clear. Forces "cast something
-      // every turn" pressure — chip-cast-skip strategies get punished.
-      // HANDLER (2026-05-31): handler doesn't cast, so the "did you cast?"
-      // check is meaningless. Resolve weave intents as immediate composure
-      // damage so the threat still lands but doesn't accumulate into
-      // unkillable debt.
-      if (selectedCharacter?.lane === 'handler') {
-        const dmg = intent.value || 1;
-        setComposure(c => Math.max(0, c - dmg));
-        pushLog(`👹 ${e.name}: 🪡 Weave fires now: -${dmg} composure.`);
-      } else {
-        setWeaveStacks(w => w + (intent.value || 1));
-        pushLog(`👹 ${e.name}: 🪡 Weave +${intent.value || 1} (total: ${weaveStacks + (intent.value || 1)}).`);
-      }
+      // Hollow Weaver — stacks Weave on the player. Lane-agnostic (Alan,
+      // 2026-06-02): the end-of-turn check (in endTurn) fires ALL stacks as
+      // composure damage unless the player dealt damage to the enemy that
+      // turn, then clears. Wit neutralizes it by landing a cast; the Handler
+      // by having an animal attack. Both lanes accumulate the same way — no
+      // immediate-fire special case anymore.
+      setWeaveStacks(w => w + (intent.value || 1));
+      pushLog(`👹 ${e.name}: 🪡 Weave +${intent.value || 1} (total: ${weaveStacks + (intent.value || 1)}). Strike the Weaver next turn or it fires.`);
     } else if (intent.kind === 'vulnerable') {
       // Enemy applies vulnerable to player → enemy hits harder.
       // v2.32: NOT LISTENING — first debuff (Weak/Vuln) per combat is ignored.
