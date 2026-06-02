@@ -50,3 +50,36 @@ test('an unblocked maul tears the strongest animal off the board without crashin
   // so the board going empty is the maul firing.
   await expect(page.getByText(/\/ turn|\(flops\)/)).toHaveCount(0);
 });
+
+// Timing regression (Alan, 2026-06-02): a maul that resolves on the SAME
+// end-turn tick that a staged lure transforms into an animal must NOT remove
+// that just-arrived animal. The player's rule: "whatever I have staged for my
+// next turn should not actually exist until my next turn begins." So a lure
+// arriving this tick isn't "out" yet and is maul-immune this swing.
+//
+// We force the maul as turn-1's intent via the ?forceMaul URL param (consumed
+// by enterFight's first roll), then stage a Birdseed on turn 1. Ending turn 1
+// fires the maul on the same tick the bird arrives — the bird must survive.
+test('a maul does not remove an animal that arrives on the same end-turn it resolves', async ({ page }) => {
+  await gotoLab(page, 'handler', { seed: 7, forceMaul: true });
+  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
+  await fightEnemy(page, 'Silk Wraith');
+
+  // Maul is already the displayed turn-1 intent (forced at page load).
+  await expect(page.getByText(/🦷/).first()).toBeVisible();
+
+  // Turn 1: stage the bird (arrives in 1 turn → on this very end-turn tick).
+  // Play NO block, so the maul fully leaks to HP and WOULD remove an animal
+  // if the just-arrived bird were wrongly considered "out".
+  const seed = handCardById(page, BIRDSEED).first();
+  if ((await seed.count()) > 0 && (await seed.getAttribute('data-playable')) === 'true') {
+    await seed.click();
+  }
+  await endTurn(page);
+  await expect(page.getByTestId('hand')).toBeVisible(); // no render crash
+
+  // The bird arrived AND the maul resolved on this same tick. Because it wasn't
+  // on the board during the player's turn, the maul must spare it — so the
+  // animal pill is present after the swing.
+  await expect(page.getByText(/\/ turn|\(flops\)/).first()).toBeVisible();
+});

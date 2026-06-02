@@ -1245,6 +1245,12 @@ function aiTurnHandler(state, combat) {
     break;
   }
 
+  // Maul (Alan, 2026-06-02): which slots held an animal DURING the player's
+  // turn, before the tick transforms staged lures. Only these are maul-
+  // eligible — a lure that becomes an animal on this tick isn't "out" until
+  // next turn. Mirrors App.jsx preTickAnimalSlots.
+  combat.maulEligibleSlots = new Set(['intro', 'subject', 'target']
+    .filter(s => combat.htray[s]?.kind === 'animal'));
   handlerEndOfTurnTick(state, combat);
   if (combat.tactic) combat.tacticTurns[combat.tactic] = (combat.tacticTurns[combat.tactic] || 0) + 1;
 
@@ -1300,8 +1306,10 @@ function handlerApplyIntent(state, combat, intent) {
     // board. Mirrors App.jsx maulStrongestAnimal. No exit payoff — killed.
     if (intent.maul && wHp < hpBefore) {
       const SLOT = ['intro', 'subject', 'target'];
+      const eligible = combat.maulEligibleSlots || new Set();
       let best = null, bestAtk = -1;
       for (const s of SLOT) {
+        if (!eligible.has(s)) continue;
         const slot = combat.htray[s];
         if (slot?.kind !== 'animal') continue;
         const a = ANIMALS[slot.animalId]; let atk = a?.attack || 0;

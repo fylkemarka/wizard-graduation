@@ -9203,6 +9203,11 @@ export default function App() {
       // Working copy of the tray — pre-pass mutates this before the main loop
       // iterates so the loop sees the post-cannibalism state.
       const workingTray = { intro: tray.intro, subject: tray.subject, target: tray.target };
+      // Maul (Alan, 2026-06-02): which slots held an animal DURING the player's
+      // turn, before this tick transforms any staged lures. Only these are
+      // maul-eligible — a lure that becomes an animal on this very end-turn
+      // tick (or a fresh adjacent-spawn) isn't "out" until next turn begins.
+      const preTickAnimalSlots = new Set(SLOT_ORDER.filter(s => tray[s]?.kind === 'animal'));
       const luresEaten = []; // lure cards sent to exiled (eaten, not cycled)
 
       // onExit helper — fires when an animal departs by natural duration
@@ -9879,8 +9884,14 @@ export default function App() {
       });
       // Maul: snapshot the post-tick board for applyEnemyIntent, which runs
       // later this endTurn before the tray setState has flushed to closure.
+      // Only slots that ALREADY held an animal during the player's turn are
+      // eligible — animals that just arrived on this tick (lure transforms,
+      // adjacent-spawns) aren't "out" until next turn and can't be mauled.
       boardForMaulRef.current = Object.fromEntries(
-        SLOT_ORDER.map(s => [s, nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s]]));
+        SLOT_ORDER.map(s => {
+          const v = nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s];
+          return [s, (v?.kind === 'animal' && preTickAnimalSlots.has(s)) ? v : null];
+        }));
       if (summonerKilledEnemy) {
         // Combat is over — this early return skips the end-of-turn refill
         // block that normally folds recycleToDiscard into stagedDiscard
