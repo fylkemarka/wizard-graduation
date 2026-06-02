@@ -221,13 +221,16 @@ const CARDS = [
     flavor: 'It starts with one. It is, by the third, a policy.' },
   // ---- THE GLUTTON — feeding stops being a tax and becomes the build.
   // Full Pockets keeps food in hand (playtest note #1); Gorge overfeeds.
-  { id: 'c-full-pockets', name: 'Full Pockets', cost: 1, type: 'power', rarity: 'common', lane: 'handler',
+  { id: 'c-full-pockets', name: 'Full Pockets', cost: 2, type: 'power', rarity: 'common', lane: 'handler',
     installPower: { id: 'fullPockets' },
     desc: 'Power. At the start of each turn, gain a Snack.',
     flavor: 'You are never not carrying something edible. It is, frankly, a condition.' },
-  { id: 'c-snack', name: 'Snack', cost: 0, type: 'skill', rarity: 'basic', lane: 'handler', token: true,
-    effects: { treatExtend: 1, exhaust: true },
-    desc: 'Pick an animal. It stays one more turn. Exhaust.',
+  // Snack is a token: it cycles like a normal card during combat (no exhaust,
+  // so it discards and can be redrawn), but `token: true` scrubs it at the
+  // next combat's deck reconstitution so it never persists into the run deck.
+  { id: 'c-snack', name: 'Snack', cost: 1, type: 'skill', rarity: 'basic', lane: 'handler', token: true,
+    effects: { treatExtend: 1 },
+    desc: 'Pick an animal. It stays one more turn.',
     flavor: 'Produced from a pocket. Warm, somehow. Best not to ask.' },
   { id: 'c-gorge', name: 'Gorge', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { gorge: true },

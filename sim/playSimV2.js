@@ -148,13 +148,13 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
   { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
-  { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 1, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
+  { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 2, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
   { id: 'c-last-supper',   name: 'Last Supper',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { sacrificeForValue: true } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
   { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
   { id: 'c-stampede',      name: 'Stampede',        cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
   { id: 'c-gorge',         name: 'Gorge',           cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
-  { id: 'c-snack',         name: 'Snack',           cost: 0, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1, exhaust: true } },
+  { id: 'c-snack',         name: 'Snack',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -1038,8 +1038,11 @@ function playHandlerCard(state, combat, idx) {
   if (card.type === 'lure') { stageHandlerLure(state, combat, card); return; }
   if (card.type === 'handler-skill') {
     applyHandlerSkill(state, combat, card);
-    if (card.token) { /* token: vanishes, never returns to a pile */ }
-    else if (card.effects?.exhaust) state.exiled.push(card);
+    // Disposition mirrors App.jsx: exhaust→exiled, else→discard, regardless
+    // of token. The Snack token cycles to discard so it can reshuffle/redraw
+    // within the combat; the combat-start token scrub purges it before the
+    // next fight so it never persists into the run deck.
+    if (card.effects?.exhaust) state.exiled.push(card);
     else state.discard.push(card);
     return;
   }
@@ -1159,8 +1162,8 @@ function aiTurnHandler(state, combat) {
       const dbl = liveAnimals().reduce((sum, sl) => sum + 2 * effAtk(sl), 0);
       if (dbl > 0 && dbl >= combat.enemyComposure - combat.enemyBlock) { playHandlerCard(state, combat, burstIdx); continue; }
     }
-    // Snack (token, free) — extend the lowest-duration animal when one exists.
-    const snackIdx = state.hand.findIndex(c => c.token && c.effects?.treatExtend);
+    // Snack (token, costs 1) — extend the lowest-duration animal when one exists.
+    const snackIdx = state.hand.findIndex(c => c.token && c.effects?.treatExtend && c.cost <= state.energy);
     if (snackIdx >= 0 && liveAnimals().length > 0) { playHandlerCard(state, combat, snackIdx); continue; }
     // Murmuration — worth it with 2+ birds in play.
     const birds = liveAnimals().filter(sl => ANIMALS[sl.animalId]?.feedKey === 'bird').length;

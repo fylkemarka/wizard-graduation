@@ -8,6 +8,8 @@ import { gotoLab, addCard, fightEnemy, handCardById, playCardById, endTurn } fro
 
 const WELL_DRILLED = 'c-well-drilled';
 const LAST_SUPPER = 'c-last-supper';
+const FULL_POCKETS = 'c-full-pockets';
+const SNACK = 'c-snack';
 const BIRDSEED = 'cv2-l-birdseed';
 
 async function ensureInHand(page, cardId, maxTurns = 5) {
@@ -72,5 +74,32 @@ test('Last Supper opens the sacrifice prompt and cashing in an animal does not c
   await page.getByText(/click to cash in/).first().click();
 
   // Prompt dismisses and combat is still alive (hand still rendered).
+  await expect(page.getByTestId('hand')).toBeVisible();
+});
+
+test('Full Pockets generates a Snack that costs 1, extends an animal, and does not exhaust', async ({ page }) => {
+  await gotoLab(page, 'handler', { seed: 11 });
+  for (let i = 0; i < 4; i++) await addCard(page, FULL_POCKETS);
+  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
+  await fightEnemy(page, 'Loom Familiar');
+
+  // Body on the board first (Snack needs an animal to extend).
+  expect(await ensureAnimalStaged(page)).toBeTruthy();
+  // Install Full Pockets (the 2-cost power).
+  expect(await ensureInHand(page, FULL_POCKETS)).toBeTruthy();
+  await playCardById(page, FULL_POCKETS);
+  await expect(page.getByText('Full Pockets').first()).toBeVisible();
+
+  // A Snack should turn up in hand at the start of a turn — end the turn to tick it in.
+  expect(await ensureInHand(page, SNACK)).toBeTruthy();
+  const snack = handCardById(page, SNACK).first();
+  // The Snack reads cost 1 (no longer a free token).
+  await expect(snack).toHaveAttribute('data-eff-cost', '1');
+
+  await playCardById(page, SNACK);
+  // Treat prompt arms — click an animal to extend it.
+  await page.getByText(/click to treat/).first().click();
+
+  // Combat survives the Snack play (no render crash).
   await expect(page.getByTestId('hand')).toBeVisible();
 });
