@@ -1510,6 +1510,17 @@ function handlerEndOfTurnTick(state, combat) {
     work.subject = { kind: 'occupied', occupiedBy: 'intro' };
     work.target = null;
     combat.combines++;
+    // COMBINE DETONATION (cycle 2): one-time burst the turn it forms. Mirrors App.jsx.
+    const onForm = ca?.onForm;
+    if (onForm) {
+      if (onForm.damage > 0) {
+        if (onForm.pool === 'composure') { handlerDealComposure(combat, onForm.damage); combat.menagerieComposure += onForm.damage; }
+        else handlerDealHp(combat, onForm.damage);
+        combat.totalDamageDealt += onForm.damage;
+      }
+      if (onForm.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * onForm.applyVulnerable);
+      if (onForm.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * onForm.applyWeak);
+    }
   }
   // PRE-PASS: tender-greens row bonus (×1.5 next attack + +3 block/turn, once).
   const entries = SLOT.map(s => work[s]);

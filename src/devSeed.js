@@ -41,6 +41,12 @@ export function installSeedFromUrl() {
     // maul behavior (consumed once in rollIntent), so the maul render path is
     // regression-testable without hunting a fragile RNG seed. No-op when absent.
     if (params.get('forceMaul') != null) window.__forceMaul = true;
+    // E2E hook: ?forceSpecies=field-mouse pins every random summon-pool pick to
+    // that species (when the pool offers it), so a three-of-a-kind combine and
+    // its on-form burst render path is regression-testable without fighting the
+    // random Tender Greens roll. Persists (not consumed). No-op when absent.
+    const forcedSpecies = params.get('forceSpecies');
+    if (forcedSpecies) window.__forceSpecies = forcedSpecies;
     const raw = params.get('seed');
     if (raw === null) return false;
     seed = Number(raw);

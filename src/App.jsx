@@ -9631,6 +9631,31 @@ export default function App() {
         };
         workingTray.subject = { kind: 'occupied', occupiedBy: 'intro' };
         workingTray.target = null;
+        // COMBINE DETONATION (cycle 2): assembling a three-of-a-kind is the
+        // Handler's burst valve — a one-time spike the turn it forms, on top
+        // of the combine's normal same-turn attack. Rewards narrowing lures
+        // hard enough to stack three of a species. Mirrored in sim.
+        const onForm = combineAnim?.onForm;
+        if (onForm) {
+          const bits = [];
+          if (onForm.damage > 0) {
+            if (onForm.pool === 'composure') {
+              const post = applyDamageToEnemyComposure(onForm.damage);
+              hTick.composureDealt += onForm.damage;
+              if (post <= 0) summonerKilledEnemy = true;
+              bits.push(`${onForm.damage} composure`);
+            } else {
+              const post = applyDamageToEnemyHp(onForm.damage);
+              hTick.hpDealt += onForm.damage;
+              if (post <= 0) summonerKilledEnemy = true;
+              bits.push(`${onForm.damage} HP`);
+            }
+          }
+          if (onForm.applyVulnerable > 0) { applyExpiringVuln(onForm.applyVulnerable); bits.push(`Vulnerable ${onForm.applyVulnerable}`); }
+          if (onForm.applyWeak > 0) { applyExpiringWeak(onForm.applyWeak); bits.push(`Weak ${onForm.applyWeak}`); }
+          hTick.attacks++;
+          pushLog(`💥 ${combineAnim.icon} ${combineAnim.name} forms with a burst — ${bits.join(', ')}.`);
+        }
       }
 
       // Pre-pass: TENDER GREENS ROW BONUS. If every slot holds an animal
@@ -10122,9 +10147,17 @@ export default function App() {
               const pool = slot.animalIds && slot.animalIds.length > 0
                 ? narrowedPool(slot.cardId, slot.animalIds)
                 : null;
-              resolvedAnimalId = pool && pool.length > 0
-                ? pool[Math.floor(Math.random() * pool.length)]
-                : slot.animalId;
+              // E2E hook: ?forceSpecies=field-mouse pins every random pool pick
+              // to that species (when the pool offers it), so a three-of-a-kind
+              // combine is deterministically reachable in Lab Mode.
+              const forcedSpecies = (typeof window !== 'undefined') ? window.__forceSpecies : null;
+              if (forcedSpecies && pool && pool.includes(forcedSpecies)) {
+                resolvedAnimalId = forcedSpecies;
+              } else {
+                resolvedAnimalId = pool && pool.length > 0
+                  ? pool[Math.floor(Math.random() * pool.length)]
+                  : slot.animalId;
+              }
             }
             // 3.5% elite-summon roll. If the chosen species has an elite
             // variant (mecha-mouse, bonzai-bunaroo, james-deer), there's a

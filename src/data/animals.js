@@ -218,9 +218,10 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 2,
     onAttackEffect: { applyVulnerable: 1 },
+    onForm: { damage: 14, pool: 'composure' },
     onExit: { healComp: 5 },
     flavor: 'They were, you realise, organising the whole time.',
-    desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 5 Composure on exit.',
+    desc: 'On forming: bursts for 14 composure. Then attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 5 Composure on exit.',
     // Combine payoff, not a summon you train — cannot be upgraded at an Inn
     // (Alan, 2026-06-01). The reward is forming it, not training it.
   },
@@ -232,9 +233,10 @@ export const ANIMALS = {
     duration: 2,
     onAttackEffect: { applyWeak: 1 },
     turnGrant: { poise: 5 },
+    onForm: { damage: 14, pool: 'composure', applyVulnerable: 2 },
     onExit: { healComp: 5 },
     flavor: 'It is many. It is one. It is, frankly, late.',
-    desc: 'Attacks for 8 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
+    desc: 'On forming: bursts for 14 composure and applies Vulnerable 2. Then attacks for 8 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
   },
   mccloven: {
     name: 'McCloven',
@@ -243,9 +245,10 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 2,
     turnGrant: { block: 5 },
+    onForm: { damage: 18, pool: 'composure' },
     onExit: { healHp: 5 },
     flavor: 'A great cloven thing has, by collective vote, decided.',
-    desc: 'Attacks for 10 composure each turn for 2 turns. Grants 5 Block per turn. Heals 5 HP on exit.',
+    desc: 'On forming: bursts for 18 composure. Then attacks for 10 composure each turn for 2 turns. Grants 5 Block per turn. Heals 5 HP on exit.',
   },
   bear: {
     name: 'Bear',
