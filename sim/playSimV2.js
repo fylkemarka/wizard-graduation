@@ -1344,20 +1344,16 @@ function handlerEndOfTurnTick(state, combat) {
       break;
     }
   }
-  // PRE-PASS: hawk strike (5% per field-mouse).
+  // PRE-PASS: raptor swoop (5% per field-mouse OR salmon; Hawk 65% / Owl 35%).
+  // Mirrors App.jsx. The eaten animal forfeits this turn (eatenThisTurn); the
+  // raptor takes the slot at full duration and acts next turn.
   for (const s of SLOT) {
     const slot = work[s];
-    if (!slot || slot.kind !== 'animal' || slot.animalId !== 'field-mouse') continue;
+    if (!slot || slot.kind !== 'animal') continue;
+    if (slot.animalId !== 'field-mouse' && slot.animalId !== 'salmon') continue;
     if (Math.random() >= 0.05) continue;
-    const h = makeAnimalSlot('hawk', 0, slot.summonSet); h.eatenThisTurn = true;
-    work[s] = h;
-  }
-  // PRE-PASS: hawk grabs fish (10% per salmon). Mirrors App.jsx.
-  for (const s of SLOT) {
-    const slot = work[s];
-    if (!slot || slot.kind !== 'animal' || slot.animalId !== 'salmon') continue;
-    if (Math.random() >= 0.10) continue;
-    const h = makeAnimalSlot('hawk', 0, slot.summonSet); h.eatenThisTurn = true;
+    const raptorId = Math.random() < 0.65 ? 'hawk' : 'owl';
+    const h = makeAnimalSlot(raptorId, 0, slot.summonSet); h.eatenThisTurn = true;
     work[s] = h;
   }
   // PRE-PASS: three-of-a-kind combine.
@@ -1386,20 +1382,23 @@ function handlerEndOfTurnTick(state, combat) {
     }
   }
 
-  // PRE-PASS: hawk eats adjacent prey (field-mouse/rabbit/salmon) to stay —
-  // consumes the prey, moves into its square, refreshes to full duration.
-  // Mirrors App.jsx. (Alan, 2026-06-01.)
+  // PRE-PASS: raptor eats adjacent prey on its EXIT turn (durationRemaining===1)
+  // to move into that square and stay one more turn — once only. Mirrors
+  // App.jsx (Alan, 2026-06-02).
   for (const slotName of SLOT) {
-    const hs = work[slotName];
-    if (!hs || hs.kind !== 'animal' || hs.animalId !== 'hawk') continue;
-    const prey = ANIMALS.hawk?.eatsAdjacent || [];
+    const rs = work[slotName];
+    if (!rs || rs.kind !== 'animal') continue;
+    const ra = ANIMALS[rs.animalId];
+    const prey = ra?.eatsAdjacent;
+    if (!prey || !prey.length) continue;
+    if (rs.durationRemaining !== 1 || rs.ateAdjacentOnce) continue;
     const hi = SLOT.indexOf(slotName);
     for (const ni of [hi - 1, hi + 1]) {
       if (ni < 0 || ni >= SLOT.length) continue;
       const ns = SLOT[ni];
       const nb = work[ns];
       if (nb && nb.kind === 'animal' && prey.includes(nb.animalId)) {
-        work[ns] = { ...work[slotName], durationRemaining: ANIMALS.hawk?.duration || 3 };
+        work[ns] = { ...rs, durationRemaining: 2, ateAdjacentOnce: true };
         work[slotName] = null;
         break;
       }
@@ -1422,6 +1421,17 @@ function handlerEndOfTurnTick(state, combat) {
         work[slotName] = { ...work[slotName], durationRemaining: (work[slotName].durationRemaining || 0) + 2 };
       }
     }
+  }
+
+  // PRE-PASS: Owl Vulnerable (Alan, 2026-06-02). A standing Owl applies its
+  // Vulnerable to the enemy before any animal attacks. Mirrors App.jsx. Skips
+  // an Owl still in its swoop-forfeit turn (eatenThisTurn).
+  for (const slotName of SLOT) {
+    const slot = work[slotName];
+    if (!slot || slot.kind !== 'animal' || slot.eatenThisTurn) continue;
+    const a = ANIMALS[slot.animalId];
+    if (!a?.prePassVulnerable) continue;
+    combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * a.prePassVulnerable);
   }
 
   // PRE-PASS: Raven Bird Theft (2026-06-02). On the turn a Raven is set to
@@ -1501,12 +1511,12 @@ function handlerEndOfTurnTick(state, combat) {
       // feed cycle — clear stale fed status so the animal must be fed again
       // before its next make-or-break. Preserved at nextDur===1 so the dur-2
       // feed still carries the last turn + exit bonus.
-      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
+      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, eatenThisTurn: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
       continue;
     }
     if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
     else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; noteExit(); clearHandlerSlot(next, slot, slotName); }
-    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, justCombined: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
+    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, eatenThisTurn: false, justCombined: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
   }
 
   // Birds of a Feather self-exhaust at three-of-a-kind.

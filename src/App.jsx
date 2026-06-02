@@ -9251,48 +9251,32 @@ export default function App() {
       // naturally because workingTray[s].kind === 'animal' check excludes
       // 'occupied' kind. Same for Hawk strike and row bonus below.
 
-      // Pre-pass: HAWK STRIKE. Each turn there is a 5% chance per Field
-      // Mouse on the board that a Hawk swoops in and replaces it. The
-      // Field Mouse forfeits its turn (no attack, no draw). The Hawk takes
-      // over the slot with a fresh duration; it acts normally next turn.
+      // Pre-pass: RAPTOR SWOOP (Alan, 2026-06-02). Each turn there is a 5%
+      // chance per Field Mouse OR Salmon on the board that a raptor swoops in
+      // and eats it. The raptor is a Hawk (65%) or an Owl (35%). The eaten
+      // animal forfeits this turn (no attack/draw); the raptor takes the slot
+      // with full duration and acts normally next turn (eatenThisTurn).
+      const swoopRaptor = (slotName, slot, verb) => {
+        const raptorId = Math.random() < 0.65 ? 'hawk' : 'owl';
+        const raptor = getAnimal(raptorId);
+        const preyName = getAnimal(slot.animalId)?.name || slot.animalId;
+        pushLog(`${raptor?.icon || '🦅'} A ${raptor?.name || 'raptor'} swoops in and ${verb} the ${preyName} — its turn is forfeited.`);
+        workingTray[slotName] = {
+          kind: 'animal',
+          animalId: raptorId,
+          durationRemaining: raptor?.duration || 3,
+          predatorProgress: 0,
+          adjacentSpawnProgress: 0,
+          summonSet: slot.summonSet || null,
+          eatenThisTurn: true, // raptor took the action this turn — wait until next.
+        };
+      };
       for (const slotName of SLOT_ORDER) {
         const slot = workingTray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
-        if (slot.animalId !== 'field-mouse') continue;
+        if (slot.animalId !== 'field-mouse' && slot.animalId !== 'salmon') continue;
         if (Math.random() >= 0.05) continue;
-        const hawk = getAnimal('hawk');
-        pushLog(`🦅 A Hawk swoops in and snatches the Field Mouse — its turn is forfeited.`);
-        workingTray[slotName] = {
-          kind: 'animal',
-          animalId: 'hawk',
-          durationRemaining: hawk?.duration || 3,
-          predatorProgress: 0,
-          adjacentSpawnProgress: 0,
-          summonSet: slot.summonSet || null,
-          eatenThisTurn: true, // Hawk took the action this turn — wait until next.
-        };
-      }
-
-      // Pre-pass: HAWK GRABS FISH. Same as the Field Mouse mechanic but at a
-      // higher 10% chance per Salmon on the board — a Hawk swoops in and grabs
-      // the fish before it can flop into anything. The Salmon is gone; the Hawk
-      // takes the slot with fresh duration and acts next turn. (Alan, 2026-06-01.)
-      for (const slotName of SLOT_ORDER) {
-        const slot = workingTray[slotName];
-        if (!slot || slot.kind !== 'animal') continue;
-        if (slot.animalId !== 'salmon') continue;
-        if (Math.random() >= 0.10) continue;
-        const hawk = getAnimal('hawk');
-        pushLog(`🦅 A Hawk swoops in and grabs the Salmon — gone in an instant.`);
-        workingTray[slotName] = {
-          kind: 'animal',
-          animalId: 'hawk',
-          durationRemaining: hawk?.duration || 3,
-          predatorProgress: 0,
-          adjacentSpawnProgress: 0,
-          summonSet: slot.summonSet || null,
-          eatenThisTurn: true,
-        };
+        swoopRaptor(slotName, slot, slot.animalId === 'salmon' ? 'grabs' : 'snatches');
       }
 
       // Pre-pass: THREE-OF-A-KIND COMBINES. When all 3 slots hold the same
@@ -9356,15 +9340,18 @@ export default function App() {
         }
       }
 
-      // Pre-pass: HAWK EATS ADJACENT PREY (Alan, 2026-06-01). A hawk isn't
-      // lured or fed by seed — to make it STAY, stage a Field Mouse, Rabbit, or
-      // Salmon next to it. The hawk eats one adjacent prey, MOVES into that
-      // square, and refreshes to full duration. Its original slot empties.
+      // Pre-pass: RAPTOR EATS ADJACENT PREY (Alan, 2026-06-02). On its EXIT
+      // turn (durationRemaining === 1) a Hawk or Owl can eat ONE adjacent prey
+      // (Field Mouse / Rabbit / Salmon), MOVE into that square, and stay one
+      // more turn — once only (ateAdjacentOnce). It cannot be fed again after.
       // Runs after combines so a full mouse-row still merges first.
       for (const slotName of SLOT_ORDER) {
-        const hawkSlot = workingTray[slotName];
-        if (!hawkSlot || hawkSlot.kind !== 'animal' || hawkSlot.animalId !== 'hawk') continue;
-        const prey = getAnimal('hawk')?.eatsAdjacent || [];
+        const raptorSlot = workingTray[slotName];
+        if (!raptorSlot || raptorSlot.kind !== 'animal') continue;
+        const raptor = getAnimal(raptorSlot.animalId);
+        const prey = raptor?.eatsAdjacent;
+        if (!prey || !prey.length) continue;
+        if (raptorSlot.durationRemaining !== 1 || raptorSlot.ateAdjacentOnce) continue;
         const hi = SLOT_ORDER.indexOf(slotName);
         for (const ni of [hi - 1, hi + 1]) {
           if (ni < 0 || ni >= SLOT_ORDER.length) continue;
@@ -9373,12 +9360,13 @@ export default function App() {
           if (neighbor && neighbor.kind === 'animal' && prey.includes(neighbor.animalId)) {
             const preyName = getAnimal(neighbor.animalId)?.name || neighbor.animalId;
             workingTray[ns] = {
-              ...workingTray[slotName],
-              durationRemaining: getAnimal('hawk')?.duration || 3,
+              ...raptorSlot,
+              durationRemaining: 2, // attacks this turn + one more, then exits
+              ateAdjacentOnce: true,
             };
             workingTray[slotName] = null;
-            pushLog(`🦅 The Hawk takes the adjacent ${preyName} and moves into its place — it stays.`);
-            break; // one prey per hawk per turn
+            pushLog(`${raptor.icon} The ${raptor.name} takes the adjacent ${preyName} and moves into its place — it stays one more turn.`);
+            break; // one prey per raptor per turn
           }
         }
       }
@@ -9407,6 +9395,19 @@ export default function App() {
             pushLog(`🐻 The Bear eats the adjacent Salmon — it settles in for +2 turns.`);
           }
         }
+      }
+
+      // Pre-pass: OWL VULNERABLE (Alan, 2026-06-02). A standing Owl applies its
+      // Vulnerable to the enemy BEFORE any animal attacks, so the whole
+      // menagerie's hits land into the debuff this same turn. Skips an Owl
+      // still in its swoop-forfeit turn (eatenThisTurn) — not settled in yet.
+      for (const slotName of SLOT_ORDER) {
+        const slot = workingTray[slotName];
+        if (!slot || slot.kind !== 'animal' || slot.eatenThisTurn) continue;
+        const animal = getAnimal(slot.animalId);
+        if (!animal?.prePassVulnerable) continue;
+        applyExpiringVuln(animal.prePassVulnerable);
+        pushLog(`${animal.icon} ${animal.name} unsettles the enemy — Vulnerable ${animal.prePassVulnerable} (before the swarm).`);
       }
 
       // Pre-pass: RAVEN BIRD THEFT (2026-06-02). On the turn a Raven is set to

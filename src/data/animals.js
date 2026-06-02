@@ -141,15 +141,15 @@ export const ANIMALS = {
     attack: 4,
     attackPool: 'composure',
     duration: 3,
-    // No feedKey: a hawk is not lured or fed by Birdseed. To make it STAY,
-    // stage a Field Mouse, Rabbit, or Salmon next to it — the hawk eats the
-    // adjacent prey, moves into its square, and refreshes its stay (handled in
-    // the end-of-turn pre-pass). (Alan, 2026-06-01.)
+    // No feedKey: a hawk is not lured or fed by Birdseed. It arrives uninvited
+    // by swooping on a staged Field Mouse, Rabbit, or Salmon (hawk/owl swoop
+    // pre-pass). On its EXIT turn it can eat ONE adjacent prey to move into
+    // that square and stay one more turn — once only, it cannot be fed again.
+    // (Alan, 2026-06-02. Cannot be upgraded.)
     eatsAdjacent: ['field-mouse', 'rabbit', 'salmon'],
     onExit: { applyWeak: 1, weakTurns: 1 },
     flavor: 'Arrived suddenly. The field mouse, presumably, is no longer a topic.',
-    desc: 'Attacks for 4 composure each turn for 3 turns. Eats an adjacent Field Mouse, Rabbit, or Salmon to stay. Applies Weak 1 to the enemy on exit.',
-    upgrade: { attack: 6, onExit: { applyWeak: 2, weakTurns: 1 } },
+    desc: 'Attacks for 4 composure each turn. On its exit turn, eats one adjacent Field Mouse, Rabbit, or Salmon to stay one more turn (once). Applies Weak 1 to the enemy on exit.',
   },
   goose: {
     name: 'Goose',
@@ -188,11 +188,15 @@ export const ANIMALS = {
     attack: 3,
     attackPool: 'composure',
     duration: 3,
-    feedKey: 'bird',
-    onAttackEffect: { applyVulnerable: 1 },
+    // Same arrival/feeding as the Hawk: no feedKey, arrives by swoop, and on
+    // its exit turn eats one adjacent prey to stay one more turn (once). Its
+    // Vulnerable is applied in a PRE-PASS before any animal attacks, so the
+    // whole menagerie's hits land into the debuff the same turn. (Alan,
+    // 2026-06-02. Cannot be upgraded.)
+    eatsAdjacent: ['field-mouse', 'rabbit', 'salmon'],
+    prePassVulnerable: 1,
     flavor: 'It asks the obvious question. The enemy has no good answer.',
-    desc: 'Attacks for 3 composure and applies Vulnerable 1 each turn for 3 turns.',
-    upgrade: { attack: 5, onAttackEffect: { applyVulnerable: 1 } },
+    desc: 'Attacks for 3 composure each turn. Applies Vulnerable 1 to the enemy before your animals attack. On its exit turn, eats one adjacent prey to stay one more turn (once).',
   },
   // Mouse House — formed when all three slots hold Field Mice. The mice
   // combine into one Mouse House in the center slot (subject); the
