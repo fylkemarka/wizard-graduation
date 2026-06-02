@@ -1476,13 +1476,14 @@ function handlerEndOfTurnTick(state, combat) {
       break;
     }
   }
-  // PRE-PASS: raptor swoop (5% per field-mouse OR salmon; Hawk 65% / Owl 35%).
-  // Mirrors App.jsx. The eaten animal forfeits this turn (eatenThisTurn); the
-  // raptor takes the slot at full duration and acts next turn.
+  // PRE-PASS: raptor swoop (5% per field-mouse; Hawk 65% / Owl 35%). Mirrors
+  // App.jsx. The eaten animal forfeits this turn (eatenThisTurn); the raptor
+  // takes the slot at full duration and acts next turn. Salmon is no longer
+  // eligible — it attracts predators via its own predatorRoll (Alan, 2026-06-02).
   for (const s of SLOT) {
     const slot = work[s];
     if (!slot || slot.kind !== 'animal') continue;
-    if (slot.animalId !== 'field-mouse' && slot.animalId !== 'salmon') continue;
+    if (slot.animalId !== 'field-mouse') continue;
     if (Math.random() >= 0.05) continue;
     const raptorId = Math.random() < 0.65 ? 'hawk' : 'owl';
     const h = makeAnimalSlot(raptorId, 0, slot.summonSet); h.eatenThisTurn = true;
@@ -1533,24 +1534,6 @@ function handlerEndOfTurnTick(state, combat) {
         work[ns] = { ...rs, durationRemaining: 2, ateAdjacentOnce: true };
         work[slotName] = null;
         break;
-      }
-    }
-  }
-
-  // PRE-PASS: bear eats adjacent salmon (+2 turns, consumes salmon). Mirrors
-  // App.jsx (Alan, 2026-06-01). A standing bear eats any salmon staged next to
-  // it; supersedes the territorial "salmon waits" outcome for adjacent salmon.
-  for (const slotName of SLOT) {
-    const bs = work[slotName];
-    if (!bs || bs.kind !== 'animal' || bs.animalId !== 'bear') continue;
-    const bi = SLOT.indexOf(slotName);
-    for (const ni of [bi - 1, bi + 1]) {
-      if (ni < 0 || ni >= SLOT.length) continue;
-      const ns = SLOT[ni];
-      const nb = work[ns];
-      if (nb && nb.kind === 'animal' && nb.animalId === 'salmon') {
-        work[ns] = null;
-        work[slotName] = { ...work[slotName], durationRemaining: (work[slotName].durationRemaining || 0) + 2 };
       }
     }
   }
@@ -1650,6 +1633,23 @@ function handlerEndOfTurnTick(state, combat) {
     // feeding. An unfed animal never summons its predator — it just slips
     // away on its short-stay turn. TERRITORIAL: the chain target only spawns
     // if no animal of that species is already on the projected board.
+    // Predator ROLL (Salmon, 2026-06-02): probabilistic no-feed gamble.
+    // Mirrors App.jsx — each tick rolls predatorRoll.chance to transform in
+    // place into a weighted pick from the table (uniform within ids).
+    if (animal.predatorRoll && rnd() < animal.predatorRoll.chance) {
+      const table = animal.predatorRoll.table || [];
+      const totalW = table.reduce((s, e) => s + (e.weight || 0), 0);
+      let r = rnd() * totalW;
+      let chosen = table[0];
+      for (const e of table) { if ((r -= (e.weight || 0)) < 0) { chosen = e; break; } }
+      const ids = (chosen && chosen.ids) || [];
+      if (ids.length > 0) {
+        const rollTargetId = ids[Math.floor(rnd() * ids.length)];
+        next[slotName] = makeAnimalSlot(rollTargetId, 0, slot.summonSet);
+        combat.summons++;
+        continue;
+      }
+    }
     const chainReady = animal.predatorChain && !isUnfed(slot, animal) && nextPred >= animal.predatorChain.turnsToTrigger;
     const chainTargetId = animal.predatorChain && animal.predatorChain.animalId;
     // TERRITORIAL CAP: up to 2 of the chain species (bears) at once. Mirrors App.jsx.

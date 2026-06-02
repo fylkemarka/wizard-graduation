@@ -27,20 +27,24 @@ export const ANIMALS = {
   salmon: {
     name: 'Salmon',
     icon: '🐟',
-    // No attack, no defense — the salmon flops. Its job is to wait. The
-    // predator chain (see hidden field below) is the payoff for patience;
-    // surfaced ONLY when the bear actually arrives, not on the card or
-    // the slot pill. Discovery is the design.
+    // No attack, no defense — the salmon flops. Its job is to be bait. Each
+    // turn it's on the board it rolls predatorRoll.chance to attract a
+    // predator and transform in place (weighted: usually a bird, sometimes a
+    // bear). Two turns on the board = two rolls. If neither hits, it just
+    // departs — no feeding, no exit bonus. A maybe/maybe-not gamble (Alan,
+    // 2026-06-02), replacing the old deterministic feed-gated Salmon→Bear.
     attack: 0,
     attackPool: 'composure',
-    duration: 3,
-    feedKey: 'fish',
-    predatorChain: { animalId: 'bear', turnsToTrigger: 2 },
-    hidePredatorChain: true,
-    flavor: 'Flops with surprising authority.',
-    desc: 'Flops. Does nothing. Waits.',
-    // T2 upgrade: bear arrives one turn faster.
-    upgrade: { predatorChain: { animalId: 'bear', turnsToTrigger: 1 } },
+    duration: 2,
+    predatorRoll: {
+      chance: 0.5,
+      table: [
+        { weight: 65, ids: ['hawk', 'owl'] },
+        { weight: 35, ids: ['bear'] },
+      ],
+    },
+    flavor: 'Flops with surprising authority. Something is always watching.',
+    desc: 'Flops for 2 turns. Each turn, 50% chance to attract a predator — usually a bird, sometimes a bear. If nothing comes, it just leaves.',
   },
   'rabid-scrubjay': {
     name: 'Rabid Scrubjay',

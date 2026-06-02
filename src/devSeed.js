@@ -29,6 +29,14 @@ export function installSeedFromUrl() {
     // testable without hunting a fragile RNG seed. No-op when absent.
     const forced = params.get('forceSwoop');
     if (forced === 'owl' || forced === 'hawk') window.__forceSwoop = forced;
+    // E2E hook: ?forceSalmonRoll=owl|hawk|bear makes a Salmon's next predator
+    // roll succeed deterministically with that species (consumed once), so the
+    // Salmon→predator gamble + owl pre-attack-Vulnerable render path is
+    // regression-testable without fighting the 50% roll. No-op when absent.
+    const forcedSalmon = params.get('forceSalmonRoll');
+    if (forcedSalmon === 'owl' || forcedSalmon === 'hawk' || forcedSalmon === 'bear') {
+      window.__forceSalmonRoll = forcedSalmon;
+    }
     // E2E hook: ?forceMaul makes the next enemy intent roll pick that enemy's
     // maul behavior (consumed once in rollIntent), so the maul render path is
     // regression-testable without hunting a fragile RNG seed. No-op when absent.

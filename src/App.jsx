@@ -4310,7 +4310,7 @@ export default function App() {
       deck: ['wv2-i-actually', 'wv2-s-your-conclusion', 'wv2-t-thats-not-it', 'c-acuity'],
     },
     handler: {
-      hand: ['cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens', 'c-pack-tactics', 'c-defend-handler'],
+      hand: ['cv2-l-birdseed', 'cv2-l-tender-greens', 'cv2-l-tender-greens', 'c-pack-tactics', 'c-defend-handler'],
       deck: ['c-defend-handler', 'c-compose'],
     },
     jnsq: {
@@ -9558,10 +9558,12 @@ export default function App() {
       // 'occupied' kind. Same for Hawk strike and row bonus below.
 
       // Pre-pass: RAPTOR SWOOP (Alan, 2026-06-02). Each turn there is a 5%
-      // chance per Field Mouse OR Salmon on the board that a raptor swoops in
-      // and eats it. The raptor is a Hawk (65%) or an Owl (35%). The eaten
-      // animal forfeits this turn (no attack/draw); the raptor takes the slot
-      // with full duration and acts normally next turn (eatenThisTurn).
+      // chance per Field Mouse on the board that a raptor swoops in and eats
+      // it. The raptor is a Hawk (65%) or an Owl (35%). The eaten animal
+      // forfeits this turn (no attack/draw); the raptor takes the slot with
+      // full duration and acts normally next turn (eatenThisTurn). Salmon is
+      // no longer eligible — it now attracts predators via its own
+      // predatorRoll gamble (Alan, 2026-06-02).
       const swoopRaptor = (slotName, slot, verb, forcedId) => {
         const raptorId = forcedId || (Math.random() < 0.65 ? 'hawk' : 'owl');
         const raptor = getAnimal(raptorId);
@@ -9580,18 +9582,18 @@ export default function App() {
       for (const slotName of SLOT_ORDER) {
         const slot = workingTray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
-        if (slot.animalId !== 'field-mouse' && slot.animalId !== 'salmon') continue;
+        if (slot.animalId !== 'field-mouse') continue;
         // E2E hook: ?forceSwoop=owl|hawk forces the first eligible prey to be
         // swooped (once per combat), bypassing the 5% roll. window.__forceSwoop
         // is only ever set by devSeed from the URL, so normal play is untouched.
         const forced = (typeof window !== 'undefined') ? window.__forceSwoop : null;
         if (forced === 'owl' || forced === 'hawk') {
           window.__forceSwoop = null;
-          swoopRaptor(slotName, slot, slot.animalId === 'salmon' ? 'grabs' : 'snatches', forced);
+          swoopRaptor(slotName, slot, 'snatches', forced);
           continue;
         }
         if (Math.random() >= 0.05) continue;
-        swoopRaptor(slotName, slot, slot.animalId === 'salmon' ? 'grabs' : 'snatches');
+        swoopRaptor(slotName, slot, 'snatches');
       }
 
       // Pre-pass: THREE-OF-A-KIND COMBINES. When all 3 slots hold the same
@@ -9682,32 +9684,6 @@ export default function App() {
             workingTray[slotName] = null;
             pushLog(`${raptor.icon} The ${raptor.name} takes the adjacent ${preyName} and moves into its place — it stays one more turn.`);
             break; // one prey per raptor per turn
-          }
-        }
-      }
-
-      // Pre-pass: BEAR EATS ADJACENT SALMON (Alan, 2026-06-01). A bear that
-      // already holds the board eats any Salmon staged next to it — the
-      // salmon is consumed and the bear's stay extends by +2 turns. This
-      // (not Fish Food, the lure) is how a player keeps a bear alive, and it
-      // gives an unfed salmon a purpose. Supersedes the old "territorial:
-      // extra salmon just waits" outcome for ADJACENT salmon; a non-adjacent
-      // salmon with a bear present still waits in its own chain branch below.
-      for (const slotName of SLOT_ORDER) {
-        const bearSlot = workingTray[slotName];
-        if (!bearSlot || bearSlot.kind !== 'animal' || bearSlot.animalId !== 'bear') continue;
-        const bi = SLOT_ORDER.indexOf(slotName);
-        for (const ni of [bi - 1, bi + 1]) {
-          if (ni < 0 || ni >= SLOT_ORDER.length) continue;
-          const ns = SLOT_ORDER[ni];
-          const neighbor = workingTray[ns];
-          if (neighbor && neighbor.kind === 'animal' && neighbor.animalId === 'salmon') {
-            workingTray[ns] = null;
-            workingTray[slotName] = {
-              ...workingTray[slotName],
-              durationRemaining: (workingTray[slotName].durationRemaining || 0) + 2,
-            };
-            pushLog(`🐻 The Bear eats the adjacent Salmon — it settles in for +2 turns.`);
           }
         }
       }
@@ -9956,7 +9932,42 @@ export default function App() {
           if (chainReady && chainTargetCapped) {
             pushLog(`${animal.icon} The ${animal.name} waits — the range already holds ${chainTargetCount} ${getAnimal(chainTargetId)?.name || chainTargetId}${chainTargetCount === 1 ? '' : 's'}.`);
           }
-          if (chainReady && !chainTargetCapped) {
+          // Predator ROLL (Salmon, 2026-06-02): a probabilistic, no-feed
+          // gamble. Each tick the salmon is on the board it rolls
+          // predatorRoll.chance to attract a predator; on a hit it transforms
+          // IN PLACE into a weighted pick from predatorRoll.table (uniform
+          // within the chosen ids). A salmon that never hits just departs with
+          // no bonus — the high-risk version of the old Salmon→Bear chain.
+          let rollTargetId = null;
+          if (animal.predatorRoll) {
+            // E2E hook: ?forceSalmonRoll forces the next roll to succeed with a
+            // specific species (consumed once). Normal play is untouched.
+            const forcedRoll = (typeof window !== 'undefined') ? window.__forceSalmonRoll : null;
+            if (forcedRoll) {
+              window.__forceSalmonRoll = null;
+              rollTargetId = forcedRoll;
+            } else if (Math.random() < animal.predatorRoll.chance) {
+              const table = animal.predatorRoll.table || [];
+              const totalW = table.reduce((s, e) => s + (e.weight || 0), 0);
+              let r = Math.random() * totalW;
+              let chosen = table[0];
+              for (const e of table) { if ((r -= (e.weight || 0)) < 0) { chosen = e; break; } }
+              const ids = chosen?.ids || [];
+              if (ids.length > 0) rollTargetId = ids[Math.floor(Math.random() * ids.length)];
+            }
+          }
+          if (rollTargetId) {
+            const newAnimal = getAnimal(rollTargetId);
+            pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} draws a ${newAnimal?.name || rollTargetId}!`);
+            nextSlots[slotName] = {
+              kind: 'animal',
+              animalId: rollTargetId,
+              durationRemaining: newAnimal?.duration || 3,
+              predatorProgress: 0,
+              adjacentSpawnProgress: 0,
+              summonSet: slot.summonSet || null,
+            };
+          } else if (chainReady && !chainTargetCapped) {
             const newAnimalId = chainTargetId;
             const newAnimal = getAnimal(newAnimalId);
             pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} attracts a ${newAnimal?.name || newAnimalId}!`);
@@ -11576,7 +11587,11 @@ export default function App() {
     // pool; player picks one (or skips). Standalone lure-pool flavor that
     // doesn't bias against drafting interplay cards in normal rewards.
     if (lane === 'handler' && isEliteOrBoss) {
-      const lurePool = HANDLER_V2_BY_SLOT.lure || [];
+      // Fish Food is a high-risk gamble reserved for ELITE rewards — never
+      // offered after a boss (Alan, 2026-06-02). Only one copy is granted,
+      // which the pick-one-of-three flow already enforces.
+      const lurePool = (HANDLER_V2_BY_SLOT.lure || []).filter(c =>
+        c.id !== 'cv2-l-fish-food' || enemy.tier === 'elite');
       const lureChoices = shuffle([...lurePool]).slice(0, 3).map(c => ({ ...c }));
       logEvent('combat.reward_offer', {
         playerLane: lane,

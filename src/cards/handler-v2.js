@@ -33,10 +33,10 @@ const STARTER_CARDS = [];
 // =============================================================================
 const LURE_CARDS = [
   { id: 'cv2-l-fish-food', name: 'Fish Food', cost: 1, type: 'lure', slot: 'lure',
-    lane: LANE, rarity: 'basic', tier: 1, feedKey: 'fish',
+    lane: LANE, rarity: 'uncommon', tier: 2,
     summon: { animalId: 'salmon', turnsToArrive: 1 },
-    desc: 'Stage. A Salmon arrives next turn. Feeds: fish.',
-    flavor: 'Smells of yesterday. The salmon, apparently, has no objections.' },
+    desc: 'Stage. A Salmon arrives next turn and flops for 2 turns. Each turn, 50% chance to attract a predator — usually a bird, sometimes a bear. High risk.',
+    flavor: 'Smells of yesterday. Something downstream has already noticed.' },
   { id: 'cv2-l-birdseed', name: 'Birdseed', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'basic', tier: 1, feedKey: 'bird',
     summon: { animalIds: ['rabid-scrubjay', 'goose', 'raven'], turnsToArrive: 1 },

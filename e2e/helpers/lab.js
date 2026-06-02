@@ -12,11 +12,12 @@ const CHARACTER_NAME = { wit: 'The Scholar', handler: 'The Handler' };
 // PRNG (see src/devSeed.js) so shuffles/draws/enemy-intent play out identically.
 // Pass { forceSwoop: 'owl' | 'hawk' } to deterministically fire the next
 // eligible raptor swoop (consumed once) — see src/devSeed.js / the swoop pre-pass.
-export async function gotoLab(page, lane, { seed, forceSwoop, forceMaul } = {}) {
+export async function gotoLab(page, lane, { seed, forceSwoop, forceMaul, forceSalmonRoll } = {}) {
   const params = new URLSearchParams();
   if (seed != null) params.set('seed', String(seed));
   if (forceSwoop) params.set('forceSwoop', forceSwoop);
   if (forceMaul) params.set('forceMaul', '1');
+  if (forceSalmonRoll) params.set('forceSalmonRoll', forceSalmonRoll);
   const qs = params.toString();
   await page.goto(qs ? `/?${qs}` : '/');
   // Boots to the title menu. "Begin the Path" (or "Begin a New Path…" when a
