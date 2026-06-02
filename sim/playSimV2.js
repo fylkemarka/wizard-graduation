@@ -901,11 +901,13 @@ function applyHandlerUtil(state, combat, card) {
   const SLOT = ['intro', 'subject', 'target'];
   if (card.util === 'buffet') { combat.buffetArmed = true; return; }
   if (card.util === 'onThree') {
+    // Arm an extra attack on every animal — resolves on the animals' turn
+    // (end-of-turn loop), not at play time. Mirrors App.jsx packTactics.
     for (const s of SLOT) {
       const slot = combat.htray[s];
       if (slot?.kind !== 'animal') continue;
       const a = ANIMALS[slot.animalId];
-      if (a && a.attack > 0) handlerAnimalAttack(state, combat, slot, a, 1);
+      if (a && a.attack > 0) slot.extraAttacks = (slot.extraAttacks || 0) + 1;
     }
     return;
   }
@@ -949,11 +951,12 @@ function applyHandlerSkill(state, combat, card) {
     const dmg = fx.compDmgPerBird * birds;
     if (dmg > 0) { handlerDealComposure(combat, dmg); combat.totalDamageDealt += dmg; }
   }
-  // Stampede — every small-land animal attacks again this turn.
+  // Stampede — arm an extra attack on every small-land animal; resolves on
+  // the animals' turn (end-of-turn loop). Mirrors App.jsx smallLandAttackAgain.
   if (fx.smallLandAttackAgain) {
     for (const { slot } of animals()) {
       const a = ANIMALS[slot.animalId];
-      if (a?.feedKey === 'small-land' && a.attack > 0) handlerAnimalAttack(state, combat, slot, a, 1);
+      if (a?.feedKey === 'small-land' && a.attack > 0) slot.extraAttacks = (slot.extraAttacks || 0) + 1;
     }
   }
   // Last Supper — cash in one animal: energy = max(1, remaining-1), draw 1.
@@ -1466,7 +1469,16 @@ function handlerEndOfTurnTick(state, combat) {
     }
     const animal = ANIMALS[slot.animalId];
     if (!animal) { next[slotName] = null; continue; }
-    if (!slot.eatenThisTurn && animal.attack > 0) handlerAnimalAttack(state, combat, slot, animal, 1);
+    if (!slot.eatenThisTurn && animal.attack > 0) {
+      handlerAnimalAttack(state, combat, slot, animal, 1);
+      // Deferred re-attacks armed this turn by On Three! / Stampede. The
+      // one-shot nextAttackMult was spent by the natural swing above, so the
+      // extra attacks use base attack (baseMult 1). Gated behind eatenThisTurn
+      // like the natural swing. Mirrors App.jsx end-of-turn extraAttacks loop.
+      for (let e = 0; e < (slot.extraAttacks || 0); e++) {
+        handlerAnimalAttack(state, combat, slot, animal, 1);
+      }
+    }
     const grant = animal.turnGrant || slot.turnGrantTemp;
     if (grant) { if (grant.block > 0) { state.block += grant.block; combat.menagerieBlock += grant.block; } if (grant.poise > 0) state.poise += grant.poise; }
 
@@ -1511,12 +1523,12 @@ function handlerEndOfTurnTick(state, combat) {
       // feed cycle — clear stale fed status so the animal must be fed again
       // before its next make-or-break. Preserved at nextDur===1 so the dur-2
       // feed still carries the last turn + exit bonus.
-      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, eatenThisTurn: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
+      else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, extraAttacks: 0, eatenThisTurn: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
       continue;
     }
     if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
     else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; noteExit(); clearHandlerSlot(next, slot, slotName); }
-    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, eatenThisTurn: false, justCombined: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
+    else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, extraAttacks: 0, eatenThisTurn: false, justCombined: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
   }
 
   // Birds of a Feather self-exhaust at three-of-a-kind.

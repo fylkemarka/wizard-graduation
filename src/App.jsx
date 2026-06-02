@@ -223,7 +223,7 @@ const CARDS = [
   // Full Pockets keeps food in hand (playtest note #1); Gorge overfeeds.
   { id: 'c-full-pockets', name: 'Full Pockets', cost: 2, type: 'power', rarity: 'common', lane: 'handler',
     installPower: { id: 'fullPockets' },
-    desc: 'Power. At the start of each turn, gain a Snack.',
+    desc: 'Power. At the start of each turn, add a Snack to your hand.',
     flavor: 'You are never not carrying something edible. It is, frankly, a condition.' },
   // Snack is a token: it cycles like a normal card during combat (no exhaust,
   // so it discards and can be redrawn), but `token: true` scrubs it at the
@@ -7770,30 +7770,24 @@ export default function App() {
         logBits.push(`🐦 Murmuration — no birds in play.`);
       }
     }
-    // Stampede — every small-land animal attacks again this turn. Pack-Tactics
-    // semantics, narrowed to feedKey 'small-land'. Draws are accumulated and
-    // drawn once after the loop to avoid the drawCards stale-closure clobber.
+    // Stampede — arm an extra attack on every small-land animal. Like On
+    // Three!, the damage lands on the animals' turn (end-of-turn loop), not
+    // at play time (Alan, 2026-06-01), narrowed to feedKey 'small-land'.
     if (fx.smallLandAttackAgain) {
-      const slotMultUpdates = {};
+      const updates = {};
       let count = 0;
-      let drawTotal = 0;
       for (const slotName of ['intro', 'subject', 'target']) {
         const slot = tray[slotName];
-        if (!slot || slot.kind !== 'animal' || slot.eatenThisTurn) continue;
+        if (!slot || slot.kind !== 'animal') continue;
         const animal = getAnimal(slot.animalId);
         if (!animal || animal.feedKey !== 'small-land' || (animal.attack || 0) <= 0) continue;
-        const atkMult = slot.nextAttackMult || 1;
-        const atk = Math.round(animalAttackValue(animal, slot) * atkMult);
-        if (atkMult > 1) slotMultUpdates[slotName] = { ...slot, nextAttackMult: 1 };
-        if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
-        else                                   applyDamageToEnemyHp(atk);
-        if (animal.onAttack?.draw) drawTotal += animal.onAttack.draw;
-        pushLog(`${animal.icon} ${animal.name} stampedes: ${atk} composure again.`);
+        updates[slotName] = { ...slot, extraAttacks: (slot.extraAttacks || 0) + 1 };
         count++;
       }
-      if (Object.keys(slotMultUpdates).length > 0) setTray(p => syncTrayLegacy({ ...p, ...slotMultUpdates }));
-      if (drawTotal > 0) drawCards(drawTotal);
-      logBits.push(count > 0 ? `🦌 Stampede ×${count}` : `🦌 Stampede — no small-land animals.`);
+      if (count > 0) setTray(p => syncTrayLegacy({ ...p, ...updates }));
+      logBits.push(count > 0
+        ? `🦌 Stampede — ${count} small-land ${count === 1 ? 'animal' : 'animals'} primed for an extra attack this turn.`
+        : `🦌 Stampede — no small-land animals.`);
     }
     // Make It Count — every animal attacks for double, then leaves play.
     if (fx.sacrificeAllForBurst) {
@@ -7881,47 +7875,28 @@ export default function App() {
         logBits.push(`🐟 Tap the Glass — the tank is empty. Nothing stirs.`);
       }
     }
-    // Pack Tactics — instant. Every animal currently in play attacks again
-    // this turn. Salmon (0 attack) does nothing; animals that already ate
-    // this turn (eatenThisTurn) are skipped since they were busy.
+    // On Three! — arm an extra attack on every animal in play. The damage
+    // lands on the animals' turn (end-of-turn attack loop), NOT at play time
+    // (Alan, 2026-06-01) — so the re-attack reads the same board state the
+    // natural swing does and all the menagerie's damage arrives together.
+    // Salmon (0 attack) is skipped. eatenThisTurn isn't checked here: at
+    // play time it's always false, and the end-of-turn loop gates the extra
+    // attacks behind it anyway (an animal that eats this turn won't swing).
     if (fx.packTactics) {
-      const tacticId = tray.tactic?.tactic?.id;
-      const isShield = tacticId === 'shield';
-      const isRabid  = tacticId === 'rabid';
-      // Consume nextAttackMult on the SLOT (Tender Greens row bonus etc.)
-      // so the On Three! re-attack honors it — the natural end-of-turn
-      // attack then resets to 1×. Collect mutations and apply via setTray
-      // after the loop so we don't trip the React pure-updater rule.
-      const slotMultUpdates = {};
+      const updates = {};
+      let count = 0;
       for (const slotName of ['intro', 'subject', 'target']) {
         const slot = tray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
-        if (slot.eatenThisTurn) continue;
         const animal = getAnimal(slot.animalId);
         if (!animal || (animal.attack || 0) <= 0) continue;
-        const atkMult = slot.nextAttackMult || 1;
-        let atk = Math.round(animalAttackValue(animal, slot) * atkMult);
-        if (atkMult > 1) slotMultUpdates[slotName] = { ...slot, nextAttackMult: 1 };
-        if (isRabid) atk = Math.round(atk * 1.5);
-        if (isShield) {
-          setBlock(b => b + atk);
-          setPoise(p => p + atk);
-          pushLog(`${animal.icon} ${animal.name} braces again: +${atk} Block & Poise (Pack Tactics).`);
-        } else {
-          if (animal.attackPool === 'composure') applyDamageToEnemyComposure(atk);
-          else                                    applyDamageToEnemyHp(atk);
-          if (isRabid) {
-            const recoil = Math.max(1, Math.round(atk * 0.2));
-            setComposure(c => Math.max(0, c - recoil));
-            pushLog(`💢 Rabid recoil: -${recoil} composure.`);
-          }
-          pushLog(`${animal.icon} ${animal.name} attacks again: ${atk} composure (Pack Tactics${isRabid ? ' · Rabid' : ''}).`);
-        }
-        if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
+        updates[slotName] = { ...slot, extraAttacks: (slot.extraAttacks || 0) + 1 };
+        count++;
       }
-      if (Object.keys(slotMultUpdates).length > 0) {
-        setTray(p => syncTrayLegacy({ ...p, ...slotMultUpdates }));
-      }
+      if (count > 0) setTray(p => syncTrayLegacy({ ...p, ...updates }));
+      logBits.push(count > 0
+        ? `🐾 On Three! — ${count} ${count === 1 ? 'animal' : 'animals'} primed for an extra attack this turn.`
+        : `🐾 On Three! — no animals to rally.`);
     }
     // consumeLoudnessAsDamage (Punchline-style payoff) removed 2026-05-31
     // with the chutzpah → handler pivot. Loudness mechanic ripped entirely.
@@ -9256,8 +9231,8 @@ export default function App() {
       // and eats it. The raptor is a Hawk (65%) or an Owl (35%). The eaten
       // animal forfeits this turn (no attack/draw); the raptor takes the slot
       // with full duration and acts normally next turn (eatenThisTurn).
-      const swoopRaptor = (slotName, slot, verb) => {
-        const raptorId = Math.random() < 0.65 ? 'hawk' : 'owl';
+      const swoopRaptor = (slotName, slot, verb, forcedId) => {
+        const raptorId = forcedId || (Math.random() < 0.65 ? 'hawk' : 'owl');
         const raptor = getAnimal(raptorId);
         const preyName = getAnimal(slot.animalId)?.name || slot.animalId;
         pushLog(`${raptor?.icon || '🦅'} A ${raptor?.name || 'raptor'} swoops in and ${verb} the ${preyName} — its turn is forfeited.`);
@@ -9275,6 +9250,15 @@ export default function App() {
         const slot = workingTray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
         if (slot.animalId !== 'field-mouse' && slot.animalId !== 'salmon') continue;
+        // E2E hook: ?forceSwoop=owl|hawk forces the first eligible prey to be
+        // swooped (once per combat), bypassing the 5% roll. window.__forceSwoop
+        // is only ever set by devSeed from the URL, so normal play is untouched.
+        const forced = (typeof window !== 'undefined') ? window.__forceSwoop : null;
+        if (forced === 'owl' || forced === 'hawk') {
+          window.__forceSwoop = null;
+          swoopRaptor(slotName, slot, slot.animalId === 'salmon' ? 'grabs' : 'snatches', forced);
+          continue;
+        }
         if (Math.random() >= 0.05) continue;
         swoopRaptor(slotName, slot, slot.animalId === 'salmon' ? 'grabs' : 'snatches');
       }
@@ -9511,6 +9495,39 @@ export default function App() {
               applyExpiringWeak(animal.onAttackEffect.applyWeak);
               pushLog(`${animal.icon} ${animal.name} blurs the enemy's swing — Weak ${animal.onAttackEffect.applyWeak}.`);
             }
+            // Deferred re-attacks armed by On Three! / Stampede this turn.
+            // They resolve here on the animals' turn (not at play time) using
+            // the animal's base attack — the one-shot nextAttackMult was spent
+            // by the natural swing above. Tactic modifiers (Rabid/Shield) still
+            // apply since the same tactic is in the tray.
+            const extraAttacks = slot.extraAttacks || 0;
+            for (let e = 0; e < extraAttacks; e++) {
+              let xatk = Math.round(animalAttackValue(animal, slot));
+              if (isRabid) xatk = Math.round(xatk * 1.5);
+              hTick.attacks++;
+              if (isShield) {
+                setBlock(b => b + xatk);
+                setPoise(p => p + xatk);
+                hTick.blockGained += xatk;
+                pushLog(`${animal.icon} ${animal.name} braces again: +${xatk} Block & Poise (Pack Tactics).`);
+              } else if (animal.attackPool === 'composure') {
+                const post = applyDamageToEnemyComposure(xatk);
+                hTick.composureDealt += xatk;
+                if (post <= 0) summonerKilledEnemy = true;
+                pushLog(`${animal.icon} ${animal.name} attacks again: ${xatk} composure (Pack Tactics${isRabid ? ' · Rabid' : ''}).`);
+              } else {
+                const post = applyDamageToEnemyHp(xatk);
+                hTick.hpDealt += xatk;
+                if (post <= 0) summonerKilledEnemy = true;
+                pushLog(`${animal.icon} ${animal.name} attacks again: ${xatk} HP (Pack Tactics${isRabid ? ' · Rabid' : ''}).`);
+              }
+              if (!isShield && isRabid) {
+                const recoil = Math.max(1, Math.round(xatk * 0.2));
+                setComposure(c => Math.max(0, c - recoil));
+                pushLog(`💢 Rabid recoil: -${recoil} composure.`);
+              }
+              if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
+            }
           }
           // Per-turn passive grants (Long Hare / McCloven / Tender Greens row
           // bonus). Fires every turn the animal is on board, regardless of
@@ -9649,6 +9666,7 @@ export default function App() {
                 // clear stale fed status (see normal-tick branch below).
                 feedReceived: nextDuration >= 2 ? false : slot.feedReceived,
                 nextAttackMult: 1,
+                extraAttacks: 0,
               };
             }
           } else if (nextDuration <= 0) {
@@ -9696,6 +9714,7 @@ export default function App() {
               // last turn AND the exit bonus.
               feedReceived: nextDuration >= 2 ? false : slot.feedReceived,
               nextAttackMult: 1,
+              extraAttacks: 0,
               justCombined: false,
             };
           }

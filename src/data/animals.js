@@ -217,7 +217,8 @@ export const ANIMALS = {
     onExit: { healComp: 5 },
     flavor: 'They were, you realise, organising the whole time.',
     desc: 'Attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 5 Composure on exit.',
-    upgrade: { attack: 10, duration: 3, onExit: { healComp: 7 } },
+    // Combine payoff, not a summon you train — cannot be upgraded at an Inn
+    // (Alan, 2026-06-01). The reward is forming it, not training it.
   },
   'long-hare': {
     name: 'The Long Hare',

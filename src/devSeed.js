@@ -24,6 +24,11 @@ export function installSeedFromUrl() {
   let seed;
   try {
     const params = new URLSearchParams(window.location.search);
+    // E2E hook: ?forceSwoop=owl|hawk makes the next eligible raptor swoop
+    // fire deterministically (consumed once), so the swoop UI is regression-
+    // testable without hunting a fragile RNG seed. No-op when absent.
+    const forced = params.get('forceSwoop');
+    if (forced === 'owl' || forced === 'hawk') window.__forceSwoop = forced;
     const raw = params.get('seed');
     if (raw === null) return false;
     seed = Number(raw);
