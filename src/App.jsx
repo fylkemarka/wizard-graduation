@@ -277,8 +277,8 @@ const CARDS = [
   // Don't Hold Back / Go For The Throat / Corner Them — heal the chip
   // damage your own deck inflicts, then go big on the next handler cast.
   { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
-    effects: { heal: 5, boostNextHandlerCast: 0.5, exhaust: true },
-    upgrade: { effects: { heal: 8, boostNextHandlerCast: 0.5, exhaust: true } },
+    effects: { hp: 5, boostNextHandlerCast: 0.5, exhaust: true },
+    upgrade: { effects: { hp: 8, boostNextHandlerCast: 0.5, exhaust: true } },
     desc: 'Heal 5 HP. Your next Handler Effect this turn deals +50% damage. Exhaust.',
     flavor: 'You\'ve digested worse. You\'ll digest this.' },
   // v2.97: defensive variants (universal). Three options that each force a
