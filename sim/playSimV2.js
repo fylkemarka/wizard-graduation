@@ -834,7 +834,10 @@ function tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombi
       return (isBoss ? compPct > 0.25 : compPct > 0.4) ? 6 + animals + (isBoss ? 2 : 0) : 0;
     case 'nurture': return haveLure ? (isBoss ? 10 : 7) : 0;
     case 'youth':   return haveLure ? 5 : 1;
-    case 'feather': return animals === 1 ? (canCombine && isBoss ? 9 : isBoss ? 7 : 4) : 0;
+    // Feather is the combine ENABLER: with exactly 1 combine-eligible animal,
+    // it forces matching summons toward a three-of-a-kind, which now detonates
+    // (cycle 2). Card-neutral since cycle 3. Value the combine-setup path high.
+    case 'feather': return animals === 1 ? (canCombine ? (isBoss ? 12 : 9) : (isBoss ? 7 : 4)) : 0;
     case 'shield':  return 0;
     default:        return 0;
   }
@@ -1102,6 +1105,8 @@ function playHandlerCard(state, combat, idx) {
     combat.tactic = card.tactic.id;
     combat.tacticsEngaged[card.tactic.id] = (combat.tacticsEngaged[card.tactic.id] || 0) + 1;
     if (card.tactic.id === 'youth') combat.youthUses = 3;
+    // Feather draws 1 on play (cycle 3) — card-neutral combine setup. Mirrors App.jsx.
+    if (card.tactic.id === 'feather') drawCards(state, 1);
     state.discard.push(card);
     return;
   }

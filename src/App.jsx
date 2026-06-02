@@ -179,7 +179,7 @@ const CARDS = [
     flavor: 'They were peckish anyway. Apparently.' },
   { id: 'c-tactic-feather', name: 'Birds of a Feather', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'feather', requiresExactlyOneAnimal: true },
-    desc: 'Tactic: requires exactly one animal in play. Any new animal summoned matches the existing species. Self-exhausts when three of the same animal are on the field.',
+    desc: 'Draw 1. Tactic: requires exactly one animal in play. Any new animal summoned matches the existing species. Self-exhausts when three of the same animal are on the field.',
     flavor: "A field full of one thing. They've been doing this for some time." },
 
   // ====================================================================
@@ -5850,6 +5850,9 @@ export default function App() {
       } else {
         pushLog(`📜 Tactic engaged: ${card.name}.`);
       }
+      // Feather is the combine-setup tactic: drawing 1 makes it card-neutral
+      // and digs for the matching lures you need to stack a three-of-a-kind.
+      if (card.tactic.id === 'feather') { drawCards(1); pushLog(`🪶 Birds of a Feather — draw 1.`); }
       return;
     }
 
