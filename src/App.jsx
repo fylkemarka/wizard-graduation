@@ -522,11 +522,11 @@ const RELICS = [
     desc: 'Every 5th Effect you cast deals +5 damage.',
     flavor: 'Watches everything. Pretends it isn\'t.' },
   // v3.4.55 (Alan) — wit-flavored DoT relics.
-  { id: 'r-the-footnote', name: 'The Footnote', rarity: 'uncommon',
+  { id: 'r-the-footnote', name: 'The Footnote', rarity: 'uncommon', lane: 'wit',
     effect: { fftDotDamagePlus: 1 },
     desc: '+1 damage to every tick of every offensive DoT applied by a FFT.',
     flavor: 'Footnotes accumulate. Eventually they outweigh the body.' },
-  { id: 'r-cited-source', name: 'Cited Source', rarity: 'uncommon',
+  { id: 'r-cited-source', name: 'Cited Source', rarity: 'uncommon', lane: 'wit',
     effect: { fftDefensiveDotPlus: 1 },
     desc: '+1 to every tick of every defensive DoT (block / Thorns aura) applied by a FFT.',
     flavor: 'Citation is, in a sense, armour. Or perhaps a brick wall.' },
@@ -551,7 +551,7 @@ const RELICS = [
     effect: { onAcquire: { upgradeRandomCards: 2 } },
     desc: 'On acquire: upgrade 2 random cards in your deck.',
     flavor: 'A small bell, ringing twice. The room feels different.' },
-  { id: 'r-thesis-statement', name: 'Thesis Statement', rarity: 'rare',
+  { id: 'r-thesis-statement', name: 'Thesis Statement', rarity: 'rare', lane: 'wit',
     effect: { onAcquire: { upgradeRandomFFTRow: true } },
     desc: 'On acquire: upgrade 1 random FFT row you own (all 3 cards).',
     flavor: 'One sentence. Three citations. The room is yours.' },
@@ -3091,8 +3091,11 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   return pool[0];
 }
 
-function pickRelicByRarity(rarityWeights = { common: 3, uncommon: 2, rare: 1 }, excludeIds = []) {
-  const pool = RELICS.filter(r => rarityWeights[r.rarity] && !excludeIds.includes(r.id));
+function pickRelicByRarity(rarityWeights = { common: 3, uncommon: 2, rare: 1 }, excludeIds = [], lane = null) {
+  // Lane-gated relics (e.g. FFT-only relics) never appear for other lanes —
+  // their effect would be inert. A relic with no `lane` is universal.
+  const pool = RELICS.filter(r => rarityWeights[r.rarity] && !excludeIds.includes(r.id)
+    && (!r.lane || r.lane === lane));
   if (pool.length === 0) return null;
   const total = pool.reduce((s, r) => s + rarityWeights[r.rarity], 0);
   let r = Math.random() * total;
@@ -11487,7 +11490,7 @@ export default function App() {
       const gathered = inventory[slot] || [];
       const materials = gathered.length > 0 ? gathered : [salvageMaterial(slot)];
       // Plus a random Rare relic from the boss chest. Skip duplicates.
-      const rareRelic = pickRelicByRarity({ rare: 1 }, relics.map(r => r.id));
+      const rareRelic = pickRelicByRarity({ rare: 1 }, relics.map(r => r.id), selectedCharacter?.lane || null);
       if (rareRelic) {
         setRelics(prev => [...prev, rareRelic]);
         pushLog(`📿 Boss relic claimed: ${rareRelic.name}.`);
@@ -11546,7 +11549,7 @@ export default function App() {
     }
     // Elite kill → grant a random common/uncommon relic (no choice for MVP).
     if (enemy.tier === 'elite') {
-      const r = pickRelicByRarity({ common: 2, uncommon: 3 }, relics.map(x => x.id));
+      const r = pickRelicByRarity({ common: 2, uncommon: 3 }, relics.map(x => x.id), selectedCharacter?.lane || null);
       if (r) {
         setRelics(prev => [...prev, r]);
         pushLog(`📿 Elite spoils: ${r.name}.`);
