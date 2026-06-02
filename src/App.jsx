@@ -155,8 +155,8 @@ const CARDS = [
   // possible creatures, and the narrowing resets every combat. (Alan,
   // 2026-06-02 — deck-paths convergence; pairs with ADJACENCY_COMBOS.)
   { id: 'c-narrow', name: 'Acquired Taste', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { narrowLure: true },
-    desc: 'Pick a lure and one creature it summons; that lure stops summoning that creature for the rest of combat. (A lure never narrows below 2 creatures.)',
+    effects: { narrowLure: true, exhaust: true },
+    desc: 'Pick a lure and one creature it summons; that lure stops summoning that creature for the rest of combat. (A lure never narrows below 2 creatures.) Exhaust.',
     flavor: 'You explain, at length, what they will and will not be eating. They develop opinions.' },
   // ---- TACTICS — persistent cards that bend the animal-summoner engine.
   // A Tactic occupies the modifier slot of the spell tray (relabelled as

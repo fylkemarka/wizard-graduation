@@ -155,7 +155,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-stampede',      name: 'Stampede',        cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
   { id: 'c-gorge',         name: 'Gorge',           cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
   { id: 'c-snack',         name: 'Treat',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
-  { id: 'c-narrow',        name: 'Acquired Taste',  cost: 1, type: 'handler-skill', rarity: 'common', effects: { narrowLure: true } },
+  { id: 'c-narrow',        name: 'Acquired Taste',  cost: 1, type: 'handler-skill', rarity: 'common', effects: { narrowLure: true, exhaust: true } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));

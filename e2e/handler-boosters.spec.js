@@ -15,6 +15,7 @@ const ON_THREE = 'c-pack-tactics';
 const HOUSE_RULES = 'c-house-rules';
 const NARROW = 'c-narrow';
 const TENDER_GREENS = 'cv2-l-tender-greens';
+const IRON_STOMACH = 'c-iron-stomach';
 
 async function ensureInHand(page, cardId, maxTurns = 5) {
   for (let i = 0; i < maxTurns; i++) {
@@ -211,5 +212,27 @@ test('Acquired Taste opens the narrow chooser and excluding a species does not c
   // Click a species button to drop it from the pool; the chooser closes.
   await page.getByRole('button', { name: /Young Buck/ }).first().click();
   await expect(page.getByText(/Acquired Taste:/)).toHaveCount(0);
+  await expect(page.getByTestId('hand')).toBeVisible();
+
+  // Acquired Taste EXHAUSTS on use — it must not land in the discard pile.
+  // (Tender Greens stay in hand; nothing else cycles, so a discard count of
+  // 0 proves the card went to exile, not discard.)
+  await expect(page.getByTestId('discard-pile-btn')).toContainText('Discard 0');
+  expect(await handCardById(page, NARROW).count()).toBe(0);
+});
+
+test('Iron Stomach exhausts on play (lands in exile, not discard) and arms the next-cast boost', async ({ page }) => {
+  // Deck of only Iron Stomach: nothing else cycles, so discard staying at 0
+  // proves the skill exhausted to exile rather than going to discard.
+  await gotoLab(page, 'handler', { seed: 11 });
+  for (let i = 0; i < 6; i++) await addCard(page, IRON_STOMACH);
+  await fightEnemy(page, 'Loom Familiar');
+
+  expect(await ensureInHand(page, IRON_STOMACH)).toBeTruthy();
+  await playCardById(page, IRON_STOMACH);
+
+  // The played copy is gone from hand and did NOT go to discard — it exhausted.
+  expect(await handCardById(page, IRON_STOMACH).count()).toBeLessThan(6);
+  await expect(page.getByTestId('discard-pile-btn')).toContainText('Discard 0');
   await expect(page.getByTestId('hand')).toBeVisible();
 });
