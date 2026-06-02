@@ -403,7 +403,7 @@ const CARDS = [
   // — the "stacks" text on the card is meaningful again, but the
   // payoff curve is smoother. A single play is +15% (was +25%), so
   // a 2-Amplify burst is +30% (was +50%, too strong per playtest).
-  { id: 'c-sap', name: 'Sap', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-sap', name: 'Sap', cost: 2, type: 'skill', rarity: 'common',
     effects: { enemyDmgMod: -0.15 },
     upgrade: { effects: { enemyDmgMod: -0.15, draw: 1 } },
     desc: 'Reduce enemy attack damage by 15% (stacks; caps at −50%).',
@@ -3461,6 +3461,9 @@ export default function App() {
   // many times it does anything; the escalating cost stops you from cheaply
   // spamming it to reach the cap.
   const [amplifyPlaysThisCombat, setAmplifyPlaysThisCombat] = useState(0);
+  // Sap escalates the same way as Amplify: each play this combat adds +1 to
+  // its energy cost, so you can't cheaply spam toward the −50% floor.
+  const [sapPlaysThisCombat, setSapPlaysThisCombat] = useState(0);
   // v2.9: hard cap on spell casts per turn. Was previously unbounded —
   // a 3-energy turn could comfortably stage+cast twice. Caps player
   // tempo so elites and bosses can actually pressure across multiple
@@ -5344,6 +5347,7 @@ export default function App() {
     // Reset per-combat counters and player debuffs.
     setTray(initialV2Tray());
     setAmplifyPlaysThisCombat(0);
+    setSapPlaysThisCombat(0);
     setCastsThisTurn(0);
     setCastsThisCombat(0);
     setRollOptIn(false);
@@ -5602,6 +5606,7 @@ export default function App() {
   // unchanged; Amplify escalates by +1 for every prior play this combat.
   function effectiveCardCost(card) {
     if (card?.id === 'c-amplify') return (card.cost || 0) + amplifyPlaysThisCombat;
+    if (card?.id === 'c-sap') return (card.cost || 0) + sapPlaysThisCombat;
     let c = card?.cost || 0;
     // v3.4.59 — slot-cost-reduction powers.
     const hasPower = (id) => powers.some(p => p.installPower?.id === id);
@@ -5685,6 +5690,7 @@ export default function App() {
       });
     }
     if (card.id === 'c-amplify') setAmplifyPlaysThisCombat(n => n + 1);
+    if (card.id === 'c-sap') setSapPlaysThisCombat(n => n + 1);
     logEvent(TE.CARD_PLAY, { cardId: card.id, cardName: card.name, type: card.type, cost, energyBefore: energy, handSize: hand.length, enemyId: enemy?.id });
     const logBits = [card.name];
 

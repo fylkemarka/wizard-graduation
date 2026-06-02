@@ -792,7 +792,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           const isActuallySkill = !!card.effects?.refireLastCast;
           const actuallyBlocked = isActuallySkill && !lastCastSnapshot;
           const playable = !footnotePromptActive && effCost <= energy && !actuallyBlocked;
-          const escalated = card.id === 'c-amplify' && amplifyPlaysThisCombat > 0;
+          // Escalating-cost cards (Amplify / Sap) read as cost > base.
+          const escalated = effCost > rawCost;
           // v2.38: Misstep token override — bright red dashed border so it
           // stands out as an active hazard in hand. Pratchett tone: the
           // realisation that you said something wrong is visible on you.
@@ -814,7 +815,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                : 'bg-gold-500 text-ink-800')
             : 'bg-ink-500 text-parchment-300';
           const costTooltip = escalated
-            ? `Amplify costs +${amplifyPlaysThisCombat} this combat (base ${card.cost}).`
+            ? `${card.name} costs +${effCost - rawCost} this combat (base ${rawCost}).`
             : discounted
               ? `Discounted to ${effCost} (base ${rawCost}).`
               : undefined;
