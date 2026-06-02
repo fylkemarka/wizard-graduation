@@ -97,8 +97,11 @@ export const ENEMIES = [
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
       // Maul (Alan, 2026-06-02): silk-snare. Block it ALL or it drags your
-      // strongest animal off into the web. ~22% of rolls.
-      { kind: 'attack', maul: true, value: 7, weight: 2, telegraph: '🦷 7 — silk-snare (unblocked → lose your strongest animal)' },
+      // strongest animal off into the web.
+      // v3.4.69 (1000-run cycle 1): weight 2→1. A maul on a NORMAL act-1
+      // enemy at ~22%/turn was a board-wipe coinflip that hard-counters the
+      // handler's whole accumulation loop. ~14% keeps the threat, not the tax.
+      { kind: 'attack', maul: true, value: 7, weight: 1, telegraph: '🦷 7 — silk-snare (unblocked → lose your strongest animal)' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
@@ -167,12 +170,18 @@ export const ENEMIES = [
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
+      // v3.4.69 (1000-run cycle 1): burst value 4→3 (post-scale ceiling
+      // 5×4=20 → 4×4=16) so a single Block + Step Back can answer the multi
+      // instead of eating 15+ raw. The Walker's spike was its true killer.
+      { kind: 'attack-multi', value: 3, count: 4, weight: 2, telegraph: '⚔ 3×4' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (loom-song)' },
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
       // Maul (Alan, 2026-06-02): the Walker weaves your strongest beast into
-      // the tapestry. Block it all or lose it. Boss-tier stakes, ~25% of rolls.
-      { kind: 'attack', maul: true, value: 10, weight: 2, telegraph: '🦷 10 — woven under (unblocked → your strongest animal goes into the pattern)' },
+      // the tapestry. Block it all or lose it. Boss-tier stakes.
+      // v3.4.69 (1000-run cycle 1): weight 2→1 (~25%→~14%). Losing a 2-3-turn
+      // menagerie investment every ~4 turns deleted handler runs outright
+      // (365/500 sim deaths here). Still a boss-tier swing, no longer a coinflip.
+      { kind: 'attack', maul: true, value: 10, weight: 1, telegraph: '🦷 10 — woven under (unblocked → your strongest animal goes into the pattern)' },
     ] },
 
   // ===== ACT 2 — The Forge Path (the mines and caves) =====
