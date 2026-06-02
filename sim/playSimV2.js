@@ -148,6 +148,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
   { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
+  { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
   { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 2, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
   { id: 'c-last-supper',   name: 'Last Supper',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { sacrificeForValue: true } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
@@ -1399,14 +1400,16 @@ function handlerApplyIntent(state, combat, intent) {
     if (intent.maul && wHp < hpBefore) {
       const SLOT = ['intro', 'subject', 'target'];
       const eligible = combat.maulEligibleSlots || new Set();
-      let best = null, bestAtk = -1;
+      // Pecking Order redirects the maul to the weakest animal. Mirrors App.jsx.
+      const redirect = hasHandlerPower(state, 'peckingOrder');
+      let best = null, bestAtk = redirect ? Infinity : -1;
       for (const s of SLOT) {
         if (!eligible.has(s)) continue;
         const slot = combat.htray[s];
         if (slot?.kind !== 'animal') continue;
         const a = ANIMALS[slot.animalId]; let atk = a?.attack || 0;
         if (atk > 0) { atk += (slot.attackBonus || 0); }
-        if (atk > bestAtk) { bestAtk = atk; best = s; }
+        if (redirect ? atk < bestAtk : atk > bestAtk) { bestAtk = atk; best = s; }
       }
       if (best) {
         const slot = combat.htray[best];

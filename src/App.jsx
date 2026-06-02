@@ -207,6 +207,10 @@ const CARDS = [
     installPower: { id: 'openDoor' },
     desc: 'Power. The first lure you play each turn costs 0.',
     flavor: 'The door is always open. The first one in never pays.' },
+  { id: 'c-pecking-order', name: 'Pecking Order', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'peckingOrder' },
+    desc: 'Power. When an enemy mauls, it takes your weakest animal instead of your strongest.',
+    flavor: 'Someone has to go first. The committee has determined it will not be the big one.' },
   // ---- THE BUTCHER — the board is ammunition. Shoo (reworked above) is the
   // basic cash-in; these two are the payoff. Pairs with The Whisperer.
   { id: 'c-last-supper', name: 'Last Supper', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
@@ -8875,12 +8879,15 @@ export default function App() {
   const maulStrongestAnimal = () => {
     const board = boardForMaulRef.current;
     if (!board) return;
-    let best = null, bestAtk = -1;
+    // Pecking Order redirects the maul to the WEAKEST animal instead of the
+    // strongest — the player's insurance against losing their bomb.
+    const redirect = hasHandlerPower('peckingOrder');
+    let best = null, bestAtk = redirect ? Infinity : -1;
     for (const s of ['intro', 'subject', 'target']) {
       const slot = board[s];
       if (slot?.kind !== 'animal') continue;
       const atk = animalAttackValue(getAnimal(slot.animalId), slot);
-      if (atk > bestAtk) { bestAtk = atk; best = s; }
+      if (redirect ? atk < bestAtk : atk > bestAtk) { bestAtk = atk; best = s; }
     }
     if (!best) return;
     const slot = board[best];
@@ -8890,7 +8897,7 @@ export default function App() {
     else updates[best] = null;
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
     noteAnimalDeparted();
-    pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is mauled off the board — you didn't block it all.`);
+    pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is mauled off the board${redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all"}.`);
   };
 
   // Last Supper — send off an animal for Energy equal to its remaining turns
