@@ -74,7 +74,7 @@ export const ENEMIES = [
     ] },
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 28, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 38, hpMax: 999, tier: 'normal',
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     // v2.96 / 2026-06-02: signature mechanic = Weave debt. Each "weave" intent
     // stacks +N on the player. The debt fires at the end of your NEXT turn as
@@ -82,18 +82,21 @@ export const ENEMIES = [
     // it clears harmlessly. Lane-agnostic: wit clears it with a cast, the
     // Handler with an animal attack. Forces "keep hurting it every turn."
     // Standard attacks alternate with weave so you must defend AND press.
+    // v3.4.82 (2026-06-02, "extremely easy" telemetry): composure 28→38 and
+    // base swings up. Combats were ending in 3-4 turns before pressure landed.
     behaviors: [
-      { kind: 'weave', value: 2, weight: 3, telegraph: '🪡 Weave +2 — fires as 🎭 next turn unless you damage it' },
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7' },
-      { kind: 'attack', value: 4, pool: 'composure', weight: 1, telegraph: '🎭 4 (half-thought)' },
+      { kind: 'weave', value: 3, weight: 3, telegraph: '🪡 Weave +3 — fires as 🎭 next turn unless you damage it' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (half-thought)' },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 25, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 36, hpMax: 999, tier: 'normal',
     softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
       // v2.9.2: silk-thread cuts now hit harder + composure-pool option.
+      // v3.4.82: composure 25→36, whisper 6→8 (combats too short).
       { kind: 'attack-multi', value: 4, count: 3, weight: 3, telegraph: '⚔ 4×3' },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (silken whisper)' },
+      { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (silken whisper)' },
       { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
       // Maul (Alan, 2026-06-02): silk-snare. Block it ALL or it drags your
@@ -103,7 +106,7 @@ export const ENEMIES = [
       // handler's whole accumulation loop. ~14% keeps the threat, not the tax.
       { kind: 'attack', maul: true, value: 7, weight: 1, telegraph: '🦷 7 — silk-snare (unblocked → lose your strongest animal)' },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 30, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 40, hpMax: 999, tier: 'normal',
     softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
     // into your hand and pulls a card it "needs to weave with." Forces
@@ -117,25 +120,25 @@ export const ENEMIES = [
       // reshuffle). Now ~25% per turn, paired with the smarter target
       // filter (prefers utility cards over spell pieces).
       { kind: 'discard-hand', value: 1, weight: 2, telegraph: '🗑 takes 1 from your hand' },
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
-      { kind: 'attack', value: 4, weight: 2, telegraph: '⚔ 4 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
-      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (lonely-thread)' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8' },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1 (thread-tangle)', riders: { weak: 1 } },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (lonely-thread)' },
     ] },
   // v2.17: ROGUE WIZARDS — first wave. Failed-graduate wizards still
   // working at their craft, refusing to come back. Names follow the
   // Pratchett-tone with parenthetical bureaucratic annotations.
   { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
-    composureMax: 28, hpMax: 999, tier: 'normal',
+    composureMax: 38, hpMax: 999, tier: 'normal',
     // failure mode: refusal. 50 years on the same hem. Wit can't
     // out-argue him (heard every version); jnsq breaks his focus.
     softSpot: 'confusion',
     behaviors: [
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 + ⛧ Weak 1 (stitch, weakly)', riders: { weak: 1 } },
-      { kind: 'attack', value: 7, pool: 'composure', weight: 2, telegraph: '🎭 7 (murmuring about the hem)' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1 (stitch, weakly)', riders: { weak: 1 } },
+      { kind: 'attack', value: 9, pool: 'composure', weight: 2, telegraph: '🎭 9 (murmuring about the hem)' },
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (measures, again)' },
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 50, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 64, hpMax: 999, tier: 'elite',
     softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
       // v3.4.53 (Alan: "Pattern-Maker hits too hard, BARELY beat it"). With
@@ -155,26 +158,30 @@ export const ENEMIES = [
       // HP-side burst — the pattern lashes out physically.
       { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 50, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 64, hpMax: 999, tier: 'elite',
     softSpot: 'threat', // The vow of silence has limits.
+    // v3.4.82: composure 50→64; base swing 8→10, whisper 6→8; self-block
+    // weight 2→1 so it spends more turns pressuring than warding.
     behaviors: [
-      { kind: 'block',  value: 10, weight: 2, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 8,  weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1', riders: { weak: 1 } },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 10,  weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       // v2.9 burst — telegraphed big swing to HP. "Loud silence" is a
       // breaking-of-the-vow moment.
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
-  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 63, hpMax: 999, tier: 'boss',
+  { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 82, hpMax: 999, tier: 'boss',
     softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
+    // v3.4.82: composure 63→82 (boss fell in 5 turns at full HP); base swing
+    // 10→11, loom-song 7→9. Bursts/maul untouched.
     behaviors: [
-      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + ⛧ Weak 1', riders: { weak: 1 } },
       // v3.4.69 (1000-run cycle 1): burst value 4→3 (post-scale ceiling
       // 5×4=20 → 4×4=16) so a single Block + Step Back can answer the multi
       // instead of eating 15+ raw. The Walker's spike was its true killer.
       { kind: 'attack-multi', value: 3, count: 4, weight: 2, telegraph: '⚔ 3×4' },
-      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (loom-song)' },
+      { kind: 'attack', value: 9, pool: 'composure', weight: 1, telegraph: '🎭 9 (loom-song)' },
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
       // Maul (Alan, 2026-06-02): the Walker weaves your strongest beast into
       // the tapestry. Block it all or lose it. Boss-tier stakes.
@@ -185,7 +192,7 @@ export const ENEMIES = [
     ] },
 
   // ===== ACT 2 — The Forge Path (the mines and caves) =====
-  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 28, hpMax: 12, tier: 'normal',
+  { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 40, hpMax: 12, tier: 'normal',
     // v2.4: sharpened from flat-low to handler-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
     softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
@@ -194,14 +201,14 @@ export const ENEMIES = [
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
-  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 23, hpMax: 14, tier: 'normal',
+  { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 36, hpMax: 14, tier: 'normal',
     softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1' },
     ] },
-  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 28, hpMax: 12, tier: 'normal',
+  { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 40, hpMax: 12, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
     softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
@@ -212,7 +219,7 @@ export const ENEMIES = [
   // v2.17: rogue wizard — handler-punisher. Tried to forge a ring of
   // three metals; the ring forged him. The metal absorbs direct threat.
   { id: 'e-rogue-smelterson', act: 2, name: 'Smelterson, J.C. (alloyed)',
-    composureMax: 33, hpMax: 14, tier: 'normal',
+    composureMax: 44, hpMax: 14, tier: 'normal',
     // failure mode: transformation. Handler resist 0.6 — you can't
     // bully someone whose identity is partly an iron ring. Jnsq 1.3
     // because absurdity disrupts the alloy. Physical 1.0 — he is, after
@@ -224,7 +231,7 @@ export const ENEMIES = [
       { kind: 'attack', value: 9, weight: 1, telegraph: '⚔ 9 (the ring tells him to)' },
       { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (the alloy hums)' },
     ] },
-  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 35, hpMax: 22, tier: 'elite',
+  { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 56, hpMax: 22, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
     softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
@@ -235,7 +242,7 @@ export const ENEMIES = [
       // v2.9 burst — single-pool HP hammer.
       { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (RULING)' },
     ] },
-  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 57, hpMax: 28, tier: 'elite',
+  { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 72, hpMax: 28, tier: 'elite',
     // v2.4: handler-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
     softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
@@ -247,7 +254,7 @@ export const ENEMIES = [
       // v2.9 burst — the Devourer's "DEVOUR" is a 1-shot KO risk.
       { kind: 'attack', value: 18, weight: 1, telegraph: '⚔ 18 (DEVOUR)' },
     ] },
-  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 63, hpMax: 50, tier: 'boss',
+  { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 88, hpMax: 50, tier: 'boss',
     // v2.4: Anvil flipped from handler-resist to handler-favored. It's
     // a forging boss — it understands direct demands. Jnsq is now the
     // softer side (0.7); wit stays neutral.
