@@ -126,7 +126,7 @@ const CARDS = [
     effects: { packTactics: true, exhaust: true },
     desc: 'Each of your animals attacks again this turn. Exhaust.',
     flavor: "On three. Yes, you'll count. They are very busy." },
-  { id: 'c-just-eat-it', name: 'Just Eat It', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+  { id: 'c-just-eat-it', name: 'Just Eat It', cost: 0, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { eatLureNow: true, exhaust: true },
     desc: 'Pick a staged lure. The animal it summons arrives immediately. Exhaust.',
     flavor: 'You explain, with the gentle authority of a man with no time, that it is, in fact, lunch.' },

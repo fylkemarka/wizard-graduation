@@ -135,7 +135,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 1, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
   { id: 'c-shoo',        name: 'Shoo!',     cost: 1, type: 'handler-util', rarity: 'basic',    util: 'shoo' },
   { id: 'c-pack-tactics',name: 'On Three!', cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'onThree', exhaust: true },
-  { id: 'c-just-eat-it', name: 'Just Eat It',cost: 1, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },
+  { id: 'c-just-eat-it', name: 'Just Eat It',cost: 0, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },
   { id: 'c-buffet',      name: 'Buffet',    cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'buffet', exhaust: true },
   { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
