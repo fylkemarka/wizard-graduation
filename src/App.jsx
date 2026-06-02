@@ -11848,6 +11848,44 @@ export default function App() {
     returnToMap();
   }
 
+  // Which species can the player actually field right now? Seed from every
+  // lure in the deck (and any other pile), then transitively follow the
+  // engine's two species-transition edges — predatorChain (salmon → bear)
+  // and adjacentSpawn (field-mouse → rabbit → bonzai) — including the T2
+  // upgrade variants so a chain that only appears post-upgrade still counts.
+  // Train an Animal filters its offer to this set so you can't burn a rest
+  // bumping a species you have no lure to summon (Alan, 2026-06-02: trained
+  // Salmon with no Fish Food in deck → dead pick).
+  function summonableSpeciesSet() {
+    const set = new Set();
+    const lures = [...deck, ...hand, ...discard, ...exiled]
+      .filter(c => c?.type === 'lure' && c.summon);
+    for (const c of lures) {
+      if (c.summon.animalId) set.add(c.summon.animalId);
+      for (const id of (c.summon.animalIds || [])) set.add(id);
+    }
+    // Transitive closure over chain/spawn edges.
+    let frontier = [...set];
+    while (frontier.length) {
+      const next = [];
+      for (const id of frontier) {
+        const def = ANIMALS[id];
+        if (!def) continue;
+        const edges = [
+          def.predatorChain?.animalId,
+          def.adjacentSpawn?.animalId,
+          def.upgrade?.predatorChain?.animalId,
+          def.upgrade?.adjacentSpawn?.animalId,
+        ];
+        for (const e of edges) {
+          if (e && !set.has(e)) { set.add(e); next.push(e); }
+        }
+      }
+      frontier = next;
+    }
+    return set;
+  }
+
   // v3.4.15 — Upgrade-Spell handler. Walks every pile, upgrades every
   // card whose setId matches the chosen row. Multiple copies all upgrade.
   // Already-upgraded cards are no-ops (upgradeCard returns them unchanged).
@@ -12012,7 +12050,7 @@ export default function App() {
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
   if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit'} isHandler={selectedCharacter?.lane === 'handler'} upgradedAnimals={upgradedAnimals} animals={ANIMALS} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} lane={selectedCharacter?.lane || null} />;
-  if (stage === 'train-animal') return <TrainAnimalScreen animals={ANIMALS} upgradedAnimals={upgradedAnimals} onPick={pickAnimalToTrain} />;
+  if (stage === 'train-animal') return <TrainAnimalScreen animals={ANIMALS} upgradedAnimals={upgradedAnimals} summonable={summonableSpeciesSet()} onPick={pickAnimalToTrain} />;
   if (stage === 'upgrade-spell') return <UpgradeSpellScreen
     hand={hand} deck={deck} discard={discard} exiled={exiled} tray={tray}
     onPick={pickSpellToUpgrade} />;
@@ -14999,9 +15037,13 @@ function RestScreen({ onChoose, hasFFTRows = false, isHandler = false, upgradedA
   );
 }
 
-function TrainAnimalScreen({ animals, upgradedAnimals, onPick }) {
+function TrainAnimalScreen({ animals, upgradedAnimals, summonable, onPick }) {
+  // Only offer species the player can actually field — i.e. summonable from a
+  // lure in their deck (or a chain/spawn output of one). `summonable` is a Set;
+  // when absent (older callers) fall back to no filter.
+  const canField = (id) => !summonable || summonable.has(id);
   const eligible = Object.entries(animals)
-    .filter(([id, def]) => def.upgrade && !upgradedAnimals.has(id) && !def.name?.includes('elite-only'))
+    .filter(([id, def]) => def.upgrade && !upgradedAnimals.has(id) && !def.name?.includes('elite-only') && canField(id))
     .map(([id, def]) => ({ id, def }));
   return (
     <div className="min-h-screen flex flex-col p-6 gap-4 max-w-3xl mx-auto">
@@ -15011,7 +15053,7 @@ function TrainAnimalScreen({ animals, upgradedAnimals, onPick }) {
       </div>
       <div className="parchment-card p-3">
         {eligible.length === 0 ? (
-          <div className="text-sm italic text-parchment-400">Every animal you've met has already been trained. Pick another option.</div>
+          <div className="text-sm italic text-parchment-400">No animal here to train — you've either trained everything your lures can summon, or your deck holds no lure for a trainable species yet. Pick another option.</div>
         ) : (
           <div className="flex flex-wrap gap-3">
             {eligible.map(({ id, def }) => {
