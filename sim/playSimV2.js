@@ -160,6 +160,9 @@ const HANDLER_TACTIC_UTIL = [
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
 const COMBINE_BY_SPECIES = { 'field-mouse': 'mouse-house', 'rabbit': 'long-hare', 'young-buck': 'mccloven' };
+// Combine RESULT ids (the jackpot animals), for telemetry on whether the
+// 3-of-a-kind payoff is strong/interesting enough (Alan flagged 2026-06-02).
+const COMBINE_RESULT_IDS = new Set(Object.values(COMBINE_BY_SPECIES));
 const HANDLER_STARTER = [
   'c-defend-handler', 'c-defend-handler', 'c-compose',
   'cv2-l-tender-greens', 'cv2-l-tender-greens',
@@ -814,6 +817,7 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult) {
     handlerDealComposure(combat, atk);
     combat.menagerieComposure += atk;
     combat.totalDamageDealt += atk;
+    if (COMBINE_RESULT_IDS.has(slot.animalId)) combat.combineLifetime = (combat.combineLifetime || 0) + atk;
     if (isRabid) state.composure = Math.max(0, state.composure - Math.max(1, Math.round(atk * 0.1)));
   }
   if (animal.onAttack?.draw) drawCards(state, animal.onAttack.draw);
@@ -1539,6 +1543,7 @@ function handlerEndOfTurnTick(state, combat) {
         if (onForm.pool === 'composure') { handlerDealComposure(combat, onForm.damage); combat.menagerieComposure += onForm.damage; }
         else handlerDealHp(combat, onForm.damage);
         combat.totalDamageDealt += onForm.damage;
+        combat.combineBurst = (combat.combineBurst || 0) + onForm.damage;
       }
       if (onForm.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * onForm.applyVulnerable);
       if (onForm.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * onForm.applyWeak);
@@ -1769,6 +1774,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     turn: 0, handlerTicks: 0, tacticChanges: 0,
     tacticsEngaged: {}, tacticTurns: {},
     summons: 0, feeds: 0, shortStays: 0, combines: 0,
+    combineBurst: 0, combineLifetime: 0,
     menagerieComposure: 0, menagerieBlock: 0,
     totalDamageDealt: 0, totalDamageTaken: 0,
     whisperPending: 0, firstLureUsedThisTurn: false, powersInstalled: 0,
@@ -1782,6 +1788,8 @@ function runHandlerCombat(state, enemy, telemetry) {
     telemetry.handlerFeeds += combat.feeds;
     telemetry.handlerShortStays += combat.shortStays;
     telemetry.handlerCombines += combat.combines;
+    telemetry.handlerCombineBurst = (telemetry.handlerCombineBurst || 0) + combat.combineBurst;
+    telemetry.handlerCombineLifetime = (telemetry.handlerCombineLifetime || 0) + (combat.combineLifetime || 0);
     telemetry.handlerMenagerieComposure += combat.menagerieComposure;
     telemetry.handlerMenagerieBlock += combat.menagerieBlock;
     telemetry.handlerTacticChanges += combat.tacticChanges;
@@ -5569,6 +5577,8 @@ function simRun(forcedLane = null) {
     handlerFeeds: 0,
     handlerShortStays: 0,
     handlerCombines: 0,
+    handlerCombineBurst: 0,
+    handlerCombineLifetime: 0,
     handlerMenagerieComposure: 0,
     handlerMenagerieBlock: 0,
     handlerTacticChanges: 0,
@@ -5700,6 +5710,8 @@ function aggregate(results) {
     handlerFeeds: results.reduce((s, r) => s + (r.handlerFeeds || 0), 0),
     handlerShortStays: results.reduce((s, r) => s + (r.handlerShortStays || 0), 0),
     handlerCombines: results.reduce((s, r) => s + (r.handlerCombines || 0), 0),
+    handlerCombineBurst: results.reduce((s, r) => s + (r.handlerCombineBurst || 0), 0),
+    handlerCombineLifetime: results.reduce((s, r) => s + (r.handlerCombineLifetime || 0), 0),
     handlerMenagerieComposure: results.reduce((s, r) => s + (r.handlerMenagerieComposure || 0), 0),
     handlerMenagerieBlock: results.reduce((s, r) => s + (r.handlerMenagerieBlock || 0), 0),
     handlerTacticChanges: results.reduce((s, r) => s + (r.handlerTacticChanges || 0), 0),
@@ -5930,6 +5942,11 @@ function buildReport(agg) {
   lines.push(`- Handler runs: ${agg.handlerRuns} · ${agg.handlerWins} wins (${agg.handlerRuns ? pct(agg.handlerWins / agg.handlerRuns) : '0.0%'})`);
   lines.push(`- Combats fought: ${agg.handlerCombats}`);
   lines.push(`- Summons: ${agg.handlerSummons} · feeds: ${agg.handlerFeeds} · short-stays (unfed left early): ${agg.handlerShortStays} · combines: ${agg.handlerCombines}`);
+  const cbAvg = agg.handlerCombines > 0 ? (agg.handlerCombineBurst / agg.handlerCombines).toFixed(1) : '0';
+  const clAvg = agg.handlerCombines > 0 ? (agg.handlerCombineLifetime / agg.handlerCombines).toFixed(1) : '0';
+  const cTotal = agg.handlerCombineBurst + agg.handlerCombineLifetime;
+  const cPct = agg.handlerMenagerieComposure > 0 ? (100 * cTotal / agg.handlerMenagerieComposure).toFixed(1) : '0';
+  lines.push(`- Combine payoff: burst ${agg.handlerCombineBurst} (avg ${cbAvg}/combine) · lifetime attacks ${agg.handlerCombineLifetime} (avg ${clAvg}/combine) · combine = ${cPct}% of all menagerie composure`);
   lines.push(`- Menagerie composure dealt: ${agg.handlerMenagerieComposure} · block generated: ${agg.handlerMenagerieBlock}`);
   lines.push(`- Avg summons/combat: ${agg.handlerCombats ? (agg.handlerSummons / agg.handlerCombats).toFixed(2) : '0.00'} · avg feeds/combat: ${agg.handlerCombats ? (agg.handlerFeeds / agg.handlerCombats).toFixed(2) : '0.00'}`);
   lines.push(`- Tactic changes: ${agg.handlerTacticChanges} · avg distinct tactics/combat: ${agg.handlerCombats ? (agg.handlerTacticVarietySum / agg.handlerCombats).toFixed(2) : '0.00'}`);
