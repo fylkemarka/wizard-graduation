@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText } from '../cards/shared.js';
 import { CardFullBody } from './CardFullBody.jsx';
+import { PileView } from './PileView.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
@@ -80,6 +81,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // pre-highlight when the dragged card's feedKey matches them — gives the
   // player a visible target before they get close to the drop zone.
   const [draggingHandIdx, setDraggingHandIdx] = useState(null);
+  // Which pile the player is peeking at ('deck' | 'discard' | null).
+  const [pileView, setPileView] = useState(null);
   const composureMax = enemy?.composureMax ?? 999;
   const hpMax = enemy?.hpMax ?? 999;
   const showComposure = composureMax < 999;
@@ -421,8 +424,18 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           )}
           {/* v3.4.32 (Alan): Deck + Familiar + Equipment + conditional
               over-time chips MOVED UP from the lower strip. */}
-          <span title={`Deck pile (${deck.length}) → Discard pile (${discard.length}). When the deck empties, the discard reshuffles back in.`}
-                className="font-mono text-sm text-parchment-200">{deck.length}▸{discard.length}<span className="text-[9px] uppercase text-parchment-400 ml-0.5">Deck</span></span>
+          {/* Clickable pile counts — peek at what's in the draw / discard
+              pile. The draw pile view is sorted, not in draw order. */}
+          <button data-testid="draw-pile-btn" onClick={() => setPileView('deck')}
+                  title="Click to see what's left in your draw pile (shown sorted, not in draw order)."
+                  className="font-mono text-sm text-parchment-200 hover:text-gold-300 cursor-pointer">
+            ▦ Draw <span className="font-bold">{deck.length}</span>
+          </button>
+          <button data-testid="discard-pile-btn" onClick={() => setPileView('discard')}
+                  title="Click to see the cards in your discard pile. It reshuffles into the draw pile when the draw pile empties."
+                  className="font-mono text-sm text-parchment-200 hover:text-gold-300 cursor-pointer">
+            🗑 Discard <span className="font-bold">{discard.length}</span>
+          </button>
           {familiar && (
             <span title={familiar.desc}
                   className="font-mono text-sm inline-flex items-center gap-0.5">
@@ -708,14 +721,29 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       {buffetArmed && (
         <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
           <div className="text-sm text-gold-100">
-            <span className="font-bold">🍽 Buffet armed:</span> your next lure will spread across every empty stage slot.
+            <span className="font-bold">🍽 Buffet armed:</span> your next lure will spread across every empty stage slot. It stays armed until you play a lure.
           </div>
           <button onClick={onCancelBuffet}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
-            Dismiss
+            Cancel Buffet
           </button>
         </div>
       )}
+
+      <PileView
+        open={pileView === 'deck'}
+        onClose={() => setPileView(null)}
+        title="🗂 Draw pile"
+        note="These are the cards still to come. Shown sorted by cost — NOT in the order you'll draw them."
+        cards={deck}
+        lane={isHandler ? 'handler' : null} />
+      <PileView
+        open={pileView === 'discard'}
+        onClose={() => setPileView(null)}
+        title="🗑 Discard pile"
+        note="Cards you've played or discarded this combat. They reshuffle into your draw pile when it runs out."
+        cards={discard}
+        lane={isHandler ? 'handler' : null} />
 
       <div data-testid="hand" className="flex gap-2 flex-nowrap min-h-[260px] items-stretch justify-center overflow-x-auto">
         {hand.map((card, i) => {
