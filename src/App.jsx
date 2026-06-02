@@ -158,28 +158,31 @@ const CARDS = [
     effects: { narrowLure: true, exhaust: true },
     desc: 'Pick a lure and one creature it summons; that lure stops summoning that creature for the rest of combat. (A lure never narrows below 2 creatures.) Exhaust.',
     flavor: 'You explain, at length, what they will and will not be eating. They develop opinions.' },
-  // ---- TACTICS — persistent cards that bend the animal-summoner engine.
-  // A Tactic occupies the modifier slot of the spell tray (relabelled as
-  // "Pack Tactics" for handler). Stays until replaced by another tactic.
-  { id: 'c-tactic-shield', name: 'Summoned Shield', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
+  // ---- TACTICS — persistent FREE stances that bend the animal-summoner
+  // engine (cost 0 as of 2026-06-02). A Tactic occupies the modifier slot of
+  // the spell tray (relabelled "Pack Tactics" for handler) and stays until
+  // replaced by another tactic. They cost no energy: a summoner's 3 energy is
+  // all spent on lures, so a tactic that competed for it never got played.
+  // The decision is which stance fits the board, and you run one at a time.
+  { id: 'c-tactic-shield', name: 'Summoned Shield', cost: 0, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'shield' },
-    desc: 'Tactic: animal attack damage becomes Block AND Poise for you instead of damage to the enemy.',
+    desc: 'Free stance: animal attack damage becomes Block AND Poise for you instead of damage to the enemy.',
     flavor: 'Each beast turns its body to the door. You may pass between them.' },
-  { id: 'c-tactic-rabid', name: 'Rabid', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
+  { id: 'c-tactic-rabid', name: 'Rabid', cost: 0, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
     tactic: { id: 'rabid' },
-    desc: 'Tactic: animal attacks deal 50% more damage. You take 10% of that damage as composure recoil.',
+    desc: 'Free stance: animal attacks deal 50% more damage. You take 10% of that damage as composure recoil.',
     flavor: "It's contagious, frankly. Try not to make eye contact." },
-  { id: 'c-tactic-youth', name: 'Fountain of Youth', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
+  { id: 'c-tactic-youth', name: 'Fountain of Youth', cost: 0, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'youth' },
-    desc: 'Tactic: your next 3 lure plays summon animals that stay one extra turn. A Buffet that spreads one lure counts as a single use.',
+    desc: 'Free stance: your next 3 lure plays summon animals that stay one extra turn. A Buffet that spreads one lure counts as a single use.',
     flavor: 'A small puddle. The animals know about it. Apparently.' },
-  { id: 'c-tactic-nurture', name: 'Nurture', cost: 2, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
+  { id: 'c-tactic-nurture', name: 'Nurture', cost: 0, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
     tactic: { id: 'nurture' },
-    desc: 'Tactic: lures resolve immediately on placement — animals arrive the moment they are staged.',
+    desc: 'Free stance: lures resolve immediately on placement — animals arrive the moment they are staged.',
     flavor: 'They were peckish anyway. Apparently.' },
-  { id: 'c-tactic-feather', name: 'Birds of a Feather', cost: 1, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
+  { id: 'c-tactic-feather', name: 'Birds of a Feather', cost: 0, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'feather', requiresExactlyOneAnimal: true },
-    desc: 'Draw 1. Tactic: requires exactly one animal in play. Any new animal summoned matches the existing species. Self-exhausts when three of the same animal are on the field.',
+    desc: 'Draw 1. Free stance: requires exactly one animal in play. Any new animal summoned matches the existing species. Self-exhausts when three of the same animal are on the field.',
     flavor: "A field full of one thing. They've been doing this for some time." },
 
   // ====================================================================

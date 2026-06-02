@@ -128,11 +128,11 @@ const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jn
 // from the shared src/data/animals.js ANIMALS table — never inline them here.
 // =============================================================================
 const HANDLER_TACTIC_UTIL = [
-  { id: 'c-tactic-shield',  name: 'Summoned Shield',  cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'shield' } },
-  { id: 'c-tactic-rabid',   name: 'Rabid',            cost: 1, type: 'tactic', rarity: 'uncommon', tactic: { id: 'rabid' } },
-  { id: 'c-tactic-youth',   name: 'Fountain of Youth',cost: 1, type: 'tactic', rarity: 'common',   tactic: { id: 'youth' } },
-  { id: 'c-tactic-nurture', name: 'Nurture',          cost: 2, type: 'tactic', rarity: 'uncommon', tactic: { id: 'nurture' } },
-  { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 1, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
+  { id: 'c-tactic-shield',  name: 'Summoned Shield',  cost: 0, type: 'tactic', rarity: 'common',   tactic: { id: 'shield' } },
+  { id: 'c-tactic-rabid',   name: 'Rabid',            cost: 0, type: 'tactic', rarity: 'uncommon', tactic: { id: 'rabid' } },
+  { id: 'c-tactic-youth',   name: 'Fountain of Youth',cost: 0, type: 'tactic', rarity: 'common',   tactic: { id: 'youth' } },
+  { id: 'c-tactic-nurture', name: 'Nurture',          cost: 0, type: 'tactic', rarity: 'uncommon', tactic: { id: 'nurture' } },
+  { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 0, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
   { id: 'c-shoo',        name: 'Shoo!',     cost: 1, type: 'handler-util', rarity: 'basic',    util: 'shoo' },
   { id: 'c-pack-tactics',name: 'On Three!', cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'onThree', exhaust: true },
   { id: 'c-just-eat-it', name: 'Just Eat It',cost: 0, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },

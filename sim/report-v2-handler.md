@@ -4,7 +4,7 @@ N = **100** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **0 wins / 100** = **0.0%**
-- Losses by acts-cleared: 0=80 · 1=20 · 2=0 · 3=0
+- Losses by acts-cleared: 0=71 · 1=29 · 2=0 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
@@ -12,16 +12,16 @@ N = **100** runs simulated with a greedy v2 AI.
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
+- **fam-toad**: 10 runs · 0 wins (0.0%)
+- **fam-rabbit**: 6 runs · 0 wins (0.0%)
+- **fam-cat**: 13 runs · 0 wins (0.0%)
 - **fam-raven**: 12 runs · 0 wins (0.0%)
-- **fam-cat**: 8 runs · 0 wins (0.0%)
-- **fam-beetle**: 14 runs · 0 wins (0.0%)
+- **fam-crow**: 10 runs · 0 wins (0.0%)
 - **fam-hedgehog**: 9 runs · 0 wins (0.0%)
-- **fam-mouse**: 12 runs · 0 wins (0.0%)
-- **fam-toad**: 8 runs · 0 wins (0.0%)
-- **fam-rabbit**: 7 runs · 0 wins (0.0%)
-- **fam-owl**: 11 runs · 0 wins (0.0%)
-- **fam-snake**: 14 runs · 0 wins (0.0%)
-- **fam-crow**: 5 runs · 0 wins (0.0%)
+- **fam-snake**: 15 runs · 0 wins (0.0%)
+- **fam-mouse**: 9 runs · 0 wins (0.0%)
+- **fam-beetle**: 7 runs · 0 wins (0.0%)
+- **fam-owl**: 9 runs · 0 wins (0.0%)
 
 ## Cast distribution
 - Total casts: 0
@@ -32,12 +32,12 @@ N = **100** runs simulated with a greedy v2 AI.
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
 - Handler runs: 100 · 0 wins (0.0%)
-- Combats fought: 550
-- Summons: 3704 · feeds: 1939 · short-stays (unfed left early): 631 · combines: 103
-- Menagerie composure dealt: 33886 · block generated: 13558
-- Avg summons/combat: 6.73 · avg feeds/combat: 3.53
-- Tactic changes: 789 · avg distinct tactics/combat: 0.96
-- Tactic engagement: shield 253 · rabid 124 · youth 152 · nurture 165 · feather 95
+- Combats fought: 593
+- Summons: 4029 · feeds: 2080 · short-stays (unfed left early): 743 · combines: 98
+- Menagerie composure dealt: 37225 · block generated: 14064
+- Avg summons/combat: 6.79 · avg feeds/combat: 3.51
+- Tactic changes: 866 · avg distinct tactics/combat: 0.96
+- Tactic engagement: shield 287 · rabid 107 · youth 159 · nurture 227 · feather 86
 
 ## Wit LONG THREAD (v2.34)
 - Combats reaching LT ≥ 1: 0 (runs: 0 / 100, 0.0%)
@@ -50,7 +50,7 @@ N = **100** runs simulated with a greedy v2 AI.
 - v2.43 thread-preservation skip-casts: 0
 - v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 73 granted, 0 played
+- v2.92 Passing Thoughts: 86 granted, 0 played
 - v2.93 Find the Seam (bypass-effectiveness) fires: 0
 - v2.93 Precedent (echo-last-damage) fires: 0
 - v2.93 Insult-to-Injury (×N mult) fires: 0
@@ -169,19 +169,19 @@ N = **100** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 8.25
-- Avg damage / run: 352
-- Mean final deck size: 12.8
+- Avg turns / combat: 7.92
+- Avg damage / run: 388
+- Mean final deck size: 13.3
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 57
-- e2-silent-spinner (The Silent Spinner): 13
-- e3-vein-devourer (Vein Devourer): 11
-- e2-pattern-maker (The Pattern-Maker): 9
-- e3-glow-mite (Glow Mite Swarm): 4
-- e3-quartz-sentinel (Quartz Sentinel): 3
-- e3-geode-crab (Geode Crab): 1
-- e2-silk-wraith (Silk Wraith): 1
-- e3-boss-anvil (The Anvil-Forged): 1
+- e2-boss-tapestry (The Tapestry Walker): 52
+- e3-vein-devourer (Vein Devourer): 12
+- e3-boss-anvil (The Anvil-Forged): 9
+- e3-quartz-sentinel (Quartz Sentinel): 8
+- e2-silent-spinner (The Silent Spinner): 7
+- e2-silk-wraith (Silk Wraith): 5
+- e2-pattern-maker (The Pattern-Maker): 5
+- e2-loom-familiar (Loom Familiar): 1
+- e2-hollow-weaver (Hollow Weaver): 1
