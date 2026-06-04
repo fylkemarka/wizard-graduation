@@ -45,7 +45,7 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_S
 // handler-v2-rows.js removed 2026-05-31 — Handler (formerly Handler)
 // pivoted away from the FFT system entirely. Animal Summoner engine is
 // the new direction. FFT system is wit-only.
-import { HANDLER_V2, HANDLER_V2_BY_SLOT } from './cards/handler-v2.js';
+import { HANDLER_V2, HANDLER_V2_BY_SLOT, SPECIAL_LURE_CARDS } from './cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
 import { ANIMALS, ADJACENCY_COMBOS } from './data/animals.js';
@@ -60,6 +60,9 @@ import { ReadingRoom } from './components/ReadingRoom.jsx';
 const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
 const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2];
+// Handler menagerie slot order. Module-scoped so helpers/intent handlers
+// outside endTurn (adjacent-amplify, copy-left, Sloth, Porcupine) can read it.
+const SLOT_ORDER = ['intro', 'subject', 'target'];
 
 // =============================================================================
 // 1. DATA
@@ -3831,6 +3834,10 @@ export default function App() {
   // the `tray` closure — can read the CURRENT board synchronously. null for
   // non-handler lanes (no animals to maul).
   const boardForMaulRef = useRef(null);
+  // Sloth (slowsEnemy, Alan 2026-06-03): toggles each enemy turn while a sloth
+  // is on the board so the enemy skips every OTHER turn (time dilation). Reset
+  // to false when no sloth is present so the cadence restarts cleanly.
+  const slothSkipToggleRef = useRef(false);
   // Hollow Weaver (Alan, 2026-06-02): true once the player has dealt ANY
   // damage to the enemy this turn — a wit cast that hits OR a Handler animal
   // attack. Read at end-of-turn to decide whether the Weave fires. Tracked in
@@ -5847,6 +5854,22 @@ export default function App() {
 
     if (card.slot === 'lure' && card.summon) {
       const order = ['intro', 'subject', 'target'];
+      // Special-lure FEED-TO-EXTEND (Alan, 2026-06-03): a special lure
+      // replayed while its named animal is already on the board doesn't stage
+      // a second copy — it feeds the resident, extending its stay by one turn.
+      // The lure card is consumed to discard. Foundational lures keep their
+      // own feedKey family-feeding path (feedAnimalsWithLure) and skip this.
+      if (card.special && card.summon.animalId) {
+        const fedSlot = order.find(s => tray[s]?.kind === 'animal' && tray[s].animalId === card.summon.animalId);
+        if (fedSlot) {
+          setTray(p => syncTrayLegacy({ ...p, [fedSlot]: { ...p[fedSlot], durationRemaining: (p[fedSlot].durationRemaining || 0) + 1, feedReceived: true } }));
+          setHand(h => h.filter((_, i) => i !== handIdx));
+          setDiscard(d => [...d, { ...card, uid: uid() }]);
+          const animal = getAnimal(card.summon.animalId);
+          pushLog(`🍖 ${animal?.icon || ''} ${animal?.name || card.summon.animalId} fed — stays one turn longer.`);
+          return;
+        }
+      }
       // Occupied placeholder slots (Mouse House spans) are NOT empty.
       const emptySlots = order.filter(s => tray[s] == null);
       if (emptySlots.length === 0) {
@@ -8810,6 +8833,37 @@ export default function App() {
     return a;
   };
 
+  // Sheepdog (any `amplifyAdjacent` animal): an animal standing in a slot next
+  // to an amplifier deals +amplifyAdjacent. The middle slot touches BOTH
+  // neighbours, so it can stack two amplifiers. Reads a tray snapshot so the
+  // same math works in the live tray and the end-of-turn workingTray pass.
+  const adjacentAmplifyMult = (slotName, trayObj) => {
+    const idx = SLOT_ORDER.indexOf(slotName);
+    let mult = 1;
+    for (const ni of [idx - 1, idx + 1]) {
+      if (ni < 0 || ni >= SLOT_ORDER.length) continue;
+      const ns = trayObj[SLOT_ORDER[ni]];
+      if (ns?.kind !== 'animal') continue;
+      const na = getAnimal(ns.animalId);
+      if (na?.amplifyAdjacent > 0) mult += na.amplifyAdjacent;
+    }
+    return mult;
+  };
+
+  // Lyrebird (`copiesLeft`): its effective base attack this turn is whatever
+  // the animal to its LEFT is swinging for (its own attack if there's nothing
+  // there or the neighbour is a non-attacker). Reads the neighbour through
+  // animalAttackValue so per-slot attackBonus carries through.
+  const copyLeftAttack = (slotName, animal, trayObj) => {
+    const idx = SLOT_ORDER.indexOf(slotName);
+    const own = animal?.attack || 0;
+    if (idx <= 0) return own;
+    const ls = trayObj[SLOT_ORDER[idx - 1]];
+    if (ls?.kind !== 'animal') return own;
+    const lv = animalAttackValue(getAnimal(ls.animalId), ls);
+    return lv > 0 ? lv : own;
+  };
+
   // Fire an animal's onExit payload immediately (Last Supper / Make It
   // Count). Mirrors the end-of-turn applyAnimalOnExit but without the hTick
   // telemetry accumulator, which only exists inside endTurn.
@@ -9435,7 +9489,6 @@ export default function App() {
     //      summoned animal in-place when it reaches 0. Newly arrived
     //      animals wait until the NEXT end-of-turn to act.
     if (selectedCharacter?.lane === 'handler') {
-      const SLOT_ORDER = ['intro', 'subject', 'target'];
       // Telemetry accumulator for the menagerie's end-of-turn output — the
       // Handler's "cast." Plain locals (not React state), incremented at each
       // attack/exit/arrival/block site, emitted once after the tick. Lets a
@@ -9782,8 +9835,12 @@ export default function App() {
           // duration-tick branches).
           if (!slot.eatenThisTurn && animal.attack > 0) {
             const atkMult = slot.nextAttackMult || 1;
-            let atk = Math.round(animalAttackValue(animal, slot) * atkMult);
+            const ampMult = adjacentAmplifyMult(slotName, workingTray);
+            const baseAtk = animal.copiesLeft ? copyLeftAttack(slotName, animal, workingTray) : animalAttackValue(animal, slot);
+            let atk = Math.round(baseAtk * atkMult * ampMult);
             const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
+            const ampLabel = ampMult > 1 ? ` (🐕 +${Math.round((ampMult - 1) * 100)}%)` : '';
+            const copyLabel = animal.copiesLeft ? ' (🎙️ copies left)' : '';
             const tacticId = tray.tactic?.tactic?.id;
             const isShield = tacticId === 'shield';
             const isRabid  = tacticId === 'rabid';
@@ -9794,7 +9851,7 @@ export default function App() {
               setBlock(b => b + atk);
               setPoise(p => p + atk);
               hTick.blockGained += atk;
-              pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block & Poise${multLabel}${tacticLabel}.`);
+              pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block & Poise${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
             } else {
               // Capture the POST-damage pool from the ref-backed damage
               // helpers — they accumulate across the loop, so this catches a
@@ -9806,12 +9863,12 @@ export default function App() {
                 const post = applyDamageToEnemyComposure(atk);
                 hTick.composureDealt += atk;
                 if (post <= 0) summonerKilledEnemy = true;
-                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}${tacticLabel}.`);
+                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
               } else {
                 const post = applyDamageToEnemyHp(atk);
                 hTick.hpDealt += atk;
                 if (post <= 0) summonerKilledEnemy = true;
-                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}${tacticLabel}.`);
+                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
               }
               if (isRabid) {
                 const recoil = Math.max(1, Math.round(atk * 0.1));
@@ -9836,7 +9893,7 @@ export default function App() {
             // apply since the same tactic is in the tray.
             const extraAttacks = slot.extraAttacks || 0;
             for (let e = 0; e < extraAttacks; e++) {
-              let xatk = Math.round(animalAttackValue(animal, slot));
+              let xatk = Math.round(baseAtk * ampMult);
               if (isRabid) xatk = Math.round(xatk * 1.5);
               hTick.attacks++;
               if (isShield) {
@@ -10837,6 +10894,24 @@ export default function App() {
       pushLog(`🤐 ${e.name} is speechless — turn skipped.`);
       return;
     }
+    // Sloth (slowsEnemy, Alan 2026-06-03): while a sloth hangs around, time
+    // dilates — the enemy acts at half speed, skipping every OTHER turn. The
+    // toggle ref alternates per enemy turn so the enemy still gets to act
+    // half the time. Reads the post-tick board snapshot (boardForMaulRef),
+    // which only holds animals that were already out during the player turn.
+    const slothPresent = SLOT_ORDER.some(s => {
+      const v = boardForMaulRef.current?.[s];
+      return v?.kind === 'animal' && getAnimal(v.animalId)?.slowsEnemy;
+    });
+    if (slothPresent) {
+      slothSkipToggleRef.current = !slothSkipToggleRef.current;
+      if (slothSkipToggleRef.current) {
+        pushLog(`🦥 Time dilates — ${e.name} moves too slowly to act this turn.`);
+        return;
+      }
+    } else {
+      slothSkipToggleRef.current = false;
+    }
     // v3.3 unified scheduled-effects tick (enemy-turn-start trigger).
     // Handles: debuff-over-time (Weak/Vuln), dormant delayed payloads,
     // and Crescendo's bankDouble. DoT damage moved to the
@@ -11089,6 +11164,14 @@ export default function App() {
       // locally, flush state update once after the loop.
       const initialThorns = thornsCharges;
       let thornsUsed = 0;
+      // Porcupine (thorns, Alan 2026-06-03): every porcupine on the board
+      // jabs the enemy for its `thorns` composure on each incoming swing.
+      // Board read from the post-tick snapshot (same source Sloth/maul use).
+      const porcupineThorns = SLOT_ORDER.reduce((sum, s) => {
+        const v = boardForMaulRef.current?.[s];
+        const a = v?.kind === 'animal' ? getAnimal(v.animalId) : null;
+        return sum + (a?.thorns > 0 ? a.thorns : 0);
+      }, 0);
       for (let i = 0; i < hits; i++) {
         // v2.37: HOLD ON applies ONLY to the first swing of an attack/
         // attack-multi. swings 1..N use the unreduced `raw`.
@@ -11132,6 +11215,10 @@ export default function App() {
           pushLog(`🌹 Thorns: ${initialThorns.amount} comp reflected${logExtra}.`);
           // Only decrement discrete count if the aura isn't paying for this hit.
           if (!auraActive) thornsUsed++;
+        }
+        if (porcupineThorns > 0) {
+          applyDamageToEnemyComposure(porcupineThorns);
+          pushLog(`🦔 Porcupine: ${porcupineThorns} composure back.`);
         }
         // v3.4.42 — Mirror Reflect: charge-based, reflect 100% of THIS
         // swing's incoming raw damage capped per charge. Stacks ON TOP of
@@ -11637,11 +11724,24 @@ export default function App() {
 
     // Normal-enemy + non-wit reward path: 3 individual cards, no spell
     // pieces. The pickCardByRarity opts gate spell pieces out entirely.
+    // Handler (Alan, 2026-06-03): exactly ONE of the three normal-combat
+    // cards is a special utility lure (single named animal carrying a verb).
+    // Prefer one the player doesn't already own; fall back to any if all
+    // owned. The other two fill from the normal support pool below.
+    if (lane === 'handler') {
+      const owned = new Set([...hand, ...deck, ...discard, ...exiled].map(c => c.id));
+      const unowned = SPECIAL_LURE_CARDS.filter(c => !owned.has(c.id));
+      const pool = unowned.length > 0 ? unowned : SPECIAL_LURE_CARDS;
+      const special = { ...shuffle([...pool])[0] };
+      choices.push(special); used.push(special.id);
+    }
     while (choices.length < 3) {
       const pick = pickCardByRarity(weights, used, lane, { excludeSpellPieces: true });
       if (!pick) break;
       choices.push(pick); used.push(pick.id);
     }
+    // Keep the special lure from always landing in the same slot.
+    if (lane === 'handler') { const s = shuffle(choices); choices.length = 0; choices.push(...s); }
     // v2.99.3: telemetry — record offered card lanes alongside player's
     // lane. Lets us detect bleed in real time (any offered.lane that
     // doesn't match player.lane and isn't undefined is a bug).

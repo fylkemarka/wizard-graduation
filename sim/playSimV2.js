@@ -13,7 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { WIT_V2, WIT_V2_BY_SLOT } from '../src/cards/wit-v2.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_ROW_BY_ID, detectFFT } from '../src/cards/wit-v2-rows.js';
-import { HANDLER_V2, HANDLER_V2_BY_SLOT } from '../src/cards/handler-v2.js';
+import { HANDLER_V2, HANDLER_V2_BY_SLOT, SPECIAL_LURE_CARDS } from '../src/cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from '../src/cards/jnsq-v2.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage } from '../src/cards/shared.js';
 import { ENEMIES as SHARED_ENEMIES } from '../src/data/enemies.js';
@@ -801,12 +801,48 @@ function resolveLureSpecies(lure, combat) {
   if (base?.elite && Math.random() < 0.035) id = base.elite;
   return id;
 }
-function handlerAnimalAttack(state, combat, slot, animal, baseMult) {
+// Sheepdog amplify (mirrors App.jsx adjacentAmplifyMult): an animal next to an
+// `amplifyAdjacent` animal deals +amplifyAdjacent; the middle slot stacks both.
+function adjacentAmplifyMultSim(work, slotName) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const idx = SLOT.indexOf(slotName);
+  let mult = 1;
+  for (const ni of [idx - 1, idx + 1]) {
+    if (ni < 0 || ni >= SLOT.length) continue;
+    const ns = work[SLOT[ni]];
+    if (!ns || ns.kind !== 'animal') continue;
+    const na = ANIMALS[ns.animalId];
+    if (na?.amplifyAdjacent > 0) mult += na.amplifyAdjacent;
+  }
+  return mult;
+}
+// Lyrebird copy (mirrors App.jsx copyLeftAttack): effective base = the left
+// neighbour's swing (its own attack if there's nothing/no attacker there).
+function copyLeftAttackSim(work, slotName, animal) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const idx = SLOT.indexOf(slotName);
+  const own = animal.attack || 0;
+  if (idx <= 0) return own;
+  const ls = work[SLOT[idx - 1]];
+  if (!ls || ls.kind !== 'animal') return own;
+  const la = ANIMALS[ls.animalId];
+  let lv = la?.attack || 0;
+  if (lv > 0) lv += (ls.attackBonus || 0);
+  return lv > 0 ? lv : own;
+}
+function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotName) {
   // Effective base attack reflects every live rider (mirrors App.jsx
   // animalAttackValue): any slot.attackBonus from Gorge or Well-Drilled.
-  let base = animal.attack;
-  if (base > 0) { base += (slot.attackBonus || 0); }
-  let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1));
+  // Lyrebird copies its left neighbour; Sheepdog amplifies adjacent swings.
+  let base;
+  if (animal.copiesLeft && work && slotName !== undefined) {
+    base = copyLeftAttackSim(work, slotName, animal);
+  } else {
+    base = animal.attack;
+    if (base > 0) { base += (slot.attackBonus || 0); }
+  }
+  const ampMult = (work && slotName !== undefined) ? adjacentAmplifyMultSim(work, slotName) : 1;
+  let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1) * ampMult);
   slot.nextAttackMult = 1;
   const isShield = combat.tactic === 'shield';
   const isRabid  = combat.tactic === 'rabid';
@@ -883,6 +919,20 @@ function pickHandlerTactic(state, combat, needDefense) {
 }
 function stageHandlerLure(state, combat, lure) {
   const SLOT = ['intro', 'subject', 'target'];
+  // Special-lure FEED-TO-EXTEND (Alan 2026-06-03): replaying a special lure
+  // while its named animal is on the board feeds it (+1 turn) instead of
+  // staging a copy. Mirrors App.jsx playCard lure path.
+  if (lure.special && lure.summon?.animalId) {
+    const fedSlot = SLOT.find(s => combat.htray[s]?.kind === 'animal' && combat.htray[s].animalId === lure.summon.animalId);
+    if (fedSlot) {
+      combat.htray[fedSlot].durationRemaining = (combat.htray[fedSlot].durationRemaining || 0) + 1;
+      combat.htray[fedSlot].feedReceived = true;
+      combat.htray[fedSlot].fedThisTurn = true;
+      combat.feeds++;
+      state.discard.push(lure);
+      return;
+    }
+  }
   const empties = SLOT.filter(s => combat.htray[s] == null);
   if (empties.length === 0) { state.discard.push(lure); return; }
   const youthBonus = (combat.tactic === 'youth' && combat.youthUses > 0) ? 1 : 0;
@@ -1396,6 +1446,28 @@ function aiTurnHandler(state, combat) {
 }
 function handlerApplyIntent(state, combat, intent) {
   if (!intent) return;
+  // Sloth (slowsEnemy, Alan 2026-06-03): while a sloth hangs around, the enemy
+  // acts at half speed — skipping every OTHER turn. The toggle alternates per
+  // enemy turn. Reads the post-tick board limited to maul-eligible slots
+  // (animals that were already out during the player turn), mirroring App's
+  // boardForMaulRef. Mirrors App.jsx applyEnemyIntent sloth skip.
+  const SLOTN = ['intro', 'subject', 'target'];
+  const slothPresent = SLOTN.some(s => combat.maulEligibleSlots?.has(s)
+    && combat.htray[s]?.kind === 'animal' && ANIMALS[combat.htray[s].animalId]?.slowsEnemy);
+  if (slothPresent) {
+    combat.slothSkipToggle = !combat.slothSkipToggle;
+    if (combat.slothSkipToggle) { combat.slothSkips = (combat.slothSkips || 0) + 1; return; }
+  } else {
+    combat.slothSkipToggle = false;
+  }
+  // Porcupine (thorns, Alan 2026-06-03): every porcupine on the board jabs the
+  // enemy for its `thorns` composure on each incoming swing. Mirrors App.jsx.
+  const porcupineThorns = SLOTN.reduce((sum, s) => {
+    if (!combat.maulEligibleSlots?.has(s)) return sum;
+    const sl = combat.htray[s];
+    const a = sl?.kind === 'animal' ? ANIMALS[sl.animalId] : null;
+    return sum + (a?.thorns > 0 ? a.thorns : 0);
+  }, 0);
   if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
     const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
     // Spittle Peck (Rabid Scrubjay onExit): redirect the whole attack onto the
@@ -1424,6 +1496,11 @@ function handlerApplyIntent(state, combat, intent) {
       if (targetsComposure) wComp = Math.max(0, wComp - remaining);
       else                  wHp   = Math.max(0, wHp   - remaining);
       combat.totalDamageTaken += remaining;
+      if (porcupineThorns > 0) {
+        combat.enemyComposure = Math.max(0, combat.enemyComposure - porcupineThorns);
+        combat.totalDamageDealt += porcupineThorns;
+        combat.porcupineThorns = (combat.porcupineThorns || 0) + porcupineThorns;
+      }
       if (wHp <= 0 || wComp <= 0) break;
     }
     state.block = wBlock; state.poise = wPoise; state.hp = wHp; state.composure = wComp;
@@ -1650,6 +1727,7 @@ function handlerEndOfTurnTick(state, combat) {
         const animalId = resolveLureSpecies(slot, combat);
         if (slot.card) state.discard.push({ ...slot.card });
         combat.summons++;
+        if (ANIMALS[animalId]?.special) combat.specialSummons = (combat.specialSummons || 0) + 1;
         next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
       } else next[slotName] = { ...slot, turnsRemaining: nt };
       continue;
@@ -1657,13 +1735,13 @@ function handlerEndOfTurnTick(state, combat) {
     const animal = ANIMALS[slot.animalId];
     if (!animal) { next[slotName] = null; continue; }
     if (!slot.eatenThisTurn && animal.attack > 0) {
-      handlerAnimalAttack(state, combat, slot, animal, 1);
+      handlerAnimalAttack(state, combat, slot, animal, 1, work, slotName);
       // Deferred re-attacks armed this turn by On Three! / Stampede. The
       // one-shot nextAttackMult was spent by the natural swing above, so the
       // extra attacks use base attack (baseMult 1). Gated behind eatenThisTurn
       // like the natural swing. Mirrors App.jsx end-of-turn extraAttacks loop.
       for (let e = 0; e < (slot.extraAttacks || 0); e++) {
-        handlerAnimalAttack(state, combat, slot, animal, 1);
+        handlerAnimalAttack(state, combat, slot, animal, 1, work, slotName);
       }
     }
     const grant = animal.turnGrant || slot.turnGrantTemp;
@@ -1799,6 +1877,9 @@ function runHandlerCombat(state, enemy, telemetry) {
     }
     telemetry.totalDamageDealt += combat.totalDamageDealt;
     telemetry.weaveDamage = (telemetry.weaveDamage || 0) + (combat.weaveDamage || 0);
+    telemetry.handlerSpecialSummons = (telemetry.handlerSpecialSummons || 0) + (combat.specialSummons || 0);
+    telemetry.handlerPorcupineThorns = (telemetry.handlerPorcupineThorns || 0) + (combat.porcupineThorns || 0);
+    telemetry.handlerSlothSkips = (telemetry.handlerSlothSkips || 0) + (combat.slothSkips || 0);
   };
 
   let safety = MAX_COMBAT_TURNS;
@@ -4884,16 +4965,26 @@ function aiPickHandlerReward(state) {
   const ownedTactics = new Set(owned.filter(c => c.type === 'tactic').map(c => c.id));
   const ownedCounts = {};
   for (const c of owned) ownedCounts[c.id] = (ownedCounts[c.id] || 0) + 1;
+  // Exactly ONE special utility lure is always on offer after a normal combat
+  // (mirrors App.jsx normal-combat handler draft). Prefer an unowned one.
+  const unownedSpecial = SPECIAL_LURE_CARDS.filter(c => !ownedIds.has(c.id));
+  const specialPool = unownedSpecial.length ? unownedSpecial : SPECIAL_LURE_CARDS;
+  const special = pickRandom(specialPool);
   const pool = shuffle(HANDLER_REWARD_POOL.slice());
-  const candidates = [];
+  const candidates = [special];
   for (const id of pool) {
     if (candidates.length >= 3) break;
     candidates.push(HANDLER_CARDS_BY_ID[id]);
   }
-  const ownedLureCount = owned.filter(c => c.type === 'lure').length;
+  const ownedLureCount = owned.filter(c => c.type === 'lure' && !c.special).length;
   function score(card) {
     let s = 0;
-    if (card.type === 'tactic') {
+    if (card.special) {
+      // Special utility lures: a verb, not engine filler. Value a fresh one
+      // moderately so the sim exercises the mechanics without crowding out
+      // the foundational lure/tactic engine.
+      s += ownedIds.has(card.id) ? 3 : 9;
+    } else if (card.type === 'tactic') {
       s += ownedTactics.has(card.id) ? 3 : 14;
     } else if (card.type === 'lure') {
       s += ownedIds.has(card.id) ? 4 : 9;
@@ -5584,6 +5675,10 @@ function simRun(forcedLane = null) {
     handlerTacticChanges: 0,
     handlerTacticVarietySum: 0,
     handlerTacticEngaged: {},
+    // Special-lure animals (Alan 2026-06-03): batch-1 verb telemetry.
+    handlerSpecialSummons: 0,
+    handlerPorcupineThorns: 0,
+    handlerSlothSkips: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -5720,6 +5815,9 @@ function aggregate(results) {
       for (const [id, n] of Object.entries(r.handlerTacticEngaged || {})) acc[id] = (acc[id] || 0) + n;
       return acc;
     }, {}),
+    handlerSpecialSummons: results.reduce((s, r) => s + (r.handlerSpecialSummons || 0), 0),
+    handlerPorcupineThorns: results.reduce((s, r) => s + (r.handlerPorcupineThorns || 0), 0),
+    handlerSlothSkips: results.reduce((s, r) => s + (r.handlerSlothSkips || 0), 0),
     // v2.24: tunnel-vision / rage metrics.
     rageTriggers: results.reduce((s, r) => s + (r.rageTriggers || 0), 0),
     rageTriggerRuns: results.filter(r => (r.rageTriggers || 0) > 0).length,
@@ -5950,6 +6048,7 @@ function buildReport(agg) {
   lines.push(`- Menagerie composure dealt: ${agg.handlerMenagerieComposure} · block generated: ${agg.handlerMenagerieBlock}`);
   lines.push(`- Avg summons/combat: ${agg.handlerCombats ? (agg.handlerSummons / agg.handlerCombats).toFixed(2) : '0.00'} · avg feeds/combat: ${agg.handlerCombats ? (agg.handlerFeeds / agg.handlerCombats).toFixed(2) : '0.00'}`);
   lines.push(`- Tactic changes: ${agg.handlerTacticChanges} · avg distinct tactics/combat: ${agg.handlerCombats ? (agg.handlerTacticVarietySum / agg.handlerCombats).toFixed(2) : '0.00'}`);
+  lines.push(`- Special-lure animals: summons ${agg.handlerSpecialSummons} · porcupine thorns dealt ${agg.handlerPorcupineThorns} · sloth enemy-turns skipped ${agg.handlerSlothSkips}`);
   {
     const te = agg.handlerTacticEngaged || {};
     const order = ['shield', 'rabid', 'youth', 'nurture', 'feather'];

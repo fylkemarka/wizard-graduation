@@ -264,6 +264,76 @@ export const ANIMALS = {
     upgrade: { attack: 11, duration: 4 },
     desc: 'Attacks for 9 composure each turn for 3 turns. Eats an adjacent Salmon for +2 turns.',
   },
+
+  // ─────────────────────────────────────────────────────────────────────
+  // SPECIAL UTILITY ANIMALS (Alan, 2026-06-03) — single-animal lures from
+  // the reward pool. Each brings a distinct gameplay VERB rather than stats;
+  // most do little/no combat damage. They never need feeding (no feedKey, so
+  // the feed gate always reads them as fed), BUT replaying their OWN lure
+  // while they're on the board extends them +1 turn (per-lure feed, distinct
+  // from the foundational feedKey-family feed). Footprint is the cost: a
+  // multi-slot animal (`slots`) fills more of the tray and so can't combo.
+  // Slot ORDER is the synergy axis (Sheepdog middle = both neighbors; Lyrebird
+  // copies its LEFT). New engine fields are mirrored in App.jsx AND the sim.
+  // ─────────────────────────────────────────────────────────────────────
+
+  // GROUP C — AMPLIFY. Sheepdog: pure aura, 0 attack. Adjacent animals deal
+  // +50%; placed in the MIDDLE slot it reaches both neighbors. The piece that
+  // makes you think about where everything stands.
+  sheepdog: {
+    name: 'Sheepdog',
+    icon: '🐕',
+    attack: 0,
+    attackPool: 'composure',
+    duration: 3,
+    special: true,
+    amplifyAdjacent: 0.5,
+    flavor: 'Not interested in fighting. Interested in everyone being where they should be.',
+    desc: 'Does not attack. Animals in adjacent slots deal +50% (the middle slot reaches both). Stays 3 turns; replay its lure to extend.',
+  },
+  // GROUP C — Lyrebird: directional mimic. Each turn it copies the attack of
+  // the animal immediately to its LEFT (earlier tray slot). With nothing to
+  // its left it does its own small 2.
+  lyrebird: {
+    name: 'Lyrebird',
+    icon: '🎙️',
+    attack: 2,
+    attackPool: 'composure',
+    duration: 3,
+    special: true,
+    copiesLeft: true,
+    flavor: 'An uncanny impression of whatever just happened. Including the parts you would rather it did not.',
+    desc: "Each turn, copies the attack of the animal to its left (its own 2 composure if there's nothing there). Stays 3 turns; replay its lure to extend.",
+  },
+  // GROUP B — DEFENSE. Porcupine: retaliation, not a shield. The enemy still
+  // lands the blow; it just costs them composure to do it.
+  porcupine: {
+    name: 'Porcupine',
+    icon: '🦔',
+    attack: 0,
+    attackPool: 'composure',
+    duration: 3,
+    special: true,
+    thorns: 4,
+    flavor: 'Best admired from a conversational distance.',
+    desc: 'Does not attack. Whenever the enemy attacks you, it takes 4 composure in return. Stays 3 turns; replay its lure to extend.',
+  },
+  // GROUP A — TEMPO. Sloth: slowest arrival in the game (4 turns), 0 attack.
+  // Time dilation — while it hangs around, the enemy acts at HALF SPEED,
+  // skipping every other turn. The long wait buys a sustained multi-turn
+  // tempo lock, not a one-shot (Alan: "needs a bigger payoff than a slow
+  // Mime"). Feed its own lure to keep the lock going.
+  sloth: {
+    name: 'Sloth',
+    icon: '🦥',
+    attack: 0,
+    attackPool: 'composure',
+    duration: 3,
+    special: true,
+    slowsEnemy: true,
+    flavor: 'It will get here. It has every intention of getting here.',
+    desc: 'Slow to arrive, and does not attack. While it hangs around, time dilates: the enemy acts at half speed, skipping every other turn. Stays 3 turns; replay its lure to extend.',
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────
