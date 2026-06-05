@@ -1329,6 +1329,7 @@ function aiTurnHandler(state, combat) {
           const sl = combat.htray[mimeSlot];
           if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
           else combat.htray[mimeSlot] = null;
+          noteHandlerExit(state, combat); // self-consume departure banks a Whisperer draw (mirrors App noteAnimalDeparted)
           combat.abilityActivations = (combat.abilityActivations || 0) + 1;
           continue;
         }

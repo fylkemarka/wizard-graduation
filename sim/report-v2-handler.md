@@ -4,7 +4,7 @@ N = **200** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **0 wins / 200** = **0.0%**
-- Losses by acts-cleared: 0=185 · 1=15 · 2=0 · 3=0
+- Losses by acts-cleared: 0=177 · 1=23 · 2=0 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
@@ -12,16 +12,16 @@ N = **200** runs simulated with a greedy v2 AI.
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-hedgehog**: 15 runs · 0 wins (0.0%)
-- **fam-beetle**: 19 runs · 0 wins (0.0%)
-- **fam-snake**: 22 runs · 0 wins (0.0%)
-- **fam-raven**: 16 runs · 0 wins (0.0%)
-- **fam-crow**: 21 runs · 0 wins (0.0%)
-- **fam-cat**: 24 runs · 0 wins (0.0%)
-- **fam-mouse**: 19 runs · 0 wins (0.0%)
-- **fam-toad**: 19 runs · 0 wins (0.0%)
-- **fam-owl**: 22 runs · 0 wins (0.0%)
-- **fam-rabbit**: 23 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 19 runs · 0 wins (0.0%)
+- **fam-snake**: 19 runs · 0 wins (0.0%)
+- **fam-mouse**: 28 runs · 0 wins (0.0%)
+- **fam-owl**: 20 runs · 0 wins (0.0%)
+- **fam-raven**: 27 runs · 0 wins (0.0%)
+- **fam-toad**: 21 runs · 0 wins (0.0%)
+- **fam-crow**: 22 runs · 0 wins (0.0%)
+- **fam-cat**: 15 runs · 0 wins (0.0%)
+- **fam-rabbit**: 17 runs · 0 wins (0.0%)
+- **fam-beetle**: 12 runs · 0 wins (0.0%)
 
 ## Cast distribution
 - Total casts: 0
@@ -32,15 +32,15 @@ N = **200** runs simulated with a greedy v2 AI.
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
 - Handler runs: 200 · 0 wins (0.0%)
-- Combats fought: 923
-- Summons: 6701 · feeds: 3525 · short-stays (unfed left early): 760 · combines: 134
-- Combine payoff: burst 1908 (avg 14.2/combine) · lifetime attacks 2260 (avg 16.9/combine) · combine = 8.0% of all menagerie composure
-- Menagerie composure dealt: 52303 · block generated: 18682
-- Avg summons/combat: 7.26 · avg feeds/combat: 3.82
-- Tactic changes: 1132 · avg distinct tactics/combat: 0.76
-- Special-lure animals: summons 1309 · porcupine thorns dealt 1916 · sloth enemy-turns skipped 173
-- Activated abilities (Mime/Pigeon/Kangaroo): 406 activations
-- Tactic engagement: shield 443 · rabid 164 · youth 217 · nurture 222 · feather 86
+- Combats fought: 981
+- Summons: 7270 · feeds: 3677 · short-stays (unfed left early): 853 · combines: 155
+- Combine payoff: burst 2210 (avg 14.3/combine) · lifetime attacks 2690 (avg 17.4/combine) · combine = 8.5% of all menagerie composure
+- Menagerie composure dealt: 57322 · block generated: 18568
+- Avg summons/combat: 7.41 · avg feeds/combat: 3.75
+- Tactic changes: 1389 · avg distinct tactics/combat: 0.88
+- Special-lure animals: summons 1220 · porcupine thorns dealt 2180 · sloth enemy-turns skipped 242
+- Activated abilities (Mime/Pigeon/Kangaroo): 418 activations
+- Tactic engagement: shield 514 · rabid 203 · youth 260 · nurture 344 · feather 68
 
 ## Wit LONG THREAD (v2.34)
 - Combats reaching LT ≥ 1: 0 (runs: 0 / 200, 0.0%)
@@ -53,7 +53,7 @@ N = **200** runs simulated with a greedy v2 AI.
 - v2.43 thread-preservation skip-casts: 0
 - v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 152 granted, 0 played
+- v2.92 Passing Thoughts: 146 granted, 0 played
 - v2.93 Find the Seam (bypass-effectiveness) fires: 0
 - v2.93 Precedent (echo-last-damage) fires: 0
 - v2.93 Insult-to-Injury (×N mult) fires: 0
@@ -172,21 +172,21 @@ N = **200** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 8.66
-- Avg damage / run: 275
-- Mean final deck size: 12.7
+- Avg turns / combat: 8.74
+- Avg damage / run: 301
+- Mean final deck size: 13.0
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 95
-- e2-silent-spinner (The Silent Spinner): 42
-- e2-pattern-maker (The Pattern-Maker): 28
-- e2-silk-wraith (Silk Wraith): 15
-- e3-quartz-sentinel (Quartz Sentinel): 5
-- e3-vein-devourer (Vein Devourer): 4
-- e2-loom-familiar (Loom Familiar): 4
-- e3-geode-crab (Geode Crab): 3
-- e3-glow-mite (Glow Mite Swarm): 2
-- e3-crystal-beetle (Crystal Beetle): 1
-- e2-hollow-weaver (Hollow Weaver): 1
+- e2-boss-tapestry (The Tapestry Walker): 100
+- e2-silent-spinner (The Silent Spinner): 31
+- e2-pattern-maker (The Pattern-Maker): 27
+- e2-silk-wraith (Silk Wraith): 17
+- e3-vein-devourer (Vein Devourer): 8
+- e3-quartz-sentinel (Quartz Sentinel): 6
+- e3-glow-mite (Glow Mite Swarm): 3
+- e3-geode-crab (Geode Crab): 2
+- e3-crystal-beetle (Crystal Beetle): 2
+- e2-hollow-weaver (Hollow Weaver): 2
+- e3-boss-anvil (The Anvil-Forged): 2
