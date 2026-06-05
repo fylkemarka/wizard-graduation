@@ -9721,6 +9721,11 @@ export default function App() {
         swoopRaptor(slotName, slot, 'snatches');
       }
 
+      // Declared before the combine pre-pass: the combine-detonation burst
+      // below can KO the enemy and must set this flag, so it can't live further
+      // down with the other end-of-turn locals (that was a TDZ render crash).
+      let summonerKilledEnemy = false;
+
       // Pre-pass: THREE-OF-A-KIND COMBINES. When all 3 slots hold the same
       // species AND that species has a combine target, merge into the
       // combine animal anchored at intro spanning into subject. target
@@ -9875,7 +9880,6 @@ export default function App() {
 
       const nextSlots = {};
       const luresToRecycle = []; // lure cards returned to discard on transform
-      let summonerKilledEnemy = false;
       // Feed gate (Alan, 2026-05-31): feeding does NOT extend duration. It
       // unlocks the natural-exit onExit bonus AND the final turn. If never
       // fed by the make-or-break turn (animal's D-1 turn on the board), the
