@@ -60,6 +60,11 @@ import { ReadingRoom } from './components/ReadingRoom.jsx';
 const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
 const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2];
+// Only the foundational VARIETY lures come in pairs as a reward — each summons
+// from a 3-animal pool, so two copies keep the species cycling. Every other
+// lure (Fish Food and the single-named-animal special lures) is a single card.
+// Single source of truth for both the reward-screen badge and the deck-add.
+const PAIR_LURE_IDS = new Set(['cv2-l-birdseed', 'cv2-l-tender-greens']);
 // Handler menagerie slot order. Module-scoped so helpers/intent handlers
 // outside endTurn (adjacent-amplify, copy-left, Sloth, Porcupine) can read it.
 const SLOT_ORDER = ['intro', 'subject', 'target'];
@@ -11938,12 +11943,7 @@ export default function App() {
         offered: rewardChoices.map(c => ({ id: c?.id, setId: c?.setId || null, schoolId: c?.schoolId || null })),
         source: 'combat-reward',
       });
-      // Only the foundational VARIETY lures (Birdseed, Tender Greens) come in
-      // pairs — each summons from a 3-animal pool, so two copies keep that
-      // species cycling and make three-of-a-kind combines reachable. Every
-      // other lure (Fish Food and the special utility lures, which each summon
-      // ONE named animal) is a single card, as is everything non-lure.
-      const PAIR_LURE_IDS = new Set(['cv2-l-birdseed', 'cv2-l-tender-greens']);
+      // See PAIR_LURE_IDS (module scope): only Birdseed / Tender Greens pair.
       const copies = (cardOrSkip.slot === 'lure' && PAIR_LURE_IDS.has(cardOrSkip.id)) ? 2 : 1;
       const fresh = Array.from({ length: copies }, () => ({ ...cardOrSkip, uid: uid() }));
       setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, ...fresh]);
@@ -13880,7 +13880,7 @@ function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOp
                   </div>
                 </div>
               )}
-              {card.slot === 'lure' && (
+              {card.slot === 'lure' && PAIR_LURE_IDS.has(card.id) && (
                 <div className="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded text-center leading-tight bg-moss-200 text-moss-900 border border-moss-500">
                   🪱 comes as a pair (×2)
                 </div>
