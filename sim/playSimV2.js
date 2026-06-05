@@ -933,6 +933,24 @@ function stageHandlerLure(state, combat, lure) {
       return;
     }
   }
+  // Multi-slot lure (Kangaroo, summon.slots === 2): needs two ADJACENT empty
+  // slots. Anchor carries the lure with `spans`; partner is an occupied
+  // placeholder. Mirrors App.jsx lure-staging.
+  if (lure.special && lure.summon?.slots === 2) {
+    const pairs = [['intro', 'subject'], ['subject', 'target']];
+    const pair = pairs.find(([a, b]) => combat.htray[a] == null && combat.htray[b] == null);
+    if (!pair) { state.discard.push(lure); return; }
+    const [anchor, partner] = pair;
+    combat.htray[anchor] = {
+      kind: 'lure', card: { ...lure },
+      animalIds: null, animalId: lure.summon.animalId,
+      summonSet: lure.summon.summonSet || null,
+      turnsRemaining: lure.summon.turnsToArrive, youthBonus: 0,
+      spans: [anchor, partner],
+    };
+    combat.htray[partner] = { kind: 'occupied', occupiedBy: anchor };
+    return;
+  }
   const empties = SLOT.filter(s => combat.htray[s] == null);
   if (empties.length === 0) { state.discard.push(lure); return; }
   const youthBonus = (combat.tactic === 'youth' && combat.youthUses > 0) ? 1 : 0;
@@ -1269,6 +1287,8 @@ function aiTurnHandler(state, combat) {
   // Tap the Glass + the animal tick both bump totalDamageDealt). Mirrors
   // App.jsx damagedEnemyThisTurnRef.
   combat.dmgDealtAtTurnStart = combat.totalDamageDealt;
+  // Pigeon's scramble is once per player turn (Alan 2026-06-05).
+  combat.pigeonUsedThisTurn = false;
 
   let safety = 30;
   while (safety-- > 0) {
@@ -1284,6 +1304,51 @@ function aiTurnHandler(state, combat) {
       }
     }
     if (tryHandlerFeed(state, combat)) continue;
+    // PLAYER-ACTIVATED ANIMAL ABILITIES (Mime / Pigeon / Kangaroo, Alan
+    // 2026-06-05). The AI spends a verb when a telegraphed attack would chew
+    // through more than ~30% of the relevant pool after current defenses.
+    // Mirrors App.jsx activateAnimalFromSlot. Mime self-consumes (continue);
+    // Pigeon is once/turn (continue); Kangaroo ends the turn (break).
+    {
+      const SLOTA = ['intro', 'subject', 'target'];
+      const findAbility = (id) => SLOTA.find(s => {
+        const sl = combat.htray[s];
+        return sl?.kind === 'animal' && ANIMALS[sl.animalId]?.activatedAbility?.id === id;
+      });
+      const targetsComp = intent?.pool === 'composure';
+      const expected = incoming > 0 ? handlerAdjustIncoming(combat, incoming) : 0;
+      const poolNow = targetsComp ? state.poise : state.block;
+      const uncovered = Math.max(0, expected - poolNow);
+      const poolMax = targetsComp ? Math.max(1, state.composure) : Math.max(1, state.hp);
+      const dire = incoming > 0 && (uncovered / poolMax) > 0.3;
+      if (dire) {
+        // Mime — best value: skips the whole enemy turn, then leaves.
+        const mimeSlot = findAbility('mime-wall');
+        if (mimeSlot) {
+          combat.enemySkipNextTurn = true;
+          const sl = combat.htray[mimeSlot];
+          if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
+          else combat.htray[mimeSlot] = null;
+          combat.abilityActivations = (combat.abilityActivations || 0) + 1;
+          continue;
+        }
+        // Pigeon — scramble the threatening intent into something else (once/turn).
+        const pigeonSlot = findAbility('pigeon-scramble');
+        if (pigeonSlot && !combat.pigeonUsedThisTurn) {
+          combat.enemyIntent = rollIntent(combat.enemy, [intent?.kind].filter(Boolean));
+          combat.pigeonUsedThisTurn = true;
+          combat.abilityActivations = (combat.abilityActivations || 0) + 1;
+          continue;
+        }
+        // Kangaroo — duck into the pouch: no damage next turn, but the turn ends.
+        const kangSlot = findAbility('kangaroo-pouch');
+        if (kangSlot) {
+          combat.pouchGuard = true;
+          combat.abilityActivations = (combat.abilityActivations || 0) + 1;
+          break;
+        }
+      }
+    }
     // BOOSTER cards (2026-06-01). Effective per-animal attack reflects
     // slot.attackBonus (Gorge / Well-Drilled), mirroring the engine.
     const effAtk = (slot) => {
@@ -1446,6 +1511,13 @@ function aiTurnHandler(state, combat) {
 }
 function handlerApplyIntent(state, combat, intent) {
   if (!intent) return;
+  // Mime (self-consume, Alan 2026-06-05): the player activated the Mime's wall
+  // last turn → enemy skips this whole turn. The Mime already left the board on
+  // activation. Mirrors App.jsx enemySkipNextTurn.
+  if (combat.enemySkipNextTurn) { combat.enemySkipNextTurn = false; return; }
+  // Kangaroo pouch (Alan 2026-06-05): the player ducked in last turn → this
+  // enemy turn deals no damage (the whole turn glances off). Mirrors App.jsx.
+  if (combat.pouchGuard) { combat.pouchGuard = false; return; }
   // Sloth (slowsEnemy, Alan 2026-06-03): while a sloth hangs around, the enemy
   // acts at half speed — skipping every OTHER turn. The toggle alternates per
   // enemy turn. Reads the post-tick board limited to maul-eligible slots
@@ -1728,7 +1800,14 @@ function handlerEndOfTurnTick(state, combat) {
         if (slot.card) state.discard.push({ ...slot.card });
         combat.summons++;
         if (ANIMALS[animalId]?.special) combat.specialSummons = (combat.specialSummons || 0) + 1;
-        next[slotName] = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
+        const animalSlot = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
+        // Multi-slot lure (Kangaroo): carry the span footprint onto the animal
+        // and re-stamp the occupied partner. Mirrors App.jsx transform tick.
+        if (slot.spans && slot.spans.length > 1) {
+          animalSlot.spans = slot.spans;
+          for (const s of slot.spans) if (s !== slotName) next[s] = { kind: 'occupied', occupiedBy: slotName };
+        }
+        next[slotName] = animalSlot;
       } else next[slotName] = { ...slot, turnsRemaining: nt };
       continue;
     }
@@ -1857,6 +1936,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     totalDamageDealt: 0, totalDamageTaken: 0,
     whisperPending: 0, firstLureUsedThisTurn: false, powersInstalled: 0,
     weaveStacks: 0, dmgDealtAtTurnStart: 0, weaveDamage: 0,
+    abilityActivations: 0,
   };
 
   const flushTelemetry = (outcome) => {
@@ -1880,6 +1960,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     telemetry.handlerSpecialSummons = (telemetry.handlerSpecialSummons || 0) + (combat.specialSummons || 0);
     telemetry.handlerPorcupineThorns = (telemetry.handlerPorcupineThorns || 0) + (combat.porcupineThorns || 0);
     telemetry.handlerSlothSkips = (telemetry.handlerSlothSkips || 0) + (combat.slothSkips || 0);
+    telemetry.handlerAbilityActivations = (telemetry.handlerAbilityActivations || 0) + (combat.abilityActivations || 0);
   };
 
   let safety = MAX_COMBAT_TURNS;
@@ -5679,6 +5760,7 @@ function simRun(forcedLane = null) {
     handlerSpecialSummons: 0,
     handlerPorcupineThorns: 0,
     handlerSlothSkips: 0,
+    handlerAbilityActivations: 0,
   };
   let lastResult = null;
   let actsCleared = 0;
@@ -5818,6 +5900,7 @@ function aggregate(results) {
     handlerSpecialSummons: results.reduce((s, r) => s + (r.handlerSpecialSummons || 0), 0),
     handlerPorcupineThorns: results.reduce((s, r) => s + (r.handlerPorcupineThorns || 0), 0),
     handlerSlothSkips: results.reduce((s, r) => s + (r.handlerSlothSkips || 0), 0),
+    handlerAbilityActivations: results.reduce((s, r) => s + (r.handlerAbilityActivations || 0), 0),
     // v2.24: tunnel-vision / rage metrics.
     rageTriggers: results.reduce((s, r) => s + (r.rageTriggers || 0), 0),
     rageTriggerRuns: results.filter(r => (r.rageTriggers || 0) > 0).length,
@@ -6049,6 +6132,7 @@ function buildReport(agg) {
   lines.push(`- Avg summons/combat: ${agg.handlerCombats ? (agg.handlerSummons / agg.handlerCombats).toFixed(2) : '0.00'} · avg feeds/combat: ${agg.handlerCombats ? (agg.handlerFeeds / agg.handlerCombats).toFixed(2) : '0.00'}`);
   lines.push(`- Tactic changes: ${agg.handlerTacticChanges} · avg distinct tactics/combat: ${agg.handlerCombats ? (agg.handlerTacticVarietySum / agg.handlerCombats).toFixed(2) : '0.00'}`);
   lines.push(`- Special-lure animals: summons ${agg.handlerSpecialSummons} · porcupine thorns dealt ${agg.handlerPorcupineThorns} · sloth enemy-turns skipped ${agg.handlerSlothSkips}`);
+  lines.push(`- Activated abilities (Mime/Pigeon/Kangaroo): ${agg.handlerAbilityActivations} activations`);
   {
     const te = agg.handlerTacticEngaged || {};
     const order = ['shield', 'rabid', 'youth', 'nurture', 'feather'];

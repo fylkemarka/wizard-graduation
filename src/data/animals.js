@@ -334,6 +334,62 @@ export const ANIMALS = {
     flavor: 'It will get here. It has every intention of getting here.',
     desc: 'Slow to arrive, and does not attack. While it hangs around, time dilates: the enemy acts at half speed, skipping every other turn. Stays 3 turns; replay its lure to extend.',
   },
+  // ─────────────────────────────────────────────────────────────────────
+  // BATCH 2 — PLAYER-ACTIVATED abilities (Alan, 2026-06-05). These don't act
+  // on their own each turn; the player CLICKS the on-board animal to spend its
+  // verb at the moment of their choosing — timing/planning is the payoff. The
+  // `activatedAbility` descriptor drives both the click affordance and the
+  // dispatcher (App.jsx activateAnimalFromSlot + sim aiTurnHandler). Fields:
+  //   id            — branch key in the dispatcher
+  //   label         — button/hint text
+  //   cadence       — 'self-consume' (one shot, animal leaves) | 'per-turn'
+  //   endsTurn      — true: activating immediately ends the player's turn
+  // ─────────────────────────────────────────────────────────────────────
+
+  // GROUP A — TEMPO. Mime: one invisible wall. Activate to make the enemy skip
+  // its NEXT turn outright, then the Mime is spent and leaves. The whole point
+  // of the summon is that single, well-timed stop.
+  mime: {
+    name: 'Mime',
+    icon: '🤫',
+    attack: 0,
+    attackPool: 'composure',
+    duration: 3,
+    special: true,
+    activatedAbility: { id: 'mime-wall', label: '🧱 mime a wall — enemy skips its next turn', cadence: 'self-consume' },
+    flavor: 'It insists there is a wall. The enemy, against its better judgement, agrees.',
+    desc: 'Does not attack. Click to mime an invisible wall: the enemy skips its next turn, then the Mime takes its bow and leaves. One use; replay its lure for another.',
+  },
+  // GROUP A — TEMPO. Pigeon: struts across the enemy's plans. Activate to
+  // SCRAMBLE the telegraphed intent — it re-rolls into something different.
+  // A gamble button you can pull once a turn while the pigeon's around.
+  pigeon: {
+    name: 'Pigeon',
+    icon: '🐦',
+    attack: 1,
+    attackPool: 'composure',
+    duration: 3,
+    special: true,
+    activatedAbility: { id: 'pigeon-scramble', label: "🐦 scramble the enemy's intent", cadence: 'per-turn' },
+    flavor: 'It has no plan either, but at least it commits.',
+    desc: "Click once a turn to scramble the enemy's next move into a different one (a gamble — it might get worse). Stays 3 turns; replay its lure to extend.",
+  },
+  // GROUP B — DEFENSE. Kangaroo: two-slot footprint (the pouch takes room).
+  // Activate to DUCK INTO THE POUCH — you give up the rest of your turn, and
+  // in return take NO damage on the next enemy turn. A clean tempo-for-safety
+  // trade. The 2-slot cost means it crowds the board so it can't also combo.
+  kangaroo: {
+    name: 'Kangaroo',
+    icon: '🦘',
+    attack: 3,
+    attackPool: 'composure',
+    duration: 3,
+    special: true,
+    slots: 2,
+    activatedAbility: { id: 'kangaroo-pouch', label: '🦘 duck into the pouch — skip your turn, take no damage next turn', cadence: 'per-turn', endsTurn: true },
+    flavor: 'Roomy, surprisingly clean, smells faintly of eucalyptus. You have had worse hiding places.',
+    desc: 'Takes two slots. Click to duck into the pouch: you give up the rest of your turn and take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────

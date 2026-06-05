@@ -3617,6 +3617,14 @@ export default function App() {
   const [nextCardFree, setNextCardFree] = useState(false);
   // v3.4.59 — "Speechless": enemy's next intent (any kind) is skipped.
   const [enemySkipNextTurn, setEnemySkipNextTurn] = useState(false);
+  // Kangaroo pouch (Alan 2026-06-05): the player ducks into the pouch (ends
+  // their turn) and takes NO damage on the next enemy turn. Consumed at the
+  // top of applyEnemyIntent.
+  const [pouchGuard, setPouchGuard] = useState(false);
+  // Per-turn activated-ability usage (slot names). Pigeon's scramble is once
+  // per player turn; Mime self-consumes and Kangaroo ends the turn, so only
+  // the persistent per-turn verbs need this gate. Reset at player-turn-start.
+  const [abilitiesUsedThisTurn, setAbilitiesUsedThisTurn] = useState([]);
   // v3.4.59 — "I'll Take That as a Compliment": HP heal at end of turn for
   // damage absorbed by THIS card's block contribution. Stores the block
   // snapshot right after the card was played + the heal cap (5).
@@ -5392,6 +5400,9 @@ export default function App() {
     setEnemyDiscardCount(0);
     loomStoleThisCombatRef.current = false;
     redirectEnemyAttackRef.current = false;
+    setEnemySkipNextTurn(false);
+    setPouchGuard(false);
+    setAbilitiesUsedThisTurn([]);
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
     setPeekedNextIntent(null);
@@ -5869,6 +5880,38 @@ export default function App() {
           pushLog(`🍖 ${animal?.icon || ''} ${animal?.name || card.summon.animalId} fed — stays one turn longer.`);
           return;
         }
+      }
+      // Multi-slot lure (Kangaroo, summon.slots === 2): needs TWO ADJACENT
+      // empty slots. The anchor carries the lure envelope with `spans`; the
+      // partner is an `occupied` placeholder mirrored from the anchor — the
+      // same mechanic the three-of-a-kind combine uses. During countdown the
+      // occupied cell persists; on transform the anchor becomes the spanning
+      // animal (see transform tick). No buffet / nurture interaction. The
+      // big footprint is the anti-combo cost: it crowds the board.
+      if (card.special && card.summon.slots === 2) {
+        const adjacentPairs = [['intro', 'subject'], ['subject', 'target']];
+        const pair = adjacentPairs.find(([a, b]) => tray[a] == null && tray[b] == null);
+        if (!pair) {
+          setEnergy(e => e + cost);
+          pushLog(`🪱 ${card.name} needs two empty adjacent slots — refunded.`);
+          return;
+        }
+        const [anchor, partner] = pair;
+        const anchorEnvelope = {
+          kind: 'lure', uid: uid(), cardId: card.id, cardName: card.name, card,
+          turnsRemaining: card.summon.turnsToArrive,
+          animalId: card.summon.animalId, animalIds: null,
+          summonSet: card.summon.summonSet || null, youthBonus: 0,
+          spans: [anchor, partner],
+        };
+        setTray(p => syncTrayLegacy({ ...p, [anchor]: anchorEnvelope, [partner]: { kind: 'occupied', occupiedBy: anchor } }));
+        setHand(h => h.filter((_, i) => i !== handIdx));
+        setFirstLureUsedThisTurn(true);
+        const animal = getAnimal(card.summon.animalId);
+        pushLog(`🪱 ${card.name} placed across slots ${order.indexOf(anchor) + 1}–${order.indexOf(partner) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
+        logEvent(TE.HANDLER_SUMMON, { cardId: card.id, slots: 2, buffet: false, instant: false, feedKey: null, tactic: tray.tactic?.tactic?.id || null, enemyId: enemy?.id || null });
+        advanceTutorialStep('lure');
+        return;
       }
       // Occupied placeholder slots (Mouse House spans) are NOT empty.
       const emptySlots = order.filter(s => tray[s] == null);
@@ -8985,6 +9028,56 @@ export default function App() {
     pushLog(`🍖 Gorge dismissed without picking an animal.${refunded}`);
   }
 
+  // Player-activated animal abilities (Alan, 2026-06-05): Mime / Pigeon /
+  // Kangaroo bring a VERB the player spends by CLICKING the on-board animal —
+  // not a passive each-turn effect. The animal's `activatedAbility.id` branches
+  // here. No prompt-arm step: animals with an activatedAbility are themselves
+  // the click target (CombatScreen builds the handler when nothing else is
+  // armed). Mirrored in sim/playSimV2.js (handlerActivateAbility).
+  function activateAnimalFromSlot(slotName) {
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const animal = getAnimal(slot.animalId);
+    const ability = animal?.activatedAbility;
+    if (!ability) return;
+    // Per-turn verbs fire at most once per player turn.
+    if (ability.cadence === 'per-turn' && abilitiesUsedThisTurn.includes(slotName)) return;
+
+    if (ability.id === 'mime-wall') {
+      // Self-consume: the invisible wall makes the enemy skip its next FULL
+      // turn, then the Mime takes its bow and leaves the board.
+      setEnemySkipNextTurn(true);
+      const updates = {};
+      if (Array.isArray(slot.spans)) for (const s of slot.spans) updates[s] = null;
+      else updates[slotName] = null;
+      setTray(p => syncTrayLegacy({ ...p, ...updates }));
+      noteAnimalDeparted();
+      pushLog(`🧱 ${animal.icon} Mime throws up an invisible wall — ${enemy?.name || 'the enemy'} skips its next turn. The Mime bows out.`);
+      return;
+    }
+    if (ability.id === 'pigeon-scramble') {
+      // Scramble the telegraphed intent into a DIFFERENT kind (a gamble — it
+      // might land on something worse). Once per turn; the Pigeon stays.
+      if (enemy) {
+        const before = enemyIntent?.kind;
+        setEnemyIntent(rollIntent(enemy, [before].filter(Boolean)));
+        setIntentTick(t => t + 1);
+      }
+      setAbilitiesUsedThisTurn(u => [...u, slotName]);
+      pushLog(`🐦 ${animal.icon} Pigeon struts through the plans — ${enemy?.name || 'the enemy'}'s intent is scrambled.`);
+      return;
+    }
+    if (ability.id === 'kangaroo-pouch') {
+      // Duck into the pouch: take NO damage on the next enemy turn, but give up
+      // the rest of THIS turn. Guard consumed at the top of applyEnemyIntent.
+      setPouchGuard(true);
+      setAbilitiesUsedThisTurn(u => [...u, slotName]);
+      pushLog(`🦘 ${animal.icon} You duck into the pouch — no damage next turn. (Your turn ends.)`);
+      endTurn();
+      return;
+    }
+  }
+
   // Well-Drilled — designate an animal; it and every other copy of the same
   // animal currently on the board gain a permanent +2 attack (rest of combat).
   // Single-click animal target. Stacks via slot.attackBonus, the same channel
@@ -10198,7 +10291,14 @@ export default function App() {
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
+              // Multi-slot lure (Kangaroo): carry the span footprint onto the
+              // resolved animal and re-stamp the occupied partner cell, so the
+              // existing spans-aware exit/maul logic clears both slots.
+              ...(slot.spans && slot.spans.length > 1 ? { spans: slot.spans } : {}),
             };
+            if (slot.spans && slot.spans.length > 1) {
+              for (const s of slot.spans) if (s !== slotName) nextSlots[s] = { kind: 'occupied', occupiedBy: slotName };
+            }
           } else {
             nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };
           }
@@ -10768,6 +10868,10 @@ export default function App() {
 
     // RAGE entry on turn start removed 2026-05-31 (machinery ripped).
 
+    // Reset per-turn activated-ability usage (Pigeon scramble) for the new
+    // player turn.
+    setAbilitiesUsedThisTurn([]);
+
     // 6. New intent. Track what just fired and force a switch if the
     // enemy has already done the same kind twice in a row — saves the
     // "spammed Block 15 turns in a row" mind-numbing fights.
@@ -10892,6 +10996,14 @@ export default function App() {
       setEnemySkipNextTurn(false);
       setEnemySkipNextAttack(false);
       pushLog(`🤐 ${e.name} is speechless — turn skipped.`);
+      return;
+    }
+    // Kangaroo pouch (Alan 2026-06-05): the player ducked in last turn, so this
+    // enemy turn deals NO damage. The enemy still "acts" (the swing whiffs
+    // against the pouch), but riders/damage are skipped entirely. Consumed here.
+    if (pouchGuard) {
+      setPouchGuard(false);
+      pushLog(`🦘 Safe in the pouch — ${e.name}'s turn glances off. No damage.`);
       return;
     }
     // Sloth (slowsEnemy, Alan 2026-06-03): while a sloth hangs around, time
@@ -12374,6 +12486,8 @@ export default function App() {
       houseRulesPromptActive={houseRulesPromptActive}
       onHouseRulesClick={houseRulesClickSlot}
       onCancelHouseRules={cancelHouseRulesPrompt}
+      onActivateAnimal={activateAnimalFromSlot}
+      abilitiesUsedThisTurn={abilitiesUsedThisTurn}
       narrowChooserOpen={narrowChooserOpen}
       narrowCandidates={narrowChooserOpen ? buildNarrowCandidates() : []}
       onNarrowLure={addNarrowExclusion}

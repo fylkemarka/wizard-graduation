@@ -72,6 +72,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        houseRulesPromptActive = false,
                        onHouseRulesClick = () => {},
                        onCancelHouseRules = () => {},
+                       onActivateAnimal = () => {},
+                       abilitiesUsedThisTurn = [],
                        narrowChooserOpen = false,
                        narrowCandidates = [],
                        onNarrowLure = () => {},
@@ -711,6 +713,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
         wellDrilledPromptActive={wellDrilledPromptActive} onWellDrilledClick={onWellDrilledClick}
         houseRulesPromptActive={houseRulesPromptActive} onHouseRulesClick={onHouseRulesClick}
+        onActivateAnimal={onActivateAnimal} abilitiesUsedThisTurn={abilitiesUsedThisTurn}
         powers={powers}
         onPlayCard={onPlayCard}
         onFeedAnimal={onFeedAnimal}
@@ -1089,6 +1092,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        gorgePromptActive = false, onGorgeClick = () => {},
                        wellDrilledPromptActive = false, onWellDrilledClick = () => {},
                        houseRulesPromptActive = false, onHouseRulesClick = () => {},
+                       onActivateAnimal = () => {}, abilitiesUsedThisTurn = [],
                        powers = [],
                        onPlayCard = () => {},
                        onFeedAnimal = () => {},
@@ -1467,14 +1471,22 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const wellDrilledArmed = wellDrilledPromptActive;
       const houseRulesArmed = houseRulesPromptActive;
       const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
+      // Player-activated ability (Mime / Pigeon / Kangaroo): when NO targeting
+      // prompt is armed, an animal carrying an activatedAbility is its own
+      // click target. Per-turn verbs grey out once spent this turn.
+      const anyPromptArmed = treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed;
+      const ability = animal?.activatedAbility;
+      const abilitySpent = ability?.cadence === 'per-turn' && abilitiesUsedThisTurn.includes(slotName);
+      const activatable = !anyPromptArmed && !!ability && !abilitySpent;
       const clickHandler = treatArmed ? () => onTreatClick(slotName)
                           : whistleArmed ? () => onWhistleClick(slotName)
                           : sacrificeArmed ? () => onSacrificeClick(slotName)
                           : gorgeArmed ? () => onGorgeClick(slotName)
                           : wellDrilledArmed ? () => onWellDrilledClick(slotName)
                           : houseRulesArmed ? () => onHouseRulesClick(slotName)
+                          : activatable ? () => onActivateAnimal(slotName)
                           : undefined;
-      const armed = treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed;
+      const armed = anyPromptArmed || activatable;
       const armedTitle = treatArmed
         ? `🍖 Click to extend ${animal?.name || 'animal'} by 1 turn.`
         : whistleArmed
@@ -1487,6 +1499,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         ? `🎯 Click to drill every ${animal?.name || 'animal'} (+2 attack for the rest of combat).`
         : houseRulesArmed
         ? `🏠 Click to keep every ${animal?.name || 'animal'} +2 turns.`
+        : activatable
+        ? `⚡ ${ability.label}`
         : (() => {
             const shownDur = Math.max(0, (card.durationRemaining || 0) - 1);
             return `${animal?.name || card.animalId} — ${animal?.desc || ''} ${shownDur} turn${shownDur === 1 ? '' : 's'} left.${predatorNote}`;
@@ -1497,6 +1511,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        : gorgeArmed ? ' · 🍖 click to gorge'
                        : wellDrilledArmed ? ' · 🎯 click to drill'
                        : houseRulesArmed ? ' · 🏠 click to keep'
+                       : activatable ? ' · ⚡ click to activate'
                        : '';
       return (
         <motion.button key={card.animalId + '-' + slotName}

@@ -80,6 +80,24 @@ const SPECIAL_LURE_CARDS = [
     summon: { animalId: 'sloth', turnsToArrive: 4 },
     desc: 'In 4T (it is, after all, a sloth), summons a Sloth (0 attack). While it hangs around, the enemy acts at half speed — skipping every other turn. No feeding needed; replay to extend.',
     flavor: 'An invitation with no particular deadline. It will be honoured eventually.' },
+  // Batch 2 — player-activated abilities. Click the on-board animal to spend
+  // its verb (App.jsx activateAnimalFromSlot). Kangaroo takes two slots, so its
+  // lure needs two empty adjacent slots to stage.
+  { id: 'cv2-l-white-glove', name: 'A Single White Glove', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'uncommon', tier: 2, special: true,
+    summon: { animalId: 'mime', turnsToArrive: 1 },
+    desc: 'In 1T, summons a Mime (0 attack). Click it to mime a wall — the enemy skips its next turn, then the Mime leaves. No feeding needed; replay for another.',
+    flavor: 'You find it in your pocket. You do not remember a second glove, or a first.' },
+  { id: 'cv2-l-stale-crust', name: 'A Stale Crust', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'uncommon', tier: 2, special: true,
+    summon: { animalId: 'pigeon', turnsToArrive: 1 },
+    desc: "In 1T, summons a Pigeon. Click once a turn to scramble the enemy's intent into a different one. No feeding needed; replay to extend.",
+    flavor: 'It was bread once. The pigeon does not hold this against it.' },
+  { id: 'cv2-l-eucalyptus', name: 'A Sprig of Eucalyptus', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'rare', tier: 2, special: true,
+    summon: { animalId: 'kangaroo', turnsToArrive: 1, slots: 2 },
+    desc: 'In 1T, summons a Kangaroo across TWO slots. Click to duck into the pouch — give up your turn, take no damage next turn. No feeding needed; replay to extend.',
+    flavor: 'Smells like somewhere far away with better weather and more kicking.' },
 ];
 
 export const HANDLER_V2 = [...LURE_CARDS, ...SPECIAL_LURE_CARDS];
