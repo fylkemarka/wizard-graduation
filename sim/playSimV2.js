@@ -1335,7 +1335,12 @@ function aiTurnHandler(state, combat) {
         // Pigeon — scramble the threatening intent into something else (once/turn).
         const pigeonSlot = findAbility('pigeon-scramble');
         if (pigeonSlot && !combat.pigeonUsedThisTurn) {
-          combat.enemyIntent = rollIntent(combat.enemy, [intent?.kind].filter(Boolean));
+          const pigExclude = [intent?.kind].filter(Boolean);
+          // Loom Familiar's one-steal cap holds through a scramble (mirrors App).
+          if (combat.enemy.id === 'e2-loom-familiar' && state.loomStole && !pigExclude.includes('discard-hand')) {
+            pigExclude.push('discard-hand');
+          }
+          combat.enemyIntent = rollIntent(combat.enemy, pigExclude);
           combat.pigeonUsedThisTurn = true;
           combat.abilityActivations = (combat.abilityActivations || 0) + 1;
           continue;
@@ -1920,6 +1925,7 @@ function runHandlerCombat(state, enemy, telemetry) {
   state.deck = (state.deck || []).filter(c => !c.token);
   state.hand = [];
   state.powers = [];
+  state.loomStole = false; // Loom Familiar: one card-steal per combat, total.
   const combat = {
     enemy, fb,
     enemyComposure: enemy.currentComp, enemyHp: enemy.currentHp, enemyBlock: 0,
@@ -5089,7 +5095,11 @@ function awardReward(state) {
   if (state.lane === 'handler') {
     const card = aiPickHandlerReward(state);
     if (card) {
-      state.discard.push({ ...card, uid: uid() });
+      // Mirror App.jsx: the foundational variety lures (Birdseed, Tender
+      // Greens) come in pairs; every other lure and non-lure is a single.
+      const PAIR_LURE_IDS = new Set(['cv2-l-birdseed', 'cv2-l-tender-greens']);
+      const copies = (card.type === 'lure' && PAIR_LURE_IDS.has(card.id)) ? 2 : 1;
+      for (let i = 0; i < copies; i++) state.discard.push({ ...card, uid: uid() });
       state.rewardsTaken.push(card.id);
     }
     return;

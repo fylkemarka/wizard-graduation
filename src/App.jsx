@@ -5876,6 +5876,7 @@ export default function App() {
           setTray(p => syncTrayLegacy({ ...p, [fedSlot]: { ...p[fedSlot], durationRemaining: (p[fedSlot].durationRemaining || 0) + 1, feedReceived: true } }));
           setHand(h => h.filter((_, i) => i !== handIdx));
           setDiscard(d => [...d, { ...card, uid: uid() }]);
+          if (buffetArmed) setBuffetArmed(false); // playing a lure to extend still disarms Buffet
           const animal = getAnimal(card.summon.animalId);
           pushLog(`🍖 ${animal?.icon || ''} ${animal?.name || card.summon.animalId} fed — stays one turn longer.`);
           return;
@@ -5907,6 +5908,7 @@ export default function App() {
         setTray(p => syncTrayLegacy({ ...p, [anchor]: anchorEnvelope, [partner]: { kind: 'occupied', occupiedBy: anchor } }));
         setHand(h => h.filter((_, i) => i !== handIdx));
         setFirstLureUsedThisTurn(true);
+        if (buffetArmed) setBuffetArmed(false); // any lure play disarms Buffet
         const animal = getAnimal(card.summon.animalId);
         pushLog(`🪱 ${card.name} placed across slots ${order.indexOf(anchor) + 1}–${order.indexOf(partner) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
         logEvent(TE.HANDLER_SUMMON, { cardId: card.id, slots: 2, buffet: false, instant: false, feedKey: null, tactic: tray.tactic?.tactic?.id || null, enemyId: enemy?.id || null });
@@ -6044,7 +6046,12 @@ export default function App() {
       if (targetSlots.length > 1 && !isNurture) {
         pushLog(`🍽 Buffet — ${card.name} spreads across ${targetSlots.length} slots (${targetSlots.join(', ')}).`);
       }
-      if (buffetArmed && (targetSlots.length > 1 || isChainLure)) setBuffetArmed(false);
+      // Buffet disarms the moment a lure is staged — ANY lure, even one that
+      // (with the board nearly full) only landed in a single slot. The card
+      // text promises it "stays armed until you play a lure," so the spread
+      // count is irrelevant. (Bug fix 2026-06-05: previously only disarmed on a
+      // 2+ slot spread or a chain lure, so a 1-slot buffet play left it armed.)
+      if (buffetArmed) setBuffetArmed(false);
       if (targetSlots.length === 1 && !isNurture) {
         if (card.summon.animalId || featherSpecies) {
           const animalId = featherSpecies || card.summon.animalId;
@@ -9060,7 +9067,15 @@ export default function App() {
       // might land on something worse). Once per turn; the Pigeon stays.
       if (enemy) {
         const before = enemyIntent?.kind;
-        setEnemyIntent(rollIntent(enemy, [before].filter(Boolean)));
+        const exclude = [before].filter(Boolean);
+        // Loom Familiar's one-steal-per-combat cap holds NO MATTER WHAT: once
+        // it has taken its card, a scramble must never re-roll back into
+        // discard-hand (which would threaten a second steal). Mirrors the
+        // end-of-turn re-roll exclude (loomStoleThisCombatRef).
+        if (enemy.id === 'e2-loom-familiar' && loomStoleThisCombatRef.current && !exclude.includes('discard-hand')) {
+          exclude.push('discard-hand');
+        }
+        setEnemyIntent(rollIntent(enemy, exclude));
         setIntentTick(t => t + 1);
       }
       setAbilitiesUsedThisTurn(u => [...u, slotName]);
@@ -11923,11 +11938,13 @@ export default function App() {
         offered: rewardChoices.map(c => ({ id: c?.id, setId: c?.setId || null, schoolId: c?.schoolId || null })),
         source: 'combat-reward',
       });
-      // Lures come in pairs — a new lure adds 2 copies to the deck so the
-      // summoning engine has enough bait to keep a species cycling (and to
-      // make three-of-a-kind combines reachable). Everything else is 1.
-      const isLure = cardOrSkip.slot === 'lure';
-      const copies = isLure ? 2 : 1;
+      // Only the foundational VARIETY lures (Birdseed, Tender Greens) come in
+      // pairs — each summons from a 3-animal pool, so two copies keep that
+      // species cycling and make three-of-a-kind combines reachable. Every
+      // other lure (Fish Food and the special utility lures, which each summon
+      // ONE named animal) is a single card, as is everything non-lure.
+      const PAIR_LURE_IDS = new Set(['cv2-l-birdseed', 'cv2-l-tender-greens']);
+      const copies = (cardOrSkip.slot === 'lure' && PAIR_LURE_IDS.has(cardOrSkip.id)) ? 2 : 1;
       const fresh = Array.from({ length: copies }, () => ({ ...cardOrSkip, uid: uid() }));
       setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards, ...fresh]);
       pushLog(`+ ${cardOrSkip.name}${copies > 1 ? ` ×${copies}` : ''} added to deck.`);
@@ -12493,7 +12510,6 @@ export default function App() {
       onNarrowLure={addNarrowExclusion}
       onCancelNarrow={cancelNarrowChooser}
       buffetArmed={buffetArmed}
-      onCancelBuffet={() => { setBuffetArmed(false); const refunded = refundArmedCard(); pushLog(`🍽 Buffet dismissed.${refunded}`); }}
       onFeedAnimal={feedAnimalsWithLure}
       onDiscardTactic={discardActiveTactic}
       enemyAnnotation={enemy?.annotation || null}

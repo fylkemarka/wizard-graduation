@@ -79,7 +79,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        onNarrowLure = () => {},
                        onCancelNarrow = () => {},
                        buffetArmed = false,
-                       onCancelBuffet = () => {},
                        onFeedAnimal = () => {},
                        onDiscardTactic = () => {},
                        onOpenCompendium, onOpenDeckView }) {
@@ -843,14 +842,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         </div>
       )}
       {buffetArmed && (
-        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
+        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40">
           <div className="text-sm text-gold-100">
             <span className="font-bold">🍽 Buffet armed:</span> your next lure will spread across every empty stage slot. It stays armed until you play a lure.
           </div>
-          <button onClick={onCancelBuffet}
-            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
-            Cancel Buffet
-          </button>
         </div>
       )}
 
@@ -1444,8 +1439,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           className={`px-3 py-2 rounded text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] ${
             armed
               ? (isWhistlePick1
-                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer'
-                  : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600')
+                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer'
+                  : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer hover:bg-gold-600')
               : 'bg-moss-800 border border-moss-500 cursor-help'
           }`}>
           <span className="font-mono text-[10px] opacity-70">lure{isWhistlePick1 ? ' · 🎶' : ''}</span>
@@ -1524,8 +1519,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           className={`px-3 py-2 rounded text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] ${
             armed
               ? (isWhistlePick1
-                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer'
-                  : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse cursor-pointer hover:bg-gold-600')
+                  ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer'
+                  : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer hover:bg-gold-600')
               : 'bg-ember-800 border border-ember-500 cursor-help'
           }`}>
           {armed && (

@@ -50,6 +50,15 @@
 }
 .dmg-float { animation: float-up 900ms ease-out forwards; }
 
+/* Gentler than Tailwind's animate-pulse (which dips to 50%) — used on armed
+   on-board animals (e.g. click-to-activate Mime/Pigeon/Kangaroo) so the
+   pulse only fades 100% → 70% and back. */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+.animate-pulse-soft { animation: pulse-soft 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
 @layer components {
   .parchment-card {
     @apply bg-ink-700 rounded-md border border-ink-500 shadow-md;
