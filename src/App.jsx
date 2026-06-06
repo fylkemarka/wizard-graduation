@@ -13577,6 +13577,39 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
   );
 }
 
+// Per-act map-path definitions (Alan, 2026-06-06): when an act has full
+// map art with a painted trail, its nodes are laid out ALONG that trail
+// instead of on the abstract grid. `points` trace the trail's centerline
+// in normalized image coordinates ([x, y], y top-down), ordered from the
+// START (bottom of the image) to the BOSS (top). `aspect` = image w/h —
+// the SVG viewBox stretches to it so trail coordinates stay true.
+// Main-spine nodes (x = cols/2 in the linear map) sit dead on the trail;
+// sidequest-spur nodes offset perpendicular to it.
+const ACT_MAP_PATHS = {
+  1: {
+    aspect: 876 / 1796,
+    points: [
+      [0.43, 0.965], [0.47, 0.905], [0.52, 0.845], [0.47, 0.775],
+      [0.41, 0.700], [0.42, 0.625], [0.47, 0.555], [0.52, 0.485],
+      [0.47, 0.415], [0.40, 0.345], [0.42, 0.275], [0.48, 0.205],
+      [0.52, 0.135], [0.47, 0.060],
+    ],
+  },
+};
+
+// Interpolate a point + perpendicular on a normalized polyline at t∈[0,1].
+function pathPointAt(points, t, W, H) {
+  const f = Math.max(0, Math.min(1, t)) * (points.length - 1);
+  const i = Math.min(points.length - 2, Math.floor(f));
+  const frac = f - i;
+  const x = (points[i][0] + (points[i + 1][0] - points[i][0]) * frac) * W;
+  const y = (points[i][1] + (points[i + 1][1] - points[i][1]) * frac) * H;
+  const tx = (points[i + 1][0] - points[i][0]) * W;
+  const ty = (points[i + 1][1] - points[i][1]) * H;
+  const len = Math.hypot(tx, ty) || 1;
+  return { x, y, perpX: -ty / len, perpY: tx / len };
+}
+
 // SVG-flavored art slot for map nodes — <image> with a circular clip;
 // hides on 404 like ArtSlot, so the emoji glyph shows until art exists.
 // Drawn AFTER the glyph text so a present image paints over it.
@@ -13625,9 +13658,28 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
   const rows = act.rows;
   const cols = act.width;
   const ROW_SPACING = 90;
-  const H = padding * 2 + Math.max(1, rows - 1) * ROW_SPACING;
-  const xScale = (x) => padding + (x * (W - 2 * padding)) / cols;
-  const yScale = (y) => padding + (y * (H - 2 * padding)) / (rows - 1);
+  // Path-art layout: nodes follow the painted trail in the act's map art
+  // (see ACT_MAP_PATHS). Falls back to the abstract grid for acts without
+  // a traced trail. maxRowY derives from the map itself — the linear map
+  // is 14 rows regardless of act.rows.
+  const actPath = ACT_MAP_PATHS[actIdx + 1];
+  const maxRowY = Math.max(1, ...map.nodes.map(n => n.y));
+  const H = actPath
+    ? Math.round(W / actPath.aspect)
+    : padding * 2 + Math.max(1, rows - 1) * ROW_SPACING;
+  const gridX = (x) => padding + (x * (W - 2 * padding)) / cols;
+  const gridY = (y) => padding + (y * (H - 2 * padding)) / (rows - 1);
+  // Per-node position: on the trail (t=0 at start/bottom of image) with a
+  // perpendicular offset for off-spine nodes (sidequest spurs).
+  const nodePos = (n) => {
+    if (!actPath) return { x: gridX(n.x), y: gridY(n.y) };
+    const t = 1 - (n.y / maxRowY);
+    const p = pathPointAt(actPath.points, t, W, H);
+    const lateral = ((n.x - cols / 2) / cols) * 360;
+    return { x: p.x + p.perpX * lateral, y: p.y + p.perpY * lateral };
+  };
+  const xScale = (x) => gridX(x);
+  const yScale = (y) => gridY(y);
 
   return (
     <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
@@ -13660,10 +13712,14 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
       </div>
 
       <div className="parchment-card p-4 flex flex-col items-center relative overflow-hidden">
-        {/* Act backdrop — /art/acts/act-<n>.png, faded behind the map and
-            masked toward the bottom so node labels stay readable. */}
-        <ArtSlot src={`/art/acts/act-${actIdx + 1}.png`} alt=""
-                 className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none select-none" />
+        {/* Act backdrop — /art/acts/act-<n>.png. Acts WITH a traced trail
+            (ACT_MAP_PATHS) render the art full-bleed inside the SVG instead,
+            so nodes align with the painted path; this faded backdrop is for
+            acts that only have mood art. */}
+        {!ACT_MAP_PATHS[actIdx + 1] && (
+          <ArtSlot src={`/art/acts/act-${actIdx + 1}.png`} alt=""
+                   className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none select-none" />
+        )}
         <div className="relative w-full flex flex-col items-center">
         {(() => {
           // Fog-of-war visibility per node:
@@ -13689,6 +13745,13 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                   <circle cx="0.5" cy="0.5" r="0.5" />
                 </clipPath>
               </defs>
+              {/* Full-bleed trail art — viewBox aspect matches the image,
+                  so preserveAspectRatio="none" introduces no distortion. */}
+              {actPath && (
+                <image href={`/art/acts/act-${actIdx + 1}.png`}
+                       x="0" y="0" width={W} height={H}
+                       preserveAspectRatio="none" pointerEvents="none" />
+              )}
               {Object.entries(map.edges).map(([fromId, tos]) => {
                 const from = map.nodes.find(n => n.id === fromId);
                 return tos.map(toId => {
@@ -13702,10 +13765,11 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                   if (cleared)               { stroke = '#5d7e3f'; strokeWidth = 1.5; opacity = 0.55; dash = '6,3'; }
                   else if (onCurrentPath)    { stroke = '#c79d44'; strokeWidth = 3;   opacity = 1;    dash = '0';   }
                   else                       { stroke = '#3d3325'; strokeWidth = 1.5; opacity = 0.7;  dash = '0';   }
+                  const fp = nodePos(from), tp = nodePos(to);
                   return (
                     <line key={`${fromId}->${toId}`}
-                      x1={xScale(from.x)} y1={yScale(from.y)}
-                      x2={xScale(to.x)} y2={yScale(to.y)}
+                      x1={fp.x} y1={fp.y}
+                      x2={tp.x} y2={tp.y}
                       stroke={stroke}
                       strokeWidth={strokeWidth}
                       opacity={opacity}
@@ -13731,16 +13795,22 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                 const opacity = isCleared ? 0.55
                               : isFuture ? 0.85
                               :            1;
+                const np = nodePos(n);
                 return (
                   <g key={n.id}
                     data-node-id={n.id}
                     style={{ cursor: isReachable ? 'pointer' : 'default' }}
                     onClick={() => isReachable && onPick(n.id)}>
                     <title>{nodeTooltip(n.type)}</title>
-                    <circle cx={xScale(n.x)} cy={yScale(n.y)} r={n.type === 'boss' ? 26 : 18}
+                    {/* Dark halo keeps nodes readable on busy path art. */}
+                    {actPath && (
+                      <circle cx={np.x} cy={np.y} r={(n.type === 'boss' ? 26 : 18) + 4}
+                        fill="#0a0703" opacity={0.55} />
+                    )}
+                    <circle cx={np.x} cy={np.y} r={n.type === 'boss' ? 26 : 18}
                       fill={fill} stroke={stroke} strokeWidth={strokeWidth}
                       opacity={opacity} />
-                    <text x={xScale(n.x)} y={yScale(n.y) + 5} textAnchor="middle"
+                    <text x={np.x} y={np.y + 5} textAnchor="middle"
                       className="select-none" fill="#f7eed3"
                       fontSize={n.type === 'boss' ? 18 : 14}
                       opacity={isFuture ? 0.9 : 1}>
@@ -13750,7 +13820,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                     {/* Node art slot — covers the glyph when the image
                         exists; suppressed while fog hides the type. */}
                     {!(mapFog && !isCurrent && !isCleared) && (
-                      <SvgNodeArt type={n.type} cx={xScale(n.x)} cy={yScale(n.y)}
+                      <SvgNodeArt type={n.type} cx={np.x} cy={np.y}
                                   r={(n.type === 'boss' ? 26 : 18) - 1.5} opacity={opacity} />
                     )}
                   </g>
