@@ -131,6 +131,13 @@ Bold single-subject icons, readable at small size, dark backgrounds.
 | `start.png` | A cluster of warm village windows at dusk (the Town). |
 | `boss.png` | An ominous crown wreathed in briars. |
 
+## Title logo — `public/art/title-logo.png` (wide, ~1600×600, transparent or cream bg)
+*(wired — replaces the text heading on the menu when present)*
+
+> The words "Witch Mountain Bridge" as cut construction-paper letters,
+> black with magenta accent shadows, slightly uneven hand-cut placement,
+> a thread of yarn underlining the words.
+
 ## Title — `public/art/title.png` (1920×1080)
 *(not yet wired — optional hero art behind the menu)*
 

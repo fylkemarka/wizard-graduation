@@ -12596,7 +12596,11 @@ export default function App() {
 function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave, onDevQuickStart, onCompendium }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
-      <h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Witch Mountain Bridge</h1>
+      {/* Title logo art slot — /art/title-logo.png replaces the text
+          heading when present; falls back to the display-font title. */}
+      <ArtSlot src="/art/title-logo.png" alt="Witch Mountain Bridge"
+               className="max-w-xl w-full object-contain"
+               fallback={<h1 className="font-display text-6xl text-gold-300 tracking-widest text-center">Witch Mountain Bridge</h1>} />
       <p className="font-quill text-parchment-200 italic max-w-xl text-center">
         The school has taught you what it can. To graduate, you must walk the
         Path of Mastery — gather your staff, robes, gem, and ring, each from
