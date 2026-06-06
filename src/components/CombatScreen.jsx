@@ -1422,6 +1422,32 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     return chips;
   }
 
+  // v3.5 (Alan) — adjacency-combo cue. When two neighbouring animals will
+  // fire a joint combo at end of turn, BOTH pills get a dotted green
+  // outline so the player sees the pair is creating something. Mirrors
+  // the detection (incl. once-per-pair-type dedupe) used by the
+  // projection strip below and the App.jsx end-of-turn pre-pass.
+  const comboSlotInfo = {};
+  {
+    const order = ['intro', 'subject', 'target'];
+    const comboSeen = new Set();
+    for (let i = 0; i < order.length - 1; i++) {
+      const sA = tray?.[order[i]];
+      const sB = tray?.[order[i + 1]];
+      if (!sA || sA.kind !== 'animal' || sA.eatenThisTurn) continue;
+      if (!sB || sB.kind !== 'animal' || sB.eatenThisTurn) continue;
+      const combo = ADJACENCY_COMBOS.find(c =>
+        (c.a === sA.animalId && c.b === sB.animalId) ||
+        (c.a === sB.animalId && c.b === sA.animalId));
+      if (!combo) continue;
+      const key = [combo.a, combo.b].sort().join('+');
+      if (comboSeen.has(key)) continue;
+      comboSeen.add(key);
+      comboSlotInfo[order[i]] = combo;
+      comboSlotInfo[order[i + 1]] = combo;
+    }
+  }
+
   const slotPill = (card, slotName, color) => {
     if (!card) {
       // Empty slots are drop targets for hand lures AND click targets for
@@ -1571,6 +1597,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        : houseRulesArmed ? ' · 🏠 click to keep'
                        : activatable ? ' · ⚡ click to activate'
                        : '';
+      // Adjacency-combo cue — dotted green outline on both halves of a
+      // pair that will fire a joint combo this turn.
+      const comboHere = comboSlotInfo[slotName];
       return (
         <motion.button key={card.animalId + '-' + slotName}
           layout
@@ -1578,14 +1607,15 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
           onClick={clickHandler}
-          title={armedTitle}
+          data-combo={comboHere ? comboHere.name : undefined}
+          title={comboHere ? `${armedTitle}\n\n✨ ${comboHere.name} — ${comboHere.desc}` : armedTitle}
           className={`px-3 py-2 rounded text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] ${
             armed
               ? (isWhistlePick1
                   ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer'
                   : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer hover:bg-gold-600')
               : 'bg-ember-800 border border-ember-500 cursor-help'
-          }`}>
+          } ${comboHere ? 'outline outline-2 outline-dotted outline-moss-400 outline-offset-2' : ''}`}>
           {armed && (
             <span className="font-mono text-[10px] opacity-70">{armedLabel.replace(/^ · /, '')}</span>
           )}

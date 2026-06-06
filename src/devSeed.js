@@ -45,6 +45,8 @@ export function installSeedFromUrl() {
     // that species (when the pool offers it), so a three-of-a-kind combine and
     // its on-form burst render path is regression-testable without fighting the
     // random Tender Greens roll. Persists (not consumed). No-op when absent.
+    // Comma list (field-mouse,rabbit) = consume entries in order, one per
+    // resolved summon; the final entry then pins. For mixed-species pairs.
     const forcedSpecies = params.get('forceSpecies');
     if (forcedSpecies) window.__forceSpecies = forcedSpecies;
     const raw = params.get('seed');

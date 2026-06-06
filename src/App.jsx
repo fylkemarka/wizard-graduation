@@ -10284,7 +10284,21 @@ export default function App() {
               // E2E hook: ?forceSpecies=field-mouse pins every random pool pick
               // to that species (when the pool offers it), so a three-of-a-kind
               // combine is deterministically reachable in Lab Mode.
-              const forcedSpecies = (typeof window !== 'undefined') ? window.__forceSpecies : null;
+              // 2026-06-06: also accepts a comma list (field-mouse,rabbit) —
+              // entries are consumed IN ORDER, one per resolved summon, so
+              // mixed-species adjacency pairs are deterministically reachable
+              // too. (Safe to consume here: endTurn() is imperative code, not
+              // a pure setState updater.)
+              const forcedRaw = (typeof window !== 'undefined') ? window.__forceSpecies : null;
+              let forcedSpecies = forcedRaw;
+              if (forcedRaw && String(forcedRaw).includes(',')) {
+                const queue = String(forcedRaw).split(',');
+                forcedSpecies = queue[0];
+                if (pool && pool.includes(forcedSpecies)) {
+                  // Consume the entry; an exhausted list pins its final entry.
+                  window.__forceSpecies = queue.slice(1).join(',') || forcedSpecies;
+                }
+              }
               if (forcedSpecies && pool && pool.includes(forcedSpecies)) {
                 resolvedAnimalId = forcedSpecies;
               } else {
