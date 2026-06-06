@@ -3323,6 +3323,11 @@ export default function App() {
   // kills / treasure nodes / events. Effects fire via the same hooks
   // dispatcher used by equipment + powers.
   const [relics, setRelics] = useState([]);
+  // Relic-acquired announcement queue. Every grant path funnels through
+  // grantRelic(), which enqueues here; the overlay shows the front of the
+  // queue (name + what it does) and click-to-dismiss pops it. Queue (not
+  // a single slot) so back-to-back grants don't swallow each other.
+  const [relicToastQueue, setRelicToastQueue] = useState([]);
   // Familiar + chosen name. Both selected during the town intro (supply
   // shop → familiar shop → name screen) before the first map appears.
   // familiar.bonus is treated as a permanent effect source like a relic.
@@ -4194,6 +4199,18 @@ export default function App() {
     }
   }
 
+  // Single funnel for every relic grant. Adds to state, fires one-shot
+  // onAcquire effects, logs, and queues the "Relic Acquired" overlay so
+  // the player actually notices the pickup (previously: silent pushLog
+  // only, relics just appeared in the map-screen state bar).
+  function grantRelic(relic, source) {
+    if (!relic) return;
+    setRelics(prev => [...prev, relic]);
+    pushLog(`📿 ${source}: ${relic.name}.`);
+    applyRelicOnAcquire(relic);
+    setRelicToastQueue(q => [...q, { relic, source }]);
+  }
+
   // ---------- TUTORIAL ----------
   // Scripted practice match. Reset player state, build a small fixed
   // deck, force the opening hand so the player always has a Word + a
@@ -4639,10 +4656,8 @@ export default function App() {
     const commonRelics = RELICS.filter(r => r.rarity === 'common');
     const grantedRelic = commonRelics[Math.floor(Math.random() * commonRelics.length)];
     if (grantedRelic) {
-      setRelics(r => [...r, grantedRelic]);
-      pushLog(`🛒 Strapped on: ${grantedRelic.name}.`);
+      grantRelic(grantedRelic, 'Starting supplies');
       logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: grantedRelic.id, relicName: grantedRelic.name, rarity: grantedRelic.rarity, auto: true });
-      applyRelicOnAcquire(grantedRelic);
     }
     setStage('familiar-shop');
   }
@@ -4690,10 +4705,8 @@ export default function App() {
       pushLog(`🛒 Pocketed: ${offer.name || offer.phrase}.`);
       logEvent(TE.STARTING_PICK, { kind: 'card', cardId: offer.id, cardName: offer.name, type: offer.type, rarity: offer.rarity });
     } else if (kind === 'relic') {
-      setRelics(r => [...r, offer]);
-      pushLog(`🛒 Strapped on: ${offer.name}.`);
+      grantRelic(offer, 'Supply shop');
       logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: offer.id, relicName: offer.name, rarity: offer.rarity });
-      applyRelicOnAcquire(offer);
     } else if (kind === 'boon') {
       if (offer.apply === 'maxHpPlus10') {
         setMaxHp(m => m + 10);
@@ -11700,9 +11713,7 @@ export default function App() {
       // Plus a random Rare relic from the boss chest. Skip duplicates.
       const rareRelic = pickRelicByRarity({ rare: 1 }, relics.map(r => r.id), selectedCharacter?.lane || null);
       if (rareRelic) {
-        setRelics(prev => [...prev, rareRelic]);
-        pushLog(`📿 Boss relic claimed: ${rareRelic.name}.`);
-        applyRelicOnAcquire(rareRelic);
+        grantRelic(rareRelic, 'Boss chest');
       }
       // v3.1.3 BUGFIX: tray cards staged at combat end were being LOST
       // forever — enterFight resets the tray on next combat. Alan's
@@ -11759,9 +11770,7 @@ export default function App() {
     if (enemy.tier === 'elite') {
       const r = pickRelicByRarity({ common: 2, uncommon: 3 }, relics.map(x => x.id), selectedCharacter?.lane || null);
       if (r) {
-        setRelics(prev => [...prev, r]);
-        pushLog(`📿 Elite spoils: ${r.name}.`);
-        applyRelicOnAcquire(r);
+        grantRelic(r, 'Elite spoils');
       }
     }
     // v2.68: act-scaled rarity weights. Per playtest: Act 2 rewards
@@ -12297,6 +12306,12 @@ export default function App() {
         lane={selectedCharacter?.lane || null} />
     )}
     {chaosRollFlash && <ChaosRollFlash flash={chaosRollFlash} onDismiss={() => setChaosRollFlash(null)} />}
+    {relicToastQueue.length > 0 && (
+      <RelicAcquiredOverlay
+        relic={relicToastQueue[0].relic}
+        source={relicToastQueue[0].source}
+        onDismiss={() => setRelicToastQueue(q => q.slice(1))} />
+    )}
   </>;
   const stageContent = (() => {
   if (stage === 'menu')               return <MenuScreen
@@ -13686,7 +13701,12 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
             <>
               <span className="uppercase text-parchment-300 ml-2">Relics:</span>
               {player.relics.map(r => (
-                <span key={r.id} className="text-gold-300" title={`${r.desc}${r.flavor ? '\n\n' + r.flavor : ''}`}>📿 {r.name}</span>
+                <span key={r.id}
+                  className={`px-1.5 py-0.5 rounded border cursor-help ${
+                    r.rarity === 'rare' ? 'border-gold-400 text-gold-300'
+                    : r.rarity === 'uncommon' ? 'border-iris-400 text-iris-300'
+                    : 'border-ink-500 text-parchment-200'}`}
+                  title={`${r.desc}${r.flavor ? '\n\n' + r.flavor : ''}`}>📿 {r.name}</span>
               ))}
             </>
           )}
@@ -15528,6 +15548,30 @@ function ChaosRollFlash({ flash, onDismiss }) {
           </div>
         )}
         <div className="text-[10px] text-parchment-500 italic mt-2">click to dismiss</div>
+      </div>
+    </div>
+  );
+}
+
+// Relic Acquired announcement. Full-screen click-to-dismiss overlay so a
+// relic pickup is an EVENT, not a line in the log. Shows what the thing
+// actually does (desc) front-and-center — that's the part players were
+// missing when relics silently appeared in the state bar.
+function RelicAcquiredOverlay({ relic, source, onDismiss }) {
+  const tone = relic.rarity === 'rare'     ? { text: 'text-gold-300',   border: 'border-gold-400',   badge: 'bg-gold-600 text-ink-800' }
+             : relic.rarity === 'uncommon' ? { text: 'text-iris-300',   border: 'border-iris-400',   badge: 'bg-iris-700 text-parchment-50' }
+             :                               { text: 'text-parchment-200', border: 'border-parchment-500', badge: 'bg-ink-600 text-parchment-200' };
+  return (
+    <div onClick={onDismiss}
+         className="fixed inset-0 z-50 bg-ink-900 bg-opacity-80 flex items-center justify-center cursor-pointer p-4">
+      <div className={`parchment-card-strong p-6 border-2 ${tone.border} flex flex-col items-center gap-2 max-w-md text-center`}>
+        <div className="text-[10px] uppercase tracking-widest text-parchment-300">Relic Acquired — {source}</div>
+        <div className="text-6xl">📿</div>
+        <div className={`font-display text-3xl ${tone.text}`}>{relic.name}</div>
+        <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold ${tone.badge}`}>{relic.rarity}</span>
+        <div className="text-sm text-parchment-100 mt-1">{relic.desc}</div>
+        {relic.flavor && <div className="text-xs text-parchment-400 italic">“{relic.flavor}”</div>}
+        <div className="text-[10px] text-parchment-500 italic mt-2">click to continue</div>
       </div>
     </div>
   );
