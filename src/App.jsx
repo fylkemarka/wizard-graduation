@@ -8880,7 +8880,11 @@ export default function App() {
     const idx = SLOT_ORDER.indexOf(slotName);
     const own = animal?.attack || 0;
     if (idx <= 0) return own;
-    const ls = trayObj[SLOT_ORDER[idx - 1]];
+    let ls = trayObj[SLOT_ORDER[idx - 1]];
+    // A multi-slot animal (e.g. the McCloven combine) fills its extra cells
+    // with an `occupied` placeholder pointing back to the anchor. Resolve
+    // through it so the Lyrebird copies the spanning animal, not its stand-in.
+    if (ls?.kind === 'occupied' && ls.occupiedBy) ls = trayObj[ls.occupiedBy];
     if (ls?.kind !== 'animal') return own;
     const lv = animalAttackValue(getAnimal(ls.animalId), ls);
     return lv > 0 ? lv : own;

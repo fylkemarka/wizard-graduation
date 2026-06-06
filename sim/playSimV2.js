@@ -823,7 +823,10 @@ function copyLeftAttackSim(work, slotName, animal) {
   const idx = SLOT.indexOf(slotName);
   const own = animal.attack || 0;
   if (idx <= 0) return own;
-  const ls = work[SLOT[idx - 1]];
+  let ls = work[SLOT[idx - 1]];
+  // Resolve through a multi-slot animal's `occupied` placeholder to its anchor
+  // (e.g. the McCloven combine), so the Lyrebird copies the spanning animal.
+  if (ls?.kind === 'occupied' && ls.occupiedBy) ls = work[ls.occupiedBy];
   if (!ls || ls.kind !== 'animal') return own;
   const la = ANIMALS[ls.animalId];
   let lv = la?.attack || 0;

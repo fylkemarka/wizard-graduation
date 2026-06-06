@@ -1103,7 +1103,28 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   // rider so the pill never shows a stale base number ("no math in head"):
   // any slot.attackBonus (e.g. Gorge on a fed animal, or Well-Drilled's
   // per-animal +2 stamp). Flopping animals (attack ≤ 0) stay at 0.
-  const effAnimalAttack = (animal, slotCard) => {
+  // Effective swing for the LEFT neighbour of a slot (what a Lyrebird copies).
+  // Resolves through a multi-slot animal's `occupied` placeholder to its anchor
+  // (e.g. McCloven), mirroring App.jsx copyLeftAttack. Returns 0 if there's
+  // nothing/no attacker to the left.
+  const animalLeftAttack = (slotName) => {
+    const ORDER = ['intro', 'subject', 'target'];
+    const idx = ORDER.indexOf(slotName);
+    if (idx <= 0) return 0;
+    let ls = tray[ORDER[idx - 1]];
+    if (ls?.kind === 'occupied' && ls.occupiedBy) ls = tray[ls.occupiedBy];
+    if (ls?.kind !== 'animal') return 0;
+    const la = animals?.[ls.animalId];
+    let lv = la?.attack || 0;
+    if (lv > 0) lv += (ls.attackBonus || 0);
+    return lv;
+  };
+  const effAnimalAttack = (animal, slotCard, slotName) => {
+    // Lyrebird: its shown swing is the left neighbour's, falling back to own.
+    if (animal?.copiesLeft && slotName !== undefined) {
+      const lv = animalLeftAttack(slotName);
+      if (lv > 0) return lv;
+    }
     let a = animal?.attack || 0;
     if (a <= 0) return a;
     a += (slotCard?.attackBonus || 0);
@@ -1529,7 +1550,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
             {(animal?.attack || 0) > 0
-              ? `${effAnimalAttack(animal, card)} dmg / turn · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`
+              ? `${effAnimalAttack(animal, card, slotName)} dmg / turn · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`
               : `(flops) · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`}
             {predatorNote}
           </span>
