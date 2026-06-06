@@ -44,4 +44,7 @@ test('an adjacent combo pair shows the dotted outline cue on both animals', asyn
 
   // The cue's tooltip names the combo so hover explains the outline.
   await expect(comboPills.first()).toHaveAttribute('title', /Warren Rush/);
+
+  // v3.5: the pair is wrapped in ONE dotted box with a "Combo" tag below.
+  await expect(page.getByText(/✨ Combo/i).first()).toBeVisible();
 });

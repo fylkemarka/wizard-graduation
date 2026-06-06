@@ -1615,7 +1615,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                   ? 'bg-gold-900 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer'
                   : 'bg-gold-700 border-2 border-gold-300 ring-2 ring-gold-400 animate-pulse-soft cursor-pointer hover:bg-gold-600')
               : 'bg-ember-800 border border-ember-500 cursor-help'
-          } ${comboHere ? 'outline outline-2 outline-dotted outline-moss-400 outline-offset-2' : ''}`}>
+          }`}>
           {armed && (
             <span className="font-mono text-[10px] opacity-70">{armedLabel.replace(/^ · /, '')}</span>
           )}
@@ -1833,9 +1833,41 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             stays anchored to the right side regardless of how wide the
             slot pills get when staged. Pills shrink-min before wrapping. */}
         <div className="flex-1 flex flex-nowrap items-stretch gap-2 overflow-x-auto">
-        {slotPill(tray.intro, 'intro', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
-        {slotPill(tray.subject, 'subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' })}
-        {slotPill(tray.target, 'target', { empty: isHandler ? 'border-iris-600 text-iris-400' : 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' })}
+        {(() => {
+          // v3.5 (Alan): adjacency-combo cue = ONE dotted green box around
+          // BOTH halves of the pair with "COMBO" labelled beneath, instead
+          // of per-pill outlines. Group consecutive slots that share the
+          // same detected combo into a wrapper; everything else renders as
+          // plain siblings.
+          const defs = [
+            ['intro',   { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' }],
+            ['subject', { empty: 'border-iris-600 text-iris-400', filled: 'bg-iris-700 hover:bg-iris-600 border border-iris-400' }],
+            ['target',  { empty: isHandler ? 'border-iris-600 text-iris-400' : 'border-ember-600 text-ember-500', filled: 'bg-ember-700 hover:bg-ember-600 border border-ember-400' }],
+          ];
+          const out = [];
+          for (let i = 0; i < defs.length; i++) {
+            const [name, color] = defs[i];
+            const combo = comboSlotInfo[name];
+            if (combo && i + 1 < defs.length && comboSlotInfo[defs[i + 1][0]] === combo) {
+              const [name2, color2] = defs[i + 1];
+              out.push(
+                <div key={`combo-${name}`}
+                     className="relative flex flex-nowrap gap-2 p-1.5 pb-2.5 rounded-lg border-2 border-dotted border-moss-400"
+                     title={`✨ ${combo.name} — ${combo.desc}`}>
+                  {slotPill(tray[name], name, color)}
+                  {slotPill(tray[name2], name2, color2)}
+                  <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-1.5 rounded bg-ink-800 text-[9px] uppercase tracking-widest font-bold text-moss-300 whitespace-nowrap">
+                    ✨ Combo
+                  </div>
+                </div>
+              );
+              i++;
+            } else {
+              out.push(<span key={name} className="contents">{slotPill(tray[name], name, color)}</span>);
+            }
+          }
+          return out;
+        })()}
         {isHandler ? (
           tray.tactic ? (
             <button type="button"
