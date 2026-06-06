@@ -19,6 +19,7 @@ import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
 import { ADJACENCY_COMBOS } from '../data/animals.js';
 import Icon from '../icons/Icon.jsx';
+import ArtSlot from './ArtSlot.jsx';
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
 
 // v3.5 art pass — slim vitals bar. Width animates via .stat-bar-fill's
@@ -242,7 +243,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           </div>
         )}
         <div className="flex justify-between items-start mb-0.5">
-          <div>
+          <div className="flex items-start gap-2">
+            {/* Bitmap portrait slot — appears once /art/enemies/<id>.png
+                exists (see design/ART_PROMPTS.md); hidden until then. */}
+            {enemy?.id && (
+              <ArtSlot src={`/art/enemies/${enemy.id}.png`} alt={enemy.name}
+                       className="w-14 h-14 rounded-md border-2 border-ember-700 object-cover shrink-0" />
+            )}
+            <div>
             <div className="font-display text-base text-ember-300 flex items-center gap-2 flex-wrap leading-tight">
               {enemy?.name}
               {/* v2.99.2: phase-shift badge — prominent next to the enemy
@@ -257,6 +265,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             </div>
             <div className="text-[10px] text-parchment-300 italic leading-none">
               {enemy?.tier === 'boss' ? 'Boss' : enemy?.tier === 'elite' ? 'Elite' : 'Enemy'}
+            </div>
             </div>
           </div>
           <div className="text-right flex items-baseline gap-2">

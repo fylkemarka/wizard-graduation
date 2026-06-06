@@ -49,6 +49,7 @@ import { HANDLER_V2, HANDLER_V2_BY_SLOT, SPECIAL_LURE_CARDS } from './cards/hand
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
 import Icon from './icons/Icon.jsx';
+import ArtSlot from './components/ArtSlot.jsx';
 import { ANIMALS, ADJACENCY_COMBOS } from './data/animals.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
 import { CardFullBody } from './components/CardFullBody.jsx';
@@ -13287,6 +13288,10 @@ function CharacterSelectScreen({ characters, onSelect, onPractice, onLab }) {
           return (
             <div key={c.id}
               className="flex flex-col gap-3 p-6 bg-ink-700 border-2 border-ink-500 rounded-lg shadow-lg">
+              {/* Bitmap portrait slot — appears once /art/characters/<lane>.png
+                  exists (see design/ART_PROMPTS.md); hidden until then. */}
+              <ArtSlot src={`/art/characters/${c.lane}.png`} alt={c.name}
+                       className="w-full aspect-[4/3] rounded-md border-2 border-gold-600 object-cover" />
               <div className="text-xs uppercase tracking-widest text-gold-500">{c.lane === 'jnsq' ? 'Je Ne Sais Quoi' : c.lane}</div>
               <h3 className="font-display text-3xl text-gold-300">{c.name}</h3>
               <div className="text-sm italic text-parchment-200">{c.title}</div>
