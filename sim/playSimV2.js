@@ -1520,8 +1520,9 @@ function handlerApplyIntent(state, combat, intent) {
   } else {
     combat.slothSkipToggle = false;
   }
-  // Porcupine (thorns, Alan 2026-06-03): every porcupine on the board jabs the
-  // enemy for its `thorns` composure on each incoming swing. Mirrors App.jsx.
+  // Porcupine (quills, Alan 2026-06-05): each porcupine absorbs up to its
+  // `thorns` value off an incoming swing (quills-first, before Block) and
+  // reflects the absorbed amount as composure. Caps stack. Mirrors App.jsx.
   const porcupineThorns = SLOTN.reduce((sum, s) => {
     if (!combat.maulEligibleSlots?.has(s)) return sum;
     const sl = combat.htray[s];
@@ -1548,6 +1549,14 @@ function handlerApplyIntent(state, combat, intent) {
     let wBlock = state.block, wPoise = state.poise || 0, wHp = state.hp, wComp = state.composure;
     for (let i = 0; i < hits; i++) {
       let remaining = raw;
+      // Porcupine quills absorb first, before Block, reflecting what they soak.
+      if (porcupineThorns > 0 && remaining > 0) {
+        const absorbed = Math.min(remaining, porcupineThorns);
+        remaining -= absorbed;
+        combat.enemyComposure = Math.max(0, combat.enemyComposure - absorbed);
+        combat.totalDamageDealt += absorbed;
+        combat.porcupineThorns = (combat.porcupineThorns || 0) + absorbed;
+      }
       if (targetsComposure) {
         if (wPoise > 0) { const a = Math.min(wPoise, remaining); wPoise -= a; remaining -= a; }
       } else if (wBlock > 0) {
@@ -1556,11 +1565,6 @@ function handlerApplyIntent(state, combat, intent) {
       if (targetsComposure) wComp = Math.max(0, wComp - remaining);
       else                  wHp   = Math.max(0, wHp   - remaining);
       combat.totalDamageTaken += remaining;
-      if (porcupineThorns > 0) {
-        combat.enemyComposure = Math.max(0, combat.enemyComposure - porcupineThorns);
-        combat.totalDamageDealt += porcupineThorns;
-        combat.porcupineThorns = (combat.porcupineThorns || 0) + porcupineThorns;
-      }
       if (wHp <= 0 || wComp <= 0) break;
     }
     state.block = wBlock; state.poise = wPoise; state.hp = wHp; state.composure = wComp;

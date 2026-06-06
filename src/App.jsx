@@ -11312,10 +11312,6 @@ export default function App() {
           // Only decrement discrete count if the aura isn't paying for this hit.
           if (!auraActive) thornsUsed++;
         }
-        if (porcupineThorns > 0) {
-          applyDamageToEnemyComposure(porcupineThorns);
-          pushLog(`🦔 Porcupine: ${porcupineThorns} composure back.`);
-        }
         // v3.4.42 — Mirror Reflect: charge-based, reflect 100% of THIS
         // swing's incoming raw damage capped per charge. Stacks ON TOP of
         // regular thorns. Consumes one charge per swing.
@@ -11344,6 +11340,18 @@ export default function App() {
           });
           // Skip to next swing — no block consumption, no landed flag.
           continue;
+        }
+        // Porcupine (quills, Alan 2026-06-05): absorb up to `porcupineThorns`
+        // off this swing BEFORE Block — that much never reaches the player —
+        // and reflect exactly the absorbed amount as composure. Quills-first so
+        // it reflects reliably even when you're holding Block; multiple
+        // porcupines stack the cap. Skipped swings (dodged above) never reach
+        // here, so a missed hit absorbs/reflects nothing.
+        if (porcupineThorns > 0 && remaining > 0) {
+          const absorbed = Math.min(remaining, porcupineThorns);
+          remaining -= absorbed;
+          applyDamageToEnemyComposure(absorbed);
+          pushLog(`🦔 Porcupine: absorbs ${absorbed} and jabs it back as composure.`);
         }
         let landed = false;
         if (targetsComposure) {

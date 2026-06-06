@@ -72,7 +72,7 @@ const SPECIAL_LURE_CARDS = [
   { id: 'cv2-l-windfall-apple', name: 'A Windfall Apple', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'uncommon', tier: 2, special: true,
     summon: { animalId: 'porcupine', turnsToArrive: 1 },
-    desc: 'In 1T, summons a Porcupine (0 attack). Whenever the enemy attacks you, it takes 4 composure in return. No feeding needed; replay to extend.',
+    desc: 'In 1T, summons a Porcupine (0 attack). It absorbs up to 5 damage from each enemy attack and jabs the absorbed amount back as composure. No feeding needed; replay to extend.',
     flavor: 'Bruised, generous, and entirely beside the point.' },
   { id: 'cv2-l-low-branch', name: 'A Low, Slow Branch', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'rare', tier: 2, special: true,

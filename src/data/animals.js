@@ -305,8 +305,10 @@ export const ANIMALS = {
     flavor: 'An uncanny impression of whatever just happened. Including the parts you would rather it did not.',
     desc: "Each turn, copies the attack of the animal to its left (its own 2 composure if there's nothing there). Stays 3 turns; replay its lure to extend.",
   },
-  // GROUP B — DEFENSE. Porcupine: retaliation, not a shield. The enemy still
-  // lands the blow; it just costs them composure to do it.
+  // GROUP B — DEFENSE. Porcupine: a reflecting shield. `thorns` is the per-
+  // swing ABSORB cap — that much of an incoming attack never reaches the
+  // player, and the absorbed amount is jabbed back as composure (quills-first,
+  // before Block; multiple porcupines stack the cap).
   porcupine: {
     name: 'Porcupine',
     icon: '🦔',
@@ -314,9 +316,9 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     special: true,
-    thorns: 4,
+    thorns: 5,
     flavor: 'Best admired from a conversational distance.',
-    desc: 'Does not attack. Whenever the enemy attacks you, it takes 4 composure in return. Stays 3 turns; replay its lure to extend.',
+    desc: 'Does not attack. Absorbs up to 5 damage from each enemy attack (you take that much less) and deals the absorbed amount back as composure. Stays 3 turns; replay its lure to extend.',
   },
   // GROUP A — TEMPO. Sloth: slowest arrival in the game (4 turns), 0 attack.
   // Time dilation — while it hangs around, the enemy acts at HALF SPEED,
