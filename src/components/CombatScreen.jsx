@@ -21,6 +21,17 @@ import { ADJACENCY_COMBOS } from '../data/animals.js';
 import Icon from '../icons/Icon.jsx';
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
 
+// v3.5 art pass — slim vitals bar. Width animates via .stat-bar-fill's
+// CSS transition, so damage/heals read as motion, not just number flips.
+function StatBar({ value, max, fillClass, label }) {
+  const pct = Math.max(0, Math.min(100, (value / Math.max(1, max)) * 100));
+  return (
+    <div className="stat-bar flex-1 min-w-[60px]" title={label}>
+      <div className={`stat-bar-fill ${fillClass}`} style={{ width: pct + '%' }} />
+    </div>
+  );
+}
+
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, incomingProjection, peekedNextIntent,
                        enemyDmgMult, playerDmgMult,
                        enemyDmgTurns = 0, playerDmgTurns = 0,
@@ -290,6 +301,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 more prominently. */}
           </div>
         </div>
+        {/* v3.5 art pass — enemy vitals bars under the header numbers. */}
+        <div className="flex gap-2 items-center mb-1">
+          {showComposure && (
+            <StatBar value={enemyComposure} max={composureMax} fillClass="bg-iris-400"
+                     label={`Composure ${enemyComposure}/${composureMax}`} />
+          )}
+          {showHp && (
+            <StatBar value={enemyHp} max={hpMax} fillClass="bg-ember-400"
+                     label={`HP ${enemyHp}/${hpMax}`} />
+          )}
+        </div>
         {/* v3.5 — unified enemy-forecast panel. Intent / arguing-back /
             peek / annotation / Incoming pills were four separately-styled
             sibling boxes competing for attention; now they're rows of ONE
@@ -477,6 +499,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       <div key={`player-vitals-${playerHitFlash || 0}`}
            className={`parchment-card-strong p-1.5 flex flex-col gap-0.5 ${playerHitFlash ? 'hit-shake' : ''}`}>
         <div className="text-[10px] uppercase tracking-widest text-moss-300 leading-none">Your State</div>
+        {/* v3.5 art pass — player vitals bars mirror the enemy's. */}
+        <div className="flex gap-2 items-center">
+          <StatBar value={hp} max={maxHp} fillClass="bg-moss-400" label={`HP ${hp}/${maxHp}`} />
+          <StatBar value={playerComposure} max={playerComposureMax} fillClass="bg-iris-400"
+                   label={`Composure ${playerComposure}/${playerComposureMax}`} />
+        </div>
         <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
           <span title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
           <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
@@ -951,7 +979,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 isFootnoteEligible
                   ? `bg-iris-900/60 text-iris-100 border-iris-400 ring-2 ring-iris-400 hover:scale-105 hover:shadow-2xl cursor-pointer`
                 : playable
-                  ? `bg-parchment-50 text-ink-800 ${tint} hover:scale-105 hover:shadow-2xl cursor-pointer`
+                  ? `bg-parchment-50 card-face text-ink-800 ${tint} hover:scale-105 hover:-translate-y-1 hover:shadow-2xl cursor-pointer`
                   : 'bg-ink-600 text-parchment-400 border-ink-500 opacity-50 cursor-not-allowed'
               }`}>
               <CardFullBody card={displayCard} costOverride={effCost} costPillClass={costPillClass} costTooltip={costTooltip} lane={isHandler ? 'handler' : null} />
@@ -1908,9 +1936,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           }
           className={`btn text-base px-6 py-2 ml-2 self-center ${
             castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
-            ready ? 'btn-iris animate-pulse' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
+            ready ? 'btn-iris cast-armed' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
           }`}>
-          ✨ CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
+          <Icon name="cast" className="mr-1" />CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
         </button>)}
         {/* v3.4.77 (Alan): ALL IN stake UI pulled — see commit notes.
             Stake mechanic still has dead-but-harmless code in App.jsx
