@@ -289,9 +289,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 more prominently. */}
           </div>
         </div>
-        <div className="flex gap-2 items-center flex-wrap">
+        {/* v3.5 — unified enemy-forecast panel. Intent / arguing-back /
+            peek / annotation / Incoming pills were four separately-styled
+            sibling boxes competing for attention; now they're rows of ONE
+            ember panel that reads top-to-bottom: what they'll do, what you
+            know about it, what it actually costs you. */}
+        <div className="rounded bg-ember-950/50 border border-ember-800">
           <div key={`intent-${intentTick}`}
-               className="intent-flash px-3 py-2 bg-ember-900 bg-opacity-60 rounded border border-ember-700 cursor-help"
+               className="intent-flash px-3 py-2 cursor-help"
                title={intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.'}>
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
             <div className="text-lg">
@@ -318,10 +323,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             )}
           </div>
           {peekedNextIntent && (
-            <div className="px-3 py-2 bg-iris-900 bg-opacity-60 rounded border border-iris-700"
+            <div className="px-3 py-1.5 border-t border-ember-800/60 text-sm"
                  title="You peeked the enemy's next move.">
-              <div className="text-xs uppercase text-iris-300 tracking-widest">👁 Peek (next)</div>
-              <div className="text-lg text-parchment-50">{peekedNextIntent.telegraph}</div>
+              <span className="text-iris-300 font-mono text-xs uppercase tracking-widest mr-2">👁 next</span>
+              <span className="text-parchment-50">{peekedNextIntent.telegraph}</span>
             </div>
           )}
           {enemy?.annotation && (() => {
@@ -338,10 +343,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             const effectSummary = parts.length > 0 ? parts.join('. ') + '.' : 'No active effect.';
             const tip = `${enemy.annotation.name} — ${enemy.annotation.turnsRemaining} turn${enemy.annotation.turnsRemaining === 1 ? '' : 's'} remaining.\n\nEffect: ${effectSummary}`;
             return (
-              <div className="px-3 py-2 bg-iris-900 bg-opacity-40 rounded border border-iris-400 cursor-help"
-                   title={tip}>
-                <div className="text-xs uppercase text-iris-300 tracking-widest">📝 Annotated</div>
-                <div className="text-sm italic text-parchment-50">{enemy.annotation.phrase} <span className="text-iris-300">({enemy.annotation.turnsRemaining}t)</span></div>
+              <div className="px-3 py-1.5 border-t border-ember-800/60 cursor-help" title={tip}>
+                <span className="text-iris-300 font-mono text-xs uppercase tracking-widest mr-2">📝 annotated</span>
+                <span className="text-sm italic text-parchment-50">{enemy.annotation.phrase} <span className="text-iris-300">({enemy.annotation.turnsRemaining}t)</span></span>
                 <div className="text-[10px] text-iris-200 mt-0.5 leading-tight">{effectSummary}</div>
               </div>
             );
@@ -349,7 +353,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {/* Per-lane effectiveness chips removed 2026-05-31 with the
               effectiveness-system rip. All multipliers are now 1.0 globally
               so the chips were noise (and lying). */}
-        </div>
         {/* v3.4.68 — INCOMING-HIT math bar. Mirrors the player spell-tray
             breakdown so the enemy attack is no longer "behind the scenes."
             Every layer that touches the swing gets its own chip: base →
@@ -405,13 +408,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           if (p.maul) chips.push(chip('maul', 'bg-ember-900 text-ember-100',
             `🦷 mauls`, `If any HP leaks past Block, this attack also tears your strongest animal off the board.`));
           return (
-            <div className="mt-2 p-2 rounded bg-ember-950/50 border border-ember-800 flex flex-wrap gap-1.5 items-center"
+            <div className="px-3 py-2 border-t border-ember-800/60 flex flex-wrap gap-1.5 items-center"
                  title="What the enemy's attack actually does to you, step by step.">
               <span className="text-[10px] uppercase tracking-widest text-ember-300">Incoming</span>
               <div className="flex flex-wrap gap-1.5 text-[11px] font-mono items-center">{chips}</div>
             </div>
           );
         })()}
+        </div>
         {/* v2.65: STATUS row — what YOU have done to the enemy this combat
             (and what they've done to you). Pulled out from the lane-chip
             row to a dedicated band with bigger styling so the player can
@@ -2143,74 +2147,56 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           })()}
         </div>
       )}
-      {mathBreakdown && (
-        <div className="text-[11px] font-mono text-parchment-300 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="text-iris-300 font-bold text-[10px] uppercase tracking-widest mr-1">Math:</span>
-          <span title={`${mathBreakdown.baseDmg} base + ${mathBreakdown.statTotal} stat × ${mathBreakdown.mult} target multiplier.`}>
-            ({mathBreakdown.baseDmg} + {mathBreakdown.statTotal}×{mathBreakdown.mult})
-          </span>
-          <span className="text-parchment-500">=</span>
-          <span className="font-bold text-parchment-100">{mathBreakdown.preTier}</span>
-          {tierMult !== 1 && (<>
-            <span className="text-parchment-500">×</span>
-            <span title={`Tier ${tier} multiplier — earned by tag-cohesive intro/subject/target.`}>
-              {tierMult.toFixed(1)}{tier === 3 ? ' (T3)' : tier === 2 ? ' (T2)' : ''}
-            </span>
-          </>)}
-          {mathBreakdown.enemyEff !== 1 && (<>
-            <span className="text-parchment-500">×</span>
-            <span className={mathBreakdown.enemyEff > 1 ? 'text-moss-300' : 'text-ember-300'}
-              title={`Enemy is ${mathBreakdown.enemyEff > 1 ? 'susceptible' : 'resistant'} to ${mathBreakdown.castLane} (×${mathBreakdown.enemyEff}).`}>
-              {mathBreakdown.enemyEff}× eff
-            </span>
-          </>)}
-          {mathBreakdown.playerMult !== 1 && (<>
-            <span className={mathBreakdown.playerMult > 1 ? 'text-iris-300 ml-2' : 'text-ember-300 ml-2'}
-              title={mathBreakdown.playerMult > 1
-                ? `Enemy is Vulnerable — your Predicted damage is already amplified.`
-                : `You're Weak — your Predicted damage is already reduced.`}>
-              {mathBreakdown.playerMult > 1 ? '🩸 ENEMY VULN' : '⛧ YOU WEAK'}
-            </span>
-          </>)}
-          {mathBreakdown.secondCastScalar !== 1 && (<>
-            <span className="text-parchment-500">×</span>
-            <span className="text-ember-300"
-              title={`Cast #${castsThisTurn + 1} this turn — each cast after the first scales to 60%.`}>
-              0.6× cast#{castsThisTurn + 1}
-            </span>
-          </>)}
-          {mathBreakdown.tagBonus > 0 && (<>
-            <span className="text-parchment-500">+</span>
-            <span className="text-iris-300 font-bold" title={`Tag-resonance bonus.`}>✦{mathBreakdown.tagBonus}</span>
-          </>)}
-          {/* loudBonus chip removed 2026-05-31. */}
-          {predicted.predatorBonus > 0 && (<>
-            <span className="text-parchment-500">+</span>
-            <span className="text-ember-300" title="Predator rider.">🩸+{predicted.predatorBonus}</span>
-          </>)}
-          {predicted.insultBonus > 0 && (<>
-            <span className="text-parchment-500">+</span>
-            <span className="text-iris-300" title="Insult-hit.">🎯+{predicted.insultBonus}</span>
-          </>)}
-          {/* v3.4.74 (Alan): surface FFT rider bonuses (Bluster pressure,
-              consume spike, RAGE × 2, missing-HP scaling, Pop Off Temp HP,
-              flat FFT bonus) so the jump from base to Predicted is legible. */}
-          {predicted.damageParts && predicted.damageParts.length > 0 && predicted.damageParts.map((part, pi) => (
-            <span key={`rp-${pi}`} className="text-gold-300 font-bold" title={`From FFT rider — ${part}`}>
-              {part.startsWith('×') ? part : (part.startsWith('+') ? part : '+ ' + part)}
-            </span>
-          ))}
-          {mathBreakdown.enemyBlock > 0 && (<>
-            <span className="text-parchment-500">−</span>
-            <span className="text-parchment-100 bg-ink-700 px-1 rounded"
-              title={`Enemy Block ${mathBreakdown.enemyBlock} — absorbed before pool damage lands.`}>
-              🛡 {mathBreakdown.enemyBlock}
-            </span>
-          </>)}
-          <span className="text-parchment-500">=</span>
-          <span className="font-bold text-iris-200 text-sm">{predicted.damage}</span>
-        </div>
-      )}
+      {/* v3.5 — math bar rebuilt in the Incoming bar's pill language.
+          Same contributions as before (v2.79 rule: every rider stays
+          visible) but rendered as UNIFORM pills with the raw formula
+          tucked into tooltips, instead of loose ×/+/= arithmetic soup.
+          Also de-duped: enemy-eff and Vuln/Weak multipliers were shown
+          twice (once from mathBreakdown, once via damageParts) — now
+          damageParts is the single source since it reflects the actual
+          rounding applied to the Predicted number. */}
+      {mathBreakdown && (() => {
+        const pill = (key, cls, text, title) => (
+          <span key={key} className={`px-1.5 py-0.5 rounded ${cls} cursor-help`} title={title}>{text}</span>
+        );
+        const pills = [];
+        pills.push(pill('cast', 'bg-ink-700 text-parchment-100',
+          `🪄 cast ${mathBreakdown.preTier}`,
+          `${mathBreakdown.baseDmg} base + ${mathBreakdown.statTotal} stat × ${mathBreakdown.mult} target multiplier = ${mathBreakdown.preTier}.`));
+        if (tierMult !== 1) pills.push(pill('tier', 'bg-iris-900 text-iris-100',
+          `T${tier} ×${tierMult.toFixed(1)}`,
+          `Tier ${tier} multiplier — earned by tag-cohesive intro/subject/target.`));
+        if (mathBreakdown.tagBonus > 0) pills.push(pill('tag', 'bg-iris-900 text-iris-100',
+          `✦ +${mathBreakdown.tagBonus}`, 'Tag-resonance bonus from matching tags in the tray.'));
+        if (predicted.predatorBonus > 0) pills.push(pill('pred', 'bg-ember-800 text-ember-100',
+          `🩸 +${predicted.predatorBonus}`, 'Predator rider — the enemy is already debuffed.'));
+        if (predicted.insultBonus > 0) pills.push(pill('insult', 'bg-iris-800 text-iris-100',
+          `🎯 +${predicted.insultBonus}`,
+          `Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} — this enemy is touchy about it.`));
+        // FFT riders + eff/Vuln multipliers — already baked into Predicted.
+        (predicted.damageParts || []).forEach((part, pi) => {
+          pills.push(pill(`rp-${pi}`, 'bg-gold-900 text-gold-200 font-bold',
+            part.startsWith('×') || part.startsWith('+') ? part : '+ ' + part,
+            `Rider — ${part}. Already included in the Predicted number.`));
+        });
+        pills.push(pill('net', 'bg-iris-800 text-parchment-50 font-bold border border-iris-400',
+          `→ ${predicted.damage}`, 'Predicted damage after everything above.'));
+        // These two fire AT CAST TIME, after the Predicted number — shown
+        // last so the bar doesn't imply they're already in the total.
+        if (mathBreakdown.secondCastScalar !== 1) pills.push(pill('c2', 'bg-ember-900 text-ember-200',
+          `then ×0.6`,
+          `Cast #${castsThisTurn + 1} this turn — each cast after the first lands at 60%.`));
+        if (mathBreakdown.enemyBlock > 0) pills.push(pill('blk', 'bg-ink-700 text-parchment-100',
+          `then 🛡 −${mathBreakdown.enemyBlock}`,
+          `Enemy Block ${mathBreakdown.enemyBlock} absorbs first — what's left lands on the pool.`));
+        return (
+          <div className="flex flex-wrap gap-1.5 items-center text-[11px] font-mono"
+               title="Where the Predicted number comes from, step by step.">
+            <span className="text-[10px] uppercase tracking-widest text-iris-300">Math</span>
+            {pills}
+          </div>
+        );
+      })()}
       {enemy && (() => {
         const chips = [];
         if (enemy.phaseShifted) chips.push({ key: 'phase', label: '🕸 thinned', tone: 'text-ember-300' });
