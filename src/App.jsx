@@ -5887,39 +5887,6 @@ export default function App() {
           return;
         }
       }
-      // Multi-slot lure (Kangaroo, summon.slots === 2): needs TWO ADJACENT
-      // empty slots. The anchor carries the lure envelope with `spans`; the
-      // partner is an `occupied` placeholder mirrored from the anchor — the
-      // same mechanic the three-of-a-kind combine uses. During countdown the
-      // occupied cell persists; on transform the anchor becomes the spanning
-      // animal (see transform tick). No buffet / nurture interaction. The
-      // big footprint is the anti-combo cost: it crowds the board.
-      if (card.special && card.summon.slots === 2) {
-        const adjacentPairs = [['intro', 'subject'], ['subject', 'target']];
-        const pair = adjacentPairs.find(([a, b]) => tray[a] == null && tray[b] == null);
-        if (!pair) {
-          setEnergy(e => e + cost);
-          pushLog(`🪱 ${card.name} needs two empty adjacent slots — refunded.`);
-          return;
-        }
-        const [anchor, partner] = pair;
-        const anchorEnvelope = {
-          kind: 'lure', uid: uid(), cardId: card.id, cardName: card.name, card,
-          turnsRemaining: card.summon.turnsToArrive,
-          animalId: card.summon.animalId, animalIds: null,
-          summonSet: card.summon.summonSet || null, youthBonus: 0,
-          spans: [anchor, partner],
-        };
-        setTray(p => syncTrayLegacy({ ...p, [anchor]: anchorEnvelope, [partner]: { kind: 'occupied', occupiedBy: anchor } }));
-        setHand(h => h.filter((_, i) => i !== handIdx));
-        setFirstLureUsedThisTurn(true);
-        if (buffetArmed) setBuffetArmed(false); // any lure play disarms Buffet
-        const animal = getAnimal(card.summon.animalId);
-        pushLog(`🪱 ${card.name} placed across slots ${order.indexOf(anchor) + 1}–${order.indexOf(partner) + 1}. ${animal?.icon || ''} ${animal?.name || card.summon.animalId} arrives in ${card.summon.turnsToArrive} turn${card.summon.turnsToArrive === 1 ? '' : 's'}.`);
-        logEvent(TE.HANDLER_SUMMON, { cardId: card.id, slots: 2, buffet: false, instant: false, feedKey: null, tactic: tray.tactic?.tactic?.id || null, enemyId: enemy?.id || null });
-        advanceTutorialStep('lure');
-        return;
-      }
       // Occupied placeholder slots (Mouse House spans) are NOT empty.
       const emptySlots = order.filter(s => tray[s] == null);
       if (emptySlots.length === 0) {
@@ -10315,14 +10282,7 @@ export default function App() {
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
-              // Multi-slot lure (Kangaroo): carry the span footprint onto the
-              // resolved animal and re-stamp the occupied partner cell, so the
-              // existing spans-aware exit/maul logic clears both slots.
-              ...(slot.spans && slot.spans.length > 1 ? { spans: slot.spans } : {}),
             };
-            if (slot.spans && slot.spans.length > 1) {
-              for (const s of slot.spans) if (s !== slotName) nextSlots[s] = { kind: 'occupied', occupiedBy: slotName };
-            }
           } else {
             nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };
           }

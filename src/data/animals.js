@@ -374,10 +374,10 @@ export const ANIMALS = {
     flavor: 'It has no plan either, but at least it commits.',
     desc: "Click once a turn to scramble the enemy's next move into a different one (a gamble — it might get worse). Stays 3 turns; replay its lure to extend.",
   },
-  // GROUP B — DEFENSE. Kangaroo: two-slot footprint (the pouch takes room).
-  // Activate to DUCK INTO THE POUCH — you give up the rest of your turn, and
-  // in return take NO damage on the next enemy turn. A clean tempo-for-safety
-  // trade. The 2-slot cost means it crowds the board so it can't also combo.
+  // GROUP B — DEFENSE. Kangaroo: activate to DUCK INTO THE POUCH — you give up
+  // the rest of your turn, and in return take NO damage on the next enemy turn.
+  // A clean tempo-for-safety trade. Single-slot (Alan, 2026-06-05): giving up a
+  // stage slot to a non-combat animal is already a steep price; one is enough.
   kangaroo: {
     name: 'Kangaroo',
     icon: '🦘',
@@ -385,10 +385,9 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     special: true,
-    slots: 2,
     activatedAbility: { id: 'kangaroo-pouch', label: '🦘 duck into the pouch — skip your turn, take no damage next turn', cadence: 'per-turn', endsTurn: true },
     flavor: 'Roomy, surprisingly clean, smells faintly of eucalyptus. You have had worse hiding places.',
-    desc: 'Takes two slots. Click to duck into the pouch: you give up the rest of your turn and take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
+    desc: 'Click to duck into the pouch: you give up the rest of your turn and take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
   },
 };
 

@@ -933,24 +933,6 @@ function stageHandlerLure(state, combat, lure) {
       return;
     }
   }
-  // Multi-slot lure (Kangaroo, summon.slots === 2): needs two ADJACENT empty
-  // slots. Anchor carries the lure with `spans`; partner is an occupied
-  // placeholder. Mirrors App.jsx lure-staging.
-  if (lure.special && lure.summon?.slots === 2) {
-    const pairs = [['intro', 'subject'], ['subject', 'target']];
-    const pair = pairs.find(([a, b]) => combat.htray[a] == null && combat.htray[b] == null);
-    if (!pair) { state.discard.push(lure); return; }
-    const [anchor, partner] = pair;
-    combat.htray[anchor] = {
-      kind: 'lure', card: { ...lure },
-      animalIds: null, animalId: lure.summon.animalId,
-      summonSet: lure.summon.summonSet || null,
-      turnsRemaining: lure.summon.turnsToArrive, youthBonus: 0,
-      spans: [anchor, partner],
-    };
-    combat.htray[partner] = { kind: 'occupied', occupiedBy: anchor };
-    return;
-  }
   const empties = SLOT.filter(s => combat.htray[s] == null);
   if (empties.length === 0) { state.discard.push(lure); return; }
   const youthBonus = (combat.tactic === 'youth' && combat.youthUses > 0) ? 1 : 0;
@@ -1807,12 +1789,6 @@ function handlerEndOfTurnTick(state, combat) {
         combat.summons++;
         if (ANIMALS[animalId]?.special) combat.specialSummons = (combat.specialSummons || 0) + 1;
         const animalSlot = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
-        // Multi-slot lure (Kangaroo): carry the span footprint onto the animal
-        // and re-stamp the occupied partner. Mirrors App.jsx transform tick.
-        if (slot.spans && slot.spans.length > 1) {
-          animalSlot.spans = slot.spans;
-          for (const s of slot.spans) if (s !== slotName) next[s] = { kind: 'occupied', occupiedBy: slotName };
-        }
         next[slotName] = animalSlot;
       } else next[slotName] = { ...slot, turnsRemaining: nt };
       continue;

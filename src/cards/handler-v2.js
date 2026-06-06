@@ -56,8 +56,7 @@ const LURE_CARDS = [
 // elite/boss foundational-lure pool — kept out of HANDLER_V2_BY_SLOT.lure for
 // that reason. These animals never need feeding (no feedKey on the animal);
 // replaying the SAME lure while the animal is staged extends it +1 turn.
-// `slots` > 1 marks a multi-slot footprint (Kangaroo in batch 2). Mirrored in
-// sim/playSimV2.js HANDLER_SPECIAL_LURES.
+// Mirrored in sim/playSimV2.js HANDLER_SPECIAL_LURES.
 // =============================================================================
 const SPECIAL_LURE_CARDS = [
   { id: 'cv2-l-shepherds-whistle', name: "A Shepherd's Whistle", cost: 1, type: 'lure', slot: 'lure',
@@ -81,8 +80,7 @@ const SPECIAL_LURE_CARDS = [
     desc: 'In 4T (it is, after all, a sloth), summons a Sloth (0 attack). While it hangs around, the enemy acts at half speed — skipping every other turn. No feeding needed; replay to extend.',
     flavor: 'An invitation with no particular deadline. It will be honoured eventually.' },
   // Batch 2 — player-activated abilities. Click the on-board animal to spend
-  // its verb (App.jsx activateAnimalFromSlot). Kangaroo takes two slots, so its
-  // lure needs two empty adjacent slots to stage.
+  // its verb (App.jsx activateAnimalFromSlot).
   { id: 'cv2-l-white-glove', name: 'A Single White Glove', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'uncommon', tier: 2, special: true,
     summon: { animalId: 'mime', turnsToArrive: 1 },
@@ -95,8 +93,8 @@ const SPECIAL_LURE_CARDS = [
     flavor: 'It was bread once. The pigeon does not hold this against it.' },
   { id: 'cv2-l-eucalyptus', name: 'A Sprig of Eucalyptus', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'rare', tier: 2, special: true,
-    summon: { animalId: 'kangaroo', turnsToArrive: 1, slots: 2 },
-    desc: 'In 1T, summons a Kangaroo across TWO slots. Click to duck into the pouch — give up your turn, take no damage next turn. No feeding needed; replay to extend.',
+    summon: { animalId: 'kangaroo', turnsToArrive: 1 },
+    desc: 'In 1T, summons a Kangaroo. Click to duck into the pouch — give up your turn, take no damage next turn. No feeding needed; replay to extend.',
     flavor: 'Smells like somewhere far away with better weather and more kicking.' },
 ];
 
