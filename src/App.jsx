@@ -48,6 +48,7 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_S
 import { HANDLER_V2, HANDLER_V2_BY_SLOT, SPECIAL_LURE_CARDS } from './cards/handler-v2.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
+import Icon from './icons/Icon.jsx';
 import { ANIMALS, ADJACENCY_COMBOS } from './data/animals.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
 import { CardFullBody } from './components/CardFullBody.jsx';
@@ -13706,7 +13707,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                     r.rarity === 'rare' ? 'border-gold-400 text-gold-300'
                     : r.rarity === 'uncommon' ? 'border-iris-400 text-iris-300'
                     : 'border-ink-500 text-parchment-200'}`}
-                  title={`${r.desc}${r.flavor ? '\n\n' + r.flavor : ''}`}>📿 {r.name}</span>
+                  title={`${r.desc}${r.flavor ? '\n\n' + r.flavor : ''}`}><Icon name="relic" /> {r.name}</span>
               ))}
             </>
           )}
@@ -15566,7 +15567,7 @@ function RelicAcquiredOverlay({ relic, source, onDismiss }) {
          className="fixed inset-0 z-50 bg-ink-900 bg-opacity-80 flex items-center justify-center cursor-pointer p-4">
       <div className={`parchment-card-strong p-6 border-2 ${tone.border} flex flex-col items-center gap-2 max-w-md text-center`}>
         <div className="text-[10px] uppercase tracking-widest text-parchment-300">Relic Acquired — {source}</div>
-        <div className="text-6xl">📿</div>
+        <div className={tone.text}><Icon name="relic" size="3.5rem" /></div>
         <div className={`font-display text-3xl ${tone.text}`}>{relic.name}</div>
         <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-widest font-bold ${tone.badge}`}>{relic.rarity}</span>
         <div className="text-sm text-parchment-100 mt-1">{relic.desc}</div>

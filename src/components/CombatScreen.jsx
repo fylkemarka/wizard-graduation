@@ -18,6 +18,7 @@ import { PileView } from './PileView.jsx';
 import { equipmentEffectSummary, relicEffectSummary } from './effectSummary.js';
 import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_SCHOOL_BONUSES, detectFFT } from '../cards/wit-v2-rows.js';
 import { ADJACENCY_COMBOS } from '../data/animals.js';
+import Icon from '../icons/Icon.jsx';
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, incomingProjection, peekedNextIntent,
@@ -250,7 +251,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           <div className="text-right flex items-baseline gap-2">
             {showComposure && (
               <span className="text-base font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
-                ✨{enemyComposure}<span className="text-[11px] text-parchment-300">/{composureMax}</span>
+                <Icon name="composure" className="mr-0.5" />{enemyComposure}<span className="text-[11px] text-parchment-300">/{composureMax}</span>
               </span>
             )}
             {/* v3.4.60 — Silk Wraith phase-shift composure regen. Persistent
@@ -267,21 +268,21 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             {enemyPressure > 0 && (
               <span className="text-[11px] font-mono text-ember-300 cursor-help"
                     title={`Pressure: ${enemyPressure} stack${enemyPressure > 1 ? 's' : ''}. Bluster casts deal +${enemyPressure} flat damage; capstones consume it for a × multiplier spike.`}>
-                🔥 {enemyPressure} pressure
+                <Icon name="pressure" className="mr-0.5" />{enemyPressure} pressure
               </span>
             )}
             {showHp && (
               <span className="text-base font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
-                ❤{enemyHp}<span className="text-[11px] text-parchment-300">/{hpMax}</span>
+                <Icon name="hp" className="mr-0.5" />{enemyHp}<span className="text-[11px] text-parchment-300">/{hpMax}</span>
               </span>
             )}
-            <span className="text-[11px] font-mono">🛡{enemyBlock}</span>
+            <span className="text-[11px] font-mono"><Icon name="block" className="mr-0.5" />{enemyBlock}</span>
             {/* v3.4: enemy DoT counter (Poison-style). Shows current
                 damage-per-turn AND turns remaining. Drains to 0 → expires. */}
             {enemy?.dot?.turnsRemaining > 0 && enemy?.dot?.damage > 0 && (
               <div className="text-base text-ember-300"
                    title={`Damage-over-time: each enemy turn, they take ${enemy.dot.damage} composure damage. ${enemy.dot.turnsRemaining} turns left. Bypasses block.`}>
-                🩸 DoT {enemy.dot.damage}/turn × {enemy.dot.turnsRemaining}
+                <Icon name="bleed" className="mr-0.5" />DoT {enemy.dot.damage}/turn × {enemy.dot.turnsRemaining}
               </div>
             )}
             {/* v2.65: removed duplicate Atk ×N chip — the STATUS row
@@ -325,7 +326,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {peekedNextIntent && (
             <div className="px-3 py-1.5 border-t border-ember-800/60 text-sm"
                  title="You peeked the enemy's next move.">
-              <span className="text-iris-300 font-mono text-xs uppercase tracking-widest mr-2">👁 next</span>
+              <span className="text-iris-300 font-mono text-xs uppercase tracking-widest mr-2"><Icon name="peek" /> next</span>
               <span className="text-parchment-50">{peekedNextIntent.telegraph}</span>
             </div>
           )}
@@ -344,7 +345,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             const tip = `${enemy.annotation.name} — ${enemy.annotation.turnsRemaining} turn${enemy.annotation.turnsRemaining === 1 ? '' : 's'} remaining.\n\nEffect: ${effectSummary}`;
             return (
               <div className="px-3 py-1.5 border-t border-ember-800/60 cursor-help" title={tip}>
-                <span className="text-iris-300 font-mono text-xs uppercase tracking-widest mr-2">📝 annotated</span>
+                <span className="text-iris-300 font-mono text-xs uppercase tracking-widest mr-2"><Icon name="annotate" /> annotated</span>
                 <span className="text-sm italic text-parchment-50">{enemy.annotation.phrase} <span className="text-iris-300">({enemy.annotation.turnsRemaining}t)</span></span>
                 <div className="text-[10px] text-iris-200 mt-0.5 leading-tight">{effectSummary}</div>
               </div>
@@ -367,22 +368,22 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           );
           const chips = [];
           chips.push(chip('base', 'bg-ink-700 text-parchment-100',
-            p.hits > 1 ? `🎯 ${p.baseSwing} × ${p.hits} hits` : `🎯 base ${p.baseSwing}`,
+            p.hits > 1 ? <><Icon name="attack" /> {p.baseSwing} × {p.hits} hits</> : <><Icon name="attack" /> base {p.baseSwing}</>,
             p.hits > 1 ? `The enemy swings ${p.hits} times at ${p.baseSwing} each.` : `The enemy's base swing is ${p.baseSwing}.`));
           if (p.amplified) chips.push(chip('amp', 'bg-ember-800 text-ember-100',
-            `🩸 → ${p.afterMult}/swing`, `You are Vulnerable — each swing is amplified to ${p.afterMult}.`));
+            <><Icon name="bleed" /> → {p.afterMult}/swing</>, `You are Vulnerable — each swing is amplified to ${p.afterMult}.`));
           if (p.reduced) chips.push(chip('red', 'bg-moss-800 text-moss-100',
-            `⛧ → ${p.afterMult}/swing`, `The enemy is Weak — each swing is reduced to ${p.afterMult}.`));
+            <><Icon name="weak" /> → {p.afterMult}/swing</>, `The enemy is Weak — each swing is reduced to ${p.afterMult}.`));
           if (p.arguing > 0) chips.push(chip('arg', 'bg-iris-800 text-iris-100',
-            `🗣 +${p.arguing}`, `Arguing back: each Actually— you played adds +${p.arguing} to the swing.`));
+            <><Icon name="shout" /> +{p.arguing}</>, `Arguing back: each Actually— you played adds +${p.arguing} to the swing.`));
           if (p.drunken > 0) chips.push(chip('drunk', 'bg-amber-800 text-amber-100',
             `🍺 +${p.drunken}`, `Drunken Confidence: +${p.drunken} to every enemy swing while installed.`));
           if (p.annAtkRed > 0) chips.push(chip('ann', 'bg-iris-900 text-iris-100',
-            `📝 −${p.annAtkRed}`, `Annotation scrubs ${p.annAtkRed} off the swing before shields.`));
+            <><Icon name="annotate" /> −{p.annAtkRed}</>, `Annotation scrubs ${p.annAtkRed} off the swing before shields.`));
           if (p.beetle > 0) chips.push(chip('beetle', 'bg-moss-900 text-moss-100',
             `🪲 −${p.beetle}`, `Beetle absorbs ${p.beetle} off the first hit.`));
           if (p.perSwingReduction > 0) chips.push(chip('def', 'bg-moss-900 text-moss-100',
-            `🛡✦ −${p.perSwingReduction}/swing`, `Defense + Long Thread shave ${p.perSwingReduction} off each swing (min 1 gets through).`));
+            <><Icon name="block" />✦ −{p.perSwingReduction}/swing</>, `Defense + Long Thread shave ${p.perSwingReduction} off each swing (min 1 gets through).`));
           if (p.swingReduction > 0) chips.push(chip('hb', 'bg-moss-900 text-moss-100',
             `−${p.swingReduction}/swing`, `Headbutt: −${p.swingReduction} off each swing (min 1).`));
           if (p.holdOn > 0) chips.push(chip('hold', 'bg-iris-900 text-iris-100',
@@ -390,23 +391,23 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           chips.push(chip('inc', 'bg-ink-600 text-parchment-50 font-bold',
             `→ ${p.totalIncoming} incoming`, `After all reductions, ${p.totalIncoming} damage arrives at your shields.`));
           if (p.blockAbsorbed > 0) chips.push(chip('blk', 'bg-iris-900 text-iris-100',
-            `🛡 −${p.blockAbsorbed}`, `Your Block soaks ${p.blockAbsorbed}.`));
+            <><Icon name="block" /> −{p.blockAbsorbed}</>, `Your Block soaks ${p.blockAbsorbed}.`));
           if (p.poiseAbsorbed > 0) chips.push(chip('poi', 'bg-moss-900 text-moss-100',
-            `🪞 −${p.poiseAbsorbed}`, `Your Poise soaks ${p.poiseAbsorbed} composure damage.`));
+            <><Icon name="poise" /> −{p.poiseAbsorbed}</>, `Your Poise soaks ${p.poiseAbsorbed} composure damage.`));
           if (p.tempHpAbsorbed > 0) chips.push(chip('temp', 'bg-gold-900 text-gold-100',
             `🎈 −${p.tempHpAbsorbed}`, `Temp HP soaks ${p.tempHpAbsorbed} before real HP.`));
           const net = p.pool === 'composure' ? p.netComposure : p.netHp;
           const punchCls = net > 0 ? 'bg-ember-700 text-parchment-50 font-bold border border-ember-400'
                                    : 'bg-moss-800 text-moss-100 font-bold border border-moss-500';
           chips.push(chip('net', punchCls,
-            p.pool === 'composure' ? `🎭 ${net} to Composure` : `💥 ${net} to HP`,
+            p.pool === 'composure' ? <><Icon name="composure" /> {net} to Composure</> : <><Icon name="hp" /> {net} to HP</>,
             net > 0
               ? `This is what actually lands on your ${p.pool === 'composure' ? 'Composure' : 'HP'} after everything above.`
               : `Fully absorbed — nothing reaches your ${p.pool === 'composure' ? 'Composure' : 'HP'}.`));
           if (p.stagger) chips.push(chip('stag', 'bg-amber-900 text-amber-100',
-            `🌀 50% dodge`, `Drunken Stagger: each swing has a 50% chance to miss entirely — you may take less, or nothing.`));
+            <><Icon name="stagger" /> 50% dodge</>, `Drunken Stagger: each swing has a 50% chance to miss entirely — you may take less, or nothing.`));
           if (p.maul) chips.push(chip('maul', 'bg-ember-900 text-ember-100',
-            `🦷 mauls`, `If any HP leaks past Block, this attack also tears your strongest animal off the board.`));
+            <><Icon name="maul" /> mauls</>, `If any HP leaks past Block, this attack also tears your strongest animal off the board.`));
           return (
             <div className="px-3 py-2 border-t border-ember-800/60 flex flex-wrap gap-1.5 items-center"
                  title="What the enemy's attack actually does to you, step by step.">
@@ -441,28 +442,28 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             {playerDmgMult > 1.0 && (
               <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help inline-flex items-center gap-1.5"
                 title={`Enemy is Vulnerable — your Predicted damage is already amplified. Lasts ${playerDmgTurns} more turn${playerDmgTurns === 1 ? '' : 's'} (refreshes when re-applied).`}>
-                🩸 ENEMY VULNERABLE
+                <Icon name="bleed" /> ENEMY VULNERABLE
                 <span className="px-1.5 py-0.5 rounded bg-iris-900 text-iris-100 text-xs font-mono">{playerDmgTurns}t</span>
               </span>
             )}
             {playerDmgMult < 1.0 && (
               <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help inline-flex items-center gap-1.5"
                 title={`You are Weak — your Predicted damage is already reduced. Lasts ${playerDmgTurns} more turn${playerDmgTurns === 1 ? '' : 's'}.`}>
-                ⛧ YOU ARE WEAK
+                <Icon name="weak" /> YOU ARE WEAK
                 <span className="px-1.5 py-0.5 rounded bg-ember-900 text-ember-100 text-xs font-mono">{playerDmgTurns}t</span>
               </span>
             )}
             {enemyDmgMult > 1.0 && (
               <span className="px-3 py-1.5 rounded bg-ember-700 text-parchment-50 text-sm font-bold border border-ember-500 cursor-help inline-flex items-center gap-1.5"
                 title={`You are Vulnerable — the enemy's intent damage is already amplified. Lasts ${enemyDmgTurns} more turn${enemyDmgTurns === 1 ? '' : 's'}.`}>
-                🩸 YOU ARE VULNERABLE
+                <Icon name="bleed" /> YOU ARE VULNERABLE
                 <span className="px-1.5 py-0.5 rounded bg-ember-900 text-ember-100 text-xs font-mono">{enemyDmgTurns}t</span>
               </span>
             )}
             {enemyDmgMult < 1.0 && (
               <span className="px-3 py-1.5 rounded bg-iris-700 text-parchment-50 text-sm font-bold border border-iris-400 cursor-help inline-flex items-center gap-1.5"
                 title={`Enemy is Weak — their intent damage is already reduced. Lasts ${enemyDmgTurns} more turn${enemyDmgTurns === 1 ? '' : 's'} (refreshes when re-applied, e.g. another Sap).`}>
-                ⛧ ENEMY WEAK
+                <Icon name="weak" /> ENEMY WEAK
                 <span className="px-1.5 py-0.5 rounded bg-iris-900 text-iris-100 text-xs font-mono">{enemyDmgTurns}t</span>
               </span>
             )}
@@ -479,9 +480,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
           <span title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
           <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
-          <span title="Energy — refills each turn." className="font-mono text-sm text-gold-300">⚡{energy}/{energyMax}</span>
-          <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-sm text-iris-300">🛡{block}</span>
-          <span title="Poise — absorbs composure hits. Resets each turn." className="font-mono text-sm text-moss-300">🪞{poise}</span>
+          <span title="Energy — refills each turn." className="font-mono text-sm text-gold-300"><Icon name="energy" className="mr-0.5" />{energy}/{energyMax}</span>
+          <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-sm text-iris-300"><Icon name="block" className="mr-0.5" />{block}</span>
+          <span title="Poise — absorbs composure hits. Resets each turn." className="font-mono text-sm text-moss-300"><Icon name="poise" className="mr-0.5" />{poise}</span>
           {(() => {
             const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
                           + (familiar?.bonus?.damageReduction || 0);
@@ -1717,7 +1718,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {/* Left column: label + sentence + tags */}
         <div className="flex flex-col gap-1 min-w-[180px] max-w-[280px]">
           <div className="flex justify-between items-center">
-            <div className="text-[10px] uppercase tracking-widest text-iris-300 font-bold">{isHandler ? '🐾 Summoning Pitch' : '📜 Spell Tray'}</div>
+            <div className="text-[10px] uppercase tracking-widest text-iris-300 font-bold">{isHandler ? <><Icon name="paw" /> Summoning Pitch</> : <><Icon name="scroll" /> Spell Tray</>}</div>
             <div className="flex items-center gap-2">
               {tutorArmed && (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gold-700 text-parchment-50 border border-gold-400 animate-pulse cursor-help"
@@ -1878,12 +1879,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                     {amped && <span className="text-xs mr-1">🩸</span>}
                     {predicted.damage} <span className="text-sm text-parchment-300">{mathBreakdown?.dmgType === 'block' ? '🛡 block' : mathBreakdown?.dmgType === 'physical' ? 'phys' : 'comp'}</span>
                     {predicted.predatorBonus > 0 && (
-                      <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak.">🩸+{predicted.predatorBonus}</span>
+                      <span className="text-xs text-ember-300 ml-1" title="Predator rider — enemy is Vulnerable or Weak."><Icon name="bleed" />+{predicted.predatorBonus}</span>
                     )}
                     {predicted.insultBonus > 0 && (
                       <span className="text-xs text-iris-300 ml-1"
                         title={`Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} (${Math.min(predicted.insultMatches || 0, 3)} match${(predicted.insultMatches || 0) === 1 ? '' : 'es'} × pierce).`}>
-                        🎯+{predicted.insultBonus}
+                        <Icon name="insult" />+{predicted.insultBonus}
                       </span>
                     )}
                     {/* loudnessGain badge removed 2026-05-31. */}
@@ -2161,7 +2162,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         );
         const pills = [];
         pills.push(pill('cast', 'bg-ink-700 text-parchment-100',
-          `🪄 cast ${mathBreakdown.preTier}`,
+          <><Icon name="cast" /> cast {mathBreakdown.preTier}</>,
           `${mathBreakdown.baseDmg} base + ${mathBreakdown.statTotal} stat × ${mathBreakdown.mult} target multiplier = ${mathBreakdown.preTier}.`));
         if (tierMult !== 1) pills.push(pill('tier', 'bg-iris-900 text-iris-100',
           `T${tier} ×${tierMult.toFixed(1)}`,
@@ -2169,9 +2170,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         if (mathBreakdown.tagBonus > 0) pills.push(pill('tag', 'bg-iris-900 text-iris-100',
           `✦ +${mathBreakdown.tagBonus}`, 'Tag-resonance bonus from matching tags in the tray.'));
         if (predicted.predatorBonus > 0) pills.push(pill('pred', 'bg-ember-800 text-ember-100',
-          `🩸 +${predicted.predatorBonus}`, 'Predator rider — the enemy is already debuffed.'));
+          <><Icon name="bleed" /> +{predicted.predatorBonus}</>, 'Predator rider — the enemy is already debuffed.'));
         if (predicted.insultBonus > 0) pills.push(pill('insult', 'bg-iris-800 text-iris-100',
-          `🎯 +${predicted.insultBonus}`,
+          <><Icon name="insult" /> +{predicted.insultBonus}</>,
           `Insult-hit: ${(predicted.insultMatchedTags || []).slice(0, 3).join(', ')} — this enemy is touchy about it.`));
         // FFT riders + eff/Vuln multipliers — already baked into Predicted.
         (predicted.damageParts || []).forEach((part, pi) => {
@@ -2187,7 +2188,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           `then ×0.6`,
           `Cast #${castsThisTurn + 1} this turn — each cast after the first lands at 60%.`));
         if (mathBreakdown.enemyBlock > 0) pills.push(pill('blk', 'bg-ink-700 text-parchment-100',
-          `then 🛡 −${mathBreakdown.enemyBlock}`,
+          <>then <Icon name="block" /> −{mathBreakdown.enemyBlock}</>,
           `Enemy Block ${mathBreakdown.enemyBlock} absorbs first — what's left lands on the pool.`));
         return (
           <div className="flex flex-wrap gap-1.5 items-center text-[11px] font-mono"

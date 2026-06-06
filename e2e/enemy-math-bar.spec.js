@@ -24,8 +24,9 @@ test('Enemy attack surfaces the Incoming math bar without crashing combat', asyn
   expect(shown).toBeTruthy();
 
   // The band carries the base swing and the net-to-pool punchline chip.
-  await expect(page.getByText(/🎯 (base )?\d/).first()).toBeVisible();
-  await expect(page.getByText(/💥 \d+ to HP|🎭 \d+ to Composure/).first()).toBeVisible();
+  // (2026-06-06: emoji glyphs replaced by SVG icons — assert on the text.)
+  await expect(page.getByText(/(base )?\d+ × \d+ hits|base \d+/).first()).toBeVisible();
+  await expect(page.getByText(/\d+ to (HP|Composure)/).first()).toBeVisible();
 
   // Combat is still alive — nothing crashed.
   await expect(page.getByTestId('hand')).toBeVisible();

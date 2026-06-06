@@ -39,7 +39,7 @@ test('a full staged tray renders the Math pill bar', async ({ page }) => {
 
   // Bar is up: label, the cast pill, and the final predicted pill.
   await expect(page.getByText('Math', { exact: true })).toBeVisible();
-  await expect(page.getByText(/🪄 cast \d+/).first()).toBeVisible();
+  await expect(page.getByText(/cast \d+/).first()).toBeVisible();
   await expect(page.getByText(/^→ \d+$/).first()).toBeVisible();
 
   // Combat is still alive — nothing crashed.
