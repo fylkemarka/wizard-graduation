@@ -3837,6 +3837,15 @@ export default function App() {
   // the old enemyDiscardCount guard miss and re-roll a second steal. Reset
   // in enterFight.
   const loomStoleThisCombatRef = useRef(false);
+  // Re-entrancy guard for onEnemyDefeated. The kill is detected from ~12 sites
+  // (every composure/HP-to-0 path), each scheduling setTimeout(onEnemyDefeated,
+  // 200). A single killing turn — especially a handler end-of-turn where
+  // several animals each drop composure — fires multiple of those callbacks,
+  // and `if (!enemy) return` doesn't stop them (enemy is never cleared on a
+  // win). For a BOSS kill the body folds hand/discard/exiled/tray into the
+  // deck; those piles are closure-constant, so each extra run re-folds them and
+  // the whole deck duplicates. Latch on the first run; reset in enterFight.
+  const enemyDefeatedHandledRef = useRef(false);
   // Spittle Peck (Rabid Scrubjay onExit): armed synchronously so the redirect
   // survives the same-endTurn stale-closure window between the animal tick and
   // applyEnemyIntent. Consumed (and cleared) when the enemy next attacks.
@@ -5404,6 +5413,7 @@ export default function App() {
     setLastIntentKinds([]);
     setEnemyDiscardCount(0);
     loomStoleThisCombatRef.current = false;
+    enemyDefeatedHandledRef.current = false;
     redirectEnemyAttackRef.current = false;
     setEnemySkipNextTurn(false);
     setPouchGuard(false);
@@ -11598,6 +11608,12 @@ export default function App() {
 
   function onEnemyDefeated() {
     if (!enemy) return;
+    // Multiple kill-detection sites each schedule this on the same killing
+    // blow; latch so only the first invocation resolves the combat. Without
+    // this the boss-path pile fold below runs once per scheduled callback and
+    // duplicates the entire deck. Reset in enterFight.
+    if (enemyDefeatedHandledRef.current) return;
+    enemyDefeatedHandledRef.current = true;
     logEvent(TE.COMBAT_END, { enemyId: enemy.id, outcome: 'won', tier: enemy.tier, hpAfter: hp, composureAfter: composure, piles: pilesSnapshot() });
     // Tutorial short-circuit: skip rewards, route to the wrap-up screen.
     if (tutorialActive) {
