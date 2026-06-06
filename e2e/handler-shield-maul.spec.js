@@ -23,9 +23,9 @@ const readHp = async (page) => {
 };
 
 test('a fully-braced maul (Summoned Shield) leaks no HP', async ({ page }) => {
-  await gotoLab(page, 'handler', { seed: 7, forceSpecies: 'goose' });
-  for (let i = 0; i < 8; i++) await addCard(page, BIRDSEED);
-  for (let i = 0; i < 8; i++) await addCard(page, SHIELD);
+  await gotoLab(page, 'handler', { seed: 1, forceSpecies: 'goose' });
+  for (let i = 0; i < 12; i++) await addCard(page, BIRDSEED);
+  for (let i = 0; i < 4; i++) await addCard(page, SHIELD);
   await fightEnemy(page, 'Silk Wraith');
 
   // Arm the forced maul — consumed by the end-of-turn-1 intent roll, so the
@@ -48,8 +48,8 @@ test('a fully-braced maul (Summoned Shield) leaks no HP', async ({ page }) => {
   await endTurn(page);
   await expect(page.getByTestId('hand')).toBeVisible();
 
-  // Geese arrived; maul telegraphed for the coming enemy turn.
-  await expect(page.getByText(/\/ turn|\(flops\)/).first()).toBeVisible();
+  // BOTH geese arrived (brace 12 ≥ maul); maul telegraphed next.
+  await expect(page.getByText(/🪿 Goose/)).toHaveCount(2);
   await expect(page.getByText(/🦷/).first()).toBeVisible();
 
   // Turn 2: ensure the stance is set, then resolve. The pre-pass braces
@@ -59,9 +59,9 @@ test('a fully-braced maul (Summoned Shield) leaks no HP', async ({ page }) => {
   await endTurn(page);
   await expect(page.getByTestId('hand')).toBeVisible(); // no render crash
 
-  // The brace held: the geese visibly braced, and not a point of HP leaked —
-  // which also means the maul cannot have torn an animal (leak-gated).
-  await expect(page.getByText(/braces: \+6 Block/).first()).toBeVisible();
+  // The brace held: not a point of HP leaked, and — since the maul only
+  // tears on a leak — BOTH geese are still on the board.
   const hpAfter = await readHp(page);
   expect(hpAfter).toBe(hpBefore);
+  await expect(page.getByText(/🪿 Goose/)).toHaveCount(2);
 });
