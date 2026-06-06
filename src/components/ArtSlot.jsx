@@ -6,9 +6,9 @@
 
 import { useState } from 'react';
 
-export default function ArtSlot({ src, alt = '', className = '' }) {
+export default function ArtSlot({ src, alt = '', className = '', fallback = null }) {
   const [failedSrc, setFailedSrc] = useState(null);
-  if (failedSrc === src) return null;
+  if (failedSrc === src) return fallback;
   return (
     <img src={src} alt={alt} className={className} draggable={false}
          onError={() => setFailedSrc(src)} />

@@ -13500,6 +13500,9 @@ function FamiliarShopScreen({ onPick }) {
         {FAMILIARS.map(fam => (
           <button key={fam.id} onClick={() => onPick(fam.id)}
             className="rounded-lg border-2 border-ink-500 bg-ink-700 hover:border-gold-500 hover:bg-ink-600 transition p-3 text-left flex flex-col gap-2 cursor-pointer">
+            {/* Bitmap slot — /art/familiars/<id>.png (see ART_PROMPTS.md). */}
+            <ArtSlot src={`/art/familiars/${fam.id}.png`} alt={fam.species}
+                     className="w-full aspect-square rounded-md border border-gold-600 object-cover" />
             <div className="flex items-center gap-2">
               <span className="text-3xl leading-none">{fam.emoji}</span>
               <div className="font-display text-lg text-gold-300">{fam.species}</div>
@@ -13523,7 +13526,9 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
       <h2 className="font-display text-4xl text-gold-300">A Naming</h2>
-      <div className="text-7xl">{familiar.emoji}</div>
+      <ArtSlot src={`/art/familiars/${familiar.id}.png`} alt={familiar.species}
+               className="w-40 h-40 rounded-md border-2 border-gold-500 object-cover"
+               fallback={<div className="text-7xl">{familiar.emoji}</div>} />
       <p className="font-quill italic text-parchment-200 text-center">
         Your {familiar.species.toLowerCase()} looks at you with an expression that
         is either expectant or hungry, or possibly both at once. A name would
@@ -13542,6 +13547,21 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
         <button onClick={() => onConfirm('')} className="btn btn-ink flex-1">Use "{familiar.species}"</button>
       </div>
     </div>
+  );
+}
+
+// SVG-flavored art slot for map nodes — <image> with a circular clip;
+// hides on 404 like ArtSlot, so the emoji glyph shows until art exists.
+// Drawn AFTER the glyph text so a present image paints over it.
+function SvgNodeArt({ type, cx, cy, r, opacity = 1 }) {
+  const [failedSrc, setFailedSrc] = useState(null);
+  const src = `/art/nodes/${type}.png`;
+  if (failedSrc === src) return null;
+  return (
+    <image href={src} x={cx - r} y={cy - r} width={r * 2} height={r * 2}
+           opacity={opacity} clipPath="url(#map-node-clip)"
+           preserveAspectRatio="xMidYMid slice" pointerEvents="none"
+           onError={() => setFailedSrc(src)} />
   );
 }
 
@@ -13612,7 +13632,12 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
         </div>
       </div>
 
-      <div className="parchment-card p-4 flex flex-col items-center">
+      <div className="parchment-card p-4 flex flex-col items-center relative overflow-hidden">
+        {/* Act backdrop — /art/acts/act-<n>.png, faded behind the map and
+            masked toward the bottom so node labels stay readable. */}
+        <ArtSlot src={`/art/acts/act-${actIdx + 1}.png`} alt=""
+                 className="absolute inset-0 w-full h-full object-cover opacity-25 pointer-events-none select-none" />
+        <div className="relative w-full flex flex-col items-center">
         {(() => {
           // Fog-of-war visibility per node:
           //   cleared : in clearedNodes — path you've already walked
@@ -13631,6 +13656,12 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
           };
           return (
             <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-3xl" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                {/* Circular clip for node art (SvgNodeArt) — bbox-relative. */}
+                <clipPath id="map-node-clip" clipPathUnits="objectBoundingBox">
+                  <circle cx="0.5" cy="0.5" r="0.5" />
+                </clipPath>
+              </defs>
               {Object.entries(map.edges).map(([fromId, tos]) => {
                 const from = map.nodes.find(n => n.id === fromId);
                 return tos.map(toId => {
@@ -13689,6 +13720,12 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
                       {/* Postcard penalty: fog hides node types until lifted. */}
                       {mapFog && !isCurrent && !isCleared ? '?' : nodeGlyph(n.type)}
                     </text>
+                    {/* Node art slot — covers the glyph when the image
+                        exists; suppressed while fog hides the type. */}
+                    {!(mapFog && !isCurrent && !isCleared) && (
+                      <SvgNodeArt type={n.type} cx={xScale(n.x)} cy={yScale(n.y)}
+                                  r={(n.type === 'boss' ? 26 : 18) - 1.5} opacity={opacity} />
+                    )}
                   </g>
                 );
               })}
@@ -13708,6 +13745,7 @@ function MapScreen({ map, act, actIdx, totalActs, currentNodeId, clearedNodes, r
         {!currentNodeId && (
           <div className="mt-2 text-sm text-gold-300 italic">Pick a starting trail. The path beyond is hearsay.</div>
         )}
+        </div>
       </div>
 
       {(player.equipment.length > 0 || (player.relics?.length || 0) > 0) && (
@@ -14548,6 +14586,9 @@ function EventScreen({ event, onChoose }) {
   if (!event) return null;
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-2xl mx-auto">
+      {/* Bitmap slot — /art/events/<id>.png (see ART_PROMPTS.md). */}
+      <ArtSlot src={`/art/events/${event.id}.png`} alt=""
+               className="w-full max-w-xl aspect-[2/1] rounded-md border-2 border-iris-700 object-cover" />
       <h2 className="font-display text-3xl text-iris-300">{event.title}</h2>
       <p className="font-quill italic text-parchment-200 text-center max-w-xl">"{event.flavor}"</p>
       <div className="flex flex-col gap-2 w-full max-w-md">

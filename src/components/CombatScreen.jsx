@@ -2127,7 +2127,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             }
           }
           if (parts.length === 0) continue;
-          lines.push(`${animal.icon} ${animal.name}: ${parts.join(' · ')}${atkMult > 1 ? ` (×${atkMult})` : ''}`);
+          // v3.5 (Alan): icon only — the pill on the board already names
+          // the animal; repeating it here just made the strip longer.
+          lines.push(`${animal.icon} ${parts.join(' · ')}${atkMult > 1 ? ` (×${atkMult})` : ''}`);
         }
         // Adjacency combos — two specific species in neighbouring slots fire a
         // joint special attack once per pair-type. Mirrors the App.jsx

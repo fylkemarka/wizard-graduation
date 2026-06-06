@@ -24,7 +24,7 @@ changes needed per image. PNG preferred; JPG also works if you rename.
 | `jnsq.png` | A rumpled, beaming wizard whose robes are buttoned one button wrong, hat at an angle physics disputes, holding dice that are mid-roll and glowing; an aura of chaotic luck; somehow both a disaster and the most relaxed person on the mountain. |
 
 ## Acts — `public/art/acts/act-<n>.png` (1920×1080)
-*(not yet wired to a slot — generate last; will back the map screen)*
+*(wired 2026-06-06 — renders as a faded backdrop behind the act map)*
 
 | File | Prompt |
 |---|---|
@@ -77,6 +77,55 @@ back. Keep each one slightly tragic and slightly ridiculous.
 | `sq-critical-apparition.png` | Prof. Augustus Hewn-Greaves (deceased, 1893): a translucent Victorian professor's ghost, mid-footnote, pince-nez and disappointment intact. |
 | `tutorial-bursar.png` | The Bursar (practice match): a gentle, slightly transparent administrator holding a clipboard, radiating the calm of a man for whom this is all expense-reportable. |
 
+## Familiars — `public/art/familiars/<id>.png` (512×512, square)
+
+Shown in the Familiar Shop cards and the Naming screen. Small, charming,
+each with one strong personality beat from its description.
+
+| File | Prompt |
+|---|---|
+| `fam-raven.png` | A raven perched on a stack of books it has clearly been reading, one page held down with a claw, expression of a critic. |
+| `fam-cat.png` | A cat sitting precisely where it should not be, radiating unearned authority; it knows where it is and refuses to discuss it. |
+| `fam-toad.png` | A contented toad beside a tiny steaming pot, humming; a wooden spoon far too large for it nearby. |
+| `fam-mouse.png` | A brisk little mouse with a coil of energy about it, mid-sprint along a wizard's sleeve, crumbs of urgency in its wake. |
+| `fam-owl.png` | A stout owl with the bearing of a retired duellist, one eye half-closed, absorbing the first blow of anything with patience. |
+| `fam-beetle.png` | A polished beetle the size of a pocket-watch, visibly on its third career, tiny dents of experience in its shell. |
+| `fam-hedgehog.png` | A hedgehog curled into a fortification, one eye open, quills arranged with bureaucratic neatness. |
+| `fam-crow.png` | A crow with a glint of triumph, standing over something it has decisively won, feathers slightly ruffled from the argument. |
+| `fam-snake.png` | An adder coiled in an elegant spiral, gaze that applies Vulnerability on contact, faintly amused. |
+| `fam-rabbit.png` | A rabbit sitting bolt upright with perfect poise, ears like punctuation, calm beyond reason. |
+
+## Events — `public/art/events/<id>.png` (1024×512, 2:1 banner)
+
+Shown above the event title. Scene illustrations, no text in image.
+
+| File | Prompt |
+|---|---|
+| `ev-old-tome.png` | An old tome on a wayside lectern, slightly open, pages breathing; a bookmark that was clearly once alive. |
+| `ev-spring.png` | A quiet mountain spring in dappled light, water impossibly clear, moss arranged as if for visitors. |
+| `ev-stranger.png` | A cloaked stranger at a fork in the path, face unseen, holding out something small that glints. |
+| `ev-shrine.png` | A roadside shrine of stacked stones and wax-drowned candles, offerings of buttons and teeth. |
+| `ev-snake.png` | A coiled adder on a sun-warmed rock across the narrow path, watching with professional interest. |
+| `ev-mirror.png` | A shard of mirror in the grass reflecting a sky that is not the current sky. |
+| `ev-pilgrim.png` | A weathered pilgrim resting on a milestone, staff worn smooth, smiling at a private joke. |
+| `ev-vow.png` | A stone archway over the path with old vows carved into it, some crossed out, one freshly chiselled. |
+
+## Map node icons — `public/art/nodes/<type>.png` (256×256, square)
+
+Tiny circular tokens on the act map (rendered ~36px, clipped to a circle).
+Bold single-subject icons, readable at small size, dark backgrounds.
+
+| File | Prompt |
+|---|---|
+| `combat.png` | Crossed wands sparking, dark background, readable at thumbnail size. |
+| `elite.png` | A horned skull wearing a graduate's mortarboard, menacing but pompous. |
+| `rest.png` | A bedroll and tiny campfire under a sheltering rock. |
+| `event.png` | An unfurled scroll with a question mark of smoke rising from it. |
+| `material.png` | A neat bundle of gathered wood and thread, tied with ribbon. |
+| `skill.png` | A workbench vice gripping a glowing gem mid-polish. |
+| `start.png` | A cluster of warm village windows at dusk (the Town). |
+| `boss.png` | An ominous crown wreathed in briars. |
+
 ## Title — `public/art/title.png` (1920×1080)
 *(not yet wired — optional hero art behind the menu)*
 
@@ -91,3 +140,7 @@ back. Keep each one slightly tragic and slightly ridiculous.
    modest aspect drift is fine).
 3. Drop into `public/art/...` with the exact filename, reload — done.
 4. Commit the images (they deploy with the site via Vercel).
+
+Don't want to wrangle filenames? Drop images anywhere in the repo with any
+names and tell Claude what each one is — renaming them into place is a
+one-liner.
