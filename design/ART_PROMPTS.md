@@ -7,13 +7,18 @@ changes needed per image. PNG preferred; JPG also works if you rename.
 
 ## Global style block (prepend to every prompt)
 
-> Storybook fantasy illustration in the spirit of Terry Pratchett's
-> Discworld — warm candlelit palette of parchment, umber, antique gold
-> and deep ink-brown; muted purple and ember-red accents; painterly
-> gouache texture; gentle absurdist humor, characters slightly pompous
-> and visibly out of their depth; NO grimdark, NO anime, NO photorealism;
-> dark vignetted background that fades to near-black at the edges
-> (#140f08) so it blends into the game's backdrop.
+*(Locked 2026-06-06 from Alan's first generated set — keep every new
+image in this style.)*
+
+> Construction-paper cutout collage: bold black silhouette subject cut
+> from paper with deep magenta (#a3265e-ish) accent layers peeking out
+> behind the cut edges, on a cream/white crumpled-paper background with
+> torn black paper corners; loose threads of dark yarn trailing across
+> the composition and clusters of crocheted yarn rosettes (magenta,
+> rust-orange, plum) tucked into a corner; flat shapes, visible paper
+> texture and torn edges, no gradients, no outlines drawn — everything
+> is cut paper; gentle absurdist Pratchett humor in the subject's
+> posture; NO photorealism, NO painterly rendering.
 
 ## Characters — `public/art/characters/<lane>.png` (1024×768, landscape)
 
