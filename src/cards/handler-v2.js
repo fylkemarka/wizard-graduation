@@ -94,7 +94,7 @@ const SPECIAL_LURE_CARDS = [
   { id: 'cv2-l-eucalyptus', name: 'A Sprig of Eucalyptus', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'rare', tier: 2, special: true,
     summon: { animalId: 'kangaroo', turnsToArrive: 1 },
-    desc: 'In 1T, summons a Kangaroo. Click to duck into the pouch — give up your turn, take no damage next turn. No feeding needed; replay to extend.',
+    desc: 'In 1T, summons a Kangaroo. Click and spend 2 energy to duck into the pouch — end your turn, take no damage next turn. No feeding needed; replay to extend.',
     flavor: 'Smells like somewhere far away with better weather and more kicking.' },
 ];
 

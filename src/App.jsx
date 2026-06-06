@@ -9071,9 +9071,17 @@ export default function App() {
     if (ability.id === 'kangaroo-pouch') {
       // Duck into the pouch: take NO damage on the next enemy turn, but give up
       // the rest of THIS turn. Guard consumed at the top of applyEnemyIntent.
+      // Costs 2 energy (Alan 2026-06-06): without a cost the pouch was a
+      // free End-Turn button. The 2-energy tax forces the player to spend a
+      // chunk of their turn on it while still leaving room for one card play.
+      if (energy < 2) {
+        pushLog(`🦘 ${animal.icon} Not enough energy to duck into the pouch (needs 2).`);
+        return;
+      }
+      setEnergy(e => e - 2);
       setPouchGuard(true);
       setAbilitiesUsedThisTurn(u => [...u, slotName]);
-      pushLog(`🦘 ${animal.icon} You duck into the pouch — no damage next turn. (Your turn ends.)`);
+      pushLog(`🦘 ${animal.icon} You duck into the pouch — no damage next turn. (−2 energy, your turn ends.)`);
       endTurn();
       return;
     }

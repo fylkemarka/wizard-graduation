@@ -1331,9 +1331,11 @@ function aiTurnHandler(state, combat) {
           combat.abilityActivations = (combat.abilityActivations || 0) + 1;
           continue;
         }
-        // Kangaroo — duck into the pouch: no damage next turn, but the turn ends.
+        // Kangaroo — duck into the pouch: no damage next turn, but the turn
+        // ends. Costs 2 energy (Alan 2026-06-06; mirrors App.jsx).
         const kangSlot = findAbility('kangaroo-pouch');
-        if (kangSlot) {
+        if (kangSlot && state.energy >= 2) {
+          state.energy -= 2;
           combat.pouchGuard = true;
           combat.abilityActivations = (combat.abilityActivations || 0) + 1;
           break;

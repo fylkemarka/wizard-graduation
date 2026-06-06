@@ -387,9 +387,9 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     special: true,
-    activatedAbility: { id: 'kangaroo-pouch', label: '🦘 duck into the pouch — skip your turn, take no damage next turn', cadence: 'per-turn', endsTurn: true },
+    activatedAbility: { id: 'kangaroo-pouch', label: '🦘 duck into the pouch (2 energy) — end your turn, take no damage next turn', cadence: 'per-turn', endsTurn: true, energyCost: 2 },
     flavor: 'Roomy, surprisingly clean, smells faintly of eucalyptus. You have had worse hiding places.',
-    desc: 'Click to duck into the pouch: you give up the rest of your turn and take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
+    desc: 'Click and spend 2 energy to duck into the pouch: your turn ends and you take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
   },
 };
 
