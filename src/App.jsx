@@ -12603,6 +12603,9 @@ function MenuScreen({ onStart, onTutorial, onContinue, onDiscardSave, onDevQuick
         )}
       </div>
       <p className="text-xs text-parchment-400">MVP 5 — verbal combat: words build spells, effects cast them.</p>
+      <p className="text-[10px] text-parchment-500">
+        Icons by Lorc, Delapouite, Skoll & Carl Olsen — <a href="https://game-icons.net" target="_blank" rel="noreferrer" className="underline hover:text-parchment-300">game-icons.net</a> (CC BY 3.0)
+      </p>
     </div>
   );
 }
