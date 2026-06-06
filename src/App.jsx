@@ -12348,7 +12348,7 @@ export default function App() {
     onConfirm={craftingConfirm}
   />;
   if (stage === 'event')  return <EventScreen event={activeEvent} onChoose={resolveEventChoice} />;
-  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit'} isHandler={selectedCharacter?.lane === 'handler'} upgradedAnimals={upgradedAnimals} animals={ANIMALS} />;
+  if (stage === 'rest')   return <RestScreen onChoose={resolveRestChoice} hasFFTRows={selectedCharacter?.lane === 'wit'} isHandler={selectedCharacter?.lane === 'handler'} upgradedAnimals={upgradedAnimals} animals={ANIMALS} hp={hp} maxHp={maxHp} composure={composure} composureMax={composureMax} />;
   if (stage === 'upgrade') return <UpgradeCardScreen deck={deck} onPick={pickCardToUpgrade} lane={selectedCharacter?.lane || null} />;
   if (stage === 'train-animal') return <TrainAnimalScreen animals={ANIMALS} upgradedAnimals={upgradedAnimals} summonable={summonableSpeciesSet()} onPick={pickAnimalToTrain} />;
   if (stage === 'upgrade-spell') return <UpgradeSpellScreen
@@ -15312,7 +15312,7 @@ function EquipmentEffectBreakdown({ equipment }) {
   );
 }
 
-function RestScreen({ onChoose, hasFFTRows = false, isHandler = false, upgradedAnimals = new Set(), animals = {} }) {
+function RestScreen({ onChoose, hasFFTRows = false, isHandler = false, upgradedAnimals = new Set(), animals = {}, hp = 0, maxHp = 0, composure = 0, composureMax = 0 }) {
   // Handler: "Train an animal" is available when there's at least one
   // species not yet upgraded that has an upgrade defined.
   const hasTrainable = isHandler && Object.entries(animals).some(([id, def]) => def.upgrade && !upgradedAnimals.has(id));
@@ -15320,6 +15320,10 @@ function RestScreen({ onChoose, hasFFTRows = false, isHandler = false, upgradedA
     <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5 max-w-md mx-auto">
       <h2 className="font-display text-3xl text-moss-300">A Rest Site</h2>
       <p className="font-quill italic text-parchment-200 text-center">A small campfire, a flat rock, the unmistakable feeling that someone has Recently Camped Here. The path will still be there in the morning. It's that kind of path.</p>
+      <div className="flex gap-5">
+        <span title="HP — physical health. 0 = defeat." className="font-mono text-moss-300">{hp}<span className="text-xs text-parchment-400">/{maxHp}</span><span className="text-[10px] uppercase text-parchment-400 ml-0.5">HP</span></span>
+        <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-iris-200">{composure}<span className="text-xs text-parchment-400">/{composureMax}</span><span className="text-[10px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
+      </div>
       <div className="flex flex-col gap-2 w-full">
         <button onClick={() => onChoose('heal')}    className="btn btn-moss">Sleep — restore 30% HP and Composure</button>
         <button onClick={() => onChoose('upgrade')} className="btn btn-gold">Study a card — upgrade one in your deck</button>
