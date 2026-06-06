@@ -3880,6 +3880,17 @@ export default function App() {
   // Stash the fire amount here so wComp can subtract it — keeping both writes
   // consistent. Reset at turn start / combat start.
   const weaveFireDamageRef = useRef(0);
+  // Shield-tactic brace accumulated during THIS endTurn's animal pre-pass
+  // (Summoned Shield routes animal attacks into Block & Poise). Same
+  // stale-closure problem as weaveFireDamageRef: applyEnemyIntent runs
+  // synchronously in the same endTurn pass and reads `block`/`poise` from
+  // the closure, so the pre-pass setBlock/setPoise updates are invisible
+  // to it — AND its absolute setBlock(wBlock) commit then clobbers them.
+  // Net effect pre-fix: shield block NEVER protected against the same-turn
+  // enemy swing (and mauls tore animals through a full brace). The sim has
+  // always applied brace before the swing — this ref brings the game in
+  // line. Reset at endTurn start; consumed by the attack resolution.
+  const shieldBraceRef = useRef({ block: 0, poise: 0 });
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
@@ -9452,6 +9463,8 @@ export default function App() {
   //      hand-set ended up reading undefined, blanking the screen.
   function endTurn() {
     if (stage !== 'combat') return;
+    // Fresh brace accumulator for this pass (see shieldBraceRef decl).
+    shieldBraceRef.current = { block: 0, poise: 0 };
     logEvent(TE.TURN_END, {
       enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length,
       trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0),
@@ -9971,6 +9984,9 @@ export default function App() {
             if (isShield) {
               setBlock(b => b + atk);
               setPoise(p => p + atk);
+              // Mirror into the ref so applyEnemyIntent (same pass) sees it.
+              shieldBraceRef.current.block += atk;
+              shieldBraceRef.current.poise += atk;
               hTick.blockGained += atk;
               pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block & Poise${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
             } else {
@@ -10020,6 +10036,8 @@ export default function App() {
               if (isShield) {
                 setBlock(b => b + xatk);
                 setPoise(p => p + xatk);
+                shieldBraceRef.current.block += xatk;
+                shieldBraceRef.current.poise += xatk;
                 hTick.blockGained += xatk;
                 pushLog(`${animal.icon} ${animal.name} braces again: +${xatk} Block & Poise (Pack Tactics).`);
               } else if (animal.attackPool === 'composure') {
@@ -11293,8 +11311,11 @@ export default function App() {
         setBeetleAbsorb(0);
         pushLog(`🪲 Beetle absorbs ${absorbed}.`);
       }
-      let wBlock = block;
-      let wPoise = poise;
+      // Shield-tactic brace from this same endTurn pass — invisible in the
+      // stale closure `block`/`poise`, carried via ref (see decl). Consumed
+      // once: zeroed after the commit below so re-entry can't double-count.
+      let wBlock = block + shieldBraceRef.current.block;
+      let wPoise = poise + shieldBraceRef.current.poise;
       let wHp = hp;
       let wTempHp = tempHp; // v3.4.67 — Ballooning Temp HP buffer; committed below.
       let wComp = Math.max(0, composure - weaveFireDamageRef.current);
@@ -11449,6 +11470,8 @@ export default function App() {
       }
       setBlock(wBlock);
       setPoise(wPoise);
+      // Brace consumed — the absolute commits above already include it.
+      shieldBraceRef.current = { block: 0, poise: 0 };
       setHp(wHp);
       setComposure(wComp);
       // v3.4.67 — commit Temp HP after the loop has consumed it.
