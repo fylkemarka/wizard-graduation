@@ -2762,6 +2762,13 @@ function rollIntent(enemy, excludeKinds = []) {
     const maulB = enemy.behaviors.find(b => b.maul);
     if (maulB) { window.__forceMaul = false; return { ...maulB }; }
   }
+  // E2E hook: ?forceIntentKind=block pins the next roll to the enemy's
+  // first behavior of that kind (consumed once). Added 2026-06-07 to make
+  // the enemy-block-vs-animal-attack path deterministically testable.
+  if (typeof window !== 'undefined' && window.__forceIntentKind) {
+    const kindB = enemy.behaviors.find(b => b.kind === window.__forceIntentKind);
+    if (kindB) { window.__forceIntentKind = null; return { ...kindB }; }
+  }
   const filtered = enemy.behaviors.filter(b => !excludeKinds.includes(b.kind));
   const pool = filtered.length > 0 ? filtered : enemy.behaviors;
   const total = pool.reduce((s, b) => s + (b.weight || 1), 0);
@@ -9851,6 +9858,11 @@ export default function App() {
         composureDealt: 0, hpDealt: 0, blockGained: 0,
         attacks: 0, arrivals: [], exits: [], shortStays: 0,
       };
+      // Enemy block at tick start — composureDealt counts ATTEMPTED damage
+      // (pre-block), which read as "animals bypass block" in Alan's
+      // 2026-06-07 telemetry. blockSoaked (emitted below) is the absorbed
+      // portion, so attempted − soaked = what actually landed.
+      const enemyBlockAtTickStart = enemyBlockRef.current;
       // Working copy of the tray — pre-pass mutates this before the main loop
       // iterates so the loop sees the post-cannibalism state.
       const workingTray = { intro: tray.intro, subject: tray.subject, target: tray.target };
@@ -10657,6 +10669,10 @@ export default function App() {
         enemyId: enemy?.id || null,
         composureDealt: hTick.composureDealt,
         hpDealt: hTick.hpDealt,
+        // Portion of the attempted damage the enemy's Block soaked this
+        // tick (mid-tick block GAINS don't occur during the player tick,
+        // so start − now is the absorbed amount).
+        blockSoaked: Math.max(0, enemyBlockAtTickStart - enemyBlockRef.current),
         blockGained: hTick.blockGained,
         attacks: hTick.attacks,
         arrivals: hTick.arrivals,
@@ -10776,13 +10792,18 @@ export default function App() {
     // fires — so an enemy that blocks on consecutive turns gets a fresh
     // pool each time, and player attacks during the previous turn can't
     // free-rider through stale block.
-    if (enemyBlock > 0) {
+    // Read the REF, not the closure — the animal pre-pass just consumed
+    // block this same pass, and the stale closure made this log report
+    // "7 → 0 fade" for block that was actually spent absorbing attacks
+    // (read as "animals bypass block" in Alan's 2026-06-07 telemetry).
+    if (enemyBlockRef.current > 0) {
       pushLog(`👹 ${enemy?.name || 'Enemy'}: 🛡 fades.`);
       logEvent(TE.ENEMY_BLOCK_CHANGE, {
-        before: enemyBlock, after: 0, reason: 'turn-start-fade',
+        before: enemyBlockRef.current, after: 0, reason: 'turn-start-fade',
         enemyId: enemy?.id, intentKind: enemyIntent?.kind,
       });
     }
+    enemyBlockRef.current = 0;
     setEnemyBlock(0);
     // Companion block fades on the same beat as the main enemy's.
     if (companionRef.current && companionRef.current.block > 0) {

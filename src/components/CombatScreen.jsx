@@ -799,7 +799,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
         combatTurn={combatTurn}
         pauseHeldActive={pauseHeldActive} enemy={enemy}
-        companion={companion} castTarget={castTarget}
+        companion={companion} castTarget={castTarget} enemyBlock={enemyBlock}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
         animals={animals} luresPlayedThisTurn={luresPlayedThisTurn} tutorArmed={tutorArmed}
@@ -1167,7 +1167,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 }
 
 export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
-                       companion = null, castTarget = 'main',
+                       companion = null, castTarget = 'main', enemyBlock = 0,
                        isHandler = false,
                        playerHp = 70, playerMaxHp = 70,
                        tempHp = 0,
@@ -1824,7 +1824,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     // v2.98: surface enemy block as a separate subtraction chip. The cast
     // formula applies enemy.block AFTER all multipliers (see App.jsx cast
     // resolver — block absorbs first before the damage hits the pool).
-    const enemyBlockNow = enemy?.block || 0;
+    // 2026-06-07 fix: was `enemy?.block || 0` — but block lives in the
+    // enemyBlock STATE, never on the enemy object, so the math bar's
+    // "then −🛡" pill never rendered. Now reads the real prop.
+    const enemyBlockNow = enemyBlock || 0;
     mathBreakdown = {
       statTotal, baseDmg, mult, preTier, tierMult, preEnemy,
       enemyEff, playerMult: playerDmgMult, tagBonus,
@@ -2267,6 +2270,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             ))}
             <span className="ml-auto text-[11px] text-parchment-100 font-bold">
               Σ {totalDmg > 0 && <span className="text-iris-200">{totalDmg} dmg</span>}
+              {totalDmg > 0 && enemyBlock > 0 && (
+                <span className="text-parchment-400 ml-1"
+                      title={`Enemy Block soaks ${Math.min(enemyBlock, totalDmg)} of this before it lands.`}>
+                  −<Icon name="block" />{Math.min(enemyBlock, totalDmg)}
+                </span>
+              )}
               {totalBlock > 0 && <span className="text-moss-200 ml-1">+{totalBlock} block</span>}
               {totalDraw > 0 && <span className="text-moss-200 ml-1">+{totalDraw} draw</span>}
               {totalRecoil > 0 && <span className="text-ember-300 ml-1">-{totalRecoil} self</span>}
