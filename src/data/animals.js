@@ -122,9 +122,10 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 2,
     feedKey: 'small-land',
-    onExit: { damage: 6, damageType: 'composure', healHp: 1 },
+    // exit damage 6 → 3 (Alan, 2026-06-07).
+    onExit: { damage: 3, damageType: 'composure', healHp: 1 },
     flavor: 'Bold. Brief. Largely correct.',
-    desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 6 composure and heals 1 HP on exit.',
+    desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 3 composure and heals 1 HP on exit.',
     upgrade: { attack: 6, duration: 3, onExit: { damage: 8, damageType: 'composure', healHp: 2 } },
     elite: 'james-deer',
   },
@@ -135,9 +136,10 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 2,
     feedKey: 'small-land',
-    onExit: { damage: 9, damageType: 'composure', healHp: 2 }, // 6 × 1.5 = 9; heal 1 × 1.5 → 2
+    // exit damage 9 → 4 (Alan, 2026-06-07).
+    onExit: { damage: 4, damageType: 'composure', healHp: 2 },
     flavor: 'Looks the room over slowly. The room looks worse for it.',
-    desc: 'Elite Young Buck. 8 composure / turn for 2 turns. 9 composure kick and 2 HP heal on exit.',
+    desc: 'Elite Young Buck. 8 composure / turn for 2 turns. 4 composure kick and 2 HP heal on exit.',
   },
   hawk: {
     name: 'Hawk',
@@ -162,9 +164,10 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     feedKey: 'bird',
-    onExit: { damage: 4, damageType: 'composure' },
+    // exit damage 4 → 3 (Alan, 2026-06-07).
+    onExit: { damage: 3, damageType: 'composure' },
     flavor: 'It has strong opinions about your personal space.',
-    desc: 'Attacks for 6 composure each turn for 3 turns. Parting hiss: 4 composure on exit.',
+    desc: 'Attacks for 6 composure each turn for 3 turns. Parting hiss: 3 composure on exit.',
     upgrade: { attack: 8, duration: 3, onExit: { damage: 5, damageType: 'composure', healHp: 2 } },
   },
   // Birdseed variety (2026-06-01, Flock pass — addresses playtest note #2:
