@@ -373,7 +373,8 @@ const CARDS = [
     upgrade: { effects: { delayedComposureDamage: { amount: 27, delay: 3 }, exhaust: true } },
     desc: 'Deal 21 composure damage to the enemy 3 turns from now. Exhaust.',
     flavor: 'For now, you simply file it.' },
-  { id: 'c-know-what-to-say', name: 'I Know Just What to Say', nameByLane: { handler: 'Extra Food in the Pocket' },
+  // Handler-lane name: Extra Food in the Pocket → That Was a Freebie (Alan, 2026-06-07).
+  { id: 'c-know-what-to-say', name: 'I Know Just What to Say', nameByLane: { handler: 'That Was a Freebie' },
     cost: 1, type: 'skill', rarity: 'common',
     effects: { nextCardFree: true, exhaust: true },
     upgrade: { effects: { nextCardFree: true, draw: 1, exhaust: true } },
