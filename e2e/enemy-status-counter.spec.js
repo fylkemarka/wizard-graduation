@@ -19,7 +19,9 @@ async function ensureInHand(page, cardId, maxTurns = 6) {
 }
 
 test('Sap arms an ENEMY WEAK badge with a turn counter that ticks down', async ({ page }) => {
-  await gotoLab(page, 'handler', { seed: 7 });
+  // 2026-06-07: Sap is wit-only now (lanes don't share cards) — wit lab.
+  await gotoLab(page, 'wit', { seed: 7 });
+  await page.getByRole('button', { name: /All Cards/ }).click();
   for (let i = 0; i < 6; i++) await addCard(page, SAP);
   await fightEnemy(page, 'Loom Familiar');
 

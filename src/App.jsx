@@ -82,7 +82,7 @@ const CARDS = [
   // SKILL CARDS — no stat contribution, no spell sealing. Pure utility.
   // =============================================================================
   // ---- BASIC (starter) ----
-  { id: 'c-defend', name: 'Defend', cost: 1, type: 'skill', rarity: 'basic',
+  { id: 'c-defend', name: 'Defend', lane: 'wit', cost: 1, type: 'skill', rarity: 'basic',
     effects: { block: 8 }, upgrade: { effects: { block: 11 } },
     desc: 'Gain 8 Block (vs physical attacks).' },
   // v2.9: starter Poise card. Defends against composure (🎭) attacks
@@ -96,7 +96,7 @@ const CARDS = [
   // along in the wit starter. One-shot, non-exhausting damage so the
   // starter has a reliable chip-cast option that doesn't depend on
   // assembling the tray. Goes back to deck (cycles) — not a gesture.
-  { id: 'c-rebut', name: 'Rebut', cost: 1, type: 'skill', rarity: 'basic',
+  { id: 'c-rebut', name: 'Rebut', lane: 'wit', cost: 1, type: 'skill', rarity: 'basic',
     effects: { compDmg: 4 }, upgrade: { effects: { compDmg: 6 } },
     desc: 'Deal 4 composure damage.',
     flavor: 'Not the cleverest reply. Lands anyway.' },
@@ -107,7 +107,7 @@ const CARDS = [
   // Handler-specific defend. The Handler outsources fighting to the
   // menagerie, so personal defense is softer than the colorless +8 c-defend.
   // Mirrors c-defend in shape: 1 energy, +N block, cycles back via discard.
-  { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'skill', rarity: 'basic',
+  { id: 'c-defend-handler', name: 'Step Back', lane: 'handler', cost: 1, type: 'skill', rarity: 'basic',
     effects: { block: 6 },
     desc: 'Gain 6 Block.',
     flavor: 'You take half a step back. Let the goose handle this.' },
@@ -255,31 +255,31 @@ const CARDS = [
     flavor: 'Too much, really. That was always the plan.' },
 
   // ---- COMMON ----
-  { id: 'c-mend', name: 'Mend', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-mend', name: 'Mend', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
     effects: { block: 7 }, upgrade: { effects: { block: 10 } },
     desc: 'Gain 7 Block.' },
   // v2.9: Poise common — composure-shield mid-tier.
-  { id: 'c-steady', name: 'Steady Breath', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-steady', name: 'Steady Breath', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
     effects: { poise: 7 }, upgrade: { effects: { poise: 10 } },
     desc: 'Gain 7 Poise.' },
-  { id: 'c-acuity', name: 'Acuity', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-acuity', name: 'Acuity', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
     effects: { draw: 2 }, upgrade: { effects: { draw: 3 } },
     desc: 'Draw 2 cards.' },
-  { id: 'c-channel', name: 'Channel', cost: 0, type: 'skill', rarity: 'common',
+  { id: 'c-channel', name: 'Channel', lane: 'wit', cost: 0, type: 'skill', rarity: 'common',
     effects: { draw: 1, energy: 1, exhaust: true }, upgrade: { effects: { draw: 2, energy: 1, exhaust: true } },
     desc: '+1 Energy. Draw 1. Exhaust.' },
 
   // ---- UNCOMMON ----
-  { id: 'c-bulwark', name: 'Bulwark', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-bulwark', name: 'Bulwark', lane: 'wit', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 10 }, upgrade: { effects: { block: 14 } },
     desc: 'Gain 10 Block.' },
-  { id: 'c-meditate', name: 'Meditate', cost: 0, type: 'skill', rarity: 'uncommon',
+  { id: 'c-meditate', name: 'Meditate', lane: 'wit', cost: 0, type: 'skill', rarity: 'uncommon',
     effects: { energy: 1, draw: 1, exhaust: true }, upgrade: { effects: { energy: 1, draw: 1 } },
     desc: 'Gain 1 Energy. Draw 1. Exhaust.' },
-  { id: 'c-warding', name: 'Warding Glyph', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-warding', name: 'Warding Glyph', lane: 'wit', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, vulnerable: 1 }, upgrade: { effects: { block: 6, vulnerable: 2 } },
     desc: 'Gain 4 Block. Apply 1 Vulnerable.' },
-  { id: 'c-clarity', name: 'Clarity', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-clarity', name: 'Clarity', lane: 'wit', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { draw: 3, exhaust: true }, upgrade: { effects: { draw: 4, exhaust: true } },
     desc: 'Draw 3 cards. Exhaust.' },
   // Cycle 4 batch 3: handler sustain + next-cast boost. Pairs with
@@ -294,17 +294,17 @@ const CARDS = [
   // different "how to spend my defense energy" decision. Brace rewards
   // safe turns; Reframe trades incoming HP for incoming Composure;
   // Riposte arms a counter-attack baked into your block.
-  { id: 'c-brace', name: 'Brace', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-brace', name: 'Brace', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
     effects: { block: 5, braceDrawNext: 1 },
     upgrade: { effects: { block: 7, braceDrawNext: 2 } },
     desc: 'Gain 5 Block. If no unblocked HP damage this turn, draw 1 next turn.',
     flavor: 'You set your feet. The room notices.' },
-  { id: 'c-reframe', name: 'Reframe', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-reframe', name: 'Reframe', lane: 'wit', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 3, swapNextHitToComp: true, exhaust: true },
     upgrade: { effects: { block: 5, swapNextHitToComp: true, exhaust: true } },
     desc: 'Gain 3 Block. Next HP damage you would take is dealt to your Composure instead. Exhaust.',
     flavor: 'The bruise was a metaphor all along.' },
-  { id: 'c-riposte', name: 'Animal Reflexes', cost: 1, type: 'skill', rarity: 'uncommon',
+  { id: 'c-riposte', name: 'Animal Reflexes', lane: 'handler', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { block: 4, riposteArmed: 4, exhaust: true },
     upgrade: { effects: { block: 6, riposteArmed: 6, exhaust: true } },
     desc: 'Gain 4 Block. The next enemy attack ALSO deals 4 Composure damage to its source.',
@@ -314,14 +314,14 @@ const CARDS = [
   // enemy = 8 block; a 1×12 enemy = 2 block. Lets the player read the
   // intent and commit defensive resources proportional to the threat.
   // Pre-computed at play time (intent doesn't change mid-turn).
-  { id: 'c-brace-for-many', name: 'Brace for Many', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-brace-for-many', name: 'Brace for Many', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
     effects: { bracePerSwing: 2 },
     upgrade: { effects: { bracePerSwing: 3 } },
     desc: 'Gain 2 Block PER swing in the enemy\'s next attack (1 swing → 2 Block, 4× multi → 8 Block).',
     flavor: 'The room, you have decided, is going to do this.' },
 
   // ---- RARE ----
-  { id: 'c-aegis', name: 'Aegis', cost: 2, type: 'skill', rarity: 'rare',
+  { id: 'c-aegis', name: 'Aegis', lane: 'wit', cost: 2, type: 'skill', rarity: 'rare',
     effects: { block: 16 }, upgrade: { effects: { block: 21 } },
     desc: 'Gain 16 Block.' },
 
@@ -424,23 +424,23 @@ const CARDS = [
     desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your hand, deck, or discard and placed directly in the spell tray, ready to cast. Exhaust.',
     flavor: 'They never stopped grading you. They never will.' },
   // ---- Powers (rest of combat) ----
-  { id: 'c-subject-matter-expert', name: 'Subject Matter Expert', cost: 2, type: 'power', rarity: 'uncommon',
+  { id: 'c-subject-matter-expert', name: 'Subject Matter Expert', lane: 'wit', cost: 2, type: 'power', rarity: 'uncommon',
     installPower: { id: 'subjectCheaper' }, fftOnly: true,
     desc: 'Power. All Subject cards cost 1 less for the rest of combat (min 0).',
     flavor: 'They asked you. They keep asking you.' },
-  { id: 'c-allow-me-to-introduce', name: 'Allow Me to Introduce Myself', cost: 2, type: 'power', rarity: 'uncommon',
+  { id: 'c-allow-me-to-introduce', name: 'Allow Me to Introduce Myself', lane: 'wit', cost: 2, type: 'power', rarity: 'uncommon',
     installPower: { id: 'introCheaper' }, fftOnly: true,
     desc: 'Power. All Intro cards cost 1 less for the rest of combat (min 0).',
     flavor: 'They had heard. They wanted to hear it from you.' },
-  { id: 'c-intended-effect', name: 'Intended Effect', cost: 3, type: 'power', rarity: 'rare',
+  { id: 'c-intended-effect', name: 'Intended Effect', lane: 'wit', cost: 3, type: 'power', rarity: 'rare',
     installPower: { id: 'targetCheaper' }, fftOnly: true,
     desc: 'Power. All Effect (target) cards cost 1 less for the rest of combat (min 0).',
     flavor: 'The arrow finds the gap. Did not look for it. Found it.' },
-  { id: 'c-keynote-speaker', name: 'Keynote Speaker', cost: 3, type: 'power', rarity: 'rare',
+  { id: 'c-keynote-speaker', name: 'Keynote Speaker', lane: 'wit', cost: 3, type: 'power', rarity: 'rare',
     installPower: { id: 'offensiveFftAmp25' }, fftOnly: true,
     desc: 'Power. All offensive FFT casts deal +25% damage, including DoT ticks. Rest of combat.',
     flavor: 'The applause was, in retrospect, pre-arranged.' },
-  { id: 'c-speak-to-my-agent', name: 'Speak to My Agent', cost: 2, type: 'power', rarity: 'uncommon',
+  { id: 'c-speak-to-my-agent', name: 'Speak to My Agent', lane: 'wit', cost: 2, type: 'power', rarity: 'uncommon',
     installPower: { id: 'defensiveFftAmp25' }, fftOnly: true,
     desc: 'Power. All defensive FFT amounts (Block, Thorns reflect, defense-over-time) +25%. Rest of combat.',
     flavor: 'You no longer take meetings yourself.' },
@@ -451,12 +451,12 @@ const CARDS = [
   // — the "stacks" text on the card is meaningful again, but the
   // payoff curve is smoother. A single play is +15% (was +25%), so
   // a 2-Amplify burst is +30% (was +50%, too strong per playtest).
-  { id: 'c-sap', name: 'Sap', cost: 2, type: 'skill', rarity: 'common',
+  { id: 'c-sap', name: 'Sap', lane: 'wit', cost: 2, type: 'skill', rarity: 'common',
     effects: { enemyDmgMod: -0.15 },
     upgrade: { effects: { enemyDmgMod: -0.15, draw: 1 } },
     desc: 'Reduce enemy attack damage by 15% (stacks; caps at −50%).',
     flavor: 'You did not finish your sentence. They did not finish theirs, either.' },
-  { id: 'c-amplify', name: 'Amplify', cost: 1, type: 'skill', rarity: 'common',
+  { id: 'c-amplify', name: 'Amplify', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
     notLanes: ['handler'],
     effects: { playerDmgMod: +0.15 },
     upgrade: { effects: { playerDmgMod: +0.15, draw: 1 } },
