@@ -1878,7 +1878,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {/* v3.4.31 (Alan): no-wrap + overflow-x-auto so the Cast button
             stays anchored to the right side regardless of how wide the
             slot pills get when staged. Pills shrink-min before wrapping. */}
-        <div className="flex-1 flex flex-nowrap items-stretch gap-2 overflow-x-auto">
+        {/* pb-3 when a combo is boxed: the "✨ Combo" tag hangs below the
+            dotted border, and this overflow-x-auto container would clip it. */}
+        <div className={`flex-1 flex flex-nowrap items-stretch gap-2 overflow-x-auto ${Object.keys(comboSlotInfo).length > 0 ? 'pb-3' : ''}`}>
         {(() => {
           // v3.5 (Alan): adjacency-combo cue = ONE dotted green box around
           // BOTH halves of the pair with "COMBO" labelled beneath, instead
