@@ -7982,7 +7982,9 @@ export default function App() {
       logBits.push(`+${fx.composure} Composure`);
     }
     if (fx.compDmg) {
-      applyDamageToEnemyComposure(fx.compDmg);
+      // Duo-aware: targeted skills (Sharp Whistle, Rebut…) follow the
+      // player's cast target so every lane can remove a companion.
+      applyCastDamageToTarget(fx.compDmg, 'composure');
       logBits.push(`🎭 ${fx.compDmg} comp dmg`);
     }
     // Whistle / Treat / Just Eat It all arm a click-on-slot prompt and
@@ -9592,7 +9594,9 @@ export default function App() {
         let wPoise = v ? v.poise : poise + shieldBraceRef.current.poise;
         let wHp = v ? v.hp : hp;
         let wComp = v ? v.comp : composure;
-        let remaining = it.value || 0;
+        // Weak/Vuln are side-wide: the companion's swing scales by the same
+        // enemyDmgMult as the leader's (Alan, 2026-06-06).
+        let remaining = Math.round((it.value || 0) * (enemyDmgMult || 1));
         if (it.pool === 'composure') {
           const absorbed = Math.min(wPoise, remaining);
           wPoise -= absorbed; remaining -= absorbed;

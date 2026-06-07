@@ -788,6 +788,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         playerDmgMult={playerDmgMult} enemyDmgMult={enemyDmgMult}
         combatTurn={combatTurn}
         pauseHeldActive={pauseHeldActive} enemy={enemy}
+        companion={companion} castTarget={castTarget}
         weaveStacks={weaveStacks} riposteCharge={riposteCharge} braceArmedDraw={braceArmedDraw}
         wordsBank={wordsBank} crescendoBuildup={crescendoBuildup} crescendoBuildupRows={crescendoBuildupRows}
         animals={animals} luresPlayedThisTurn={luresPlayedThisTurn} tutorArmed={tutorArmed}
@@ -1155,6 +1156,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
 }
 
 export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCastsPerTurn = 1,
+                       companion = null, castTarget = 'main',
                        isHandler = false,
                        playerHp = 70, playerMaxHp = 70,
                        tempHp = 0,
@@ -2053,7 +2055,14 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked ? 'bg-ink-600 text-parchment-400 cursor-not-allowed' :
             ready ? 'btn-iris cast-armed' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'
           }`}>
-          <Icon name="cast" className="mr-1" />CAST {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
+          <Icon name="cast" className="mr-1" />CAST
+          {/* Duo fights: say WHO the cast is aimed at, right on the button. */}
+          {companion && (
+            <span className="text-[10px] ml-1.5 font-mono normal-case">
+              → {castTarget === 'companion' ? companion.def.name : enemy?.name}
+            </span>
+          )}
+          {castsThisTurn > 0 && <span className="text-[10px] ml-1">(#{castsThisTurn + 1} this turn)</span>}
         </button>)}
         {/* v3.4.77 (Alan): ALL IN stake UI pulled — see commit notes.
             Stake mechanic still has dead-but-harmless code in App.jsx

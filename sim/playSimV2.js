@@ -65,6 +65,7 @@ const ENEMIES = SHARED_ENEMIES.map(e => ({
   behaviors: (e.behaviors || []).map(b => ({ ...b })),
   insultVulnerabilities: e.insultVulnerabilities || [],
   softSpot: e.softSpot,
+  duoPartnerId: e.duoPartnerId, // duo encounters — companion pairing
 }));
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
@@ -82,6 +83,71 @@ function rollIntent(enemy, excludeKinds = []) {
     if (roll <= 0) return { ...b };
   }
   return { ...pool[0] };
+}
+
+// ---------- COMPANION (duo encounters) — mirrors App.jsx ----------
+// A weaker partner fights beside the main enemy (paired via duoPartnerId).
+// Same rules as the game: composure-only, simple intent dialect (attack /
+// block / bolster-the-leader), flees at 0 and when the leader falls (the
+// leader falling ends the combat anyway, so only the former is modeled).
+function initCompanionSim(mainTmpl, DIFFICULTY_MULT) {
+  const p = mainTmpl.duoPartnerId ? ENEMIES_BY_ID[mainTmpl.duoPartnerId] : null;
+  if (!p) return null;
+  const behaviors = (p.behaviors || []).map(b =>
+    b.kind === 'attack'
+      ? { ...b, value: Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT)) }
+      : { ...b });
+  const def = { ...p, comp: Math.round((p.comp || 0) * DIFFICULTY_MULT), behaviors };
+  return { def, composure: def.comp, block: 0, intent: rollIntent(def) };
+}
+
+// Companion's turn. opts: { enemyDmgMult, bolster(v), onDamageTaken(n) }.
+// The swing honors enemyDmgMult (player Vuln / side-wide Weak — matches the
+// game). Mutates state.block/poise/hp/composure directly; the lane's combat
+// loop already KO-checks those every iteration.
+function companionTurnSim(state, c, opts = {}) {
+  if (!c || !c.intent) return;
+  const it = c.intent;
+  if (it.kind === 'attack') {
+    let remaining = Math.round((it.value || 0) * (opts.enemyDmgMult || 1));
+    if (it.pool === 'composure') {
+      const absorbed = Math.min(state.poise || 0, remaining);
+      state.poise = (state.poise || 0) - absorbed; remaining -= absorbed;
+      state.composure = Math.max(0, state.composure - remaining);
+    } else {
+      const absorbed = Math.min(state.block || 0, remaining);
+      state.block = (state.block || 0) - absorbed; remaining -= absorbed;
+      state.hp = Math.max(0, state.hp - remaining);
+    }
+    if (remaining > 0 && opts.onDamageTaken) opts.onDamageTaken(remaining);
+  } else if (it.kind === 'block') {
+    c.block += it.value || 0;
+  } else if (it.kind === 'bolster' && opts.bolster) {
+    opts.bolster(it.value || 0);
+  }
+  c.intent = rollIntent(c.def);
+}
+
+// Cast damage routed at the companion. Returns true if it fled (died).
+function companionTakeCastDamageSim(holder, dmg) {
+  const c = holder.companion;
+  if (!c || dmg <= 0) return false;
+  let remaining = dmg;
+  const absorbed = Math.min(c.block, remaining);
+  c.block -= absorbed; remaining -= absorbed;
+  c.composure = Math.max(0, c.composure - remaining);
+  if (c.composure <= 0) { holder.companion = null; return true; }
+  return false;
+}
+
+// Greedy target policy (mirrors what a player SHOULD do): take the leader
+// when this cast is lethal on it; otherwise clear the companion first
+// (every turn it lives is chip damage + bolsters); then back to the leader.
+function pickCastTargetSim(holder, leaderComp, leaderBlock, leaderHp, expectedDmg) {
+  const leaderLethal = (leaderComp - (leaderBlock || 0)) <= expectedDmg
+                    || (leaderHp < 900 && leaderHp <= expectedDmg);
+  if (leaderLethal) return 'main';
+  return holder.companion ? 'companion' : 'main';
 }
 
 // Expected unblocked damage the CURRENT rolled intent will deal, split by pool.
@@ -1019,7 +1085,16 @@ function applyHandlerSkill(state, combat, card) {
   const fx = card.effects || {};
   if (fx.block) state.block += fx.block;
   if (fx.poise) state.poise += fx.poise;
-  if (fx.compDmg) { handlerDealComposure(combat, fx.compDmg); combat.totalDamageDealt += fx.compDmg; }
+  if (fx.compDmg) {
+    // Duo target policy — skills clear the companion unless the leader is
+    // in lethal range (mirrors the game's target toggle on compDmg skills).
+    if (pickCastTargetSim(combat, combat.enemyComposure, combat.enemyBlock, combat.enemyHp, fx.compDmg) === 'companion') {
+      companionTakeCastDamageSim(combat, fx.compDmg);
+    } else {
+      handlerDealComposure(combat, fx.compDmg);
+    }
+    combat.totalDamageDealt += fx.compDmg;
+  }
   // Murmuration — 3 composure per bird in play.
   if (fx.compDmgPerBird) {
     const birds = animals().filter(x => ANIMALS[x.slot.animalId]?.feedKey === 'bird').length;
@@ -1494,6 +1569,15 @@ function aiTurnHandler(state, combat) {
   if (combat.enemyComposure > 0 && combat.enemyHp > 0) {
     combat.enemyBlock = 0;
     handlerApplyIntent(state, combat, combat.enemyIntent);
+    // Duo: companion acts right after its leader (block fades same beat).
+    if (combat.companion) {
+      combat.companion.block = 0;
+      companionTurnSim(state, combat.companion, {
+        enemyDmgMult: combat.enemyDmgMult || 1,
+        bolster: (v) => { combat.enemyBlock += v; },
+        onDamageTaken: (n) => { combat.totalDamageTaken = (combat.totalDamageTaken || 0) + n; },
+      });
+    }
     combat.enemyDmgMult  = combat.enemyDmgMult  > 1 ? Math.max(1, combat.enemyDmgMult  - 0.5) : combat.enemyDmgMult  < 1 ? Math.min(1, combat.enemyDmgMult  + 0.5) : combat.enemyDmgMult;
     combat.playerDmgMult = combat.playerDmgMult > 1 ? Math.max(1, combat.playerDmgMult - 0.5) : combat.playerDmgMult < 1 ? Math.min(1, combat.playerDmgMult + 0.5) : combat.playerDmgMult;
     combat.lastIntentKinds.push(combat.enemyIntent?.kind);
@@ -1917,6 +2001,9 @@ function runHandlerCombat(state, enemy, telemetry) {
     enemyComposure: enemy.currentComp, enemyHp: enemy.currentHp, enemyBlock: 0,
     enemyDmgMult: 1.0, playerDmgMult: 1.0,
     enemyIntent: rollIntent(enemy), lastIntentKinds: [],
+    // Duo encounters — companion fights beside the leader (animals always
+    // hit the leader; only compDmg skills follow the target policy).
+    companion: initCompanionSim(enemy, 1.25),
     htray: { intro: null, subject: null, target: null },
     tactic: null, youthUses: 0, buffetArmed: false,
     lureNarrowing: {},
@@ -2001,6 +2088,8 @@ function runCombat(state, enemyId, telemetry) {
   // exactly as App.jsx does via setEnemyIntent(rollIntent(e)) in enterFight).
   state.enemyIntent = rollIntent(enemy);
   state.lastIntentKinds = [];
+  // Duo encounters — the leader brings its companion (same scaling).
+  state.companion = initCompanionSim(tmpl, DIFFICULTY_MULT);
   state.weaveStacks = 0; // v2.96: Hollow Weaver weave debt (wit/jnsq).
   state.loomStole = false; // Loom Familiar: one card-steal per combat, total.
   state.redirectEnemyAttack = false; // Spittle Peck: cleared per combat.
@@ -3652,9 +3741,15 @@ function runCombat(state, enemyId, telemetry) {
       state.lastCastDamage = dmg;
       // v3.4.34 cycle 1 — Thorns school casts (damageType: 'block') route the
       // cast number to player block, not enemy damage. Mirrors App.jsx.
+      // Duo target policy — leader when lethal, else clear the companion.
+      // Mirrors the game's click-to-target (only the cast's primary damage
+      // + doubletake retarget; riders/DoTs/annotations stay on the leader).
+      const castTarget = pickCastTargetSim(state, enemy.currentComp, enemy.block, enemy.currentHp, dmg);
       if (dmgType === 'block') {
         state.block = (state.block || 0) + dmg;
         telemetry.thornsCastBlockGranted = (telemetry.thornsCastBlockGranted || 0) + dmg;
+      } else if (castTarget === 'companion') {
+        companionTakeCastDamageSim(state, dmg);
       } else {
         let remaining = dmg;
         if (enemy.block > 0) {
@@ -3666,16 +3761,20 @@ function runCombat(state, enemyId, telemetry) {
       }
       // v2.93: O-6 (The Doubletake) — apply the same damage a second time.
       // Block was consumed on the first pass, so the doubled hit is mostly
-      // full damage. Flag is one-shot.
+      // full damage. Flag is one-shot. Follows the cast's target.
       if (state.nextCastDoubles && dmg > 0) {
         state.nextCastDoubles = false;
-        let r2 = dmg;
-        if (enemy.block > 0) {
-          const absorbed2 = Math.min(enemy.block, r2);
-          enemy.block -= absorbed2; r2 -= absorbed2;
+        if (castTarget === 'companion' && state.companion) {
+          companionTakeCastDamageSim(state, dmg);
+        } else {
+          let r2 = dmg;
+          if (enemy.block > 0) {
+            const absorbed2 = Math.min(enemy.block, r2);
+            enemy.block -= absorbed2; r2 -= absorbed2;
+          }
+          if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - r2);
+          else                        enemy.currentComp = Math.max(0, enemy.currentComp - r2);
         }
-        if (dmgType === 'physical') enemy.currentHp = Math.max(0, enemy.currentHp - r2);
-        else                        enemy.currentComp = Math.max(0, enemy.currentComp - r2);
         telemetry.passingThoughtDoubletakeFires = (telemetry.passingThoughtDoubletakeFires || 0) + 1;
       }
       // v3.2/v3.3: post-damage FFT/partial/tier rider state effects.
@@ -4825,6 +4924,15 @@ function runCombat(state, enemyId, telemetry) {
       if (r.weak)       applyDebuffSim('weak', r.weak);
       if (r.vulnerable) applyDebuffSim('vulnerable', r.vulnerable);
       if (r.block)      enemy.block += r.block;
+    }
+    // Duo: the companion acts right after its leader. Its block fades on
+    // the same beat as the leader's would; bolster feeds the leader.
+    if (state.companion) {
+      state.companion.block = 0;
+      companionTurnSim(state, state.companion, {
+        enemyDmgMult: state.enemyDmgMult || 1,
+        bolster: (v) => { enemy.block += v; },
+      });
     }
     // v3.5: roll the NEXT intent (telegraphed for the upcoming player turn),
     // with anti-repeat over the last 2 kinds — mirrors App.jsx's lastIntentKinds

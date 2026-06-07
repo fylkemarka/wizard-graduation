@@ -1,27 +1,27 @@
 # Witch Mountain Bridge v2 — Playtest Report
 
-N = **200** runs simulated with a greedy v2 AI.
+N = **30** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **0 wins / 200** = **0.0%**
-- Losses by acts-cleared: 0=177 · 1=23 · 2=0 · 3=0
+- **0 wins / 30** = **0.0%**
+- Losses by acts-cleared: 0=28 · 1=2 · 2=0 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
-- **handler**: 200 runs · 0 wins (0.0%)
+- **handler**: 30 runs · 0 wins (0.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-hedgehog**: 19 runs · 0 wins (0.0%)
-- **fam-snake**: 19 runs · 0 wins (0.0%)
-- **fam-mouse**: 28 runs · 0 wins (0.0%)
-- **fam-owl**: 20 runs · 0 wins (0.0%)
-- **fam-raven**: 27 runs · 0 wins (0.0%)
-- **fam-toad**: 21 runs · 0 wins (0.0%)
-- **fam-crow**: 22 runs · 0 wins (0.0%)
-- **fam-cat**: 15 runs · 0 wins (0.0%)
-- **fam-rabbit**: 17 runs · 0 wins (0.0%)
-- **fam-beetle**: 12 runs · 0 wins (0.0%)
+- **fam-crow**: 6 runs · 0 wins (0.0%)
+- **fam-snake**: 2 runs · 0 wins (0.0%)
+- **fam-raven**: 5 runs · 0 wins (0.0%)
+- **fam-rabbit**: 2 runs · 0 wins (0.0%)
+- **fam-toad**: 3 runs · 0 wins (0.0%)
+- **fam-beetle**: 4 runs · 0 wins (0.0%)
+- **fam-owl**: 2 runs · 0 wins (0.0%)
+- **fam-cat**: 3 runs · 0 wins (0.0%)
+- **fam-mouse**: 2 runs · 0 wins (0.0%)
+- **fam-hedgehog**: 1 runs · 0 wins (0.0%)
 
 ## Cast distribution
 - Total casts: 0
@@ -31,19 +31,19 @@ N = **200** runs simulated with a greedy v2 AI.
 - Holds (turn ended without cast — tray persists): 0 (NaN%)
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
-- Handler runs: 200 · 0 wins (0.0%)
-- Combats fought: 981
-- Summons: 7270 · feeds: 3677 · short-stays (unfed left early): 853 · combines: 155
-- Combine payoff: burst 2210 (avg 14.3/combine) · lifetime attacks 2690 (avg 17.4/combine) · combine = 8.5% of all menagerie composure
-- Menagerie composure dealt: 57322 · block generated: 18568
-- Avg summons/combat: 7.41 · avg feeds/combat: 3.75
-- Tactic changes: 1389 · avg distinct tactics/combat: 0.88
-- Special-lure animals: summons 1220 · porcupine thorns dealt 2180 · sloth enemy-turns skipped 242
-- Activated abilities (Mime/Pigeon/Kangaroo): 418 activations
-- Tactic engagement: shield 514 · rabid 203 · youth 260 · nurture 344 · feather 68
+- Handler runs: 30 · 0 wins (0.0%)
+- Combats fought: 148
+- Summons: 1167 · feeds: 581 · short-stays (unfed left early): 177 · combines: 23
+- Combine payoff: burst 326 (avg 14.2/combine) · lifetime attacks 626 (avg 27.2/combine) · combine = 10.8% of all menagerie composure
+- Menagerie composure dealt: 8826 · block generated: 2423
+- Avg summons/combat: 7.89 · avg feeds/combat: 3.93
+- Tactic changes: 212 · avg distinct tactics/combat: 0.97
+- Special-lure animals: summons 177 · porcupine thorns dealt 371 · sloth enemy-turns skipped 31
+- Activated abilities (Mime/Pigeon/Kangaroo): 107 activations
+- Tactic engagement: shield 65 · rabid 18 · youth 18 · nurture 74 · feather 37
 
 ## Wit LONG THREAD (v2.34)
-- Combats reaching LT ≥ 1: 0 (runs: 0 / 200, 0.0%)
+- Combats reaching LT ≥ 1: 0 (runs: 0 / 30, 0.0%)
 - Avg peak LT per run (across all combats): 0.00
 - Avg peak LT per threaded combat: 0.00
 - Thread breaks (unblocked hit reset a non-zero meter): 0
@@ -53,7 +53,7 @@ N = **200** runs simulated with a greedy v2 AI.
 - v2.43 thread-preservation skip-casts: 0
 - v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 146 granted, 0 played
+- v2.92 Passing Thoughts: 23 granted, 0 played
 - v2.93 Find the Seam (bypass-effectiveness) fires: 0
 - v2.93 Precedent (echo-last-damage) fires: 0
 - v2.93 Insult-to-Injury (×N mult) fires: 0
@@ -63,24 +63,24 @@ N = **200** runs simulated with a greedy v2 AI.
 - v2.93 Bracing (draw-3-on-HP-loss) fires: 0
 
 ## Wit FOOTNOTE (v2.35)
-- Footnotes applied: 0 (runs: 0 / 200, 0.0%)
+- Footnotes applied: 0 (runs: 0 / 30, 0.0%)
 - Casts contributing footnote bonus: 0
 - Total footnote bonus damage: 0
 - Avg bonus per footnoted cast: 0.00
 
 ## Wit ACTUALLY— (v2.36)
-- Re-fires resolved: 0 (runs: 0 / 200, 0.0%)
+- Re-fires resolved: 0 (runs: 0 / 30, 0.0%)
 - Total re-fire damage: 0
 - Avg damage / re-fire: 0.00
 - Enemy bonus from arguing-back: 0 (cost side fired)
 
 ## Wit HOLD ON — (v2.37)
-- Plays: 0 (runs: 0 / 200, 0.0%)
+- Plays: 0 (runs: 0 / 30, 0.0%)
 - Total damage prevented: 0
 - Avg prevention / play: 0.00
 
 ## Wit SAYING SOMETHING WRONG (v2.38)
-- Casts that queued a Misstep: 0 (runs: 0 / 200, 0.0%)
+- Casts that queued a Misstep: 0 (runs: 0 / 30, 0.0%)
 - Up-front damage dealt by those casts: 0
 - Tokens delivered to hand: 0
 - Discarded (1 Energy paid): 0
@@ -89,13 +89,13 @@ N = **200** runs simulated with a greedy v2 AI.
 - Avg up-front damage / cast: 0.00
 
 ## Wit OPENING STATEMENT (v2.39)
-- Bonus triggers: 0 (runs: 0 / 200, 0.0%)
+- Bonus triggers: 0 (runs: 0 / 30, 0.0%)
 - Total bonus damage: 0
 - Avg bonus / trigger: 0.00
 - Revisit-opening skill plays: 0
 
 ## Wit PATIENCE (v2.40)
-- Installs: 0 (runs: 0 / 200, 0.0%)
+- Installs: 0 (runs: 0 / 30, 0.0%)
 - Peak stacks — max: 0, mean: 0.00
 - Total damage from patience-spend: 0
 - Casts that consumed bank: 0
@@ -103,37 +103,37 @@ N = **200** runs simulated with a greedy v2 AI.
 - Avg damage / spend: 0.00
 
 ## Wit SYNERGY CAPSTONE (v2.41)
-- "in summary," casts: 0 (runs: 0 / 200, 0.0%)
+- "in summary," casts: 0 (runs: 0 / 30, 0.0%)
 - Total capstone damage: 0
 - Avg damage per cast: 0.00
 
 ## Wit INSULT VULNERABILITIES (v2.42)
-- Casts that hit the rider: 0 (runs: 0 / 200, 0.0%)
+- Casts that hit the rider: 0 (runs: 0 / 30, 0.0%)
 - Total matched tags (capped 3/cast): 0
 - Total bonus damage: 0
 - Avg bonus per cast: 0.00
 
 ## Jnsq TANGENT (v2.44)
-- "That reminds me," skill plays: 0 (runs: 0 / 200, 0.0%)
+- "That reminds me," skill plays: 0 (runs: 0 / 30, 0.0%)
 - Detours that cast a target: 0
 - Detours that staged a word/modifier: 0
 - Detours that fizzled (target hit incomplete tray): 0
 - Outcome ratio: cast / staged / fizzle: 0 / 0 / 0
 
 ## Jnsq APOLOGY (v2.45)
-- "I shouldn't have said that —" plays: 0 (runs: 0 / 200, 0.0%)
+- "I shouldn't have said that —" plays: 0 (runs: 0 / 30, 0.0%)
 - Total HP healed: 0
 - Total tray cards discarded by reset: 0
 - Avg tray cards / cast: 0.00
 
 ## Jnsq WON'T SHUT UP (v2.46)
-- Rider armed (soup target cast): 0 (runs: 0 / 200, 0.0%)
+- Rider armed (soup target cast): 0 (runs: 0 / 30, 0.0%)
 - Dodges (kept going — follow-up jnsq played): 0 (0%)
 - Damage fires (-3 HP each): 0 (0%)
 - Total HP lost to commitment: 0
 
 ## Jnsq DRUNKEN CONFIDENCE (v2.47)
-- Installs (per-combat): 0 (runs: 0 / 200, 0.0%)
+- Installs (per-combat): 0 (runs: 0 / 30, 0.0%)
 - Uninstalls (sober second thought): 0
 - Casts that received the +50%: 0
 - Total bonus damage from +50% on casts: 0
@@ -141,52 +141,46 @@ N = **200** runs simulated with a greedy v2 AI.
 - Net trade: 0 (positive = paying off)
 
 ## Jnsq AWKWARD PAUSE (v2.48)
-- "...go on, I'm listening." plays: 0 (runs: 0 / 200, 0.0%)
+- "...go on, I'm listening." plays: 0 (runs: 0 / 30, 0.0%)
 - Doubled casts (bank cashed in): 0
 - Total extra damage from doubling: 0
 - Avg extra damage / doubled cast: 0.0
 - Cash-in ratio (doubled casts / pauses): 0%
 
 ## Jnsq BABBLING (v2.49)
-- Installs (per-combat): 0 (runs: 0 / 200, 0.0%)
+- Installs (per-combat): 0 (runs: 0 / 30, 0.0%)
 - 2nd casts fired: 0
 - Total damage delivered by 2nd casts: 0
 - Avg damage / 2nd cast: 0.0
 - 2nd-cast rate per install: 0.00
 
 ## Jnsq GETTING-AWAY-FROM-ME (v2.50)
-- Rare casts: 0 (runs: 0 / 200, 0.0%)
+- Rare casts: 0 (runs: 0 / 30, 0.0%)
 - Doubled fires (cast #2 under Babbling): 0 (0% of casts)
 
 ## Jnsq SYNERGY CAPSTONE — "universe sideways" (v2.51)
-- Capstone casts: 0 (runs: 0 / 200, 0.0%)
+- Capstone casts: 0 (runs: 0 / 30, 0.0%)
 - Total capstone damage: 0
 - Avg damage / capstone cast: 0.00
 - Tangent-on-cast fires: 0
 
 ## Jnsq DRUNKEN STAGGER (v2.52)
-- "sorry, I lost my balance" plays: 0 (runs: 0 / 200, 0.0%)
+- "sorry, I lost my balance" plays: 0 (runs: 0 / 30, 0.0%)
 - Swings missed (50% dodge fired): 0
 - Total damage avoided: 0
 - Avg damage avoided / play: 0.0
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 8.74
-- Avg damage / run: 301
-- Mean final deck size: 13.0
+- Avg turns / combat: 8.79
+- Avg damage / run: 309
+- Mean final deck size: 13.1
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 100
-- e2-silent-spinner (The Silent Spinner): 31
-- e2-pattern-maker (The Pattern-Maker): 27
-- e2-silk-wraith (Silk Wraith): 17
-- e3-vein-devourer (Vein Devourer): 8
-- e3-quartz-sentinel (Quartz Sentinel): 6
-- e3-glow-mite (Glow Mite Swarm): 3
-- e3-geode-crab (Geode Crab): 2
-- e3-crystal-beetle (Crystal Beetle): 2
-- e2-hollow-weaver (Hollow Weaver): 2
-- e3-boss-anvil (The Anvil-Forged): 2
+- e2-boss-tapestry (The Tapestry Walker): 18
+- e2-silent-spinner (The Silent Spinner): 6
+- e2-pattern-maker (The Pattern-Maker): 4
+- e3-quartz-sentinel (Quartz Sentinel): 1
+- e3-vein-devourer (Vein Devourer): 1
