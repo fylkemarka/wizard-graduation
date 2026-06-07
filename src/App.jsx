@@ -384,17 +384,17 @@ const CARDS = [
     flavor: 'Purely ceremonial. The crack does the work.' },
 
   // ---- v3.4.59 (Alan) — Universal-lane utility / tempo skills + powers.
-  { id: 'c-take-as-compliment', name: "I'll Take That as a Compliment", cost: 2, type: 'skill', rarity: 'uncommon',
+  { id: 'c-take-as-compliment', name: "I'll Take That as a Compliment", lane: 'wit', cost: 2, type: 'skill', rarity: 'uncommon',
     effects: { block: 5, complimentHealOnAbsorb: 5, exhaust: true },
     upgrade: { effects: { block: 7, complimentHealOnAbsorb: 7, exhaust: true } },
     desc: 'Gain 5 Block. At end of turn, heal HP for damage this Block absorbed (max 5). Exhaust.',
     flavor: 'Thank you. Really. It means a lot.' },
-  { id: 'c-speechless', name: 'Speechless', cost: 2, type: 'skill', rarity: 'uncommon',
+  { id: 'c-speechless', name: 'Speechless', lane: 'wit', cost: 2, type: 'skill', rarity: 'uncommon',
     effects: { enemySkipNextTurn: true, exhaust: true },
     upgrade: { effects: { enemySkipNextTurn: true, draw: 1, exhaust: true } },
     desc: 'The enemy is stunned — they lose their next turn entirely. Exhaust.',
     flavor: 'They had something prepared. They no longer do.' },
-  { id: 'c-when-youre-older', name: "I'll Tell You When You're Older", cost: 3, type: 'skill', rarity: 'rare',
+  { id: 'c-when-youre-older', name: "I'll Tell You When You're Older", lane: 'wit', cost: 3, type: 'skill', rarity: 'rare',
     effects: { delayedComposureDamage: { amount: 21, delay: 3 }, exhaust: true },
     upgrade: { effects: { delayedComposureDamage: { amount: 27, delay: 3 }, exhaust: true } },
     desc: 'Deal 21 composure damage to the enemy 3 turns from now. Exhaust.',
@@ -411,16 +411,15 @@ const CARDS = [
     upgrade: { effects: { nextCardFree: true, draw: 1, exhaust: true } },
     desc: 'Your next card played this turn costs 0. Exhaust.',
     flavor: 'It caught the bone before it caught the implication.' },
-  { id: 'c-kind-word', name: 'A Kind Word', cost: 2, type: 'skill', rarity: 'common',
+  { id: 'c-kind-word', name: 'A Kind Word', lane: 'wit', cost: 2, type: 'skill', rarity: 'common',
     effects: { hp: 4, composure: 4, exhaust: true },
     upgrade: { effects: { hp: 6, composure: 6, exhaust: true } },
     desc: 'Heal 4 HP and 4 Composure. Exhaust.',
     flavor: 'Brief. Unrehearsed. The room exhales.' },
-  // v3.4.66 (Alan) — The Tutor, moved from wit-v2.js to colorless so all
-  // wizards can draft it. Currently only meaningful for wit (FFT rows
-  // exist); becomes useful for handler/jnsq when those lanes get their
-  // row systems built.
-  { id: 'c-the-tutor', name: 'The Tutor', cost: 3, type: 'skill', rarity: 'common',
+  // v3.4.66: was colorless so all wizards could draft it. 2026-06-07
+  // (Alan): lanes don't share cards — back to wit (the only lane with
+  // FFT rows anyway).
+  { id: 'c-the-tutor', name: 'The Tutor', lane: 'wit', cost: 3, type: 'skill', rarity: 'common',
     effects: { tutorArmNextSentence: true, exhaust: true }, fftOnly: true,
     desc: 'Next time you stage an intro AND a subject from the same row, the matching effect card is pulled from your hand, deck, or discard and placed directly in the spell tray, ready to cast. Exhaust.',
     flavor: 'They never stopped grading you. They never will.' },
