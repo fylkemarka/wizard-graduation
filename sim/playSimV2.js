@@ -232,7 +232,9 @@ const COMBINE_RESULT_IDS = new Set(Object.values(COMBINE_BY_SPECIES));
 const HANDLER_STARTER = [
   'c-defend-handler', 'c-defend-handler', 'c-compose',
   'cv2-l-tender-greens', 'cv2-l-tender-greens',
-  'c-pack-tactics', 'c-buffet', 'c-tactic-shield',
+  // c-buffet pulled from the starter 2026-06-07 (Alan: too strong for
+  // turn 1) — stays in HANDLER_REWARD_POOL below.
+  'c-pack-tactics', 'c-tactic-shield',
 ];
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',

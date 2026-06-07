@@ -17,8 +17,17 @@ const NARROW = 'c-narrow';
 const TENDER_GREENS = 'cv2-l-tender-greens';
 const IRON_STOMACH = 'c-iron-stomach';
 
+// Dismiss the Loom Familiar's card-steal notice if it's up — it blocks
+// every other click. (Surfaced 2026-06-07 when c-buffet left the starter
+// and deck order shifted under these seeds.)
+async function dismissSteal(page) {
+  const ack = page.getByRole('button', { name: 'Acknowledged' });
+  if ((await ack.count()) > 0) await ack.click();
+}
+
 async function ensureInHand(page, cardId, maxTurns = 5) {
   for (let i = 0; i < maxTurns; i++) {
+    await dismissSteal(page);
     if (await handCardById(page, cardId).count() > 0) return true;
     await endTurn(page);
     await expect(page.getByTestId('hand')).toBeVisible();
@@ -30,6 +39,7 @@ async function ensureInHand(page, cardId, maxTurns = 5) {
 // arrives in 1 turn, so a couple of end-turns guarantees a body.
 async function ensureAnimalStaged(page, maxTurns = 5) {
   for (let i = 0; i < maxTurns; i++) {
+    await dismissSteal(page);
     // Animal pills carry their attack/flop readout — match the "/ turn" or
     // "(flops)" text the V2SpellTray renders for a standing animal.
     if (await page.getByText(/\/ turn|\(flops\)/).count() > 0) return true;

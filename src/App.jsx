@@ -1003,7 +1003,9 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     ids.push('cv2-l-tender-greens');    // 1-turn → random of Mouse/Rabbit/Buck
     ids.push('cv2-l-tender-greens');    // second copy — chance at Mouse House row / Tender Greens bonus
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
-    ids.push('c-buffet');               // next lure spreads across all empty slots (exhaust)
+    // c-buffet removed from the starter (Alan, 2026-06-07: too strong for
+    // turn 1 — a triple summon out of the gate). Uncommon rarity keeps it
+    // in the reward pool; earn it, don't start with it.
     ids.push('c-tactic-shield');        // Summoned Shield — play to route animal attacks into Block
   }
   return ids;
