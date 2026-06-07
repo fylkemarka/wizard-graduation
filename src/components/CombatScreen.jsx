@@ -35,6 +35,7 @@ function StatBar({ value, max, fillClass, label }) {
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, incomingProjection, peekedNextIntent,
                        companion = null, castTarget = 'main', onSetCastTarget = () => {},
+                       enemyTurnSkipped = false,
                        enemyDmgMult, playerDmgMult,
                        enemyDmgTurns = 0, playerDmgTurns = 0,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
@@ -334,8 +335,18 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             ember panel that reads top-to-bottom: what they'll do, what you
             know about it, what it actually costs you. */}
         <div className="rounded bg-ember-950/50 border border-ember-800">
+          {/* Wall / Speechless armed — the enemy's coming turn is forfeit.
+              Without this banner the only feedback was a log line, and a
+              player couldn't tell whether their Mime click actually armed
+              the wall (Alan's mime-vs-maul report, 2026-06-07). */}
+          {enemyTurnSkipped && (
+            <div data-testid="enemy-turn-skipped"
+                 className="px-3 py-1.5 bg-moss-900/70 border-b border-moss-600 text-moss-200 text-sm font-bold flex items-center gap-2">
+              🧱 WALL UP — the enemy's next turn is skipped. Nothing below will happen.
+            </div>
+          )}
           <div key={`intent-${intentTick}`}
-               className="intent-flash px-3 py-2 cursor-help"
+               className={`intent-flash px-3 py-2 cursor-help ${enemyTurnSkipped ? 'opacity-40 line-through' : ''}`}
                title={intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.'}>
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
             <div className="text-lg">

@@ -9037,6 +9037,7 @@ export default function App() {
     else updates[best] = null;
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
     noteAnimalDeparted();
+    logEvent('combat.maul_tear', { animalId: slot.animalId, slotName: best, redirect, enemyId: enemy?.id });
     pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is mauled off the board${redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all"}.`);
   };
 
@@ -9123,6 +9124,7 @@ export default function App() {
     if (ability.id === 'mime-wall') {
       // Self-consume: the invisible wall makes the enemy skip its next FULL
       // turn, then the Mime takes its bow and leaves the board.
+      logEvent('combat.ability_activate', { abilityId: 'mime-wall', animalId: slot.animalId, slotName, enemyId: enemy?.id, intentKind: enemyIntent?.kind, intentMaul: !!enemyIntent?.maul });
       setEnemySkipNextTurn(true);
       const updates = {};
       if (Array.isArray(slot.spans)) for (const s of slot.spans) updates[s] = null;
@@ -11257,6 +11259,7 @@ export default function App() {
     if (enemySkipNextTurn) {
       setEnemySkipNextTurn(false);
       setEnemySkipNextAttack(false);
+      logEvent('combat.enemy_turn_skipped', { enemyId: e.id, skippedIntentKind: intent?.kind, skippedIntentMaul: !!intent?.maul });
       pushLog(`🤐 ${e.name} is speechless — turn skipped.`);
       return;
     }
@@ -12714,6 +12717,7 @@ export default function App() {
     <CombatScreen
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       companion={companion} castTarget={castTarget} onSetCastTarget={setSpellTarget}
+      enemyTurnSkipped={enemySkipNextTurn}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
       incomingProjection={projectIncomingDamage(enemyIntent)}
       peekedNextIntent={peekedNextIntent}
