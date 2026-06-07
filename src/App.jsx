@@ -11242,14 +11242,21 @@ export default function App() {
   // null for non-attack intents (block / debuff / weave handle their own
   // telegraph). Kept next to applyEnemyIntent so the two can't drift.
   function projectIncomingDamage(intent) {
-    if (!intent) return null;
-    if (intent.kind !== 'attack' && intent.kind !== 'attack-multi') return null;
-    const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;
-    const targetsComposure = intent.pool === 'composure' || !!swapNextHitToComp;
+    // Duo (Alan, 2026-06-07): ONE bar for every enemy present. The main
+    // intent part is optional (the leader may be blocking while the
+    // companion still jabs); the companion's swing is projected INTO the
+    // pools the leader's swings leave behind — exactly the engine order
+    // (applyEnemyIntent → applyCompanionIntent via postSwingVitalsRef).
+    const mainAttacks = !!intent && (intent.kind === 'attack' || intent.kind === 'attack-multi');
+    const compIntent = companion?.intent;
+    const compAttacks = compIntent?.kind === 'attack';
+    if (!mainAttacks && !compAttacks) return null;
+    const hits = mainAttacks ? (intent.kind === 'attack-multi' ? (intent.count || 1) : 1) : 0;
+    const targetsComposure = mainAttacks && (intent.pool === 'composure' || !!swapNextHitToComp);
     const mult = enemyDmgMult || 1;
 
     // Per-swing base after the multiplier (Weak/Vuln) and self-vulnerability.
-    let perSwing = Math.round(intent.value * mult * (playerIncomingMult || 1));
+    let perSwing = mainAttacks ? Math.round(intent.value * mult * (playerIncomingMult || 1)) : 0;
     const afterMult = perSwing;
     // Flat pre-routing adds (apply to every swing, mirroring `raw` reuse).
     const arguing = arguingBackThisTurn > 0 ? arguingBackThisTurn : 0;
@@ -11292,15 +11299,45 @@ export default function App() {
       }
       if (wHp <= 0 || wComp <= 0) break;
     }
+    // Companion swing — resolved AFTER the leader's, against whatever
+    // Block / Poise / Temp HP is left. Mirrors applyCompanionIntent
+    // (raw value × side-wide Weak/Vuln; no Defense trims on the jab).
+    let companionIncoming = null;
+    if (compAttacks && !(wHp <= 0 || wComp <= 0)) {
+      const cTargetsComp = compIntent.pool === 'composure';
+      let cRemaining = Math.round((compIntent.value || 0) * mult);
+      const cAfterMult = cRemaining;
+      let cBlockAb = 0, cPoiseAb = 0, cTempAb = 0;
+      if (cTargetsComp) {
+        const ab = Math.min(wPoise, cRemaining); wPoise -= ab; cRemaining -= ab; cPoiseAb = ab;
+        wComp = Math.max(0, wComp - cRemaining);
+      } else {
+        const ab = Math.min(wBlock, cRemaining); wBlock -= ab; cRemaining -= ab; cBlockAb = ab;
+        if (cRemaining > 0 && wTempHp > 0) { const t = Math.min(wTempHp, cRemaining); wTempHp -= t; cRemaining -= t; cTempAb = t; }
+        wHp = Math.max(0, wHp - cRemaining);
+      }
+      companionIncoming = {
+        name: companion.def.name,
+        pool: cTargetsComp ? 'composure' : 'hp',
+        baseSwing: compIntent.value || 0,
+        afterMult: cAfterMult,
+        amplified: cAfterMult > (compIntent.value || 0),
+        reduced: cAfterMult < (compIntent.value || 0),
+        blockAbsorbed: cBlockAb, poiseAbsorbed: cPoiseAb, tempHpAbsorbed: cTempAb,
+        net: cRemaining,
+      };
+    }
     const netHp = hp - wHp;
     const netComposure = Math.max(0, composure - weaveFireDamageRef.current) - wComp;
     return {
+      hasMain: mainAttacks,
+      mainName: enemy?.name || 'Enemy',
       pool: targetsComposure ? 'composure' : 'hp',
       hits,
-      baseSwing: intent.value,
+      baseSwing: mainAttacks ? intent.value : 0,
       afterMult,            // per-swing after Weak/Vuln (+ self-vuln)
-      amplified: afterMult > intent.value,
-      reduced: afterMult < intent.value,
+      amplified: mainAttacks && afterMult > intent.value,
+      reduced: mainAttacks && afterMult < intent.value,
       arguing, drunken, annAtkRed, beetle,
       perSwingReduction: reduction,
       swingReduction,
@@ -11308,8 +11345,9 @@ export default function App() {
       stagger: !!staggerActive,
       totalIncoming,        // summed across swings, after all flat/per-swing reductions, before shields
       blockAbsorbed, poiseAbsorbed, tempHpAbsorbed,
-      netHp, netComposure,
-      maul: !!intent.maul,
+      companionIncoming,    // duo: the partner's jab into the leftover pools
+      netHp, netComposure,  // combined across BOTH enemies
+      maul: mainAttacks && !!intent.maul,
     };
   }
 

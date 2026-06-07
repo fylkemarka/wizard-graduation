@@ -228,8 +228,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative ${shakeClass}`}>
+      {/* v3.5 duo layout (Alan, 2026-06-07): five columns — each enemy is
+          its own 1/5 panel, the shared forecast (one Incoming bar for ALL
+          enemies) takes the middle, Your State is 1/5 on the right. Solo
+          fights: the forecast widens into the companion's column. */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative lg:col-span-1 ${shakeClass}`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
         {dmgFloaters && dmgFloaters.length > 0 && (
           <div className="pointer-events-none absolute left-1/2 top-2 z-20">
@@ -329,11 +333,57 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                      label={`HP ${enemyHp}/${hpMax}`} />
           )}
         </div>
-        {/* v3.5 — unified enemy-forecast panel. Intent / arguing-back /
-            peek / annotation / Incoming pills were four separately-styled
-            sibling boxes competing for attention; now they're rows of ONE
-            ember panel that reads top-to-bottom: what they'll do, what you
-            know about it, what it actually costs you. */}
+      </div>
+      {/* Companion panel — a full 1/5 enemy panel of its own (Alan,
+          2026-06-07). Click toggles your attack target; block shown with
+          the same prominence as the leader's. */}
+      {companion && (
+        <button type="button"
+          data-testid="companion-panel"
+          data-targeted={castTarget === 'companion' ? 'true' : 'false'}
+          onClick={() => onSetCastTarget(castTarget === 'companion' ? 'main' : 'companion')}
+          className={`parchment-card-strong p-1.5 text-left flex flex-col gap-1 transition cursor-pointer lg:col-span-1 ${
+            castTarget === 'companion' ? 'ring-2 ring-gold-400' : 'hover:ring-1 hover:ring-gold-600'
+          }`}
+          title={`${companion.def.name} — ${companion.def.flavor || 'a second enemy'}.\n\nClick to ${castTarget === 'companion' ? 'aim your attacks back at the leader' : 'aim your attacks at this one instead'}. Casts AND animals follow your target; DoTs, riders and annotations stay on the leader. If the leader falls, this one flees.`}>
+          <div className="flex items-start gap-2">
+            <ArtSlot src={`/art/enemies/${companion.def.id}.png`} alt={companion.def.name}
+                     className="w-14 h-14 rounded-md border-2 border-ember-700 object-cover shrink-0" />
+            <div className="min-w-0">
+              <div className="font-display text-base text-ember-300 flex items-center gap-2 flex-wrap leading-tight">
+                {companion.def.name}
+                {castTarget === 'companion' && (
+                  <span className="px-1.5 py-0.5 rounded bg-gold-600 text-ink-800 text-[9px] uppercase tracking-widest font-bold">
+                    🎯 your casts
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] text-parchment-300 italic leading-none">Companion</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
+            <span className="text-base font-mono text-iris-300" title="Composure — drain to 0 and it flees.">
+              <Icon name="composure" className="mr-0.5" />{companion.composure}<span className="text-[11px] text-parchment-300">/{companion.def.composureMax}</span>
+            </span>
+            <span className="text-[11px] font-mono" title="Companion Block — absorbs your attacks first, fades at its turn.">
+              <Icon name="block" className="mr-0.5" />{companion.block}
+            </span>
+          </div>
+          <StatBar value={companion.composure} max={companion.def.composureMax} fillClass="bg-iris-400"
+                   label={`Composure ${companion.composure}/${companion.def.composureMax}`} />
+          {companion.intent && (
+            <div className="text-xs text-parchment-200 mt-0.5">{companion.intent.telegraph}</div>
+          )}
+          {castTarget !== 'companion' && (
+            <span className="self-start px-1.5 py-0.5 rounded bg-ink-700 text-parchment-400 text-[9px] uppercase tracking-widest font-bold">
+              click to target
+            </span>
+          )}
+        </button>
+      )}
+      {/* Shared forecast card — ONE Incoming math bar for every enemy
+          present, plus intent headline / peek / annotation / in-effect. */}
+      <div className={`parchment-card relative ${companion ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
         <div className="rounded bg-ember-950/50 border border-ember-800">
           {/* Wall / Speechless armed — the enemy's coming turn is forfeit.
               Without this banner the only feedback was a log line, and a
@@ -416,43 +466,74 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span key={key} className={`px-1.5 py-0.5 rounded ${cls} cursor-help`} title={title}>{text}</span>
           );
           const chips = [];
-          chips.push(chip('base', 'bg-ink-700 text-parchment-100',
-            p.hits > 1 ? <><Icon name="attack" /> {p.baseSwing} × {p.hits} hits</> : <><Icon name="attack" /> base {p.baseSwing}</>,
-            p.hits > 1 ? `The enemy swings ${p.hits} times at ${p.baseSwing} each.` : `The enemy's base swing is ${p.baseSwing}.`));
-          if (p.amplified) chips.push(chip('amp', 'bg-ember-800 text-ember-100',
-            <><Icon name="bleed" /> → {p.afterMult}/swing</>, `You are Vulnerable — each swing is amplified to ${p.afterMult}.`));
-          if (p.reduced) chips.push(chip('red', 'bg-moss-800 text-moss-100',
-            <><Icon name="weak" /> → {p.afterMult}/swing</>, `The enemy is Weak — each swing is reduced to ${p.afterMult}.`));
-          if (p.arguing > 0) chips.push(chip('arg', 'bg-iris-800 text-iris-100',
-            <><Icon name="shout" /> +{p.arguing}</>, `Arguing back: each Actually— you played adds +${p.arguing} to the swing.`));
-          if (p.drunken > 0) chips.push(chip('drunk', 'bg-amber-800 text-amber-100',
-            `🍺 +${p.drunken}`, `Drunken Confidence: +${p.drunken} to every enemy swing while installed.`));
-          if (p.annAtkRed > 0) chips.push(chip('ann', 'bg-iris-900 text-iris-100',
-            <><Icon name="annotate" /> −{p.annAtkRed}</>, `Annotation scrubs ${p.annAtkRed} off the swing before shields.`));
-          if (p.beetle > 0) chips.push(chip('beetle', 'bg-moss-900 text-moss-100',
-            `🪲 −${p.beetle}`, `Beetle absorbs ${p.beetle} off the first hit.`));
-          if (p.perSwingReduction > 0) chips.push(chip('def', 'bg-moss-900 text-moss-100',
-            <><Icon name="block" />✦ −{p.perSwingReduction}/swing</>, `Defense + Long Thread shave ${p.perSwingReduction} off each swing (min 1 gets through).`));
-          if (p.swingReduction > 0) chips.push(chip('hb', 'bg-moss-900 text-moss-100',
-            `−${p.swingReduction}/swing`, `Headbutt: −${p.swingReduction} off each swing (min 1).`));
-          if (p.holdOn > 0) chips.push(chip('hold', 'bg-iris-900 text-iris-100',
-            `🛑 −${p.holdOn} first`, `Hold On reduces the first swing by ${p.holdOn}.`));
-          chips.push(chip('inc', 'bg-ink-600 text-parchment-50 font-bold',
-            `→ ${p.totalIncoming} incoming`, `After all reductions, ${p.totalIncoming} damage arrives at your shields.`));
-          if (p.blockAbsorbed > 0) chips.push(chip('blk', 'bg-iris-900 text-iris-100',
-            <><Icon name="block" /> −{p.blockAbsorbed}</>, `Your Block soaks ${p.blockAbsorbed}.`));
-          if (p.poiseAbsorbed > 0) chips.push(chip('poi', 'bg-moss-900 text-moss-100',
-            <><Icon name="poise" /> −{p.poiseAbsorbed}</>, `Your Poise soaks ${p.poiseAbsorbed} composure damage.`));
-          if (p.tempHpAbsorbed > 0) chips.push(chip('temp', 'bg-gold-900 text-gold-100',
-            `🎈 −${p.tempHpAbsorbed}`, `Temp HP soaks ${p.tempHpAbsorbed} before real HP.`));
-          const net = p.pool === 'composure' ? p.netComposure : p.netHp;
-          const punchCls = net > 0 ? 'bg-ember-700 text-parchment-50 font-bold border border-ember-400'
-                                   : 'bg-moss-800 text-moss-100 font-bold border border-moss-500';
-          chips.push(chip('net', punchCls,
-            p.pool === 'composure' ? <><Icon name="composure" /> {net} to Composure</> : <><Icon name="hp" /> {net} to HP</>,
-            net > 0
-              ? `This is what actually lands on your ${p.pool === 'composure' ? 'Composure' : 'HP'} after everything above.`
-              : `Fully absorbed — nothing reaches your ${p.pool === 'composure' ? 'Composure' : 'HP'}.`));
+          const duo = !!p.companionIncoming;
+          // Leader's swing chain (absent when the leader isn't attacking —
+          // e.g. it blocks while the companion still jabs).
+          if (p.hasMain) {
+            if (duo) chips.push(chip('main-label', 'bg-ember-900/80 text-ember-200 uppercase tracking-wide font-bold',
+              p.mainName, `The leader's attack.`));
+            chips.push(chip('base', 'bg-ink-700 text-parchment-100',
+              p.hits > 1 ? <><Icon name="attack" /> {p.baseSwing} × {p.hits} hits</> : <><Icon name="attack" /> base {p.baseSwing}</>,
+              p.hits > 1 ? `The enemy swings ${p.hits} times at ${p.baseSwing} each.` : `The enemy's base swing is ${p.baseSwing}.`));
+            if (p.amplified) chips.push(chip('amp', 'bg-ember-800 text-ember-100',
+              <><Icon name="bleed" /> → {p.afterMult}/swing</>, `You are Vulnerable — each swing is amplified to ${p.afterMult}.`));
+            if (p.reduced) chips.push(chip('red', 'bg-moss-800 text-moss-100',
+              <><Icon name="weak" /> → {p.afterMult}/swing</>, `The enemy is Weak — each swing is reduced to ${p.afterMult}.`));
+            if (p.arguing > 0) chips.push(chip('arg', 'bg-iris-800 text-iris-100',
+              <><Icon name="shout" /> +{p.arguing}</>, `Arguing back: each Actually— you played adds +${p.arguing} to the swing.`));
+            if (p.drunken > 0) chips.push(chip('drunk', 'bg-amber-800 text-amber-100',
+              `🍺 +${p.drunken}`, `Drunken Confidence: +${p.drunken} to every enemy swing while installed.`));
+            if (p.annAtkRed > 0) chips.push(chip('ann', 'bg-iris-900 text-iris-100',
+              <><Icon name="annotate" /> −{p.annAtkRed}</>, `Annotation scrubs ${p.annAtkRed} off the swing before shields.`));
+            if (p.beetle > 0) chips.push(chip('beetle', 'bg-moss-900 text-moss-100',
+              `🪲 −${p.beetle}`, `Beetle absorbs ${p.beetle} off the first hit.`));
+            if (p.perSwingReduction > 0) chips.push(chip('def', 'bg-moss-900 text-moss-100',
+              <><Icon name="block" />✦ −{p.perSwingReduction}/swing</>, `Defense + Long Thread shave ${p.perSwingReduction} off each swing (min 1 gets through).`));
+            if (p.swingReduction > 0) chips.push(chip('hb', 'bg-moss-900 text-moss-100',
+              `−${p.swingReduction}/swing`, `Headbutt: −${p.swingReduction} off each swing (min 1).`));
+            if (p.holdOn > 0) chips.push(chip('hold', 'bg-iris-900 text-iris-100',
+              `🛑 −${p.holdOn} first`, `Hold On reduces the first swing by ${p.holdOn}.`));
+            chips.push(chip('inc', 'bg-ink-600 text-parchment-50 font-bold',
+              `→ ${p.totalIncoming} incoming`, `After all reductions, ${p.totalIncoming} damage arrives at your shields.`));
+            if (p.blockAbsorbed > 0) chips.push(chip('blk', 'bg-iris-900 text-iris-100',
+              <><Icon name="block" /> −{p.blockAbsorbed}</>, `Your Block soaks ${p.blockAbsorbed}.`));
+            if (p.poiseAbsorbed > 0) chips.push(chip('poi', 'bg-moss-900 text-moss-100',
+              <><Icon name="poise" /> −{p.poiseAbsorbed}</>, `Your Poise soaks ${p.poiseAbsorbed} composure damage.`));
+            if (p.tempHpAbsorbed > 0) chips.push(chip('temp', 'bg-gold-900 text-gold-100',
+              `🎈 −${p.tempHpAbsorbed}`, `Temp HP soaks ${p.tempHpAbsorbed} before real HP.`));
+          }
+          // Companion's jab — lands AFTER the leader's swings, into the
+          // leftover Block/Poise (one bar for every enemy present).
+          if (duo) {
+            const ci = p.companionIncoming;
+            chips.push(chip('comp-label', 'bg-ember-900/80 text-ember-200 uppercase tracking-wide font-bold',
+              ci.name, `The companion acts right after the leader.`));
+            chips.push(chip('cbase', 'bg-ink-700 text-parchment-100',
+              <><Icon name="attack" /> {ci.baseSwing}</>, `${ci.name}'s swing is ${ci.baseSwing}.`));
+            if (ci.amplified) chips.push(chip('camp', 'bg-ember-800 text-ember-100',
+              <><Icon name="bleed" /> → {ci.afterMult}</>, `You are Vulnerable — the jab is amplified to ${ci.afterMult}.`));
+            if (ci.reduced) chips.push(chip('cred', 'bg-moss-800 text-moss-100',
+              <><Icon name="weak" /> → {ci.afterMult}</>, `The enemy side is Weak — the jab is reduced to ${ci.afterMult}.`));
+            if (ci.blockAbsorbed > 0) chips.push(chip('cblk', 'bg-iris-900 text-iris-100',
+              <><Icon name="block" /> −{ci.blockAbsorbed}</>, `Your leftover Block soaks ${ci.blockAbsorbed}.`));
+            if (ci.poiseAbsorbed > 0) chips.push(chip('cpoi', 'bg-moss-900 text-moss-100',
+              <><Icon name="poise" /> −{ci.poiseAbsorbed}</>, `Your leftover Poise soaks ${ci.poiseAbsorbed}.`));
+            if (ci.tempHpAbsorbed > 0) chips.push(chip('ctemp', 'bg-gold-900 text-gold-100',
+              `🎈 −${ci.tempHpAbsorbed}`, `Temp HP soaks ${ci.tempHpAbsorbed} before real HP.`));
+          }
+          // Combined punchline — what actually lands across BOTH enemies.
+          const anyNet = (p.netHp || 0) > 0 || (p.netComposure || 0) > 0;
+          if ((p.netHp || 0) > 0) chips.push(chip('netHp',
+            'bg-ember-700 text-parchment-50 font-bold border border-ember-400',
+            <><Icon name="hp" /> {p.netHp} to HP</>,
+            `Total HP damage that lands after everything above${duo ? ' (both enemies)' : ''}.`));
+          if ((p.netComposure || 0) > 0) chips.push(chip('netComp',
+            'bg-ember-700 text-parchment-50 font-bold border border-ember-400',
+            <><Icon name="composure" /> {p.netComposure} to Composure</>,
+            `Total Composure damage that lands after everything above${duo ? ' (both enemies)' : ''}.`));
+          if (!anyNet) chips.push(chip('net0',
+            'bg-moss-800 text-moss-100 font-bold border border-moss-500',
+            'fully absorbed', `Nothing reaches your HP or Composure.`));
           if (p.stagger) chips.push(chip('stag', 'bg-amber-900 text-amber-100',
             <><Icon name="stagger" /> 50% dodge</>, `Drunken Stagger: each swing has a 50% chance to miss entirely — you may take less, or nothing.`));
           if (p.maul) chips.push(chip('maul', 'bg-ember-900 text-ember-100',
@@ -466,43 +547,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           );
         })()}
         </div>
-        {/* v3.5 — DUO ENCOUNTER companion panel. A weaker partner fighting
-            beside the main enemy. Click toggles your attack target between
-            the two; casts and animals follow it, riders stay on the leader. */}
-        {companion && (
-          <button type="button"
-            data-testid="companion-panel"
-            data-targeted={castTarget === 'companion' ? 'true' : 'false'}
-            onClick={() => onSetCastTarget(castTarget === 'companion' ? 'main' : 'companion')}
-            className={`mt-2 w-full text-left rounded border px-3 py-2 flex items-center gap-3 transition cursor-pointer ${
-              castTarget === 'companion'
-                ? 'border-gold-400 ring-2 ring-gold-400 bg-ink-700'
-                : 'border-ember-800 bg-ember-950/40 hover:border-gold-500'
-            }`}
-            title={`${companion.def.name} — ${companion.def.flavor || 'a second enemy'}.\n\nClick to ${castTarget === 'companion' ? 'aim your attacks back at the leader' : 'aim your attacks at this one instead'}. Casts AND animals follow your target; DoTs, riders and annotations stay on the leader. If the leader falls, this one flees.`}>
-            <ArtSlot src={`/art/enemies/${companion.def.id}.png`} alt={companion.def.name}
-                     className="w-10 h-10 rounded border border-ember-700 object-cover shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-baseline gap-2 flex-wrap">
-                <span className="font-display text-sm text-ember-200">{companion.def.name}</span>
-                <span className="font-mono text-sm text-iris-300">
-                  <Icon name="composure" className="mr-0.5" />{companion.composure}<span className="text-[10px] text-parchment-400">/{companion.def.composureMax}</span>
-                  {companion.block > 0 && <span className="ml-2 text-[11px]"><Icon name="block" className="mr-0.5" />{companion.block}</span>}
-                </span>
-              </div>
-              <StatBar value={companion.composure} max={companion.def.composureMax} fillClass="bg-iris-400"
-                       label={`Composure ${companion.composure}/${companion.def.composureMax}`} />
-              {companion.intent && (
-                <div className="text-xs text-parchment-200 mt-1">{companion.intent.telegraph}</div>
-              )}
-            </div>
-            <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold ${
-              castTarget === 'companion' ? 'bg-gold-600 text-ink-800' : 'bg-ink-700 text-parchment-400'
-            }`}>
-              {castTarget === 'companion' ? '🎯 your casts' : 'click to target'}
-            </span>
-          </button>
-        )}
         {/* v2.65: STATUS row — what YOU have done to the enemy this combat
             (and what they've done to you). Pulled out from the lane-chip
             row to a dedicated band with bigger styling so the player can
