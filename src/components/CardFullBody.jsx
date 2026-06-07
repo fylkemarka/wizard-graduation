@@ -14,6 +14,7 @@
 //   - Flavor: italic at the bottom
 //   - Tags: tiny single line, last
 import { WIT_ROW_BY_ID, WIT_SAME_SCHOOL_BONUSES } from '../cards/wit-v2-rows.js';
+import ArtSlot from './ArtSlot.jsx';
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
 
 export const EFFECT_CHIP_RENDERERS = {
@@ -151,15 +152,17 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip, l
         </div>
       </div>
 
-      {/* Art region — placeholder gradient with slot icon. When card.art is
-          set (future field for per-card image assets), the image replaces
-          the placeholder. FFT chip moved to top-banner per Alan v3.3.x;
-          art region is now image-only. */}
+      {/* Art region — tries /art/cards/<id>.png automatically (drop an
+          image in public/art/cards/ and it appears, like every other art
+          slot); card.art overrides; otherwise the slot-icon placeholder.
+          FFT chip moved to top-banner per Alan v3.3.x. */}
       <div className={`relative w-full h-[100px] rounded overflow-hidden ${palette.artBg} flex items-center justify-center`}>
         {card.art ? (
           <img src={card.art} alt="" className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <span className={`text-5xl ${palette.artText} opacity-30 select-none`}>{palette.icon}</span>
+          <ArtSlot src={`/art/cards/${card.id}.png`} alt=""
+                   className="absolute inset-0 w-full h-full object-cover"
+                   fallback={<span className={`text-5xl ${palette.artText} opacity-30 select-none`}>{palette.icon}</span>} />
         )}
       </div>
 
