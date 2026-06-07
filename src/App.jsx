@@ -768,11 +768,12 @@ const FAMILIARS = [
     bonus: { maxHp: 8, onCombatEnd: { heal: 2 } },
     bonusUpgrade: { maxHp: 12, onCombatEnd: { heal: 3 } },
     upgradeDesc: '+12 max HP. Heal 3 HP at the end of every combat you win.',
-    card: { id: 'f-hoo', name: 'Hoo', cost: 1, type: 'skill', rarity: 'basic',
+    // Renamed Hoo → Deeper Pockets (Alan, 2026-06-07) with coat-of-goods art.
+    card: { id: 'f-hoo', name: 'Deeper Pockets', cost: 1, type: 'skill', rarity: 'basic',
       effects: { draw: 2 },
       upgrade: { effects: { draw: 3 } },
       desc: 'Draw 2.',
-      flavor: 'It is a question. It is always a question.' },
+      flavor: 'The coat has opinions about what you might need. The coat is usually right.' },
   },
   {
     id: 'fam-beetle', species: 'Beetle', emoji: '🪲',
