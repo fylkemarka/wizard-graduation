@@ -21,13 +21,21 @@ async function ensureInHand(page, cardId, maxTurns = 4) {
 }
 
 test('next-card-free makes an over-cost card playable in hand', async ({ page }) => {
-  await gotoLab(page, 'handler');
+  // seed 1 keeps the opening hand deterministic and steal-free (the Loom
+  // Familiar's card-steal modal otherwise intercepts clicks at random).
+  await gotoLab(page, 'handler', { seed: 1 });
   for (let i = 0; i < 6; i++) { await addCard(page, FOOD); await addCard(page, PRICEY); }
   await fightEnemy(page, 'Loom Familiar');
+
+  const dismissSteal = async () => {
+    const ack = page.getByRole('button', { name: 'Acknowledged' });
+    if ((await ack.count()) > 0) await ack.click();
+  };
 
   // Both cards present in the opening hand (cycle a turn or two if not).
   expect(await ensureInHand(page, FOOD)).toBeTruthy();
   expect(await ensureInHand(page, PRICEY)).toBeTruthy();
+  await dismissSteal();
 
   // Arm "next card free".
   await playCardById(page, FOOD);

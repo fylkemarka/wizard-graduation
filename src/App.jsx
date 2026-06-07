@@ -9445,14 +9445,60 @@ export default function App() {
     if (!eatItPromptActive) return;
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'lure') return;
-    const animal = getAnimal(slot.animalId);
-    pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} arrives now.`);
+    // BUGFIX (Alan, 2026-06-07): multi-species lures (Tender Greens,
+    // Birdseed) carry a `animalIds` POOL — `slot.animalId` is null for
+    // them. The old code stamped `animalId: undefined` → a blank animal
+    // envelope that rendered empty and vanished next tick. Resolve the
+    // species the SAME way the end-of-turn lure-transform does: feather
+    // override → narrowed pool pick (honoring the forceSpecies e2e hook)
+    // → 3.5% elite roll. Falls back to the single animalId for fixed lures.
+    let resolvedAnimalId = null;
+    const tacticId = tray.tactic?.tactic?.id;
+    if (tacticId === 'feather') {
+      const existing = SLOT_ORDER.map(s => tray[s]).find(v => v?.kind === 'animal');
+      if (existing) resolvedAnimalId = existing.animalId;
+    }
+    if (!resolvedAnimalId) {
+      const pool = slot.animalIds && slot.animalIds.length > 0
+        ? narrowedPool(slot.cardId, slot.animalIds)
+        : null;
+      const forcedRaw = (typeof window !== 'undefined') ? window.__forceSpecies : null;
+      let forcedSpecies = forcedRaw;
+      if (forcedRaw && String(forcedRaw).includes(',')) {
+        const queue = String(forcedRaw).split(',');
+        forcedSpecies = queue[0];
+        if (pool && pool.includes(forcedSpecies)) {
+          window.__forceSpecies = queue.slice(1).join(',') || forcedSpecies;
+        }
+      }
+      if (forcedSpecies && pool && pool.includes(forcedSpecies)) {
+        resolvedAnimalId = forcedSpecies;
+      } else {
+        resolvedAnimalId = pool && pool.length > 0
+          ? pool[Math.floor(Math.random() * pool.length)]
+          : slot.animalId;
+      }
+    }
+    if (!resolvedAnimalId) { setEatItPromptActive(false); return; } // nothing to summon — bail rather than blank
+    const baseForRoll = ANIMALS[resolvedAnimalId];
+    if (baseForRoll?.elite && Math.random() < 0.035) {
+      const eliteDef = ANIMALS[baseForRoll.elite];
+      if (eliteDef) {
+        pushLog(`✨ Rare summon! ${eliteDef.icon} ${eliteDef.name} arrives instead of a ${baseForRoll.name}.`);
+        resolvedAnimalId = baseForRoll.elite;
+      }
+    }
+    const animal = getAnimal(resolvedAnimalId);
+    pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives now.`);
     if (slot.card) setDiscard(d => [...d, { ...slot.card, uid: uid() }]);
+    const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
       kind: 'animal',
-      animalId: slot.animalId,
-      durationRemaining: (animal?.duration || 3) + (hasHandlerPower('houseRules') ? 1 : 0),
+      animalId: resolvedAnimalId,
+      durationRemaining: (animal?.duration || 3) + youthBonus + (hasHandlerPower('houseRules') ? 1 : 0),
       predatorProgress: 0,
+      adjacentSpawnProgress: 0,
+      summonSet: slot.summonSet || null,
     } }));
     setEatItPromptActive(false);
   }
