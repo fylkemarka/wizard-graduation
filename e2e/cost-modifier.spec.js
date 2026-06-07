@@ -8,7 +8,7 @@ import { gotoLab, addCard, fightEnemy, handCardById, playCardById, endTurn } fro
 // Determinism: we stack many copies of both cards so the opening hand almost
 // always holds them; ensureInHand cycles a couple of turns as a safety net.
 
-const FOOD = 'c-know-what-to-say'; // "Extra Food in the Pocket" — next card free
+const FOOD = 'c-freebie'; // "That Was a Freebie" — next card free (split from the shared card 2026-06-07)
 const PRICEY = 'c-buffet';         // Buffet — cost 2
 
 async function ensureInHand(page, cardId, maxTurns = 4) {

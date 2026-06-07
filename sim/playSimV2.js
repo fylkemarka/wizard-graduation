@@ -205,7 +205,8 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
   { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7, removeWeak: 1 } },
-  { id: 'c-sharp-aside', name: 'Sharp Whistle', cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmg: 4 } },
+  // Renamed from shared c-sharp-aside 2026-06-07 (lanes no longer share cards).
+  { id: 'c-sharp-whistle', name: 'Sharp Whistle', cost: 0, type: 'handler-skill', rarity: 'common', effects: { compDmg: 4 } },
   // ---- BOOSTER / BUFF cards (2026-06-01). Mirror src/App.jsx CARDS. Powers
   // install onto state.powers; the engine reads them via hasHandlerPower().
   // The new effect-key skills are routed in playHandlerCard / applyHandlerSkill.
@@ -239,7 +240,7 @@ const HANDLER_STARTER = [
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
   'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
-  'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-aside',
+  'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-whistle',
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   'c-narrow',

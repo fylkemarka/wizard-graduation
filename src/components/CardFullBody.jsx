@@ -83,13 +83,11 @@ function slotPalette(slot) {
 }
 
 export function CardFullBody({ card, costOverride, costPillClass, costTooltip, lane }) {
-  // Handler doesn't have a "composure" mental model — for handler players
-  // (Alan, 2026-05-31), prefer the per-lane card name when present and
-  // swap "Composure damage" / "Comp dmg" phrasing in desc to plain
-  // "damage" / "Dmg". The substitution is render-only — the underlying
-  // card data is unchanged.
-  const displayName = (lane === 'handler' && card.nameByLane?.handler)
-    || card.name || card.phrase || '';
+  // Handler doesn't have a "composure" mental model — swap "Composure
+  // damage" / "Comp dmg" phrasing in desc to plain "damage" / "Dmg".
+  // Render-only. (nameByLane resolution removed 2026-06-07 — lanes no
+  // longer share cards; every card carries its own lane + name.)
+  const displayName = card.name || card.phrase || '';
   const rawDesc = card.desc || '';
   const displayDesc = lane === 'handler'
     ? rawDesc.replace(/Composure damage/gi, 'damage').replace(/Comp dmg/g, 'Dmg')
