@@ -13673,7 +13673,7 @@ function SupplyShopScreen({ offers, onPick, character }) {
         {/* --- CARD OFFER --- */}
         {card && (
           <button onClick={() => onPick('card')}
-            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
+            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 card-face text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
             <div className="text-[10px] uppercase tracking-widest text-iris-700 font-bold">📜 Card · Uncommon</div>
             <div className="flex justify-between items-center">
               <div className="font-display text-lg leading-tight">{card.name || card.phrase || ''}</div>
@@ -13707,7 +13707,7 @@ function SupplyShopScreen({ offers, onPick, character }) {
         {/* --- RELIC OFFER --- */}
         {relic && (
           <button onClick={() => onPick('relic')}
-            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
+            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 card-face text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
             <div className="text-[10px] uppercase tracking-widest text-gold-700 font-bold">💎 Relic · Common</div>
             <div className="font-display text-lg leading-tight">{relic.name}</div>
             <div className="text-xs font-quill">{relic.desc}</div>
@@ -13720,7 +13720,7 @@ function SupplyShopScreen({ offers, onPick, character }) {
         {/* --- BOON OFFER --- */}
         {boon && (
           <button onClick={() => onPick('boon')}
-            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 border-moss-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
+            className="w-64 min-h-[320px] rounded-lg border-2 p-4 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 card-face text-ink-800 border-moss-500 hover:scale-105 hover:shadow-2xl cursor-pointer transition">
             <div className="text-[10px] uppercase tracking-widest text-moss-700 font-bold">✨ Boon · Permanent</div>
             <div className="flex items-center gap-2">
               <div className="text-2xl">{boon.icon}</div>
@@ -13787,7 +13787,7 @@ function FamiliarNameScreen({ familiar, onConfirm }) {
         type="text" value={name} onChange={e => setName(e.target.value)}
         placeholder={`(default: ${familiar.species})`}
         maxLength={24}
-        className="w-full px-3 py-2 rounded-md bg-parchment-50 text-ink-800 border-2 border-gold-500 font-quill text-lg"
+        className="w-full px-3 py-2 rounded-md bg-parchment-50 card-face text-ink-800 border-2 border-gold-500 font-quill text-lg"
         autoFocus
         onKeyDown={e => { if (e.key === 'Enter') onConfirm(name); }}
       />
@@ -14273,7 +14273,7 @@ function RewardScreen({ choices, rowChoices = [], onPick, onOpenDeck, deckViewOp
                             :                  'border-gold-500';
           return (
             <button key={i} onClick={() => onPick(card)}
-              className={`w-52 min-h-[300px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 text-ink-800 hover:scale-105 hover:shadow-2xl transition ${borderClass}`}>
+              className={`w-52 min-h-[300px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-lg bg-parchment-50 card-face text-ink-800 hover:scale-105 hover:shadow-2xl transition ${borderClass}`}>
               {syn && (
                 <div className={`text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded text-center leading-tight ${
                   syn.completes ? 'bg-gold-200 text-gold-900 border border-gold-500'
@@ -14339,7 +14339,7 @@ function CardLossOverlay({ notice, onDismiss, lane = null }) {
         <div className="flex gap-4 flex-wrap justify-center mb-4">
           {cards.map((card, i) => (
             <div key={i}
-              className="w-52 min-h-[280px] rounded-lg border-2 border-ember-500 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 relative">
+              className="w-52 min-h-[280px] rounded-lg border-2 border-ember-500 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 card-face text-ink-800 relative">
               <CardFullBody card={card} lane={lane || null} />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-ember-700 font-display text-3xl tracking-widest font-bold transform -rotate-12 bg-parchment-50/90 px-3 py-1 rounded border-2 border-ember-700">
@@ -14808,7 +14808,7 @@ function CompendiumScreen({ onBack }) {
             return (
               <div className="parchment-card p-3 flex flex-col gap-2">
                 <div className="text-[10px] uppercase tracking-widest text-gold-500">Showing {tierView.toUpperCase()}</div>
-                <div className="bg-parchment-50 text-ink-800 rounded p-2">
+                <div className="bg-parchment-50 card-face text-ink-800 rounded p-2">
                   <CardFullBody card={shown} lane={lane || null} />
                 </div>
                 <div className="text-[11px] text-parchment-300 italic">"{selectedCard.flavor || ''}"</div>
@@ -14898,7 +14898,7 @@ function CardGrantScreen({ prompt, onDismiss, lane = null }) {
       <div className="flex gap-4 flex-wrap justify-center">
         {cards.map((card, i) => (
           <div key={i}
-            className={`w-52 min-h-[280px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 text-ink-800 ${tint(card)}`}>
+            className={`w-52 min-h-[280px] rounded-lg border-2 p-3 text-left flex flex-col gap-2 shadow-xl bg-parchment-50 card-face text-ink-800 ${tint(card)}`}>
             <CardFullBody card={card} lane={lane || null} />
           </div>
         ))}
@@ -14975,7 +14975,7 @@ function MaterialChooseScreen({ prompt, onPick, onSkip }) {
       <div className="flex gap-4 flex-wrap justify-center">
         {choices.map((m) => (
           <button key={m.id} onClick={() => onPick(m.id)}
-            className="w-56 min-h-[14rem] rounded-lg border-2 border-gold-500 bg-parchment-50 text-ink-800 p-3 text-left hover:scale-105 hover:shadow-2xl transition flex flex-col gap-2">
+            className="w-56 min-h-[14rem] rounded-lg border-2 border-gold-500 bg-parchment-50 card-face text-ink-800 p-3 text-left hover:scale-105 hover:shadow-2xl transition flex flex-col gap-2">
             <div className="font-display text-lg">{m.name}</div>
             <div className="text-xs uppercase tracking-wider text-ink-400">{SLOT_LABEL[m.slot] || m.slot} material</div>
             <div className="flex flex-wrap gap-1 text-xs font-mono">
@@ -15537,7 +15537,7 @@ function CraftingChooseMaterial({ materials, onPick }) {
       <div className="flex gap-4 flex-wrap justify-center">
         {materials.map((m) => (
           <button key={m.id + m.name} onClick={() => onPick(m.id)}
-            className="w-56 min-h-[14rem] rounded-lg border-2 border-gold-500 bg-parchment-50 text-ink-800 p-3 text-left hover:scale-105 hover:shadow-2xl transition flex flex-col gap-2">
+            className="w-56 min-h-[14rem] rounded-lg border-2 border-gold-500 bg-parchment-50 card-face text-ink-800 p-3 text-left hover:scale-105 hover:shadow-2xl transition flex flex-col gap-2">
             <div className="font-display text-lg">{m.name}</div>
             <div className="text-xs uppercase tracking-wider text-ink-400">{SLOT_LABEL[m.slot] || m.slot} material</div>
             <div className="flex flex-wrap gap-1 text-xs font-mono">
@@ -15851,7 +15851,7 @@ function UpgradeCardScreen({ deck, onPick, lane = null }) {
             const upDispName = upgraded.name || upgraded.phrase || card.name || card.phrase || '';
             return (
               <button key={card.uid} onClick={() => setPendingUid(card.uid)}
-                className="w-52 min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+                className="w-52 min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 card-face text-ink-800 border-gold-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
                 {/* v3.1.4: full card body (Alan: "Study a Card screen
                     is still only showing stubs of cards. Show the whole card") */}
                 <CardFullBody card={card} lane={lane || null} />
@@ -15984,7 +15984,7 @@ function ForgetTwoModal({ cards, onPick, lane = null }) {
         <div className="flex gap-4 justify-center flex-wrap">
           {cards.map(card => (
             <button key={card.uid} onClick={() => onPick(card.uid)}
-              className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-ember-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+              className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 card-face text-ink-800 border-ember-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
               <CardFullBody card={card} lane={lane || null} />
             </button>
           ))}
@@ -16016,7 +16016,7 @@ function LurePicker({ cards, source, onPick, onCancel, lane = null }) {
           {cards.map(card => (
             <button key={card.uid} onClick={() => onPick(card.uid)}
               data-testid="lure-picker-card" data-card-id={card.id}
-              className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-moss-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+              className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 card-face text-ink-800 border-moss-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
               <CardFullBody card={card} lane={lane || null} />
             </button>
           ))}
@@ -16121,7 +16121,7 @@ function ForgetCardScreen({ deck, onPick, lane = null }) {
           )}
           {deck.map(card => (
             <button key={card.uid} onClick={() => setPendingUid(card.uid)}
-              className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
+              className="w-[200px] min-h-[290px] rounded-md border-2 p-3 text-left bg-parchment-50 card-face text-ink-800 border-iris-500 hover:scale-105 hover:shadow-2xl transition flex flex-col gap-1.5">
               <CardFullBody card={card} lane={lane || null} />
             </button>
           ))}
@@ -16179,7 +16179,7 @@ function UpgradePreviewCard({ card, label, tone, lane = null }) {
   return (
     <div className="flex flex-col items-center gap-1">
       <div className={`text-xs uppercase tracking-widest ${labelColor}`}>{label}</div>
-      <div className={`w-56 min-h-[18rem] rounded-lg border-2 p-3 bg-parchment-50 text-ink-800 ${border} flex flex-col gap-2`}>
+      <div className={`w-56 min-h-[18rem] rounded-lg border-2 p-3 bg-parchment-50 card-face text-ink-800 ${border} flex flex-col gap-2`}>
         <CardFullBody card={card} lane={lane || null} />
       </div>
     </div>
