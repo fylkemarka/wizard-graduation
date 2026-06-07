@@ -227,8 +227,10 @@ export const ANIMALS = {
   },
   'long-hare': {
     name: 'The Long Hare',
+    // attack 8 → 10 (Alan, 2026-06-07): three rabbits do 3×3 = 9/turn, so
+    // the combine must beat 9 to be worth assembling.
     icon: '🐇',
-    attack: 8,
+    attack: 10,
     attackPool: 'composure',
     duration: 2,
     onAttackEffect: { applyWeak: 1 },
@@ -236,7 +238,7 @@ export const ANIMALS = {
     onForm: { damage: 14, pool: 'composure', applyVulnerable: 2 },
     onExit: { healComp: 5 },
     flavor: 'It is many. It is one. It is, frankly, late.',
-    desc: 'On forming: bursts for 14 composure and applies Vulnerable 2. Then attacks for 8 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
+    desc: 'On forming: bursts for 14 composure and applies Vulnerable 2. Then attacks for 10 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
   },
   mccloven: {
     name: 'McCloven',

@@ -1778,6 +1778,14 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             );
           })()}
           {animal?.onExit && (() => {
+            // Only surface the exit bonus on the ACTUAL exit turn (Alan,
+            // 2026-06-07: "exit bonuses shouldn't be shown until the exit
+            // turn"). Same gate the Σ strip + engine use: durationRemaining
+            // === 1 AND the feed is satisfied (no feedKey, or fed). A badge
+            // shown three turns early read as block the player already had.
+            const isExitTurn = card.durationRemaining === 1
+              && (!animal.feedKey || card.feedReceived);
+            if (!isExitTurn) return null;
             const parts = [];
             if (animal.onExit.damage > 0) parts.push(`${animal.onExit.damage} ${animal.onExit.damageType === 'physical' ? '⚔' : '🎭'}`);
             if (animal.onExit.block > 0) parts.push(`+${animal.onExit.block} 🛡`);
@@ -1785,7 +1793,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             if (parts.length === 0) return null;
             return (
               <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-ember-100/90 text-ember-800 text-center leading-tight"
-                    title={`On exit: ${parts.join(' · ')}.`}>
+                    title={`Leaves this turn — on exit: ${parts.join(' · ')}.`}>
                 ↩ exit: {parts.join(' · ')}
               </span>
             );

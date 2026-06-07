@@ -9887,6 +9887,12 @@ export default function App() {
         }
         if (fx.block > 0) {
           setBlock(b => b + fx.block);
+          // Mirror into the brace ref so applyEnemyIntent (same endTurn
+          // pass) actually defends with it — otherwise the exit block is
+          // granted then wiped at next turn-start having soaked nothing
+          // (Alan, 2026-06-07: exit block "doesn't appear when I expect").
+          // Same stale-closure fix as the Summoned Shield brace.
+          shieldBraceRef.current.block += fx.block;
           hTick.blockGained += fx.block;
           pushLog(`${animal.icon} ${animal.name} drops +${fx.block} Block on the way out.`);
         }
