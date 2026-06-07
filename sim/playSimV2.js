@@ -919,7 +919,14 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotNa
   if (isShield) {
     state.block += atk; state.poise += atk; combat.menagerieBlock += atk;
   } else {
-    handlerDealComposure(combat, atk);
+    // Duo: animals ARE the handler's attacks — they follow the target
+    // policy (leader when lethal, else clear the companion). Mirrors the
+    // game's castTarget routing for animal swings (Alan, 2026-06-07).
+    if (pickCastTargetSim(combat, combat.enemyComposure, combat.enemyBlock, combat.enemyHp, atk) === 'companion') {
+      companionTakeCastDamageSim(combat, atk);
+    } else {
+      handlerDealComposure(combat, atk);
+    }
     combat.menagerieComposure += atk;
     combat.totalDamageDealt += atk;
     if (COMBINE_RESULT_IDS.has(slot.animalId)) combat.combineLifetime = (combat.combineLifetime || 0) + atk;
@@ -1855,7 +1862,11 @@ function handlerEndOfTurnTick(state, combat) {
       if (comboFired.has(key)) continue;
       comboFired.add(key);
       if (combo.damage > 0) {
-        if (combo.pool === 'composure') { handlerDealComposure(combat, combo.damage); combat.menagerieComposure += combo.damage; }
+        // Duo: combos follow the target policy like every animal attack.
+        if (pickCastTargetSim(combat, combat.enemyComposure, combat.enemyBlock, combat.enemyHp, combo.damage) === 'companion') {
+          companionTakeCastDamageSim(combat, combo.damage);
+          combat.menagerieComposure += combo.damage;
+        } else if (combo.pool === 'composure') { handlerDealComposure(combat, combo.damage); combat.menagerieComposure += combo.damage; }
         else handlerDealHp(combat, combo.damage);
         combat.totalDamageDealt += combo.damage;
       }

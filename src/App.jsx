@@ -10109,7 +10109,14 @@ export default function App() {
         hTick.attacks++;
         const bits = [];
         if (combo.damage > 0) {
-          if (combo.pool === 'composure') {
+          // Duo: combos follow the player's target like every other animal
+          // attack (Alan, 2026-06-07 — "targeting always hits the main").
+          if (castTargetRef.current === 'companion' && companionRef.current) {
+            const cName = companionRef.current.def.name;
+            damageCompanion(combo.damage);
+            hTick.composureDealt += combo.damage;
+            bits.push(`${combo.damage} → ${cName}`);
+          } else if (combo.pool === 'composure') {
             const post = applyDamageToEnemyComposure(combo.damage);
             hTick.composureDealt += combo.damage;
             if (post <= 0) summonerKilledEnemy = true;
@@ -10177,7 +10184,15 @@ export default function App() {
               // together drop the enemy). The old check read the stale
               // closure `enemyComposure`/`enemyHp` and missed those, letting
               // a dead enemy still fire its intent at the player.
-              if (animal.attackPool === 'composure') {
+              // Duo (Alan, 2026-06-07): animals ARE the handler's attacks —
+              // they follow the player's target. When the companion flees
+              // mid-loop, the remaining animals fall back to the leader.
+              if (castTargetRef.current === 'companion' && companionRef.current) {
+                const cName = companionRef.current.def.name;
+                damageCompanion(atk);
+                hTick.composureDealt += atk;
+                pushLog(`${animal.icon} ${animal.name} attacks ${cName}: ${atk}${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
+              } else if (animal.attackPool === 'composure') {
                 const post = applyDamageToEnemyComposure(atk);
                 hTick.composureDealt += atk;
                 if (post <= 0) summonerKilledEnemy = true;
@@ -10221,6 +10236,11 @@ export default function App() {
                 shieldBraceRef.current.poise += xatk;
                 hTick.blockGained += xatk;
                 pushLog(`${animal.icon} ${animal.name} braces again: +${xatk} Block & Poise (Pack Tactics).`);
+              } else if (castTargetRef.current === 'companion' && companionRef.current) {
+                const cName = companionRef.current.def.name;
+                damageCompanion(xatk);
+                hTick.composureDealt += xatk;
+                pushLog(`${animal.icon} ${animal.name} attacks ${cName} again: ${xatk} (Pack Tactics).`);
               } else if (animal.attackPool === 'composure') {
                 const post = applyDamageToEnemyComposure(xatk);
                 hTick.composureDealt += xatk;

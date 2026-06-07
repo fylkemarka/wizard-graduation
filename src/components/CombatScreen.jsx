@@ -456,8 +456,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         })()}
         </div>
         {/* v3.5 — DUO ENCOUNTER companion panel. A weaker partner fighting
-            beside the main enemy. Click toggles your cast target between
-            the two; animals and riders always harry the leader. */}
+            beside the main enemy. Click toggles your attack target between
+            the two; casts and animals follow it, riders stay on the leader. */}
         {companion && (
           <button type="button"
             data-testid="companion-panel"
@@ -468,7 +468,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 ? 'border-gold-400 ring-2 ring-gold-400 bg-ink-700'
                 : 'border-ember-800 bg-ember-950/40 hover:border-gold-500'
             }`}
-            title={`${companion.def.name} — ${companion.def.flavor || 'a second enemy'}.\n\nClick to ${castTarget === 'companion' ? 'aim your casts back at the leader' : 'aim your casts at this one instead'}. Animals and riders always go after the leader; if the leader falls, this one flees.`}>
+            title={`${companion.def.name} — ${companion.def.flavor || 'a second enemy'}.\n\nClick to ${castTarget === 'companion' ? 'aim your attacks back at the leader' : 'aim your attacks at this one instead'}. Casts AND animals follow your target; DoTs, riders and annotations stay on the leader. If the leader falls, this one flees.`}>
             <ArtSlot src={`/art/enemies/${companion.def.id}.png`} alt={companion.def.name}
                      className="w-10 h-10 rounded border border-ember-700 object-cover shrink-0" />
             <div className="flex-1 min-w-0">
