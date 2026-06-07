@@ -34,6 +34,7 @@ function StatBar({ value, max, fillClass, label }) {
 }
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, incomingProjection, peekedNextIntent,
+                       companion = null, castTarget = 'main', onSetCastTarget = () => {},
                        enemyDmgMult, playerDmgMult,
                        enemyDmgTurns = 0, playerDmgTurns = 0,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
@@ -253,6 +254,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <div>
             <div className="font-display text-base text-ember-300 flex items-center gap-2 flex-wrap leading-tight">
               {enemy?.name}
+              {companion && castTarget === 'main' && (
+                <span className="px-1.5 py-0.5 rounded bg-gold-600 text-ink-800 text-[9px] uppercase tracking-widest font-bold"
+                      title="Your casts are aimed at this one. Click the companion below to switch.">
+                  🎯 your casts
+                </span>
+              )}
               {/* v2.99.2: phase-shift badge — prominent next to the enemy
                   name so players see the state change immediately when
                   the Silk Wraith (or future phase-shifters) thins. */}
@@ -448,6 +455,43 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           );
         })()}
         </div>
+        {/* v3.5 — DUO ENCOUNTER companion panel. A weaker partner fighting
+            beside the main enemy. Click toggles your cast target between
+            the two; animals and riders always harry the leader. */}
+        {companion && (
+          <button type="button"
+            data-testid="companion-panel"
+            data-targeted={castTarget === 'companion' ? 'true' : 'false'}
+            onClick={() => onSetCastTarget(castTarget === 'companion' ? 'main' : 'companion')}
+            className={`mt-2 w-full text-left rounded border px-3 py-2 flex items-center gap-3 transition cursor-pointer ${
+              castTarget === 'companion'
+                ? 'border-gold-400 ring-2 ring-gold-400 bg-ink-700'
+                : 'border-ember-800 bg-ember-950/40 hover:border-gold-500'
+            }`}
+            title={`${companion.def.name} — ${companion.def.flavor || 'a second enemy'}.\n\nClick to ${castTarget === 'companion' ? 'aim your casts back at the leader' : 'aim your casts at this one instead'}. Animals and riders always go after the leader; if the leader falls, this one flees.`}>
+            <ArtSlot src={`/art/enemies/${companion.def.id}.png`} alt={companion.def.name}
+                     className="w-10 h-10 rounded border border-ember-700 object-cover shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-baseline gap-2 flex-wrap">
+                <span className="font-display text-sm text-ember-200">{companion.def.name}</span>
+                <span className="font-mono text-sm text-iris-300">
+                  <Icon name="composure" className="mr-0.5" />{companion.composure}<span className="text-[10px] text-parchment-400">/{companion.def.composureMax}</span>
+                  {companion.block > 0 && <span className="ml-2 text-[11px]"><Icon name="block" className="mr-0.5" />{companion.block}</span>}
+                </span>
+              </div>
+              <StatBar value={companion.composure} max={companion.def.composureMax} fillClass="bg-iris-400"
+                       label={`Composure ${companion.composure}/${companion.def.composureMax}`} />
+              {companion.intent && (
+                <div className="text-xs text-parchment-200 mt-1">{companion.intent.telegraph}</div>
+              )}
+            </div>
+            <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold ${
+              castTarget === 'companion' ? 'bg-gold-600 text-ink-800' : 'bg-ink-700 text-parchment-400'
+            }`}>
+              {castTarget === 'companion' ? '🎯 your casts' : 'click to target'}
+            </span>
+          </button>
+        )}
         {/* v2.65: STATUS row — what YOU have done to the enemy this combat
             (and what they've done to you). Pulled out from the lane-chip
             row to a dedicated band with bigger styling so the player can

@@ -53,6 +53,7 @@ back. Keep each one slightly tragic and slightly ridiculous.
 | `e2-pattern-maker.png` | An imperious figure whose body is a living dress-pattern, chalk lines and arrows over muslin, gesturing as if everyone else is fabric to be corrected. |
 | `e2-silent-spinner.png` | A tall hooded spinner at a wheel that spins quiet itself — sound visibly being drawn out of the air into thread. |
 | `e2-boss-tapestry.png` | BOSS: The Tapestry Walker — a vast figure mid-stride out of a hanging tapestry, half woven scene and half person, landscapes still moving across its body. |
+| `e2-bobbin-imp.png` | A wooden bobbin the size of a kettle that has grown spindly thread-legs and ambition, trailing its own tail of yarn; companion to the Hollow Weaver, visibly proud of the association. |
 
 ### Act 2 — Forge Path
 | File | Prompt |

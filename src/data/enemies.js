@@ -76,6 +76,11 @@ export const ENEMIES = [
   // ===== ACT 1 — The Thread Path (the countryside) =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 38, hpMax: 999, tier: 'normal',
     softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
+    // Duo encounter (Alan, 2026-06-06): the Weaver arrives with a Bobbin
+    // Imp in tow. Companion fights alongside it — see App.jsx companion
+    // system. Killing the Weaver wins the fight (the imp unravels);
+    // killing the imp first just makes the fight safer.
+    duoPartnerId: 'e2-bobbin-imp',
     // v2.96 / 2026-06-02: signature mechanic = Weave debt. Each "weave" intent
     // stacks +N on the player. The debt fires at the end of your NEXT turn as
     // composure damage UNLESS you dealt damage to the Weaver that turn — then
@@ -89,6 +94,18 @@ export const ENEMIES = [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (half-thought)' },
+    ] },
+  // Companion-tier: never appears alone — paired via duoPartnerId on a
+  // main enemy. Excluded from normal/elite node pools by its tier. Kinds
+  // are deliberately simple (attack / block / bolster); the companion
+  // resolver in App.jsx only speaks this small dialect.
+  { id: 'e2-bobbin-imp', act: 1, name: 'Bobbin Imp', composureMax: 14, hpMax: 999, tier: 'companion',
+    flavor: 'A spool that learned ambition. It has regretted nothing yet, though it is young.',
+    behaviors: [
+      { kind: 'attack', value: 3, weight: 3, telegraph: '⚔ 3 — needle jab' },
+      { kind: 'attack', value: 2, pool: 'composure', weight: 2, telegraph: '🎭 2 — officious squeak' },
+      { kind: 'bolster', value: 4, weight: 2, telegraph: '🧵 re-threads its master (+4 Block to partner)' },
+      { kind: 'block', value: 3, weight: 1, telegraph: '🛡 3' },
     ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 36, hpMax: 999, tier: 'normal',
     softSpot: 'confusion', // Already half-there. Push it further.

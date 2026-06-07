@@ -3422,6 +3422,22 @@ export default function App() {
 
   // Combat state
   const [enemy, setEnemy] = useState(null);
+  // Duo encounters (Alan, 2026-06-06): an optional COMPANION fights beside
+  // the main enemy (paired via the main's duoPartnerId). One state object
+  // holds everything — { def, composure, block, intent } — mirrored into
+  // companionRef for synchronous reads inside endTurn / cast resolution
+  // (same stale-closure discipline as shieldBraceRef). All writes go
+  // through commitCompanion(). Rules of the slice:
+  //   · Player CASTS target main or companion (click a panel to switch).
+  //   · Animals / riders / DoTs / annotations keep hitting the MAIN enemy.
+  //   · Killing the MAIN enemy wins the fight — the companion flees.
+  //   · Killing the companion first removes its turn from the fight.
+  //   · Companion intents speak a small dialect: attack / block / bolster.
+  // NOT mirrored in sim/playSimV2.js yet — sim fights the main alone.
+  const [companion, setCompanion] = useState(null);
+  const companionRef = useRef(null);
+  const [castTarget, setCastTarget] = useState('main'); // 'main' | 'companion'
+  const castTargetRef = useRef('main');
   const [enemyComposure, setEnemyComposure] = useState(0);
   const [enemyHp, setEnemyHp] = useState(0);
   const [enemyBlock, setEnemyBlock] = useState(0);
@@ -3891,6 +3907,11 @@ export default function App() {
   // always applied brace before the swing — this ref brings the game in
   // line. Reset at endTurn start; consumed by the attack resolution.
   const shieldBraceRef = useRef({ block: 0, poise: 0 });
+  // Post-main-swing player vitals, written by applyEnemyIntent's attack
+  // commit and read by the companion resolver in the same endTurn pass —
+  // closure values are stale by then. Null when the main intent wasn't an
+  // attack this turn. Reset at endTurn start.
+  const postSwingVitalsRef = useRef(null);
   const [tutorFlash, setTutorFlash] = useState(null);
   useEffect(() => {
     if (!tutorFlash) return;
@@ -5447,6 +5468,33 @@ export default function App() {
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
     setPeekedNextIntent(null);
+    // Duo encounter — the main enemy brings its companion (same difficulty
+    // scaling). Lab/tutorial fights pass opts.noCompanion to fight solo.
+    const partnerTmpl = tmpl.duoPartnerId ? ENEMIES_BY_ID[tmpl.duoPartnerId] : null;
+    if (partnerTmpl && !opts.noCompanion) {
+      const pBehaviors = (partnerTmpl.behaviors || []).map(b => {
+        if (b.kind === 'attack') {
+          const newVal = Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT));
+          return { ...b, value: newVal, telegraph: b.telegraph ? b.telegraph.replace(/\d+/, String(newVal)) : b.telegraph };
+        }
+        return b;
+      });
+      const pDef = {
+        ...partnerTmpl,
+        composureMax: Math.round((partnerTmpl.composureMax || 0) * DIFFICULTY_MULT),
+        behaviors: pBehaviors,
+      };
+      commitCompanion({
+        def: pDef,
+        composure: pDef.composureMax,
+        block: 0,
+        intent: rollCompanionIntent(pDef),
+      });
+      pushLog(`👺 ${pDef.name} skitters in beside ${e.name}. Two of them, then.`);
+    } else {
+      commitCompanion(null);
+    }
+    setSpellTarget('main');
     // Powers don't persist between combats.
     setPowers([]);
     // Reset per-combat counters and player debuffs.
@@ -6910,11 +6958,21 @@ export default function App() {
       dmg = Math.round(dmg * 1.25);
       pushLog(`🎤 Keynote Speaker: ${before} → ${dmg} (×1.25).`);
     }
-    // v3.4.55 — That Goes For All of You! flag: single-enemy combat means
-    // no extra targets, but consume the flag and log so the player sees
-    // that it triggered. Will become real when multi-enemy combat lands.
+    // v3.4.55 → v3.5 — That Goes For All of You! is REAL now that duo
+    // encounters exist: the cast's damage also lands on the other enemy
+    // (whichever one you weren't targeting). Solo fights: consume + log.
     if (nextSpellApplyToAll && dmgType !== 'block') {
-      pushLog(`📣 That Goes For All of You! — (single enemy; full effect when multi-enemy lands)`);
+      if (companionRef.current && dmg > 0) {
+        pushLog(`📣 That Goes For All of You! — the spell hits BOTH of them.`);
+        if (castTargetRef.current === 'companion') {
+          if (dmgType === 'physical') applyDamageToEnemyHp(dmg);
+          else applyDamageToEnemyComposure(dmg);
+        } else {
+          damageCompanion(dmg);
+        }
+      } else {
+        pushLog(`📣 That Goes For All of You! — (no second enemy to catch it)`);
+      }
       setNextSpellApplyToAll(false);
     }
     // Apply damage.
@@ -6932,8 +6990,7 @@ export default function App() {
         setBlock(b => b + blockGrant);
         pushLog(`🛡 +${blockGrant} Block.`);
       }
-      else if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
-      else                              after = applyDamageToEnemyComposure(dmg);
+      else after = applyCastDamageToTarget(dmg, dmgType); // duo-aware (castTarget)
     }
     // v3.2/v3.3: post-damage FFT/partial/tier rider effects — state-
     // setting keys fire here so they compose with the cast's combat-
@@ -7277,8 +7334,7 @@ export default function App() {
     if (nextCastDoubles && dmg > 0) {
       pushLog(`✦✦ The Doubletake: ${dmg} dmg again.`);
       if (dmgType === 'block')         { setBlock(b => b + dmg); pushLog(`🛡 +${dmg} Block (doubletake).`); }
-      else if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
-      else                              after = applyDamageToEnemyComposure(dmg);
+      else after = applyCastDamageToTarget(dmg, dmgType); // follows the cast's target
       setNextCastDoubles(false);
     }
     // v3.4.77 — ALL IN stake-refund + post-cast reset gone. stakeAmount
@@ -9451,6 +9507,126 @@ export default function App() {
     return newHp;
   }
 
+  // ---------- COMPANION (duo encounters) ----------
+  // All companion writes flow through here so companionRef always agrees
+  // with state within the same synchronous pass.
+  function commitCompanion(next) {
+    companionRef.current = next;
+    setCompanion(next);
+  }
+
+  function setSpellTarget(which) {
+    const c = companionRef.current;
+    const target = which === 'companion' && c ? 'companion' : 'main';
+    castTargetRef.current = target;
+    setCastTarget(target);
+  }
+
+  // Simple weighted intent roll — companions don't participate in the
+  // main enemy's anti-repeat / forceMaul / peek machinery.
+  function rollCompanionIntent(def) {
+    const behaviors = def.behaviors || [];
+    const total = behaviors.reduce((s, b) => s + (b.weight || 1), 0);
+    let roll = Math.random() * total;
+    for (const b of behaviors) {
+      roll -= (b.weight || 1);
+      if (roll <= 0) return { ...b };
+    }
+    return behaviors[0] ? { ...behaviors[0] } : null;
+  }
+
+  // Spell-cast damage honoring the player's chosen target. ONLY the cast's
+  // primary damage routes here — animals / riders / DoTs / annotations all
+  // keep hitting the main enemy via applyDamageToEnemy*.
+  function applyCastDamageToTarget(damage, dmgType) {
+    if (castTargetRef.current === 'companion' && companionRef.current) {
+      return damageCompanion(damage);
+    }
+    return dmgType === 'physical'
+      ? applyDamageToEnemyHp(damage)
+      : applyDamageToEnemyComposure(damage);
+  }
+
+  // Companion takes composure damage (companions are composure-only).
+  // Block absorbs first. At 0 it flees — removed from the fight entirely.
+  function damageCompanion(damage) {
+    const c = companionRef.current;
+    if (!c || damage <= 0) return c?.composure ?? 0;
+    let remaining = damage;
+    let newBlock = c.block;
+    if (newBlock > 0) {
+      const absorbed = Math.min(newBlock, remaining);
+      newBlock -= absorbed; remaining -= absorbed;
+    }
+    const newComposure = Math.max(0, c.composure - remaining);
+    showDamageFloater(damage, 'composure');
+    if (newComposure <= 0) {
+      pushLog(`💨 ${c.def.name} unravels and scurries off — the duo is broken.`);
+      commitCompanion(null);
+      setSpellTarget('main');
+    } else {
+      pushLog(`🎭 ${c.def.name}: -${remaining} composure${newBlock !== c.block ? ` (🛡 soaked ${c.block - newBlock})` : ''}.`);
+      commitCompanion({ ...c, block: newBlock, composure: newComposure });
+    }
+    return newComposure;
+  }
+
+  // Companion's turn — runs right after the main enemy's intent in the
+  // same endTurn pass. Reads the post-main-swing vitals snapshot (set by
+  // applyEnemyIntent) so block/poise spent on the main swing aren't
+  // double-counted (the shieldBraceRef lesson). Small intent dialect only.
+  function applyCompanionIntent() {
+    const c = companionRef.current;
+    if (!c || !c.intent) return;
+    // Whole-enemy-side skips: the pouch covers both attackers, and a
+    // Speechless enemy side stays speechless. Closure values are pre-
+    // consumption (applyEnemyIntent's setters haven't committed), so they
+    // still read true for the companion in the same pass.
+    if (pouchGuard) { pushLog(`🦘 ${c.def.name}'s jab glances off the pouch.`); }
+    else if (enemySkipNextTurn) { pushLog(`🤐 ${c.def.name} has nothing to add.`); }
+    else {
+      const it = c.intent;
+      if (it.kind === 'attack') {
+        const v = postSwingVitalsRef.current; // null if main didn't attack
+        let wBlock = v ? v.block : block + shieldBraceRef.current.block;
+        let wPoise = v ? v.poise : poise + shieldBraceRef.current.poise;
+        let wHp = v ? v.hp : hp;
+        let wComp = v ? v.comp : composure;
+        let remaining = it.value || 0;
+        if (it.pool === 'composure') {
+          const absorbed = Math.min(wPoise, remaining);
+          wPoise -= absorbed; remaining -= absorbed;
+          wComp = Math.max(0, wComp - remaining);
+        } else {
+          const absorbed = Math.min(wBlock, remaining);
+          wBlock -= absorbed; remaining -= absorbed;
+          wHp = Math.max(0, wHp - remaining);
+        }
+        setBlock(wBlock); setPoise(wPoise); setHp(wHp); setComposure(wComp);
+        postSwingVitalsRef.current = { block: wBlock, poise: wPoise, hp: wHp, comp: wComp };
+        if (remaining > 0) setPlayerHitFlash(Date.now());
+        pushLog(`👺 ${c.def.name}: ${it.telegraph || `⚔ ${it.value}`}${remaining > 0 ? '' : ' — fully absorbed.'}`);
+        if (wHp <= 0 || wComp <= 0) {
+          if (!tutorialActive) {
+            logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: wHp, composureAfter: wComp, piles: pilesSnapshot(), killedByCompanion: c.def.id });
+            logEvent(TE.RUN_END, { outcome: 'lost', killedBy: c.def.id, actIdx: currentActIdx, finalDeckSize: deck.length + hand.length + discard.length + exiled.length });
+            setTimeout(() => setStage('defeat'), 200);
+          }
+        }
+      } else if (it.kind === 'block') {
+        commitCompanion({ ...companionRef.current, block: (companionRef.current?.block || 0) + (it.value || 0) });
+        pushLog(`👺 ${c.def.name}: 🛡 +${it.value}`);
+      } else if (it.kind === 'bolster') {
+        setEnemyBlock(b => b + (it.value || 0));
+        enemyBlockRef.current += (it.value || 0);
+        pushLog(`👺 ${c.def.name}: 🧵 re-threads ${enemy?.name || 'its master'} — +${it.value} Block.`);
+      }
+    }
+    // Roll the companion's next telegraph (it may have fled mid-resolution).
+    const after = companionRef.current;
+    if (after) commitCompanion({ ...after, intent: rollCompanionIntent(after.def) });
+  }
+
   // End the player's turn. Sequence:
   //   1. End-of-turn power triggers (sync local — may kill enemy).
   //   2. Enemy resolves intent (may KO player).
@@ -9465,6 +9641,7 @@ export default function App() {
     if (stage !== 'combat') return;
     // Fresh brace accumulator for this pass (see shieldBraceRef decl).
     shieldBraceRef.current = { block: 0, poise: 0 };
+    postSwingVitalsRef.current = null;
     logEvent(TE.TURN_END, {
       enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length,
       trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0),
@@ -10540,6 +10717,10 @@ export default function App() {
       });
     }
     setEnemyBlock(0);
+    // Companion block fades on the same beat as the main enemy's.
+    if (companionRef.current && companionRef.current.block > 0) {
+      commitCompanion({ ...companionRef.current, block: 0 });
+    }
 
     // 3. Enemy intent — skipped if DoT just killed the enemy this turn, OR
     // if any end-of-turn player damage (Handler menagerie, annotation tick)
@@ -10551,6 +10732,10 @@ export default function App() {
     const enemyDeadNow = enemyComposureRef.current <= 0
       || (enemy?.hpMax > 0 && enemyHpRef.current <= 0);
     if (enemyIntent && !dotKilled && !enemyDeadNow) applyEnemyIntent(enemyIntent);
+    // Companion acts right after its leader (skipped if the leader just
+    // fell this tick — onEnemyDefeated is already scheduled and the
+    // companion flees with it).
+    if (!dotKilled && !enemyDeadNow) applyCompanionIntent();
     if (hp <= 0 || composure <= 0) return;
 
     // v2.34: LONG THREAD bookkeeping. Runs AFTER the enemy intent resolves
@@ -11474,6 +11659,8 @@ export default function App() {
       shieldBraceRef.current = { block: 0, poise: 0 };
       setHp(wHp);
       setComposure(wComp);
+      // Snapshot for the companion resolver (same-pass stale-closure guard).
+      postSwingVitalsRef.current = { block: wBlock, poise: wPoise, hp: wHp, comp: wComp };
       // v3.4.67 — commit Temp HP after the loop has consumed it.
       if (wTempHp !== tempHp) setTempHp(wTempHp);
       // Hit-shake the player HUD if either pool actually moved. Block-only
@@ -11674,6 +11861,12 @@ export default function App() {
     // duplicates the entire deck. Reset in enterFight.
     if (enemyDefeatedHandledRef.current) return;
     enemyDefeatedHandledRef.current = true;
+    // Duo encounters: the companion doesn't outlive its leader.
+    if (companionRef.current) {
+      pushLog(`💨 ${companionRef.current.def.name} unravels without its master and flees.`);
+      commitCompanion(null);
+      setSpellTarget('main');
+    }
     logEvent(TE.COMBAT_END, { enemyId: enemy.id, outcome: 'won', tier: enemy.tier, hpAfter: hp, composureAfter: composure, piles: pilesSnapshot() });
     // Tutorial short-circuit: skip rewards, route to the wrap-up screen.
     if (tutorialActive) {
@@ -12496,6 +12689,7 @@ export default function App() {
     {menuOverlay}
     <CombatScreen
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
+      companion={companion} castTarget={castTarget} onSetCastTarget={setSpellTarget}
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
       incomingProjection={projectIncomingDamage(enemyIntent)}
       peekedNextIntent={peekedNextIntent}
