@@ -9,7 +9,7 @@ import { gotoLab, addCard, fightEnemy, handCardById, playCardById, endTurn } fro
 // always holds them; ensureInHand cycles a couple of turns as a safety net.
 
 const FOOD = 'c-freebie'; // "That Was a Freebie" — next card free (split from the shared card 2026-06-07)
-const PRICEY = 'c-buffet';         // Buffet — cost 2
+const PRICEY = 'c-gorge';          // Gorge — cost 2 (Buffet removed 2026-06-07)
 
 async function ensureInHand(page, cardId, maxTurns = 4) {
   for (let i = 0; i < maxTurns; i++) {

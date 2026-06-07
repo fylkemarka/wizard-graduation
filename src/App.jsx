@@ -132,10 +132,11 @@ const CARDS = [
     effects: { eatLureNow: true, exhaust: true },
     desc: 'Pick a staged lure. The animal it summons arrives immediately. Exhaust.',
     flavor: 'You explain, with the gentle authority of a man with no time, that it is, in fact, lunch.' },
-  { id: 'c-buffet', name: 'Buffet', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
-    effects: { buffetArmed: true, exhaust: true },
-    desc: 'Your next lure is placed in every empty stage slot. Exhaust.',
-    flavor: 'A spread, really. You laid it out. Now they come.' },
+  // Buffet removed entirely 2026-06-07 (Alan): instantly filling all three
+  // slots short-circuits the core build-up-to-three tension — "that change
+  // alone affects the whole pace of the game." The spread machinery
+  // (buffetArmed) is left dormant; nothing arms it now. See memory:
+  // wg-buffet-removal-validated.
   // ---- LURE TUTORS (Alan, 2026-06-01) — consistency cards. With three
   // lures it was hard to keep bait in hand to feed the menagerie; these
   // fetch a lure from a given pile so the engine keeps running. They do NOT
@@ -1041,9 +1042,7 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     ids.push('cv2-l-tender-greens');    // 1-turn → random of Mouse/Rabbit/Buck
     ids.push('cv2-l-tender-greens');    // second copy — chance at Mouse House row / Tender Greens bonus
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
-    // c-buffet removed from the starter (Alan, 2026-06-07: too strong for
-    // turn 1 — a triple summon out of the gate). Uncommon rarity keeps it
-    // in the reward pool; earn it, don't start with it.
+    // c-buffet removed from the game entirely 2026-06-07 (see CARDS note).
     ids.push('c-tactic-shield');        // Summoned Shield — play to route animal attacks into Block
   }
   return ids;

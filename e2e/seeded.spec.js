@@ -14,7 +14,7 @@ async function openingHand(page, seed) {
   await gotoLab(page, 'handler', { seed });
   // A varied-enough deck that a reshuffle actually permutes things.
   for (let i = 0; i < 5; i++) await addCard(page, FISH);
-  for (let i = 0; i < 5; i++) await addCard(page, 'c-buffet');
+  for (let i = 0; i < 5; i++) await addCard(page, 'c-gorge');
   for (let i = 0; i < 5; i++) await addCard(page, 'c-treat');
   await fightEnemy(page, 'Loom Familiar');
   await expect(page.getByTestId('hand')).toBeVisible();
@@ -40,7 +40,7 @@ test('a different seed can change the draw', async ({ page }) => {
   async function firstTwoHands(page, seed) {
     await gotoLab(page, 'handler', { seed });
     for (let i = 0; i < 5; i++) await addCard(page, FISH);
-    for (let i = 0; i < 5; i++) await addCard(page, 'c-buffet');
+    for (let i = 0; i < 5; i++) await addCard(page, 'c-gorge');
     for (let i = 0; i < 5; i++) await addCard(page, 'c-treat');
     await fightEnemy(page, 'Loom Familiar');
     const h1 = await handCards(page).evaluateAll(els => els.map(e => e.getAttribute('data-card-uid')));

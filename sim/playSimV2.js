@@ -201,7 +201,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-tactic-feather', name: 'Birds of a Feather',cost: 0, type: 'tactic', rarity: 'common',  tactic: { id: 'feather', requiresExactlyOneAnimal: true } },
   { id: 'c-pack-tactics',name: 'On Three!', cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'onThree', exhaust: true },
   { id: 'c-just-eat-it', name: 'Just Eat It',cost: 0, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },
-  { id: 'c-buffet',      name: 'Buffet',    cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'buffet', exhaust: true },
+  // c-buffet removed entirely 2026-06-07 (Alan) — see App.jsx CARDS note.
   { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
   { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7, removeWeak: 1 } },
@@ -240,7 +240,7 @@ const HANDLER_STARTER = [
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
   'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
-  'c-pack-tactics', 'c-just-eat-it', 'c-buffet', 'c-treat', 'c-sharp-whistle',
+  'c-pack-tactics', 'c-just-eat-it', 'c-treat', 'c-sharp-whistle',
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   'c-narrow',
