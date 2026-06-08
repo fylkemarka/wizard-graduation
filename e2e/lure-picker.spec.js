@@ -23,11 +23,15 @@ async function ensureInHand(page, cardId, maxTurns = 4) {
 
 test('Rummage the Satchel opens the lure picker and pulls a lure to hand', async ({ page }) => {
   await gotoLab(page, 'handler', { seed: 7 });
-  for (let i = 0; i < 6; i++) await addCard(page, RUMMAGE);
+  // Exactly ONE Rummage so the exhaust check below is unambiguous: with
+  // duplicates, leftover copies discard at end of turn and pollute the count.
+  await addCard(page, RUMMAGE);
   for (let i = 0; i < 8; i++) await addCard(page, FISH);
-  await fightEnemy(page, 'Loom Familiar');
+  // Silk Wraith, not Loom Familiar: over a long draw loop the Loom's steal
+  // modal would pop and intercept clicks. The Wraith never interrupts.
+  await fightEnemy(page, 'Silk Wraith');
 
-  expect(await ensureInHand(page, RUMMAGE)).toBeTruthy();
+  expect(await ensureInHand(page, RUMMAGE, 15)).toBeTruthy();
 
   const fishBefore = await handCardById(page, FISH).count();
 
@@ -44,4 +48,12 @@ test('Rummage the Satchel opens the lure picker and pulls a lure to hand', async
   // Picker closes and a Fish Food landed in hand.
   await expect(picker).toHaveCount(0);
   expect(await handCardById(page, FISH).count()).toBeGreaterThan(fishBefore);
+
+  // Rummage is now 0-cost + exhaust (Alan, 2026-06-08): it should be in the
+  // exiled pile, NOT recycled to discard. Open the discard pile and confirm
+  // no Rummage card is listed there.
+  await page.getByTestId('discard-pile-btn').click();
+  await expect(page.getByText('🗑 Discard pile', { exact: false })).toBeVisible();
+  expect(await page.locator(`[data-card-id="${RUMMAGE}"]`).count()).toBe(0);
+  await page.getByRole('button', { name: '✕' }).click();
 });

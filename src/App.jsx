@@ -139,11 +139,12 @@ const CARDS = [
   // wg-buffet-removal-validated.
   // ---- LURE TUTORS (Alan, 2026-06-01) — consistency cards. With three
   // lures it was hard to keep bait in hand to feed the menagerie; these
-  // fetch a lure from a given pile so the engine keeps running. They do NOT
-  // exhaust — they cycle back so the player can keep digging.
-  { id: 'c-rummage', name: 'Rummage the Satchel', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { fetchLure: 'deck' },
-    desc: 'Search your draw pile for a lure and put it in your hand.',
+  // fetch a lure from a given pile so the engine keeps running.
+  // Rummage is free + exhausts (Alan, 2026-06-08): a 0-cost one-shot dig,
+  // not a recurring cycle. Back of the Bin still cycles back.
+  { id: 'c-rummage', name: 'Rummage the Satchel', cost: 0, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { fetchLure: 'deck', exhaust: true },
+    desc: 'Search your draw pile for a lure and put it in your hand. Exhaust.',
     flavor: 'There is always something at the bottom. There is always more than you packed.' },
   { id: 'c-back-of-the-bin', name: 'Back of the Bin', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { fetchLure: 'discard' },
