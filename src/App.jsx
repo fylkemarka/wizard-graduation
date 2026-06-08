@@ -71,6 +71,28 @@ const PAIR_LURE_IDS = new Set(['cv2-l-birdseed', 'cv2-l-tender-greens']);
 // outside endTurn (adjacent-amplify, copy-left, Sloth, Porcupine) can read it.
 const SLOT_ORDER = ['intro', 'subject', 'target'];
 
+// Global enemy difficulty scalar (Alan, 2026-06-08: hoisted from enterFight so
+// mid-combat summons scale identically). 1.25 = 25% harder; tuneable.
+const ENEMY_DIFFICULTY_MULT = 1.25;
+// Scale an enemy template's stats by the global difficulty mult — shared by
+// enterFight (main + duo companion) and the `summon` intent (mid-combat adds).
+function scaleEnemyTemplate(tmpl) {
+  const behaviors = (tmpl.behaviors || []).map(b => {
+    // charge is a delayed attack, so its value scales like a normal hit.
+    if (b.kind === 'attack' || b.kind === 'attack-multi' || b.kind === 'charge') {
+      const newVal = Math.max(1, Math.round((b.value || 0) * ENEMY_DIFFICULTY_MULT));
+      return { ...b, value: newVal, telegraph: b.telegraph ? b.telegraph.replace(/\d+/, String(newVal)) : b.telegraph };
+    }
+    return b;
+  });
+  return {
+    ...tmpl,
+    composureMax: Math.round((tmpl.composureMax || 0) * ENEMY_DIFFICULTY_MULT),
+    hpMax: tmpl.hpMax >= 900 ? tmpl.hpMax : Math.round((tmpl.hpMax || 0) * ENEMY_DIFFICULTY_MULT),
+    behaviors,
+  };
+}
+
 // =============================================================================
 // 1. DATA
 // =============================================================================
@@ -2819,6 +2841,15 @@ const uid = () => `u${++_uid}`;
 // a row. Falls back to the full behavior list if every option is excluded
 // (e.g. an enemy whose only behaviors share one kind).
 function rollIntent(enemy, excludeKinds = []) {
+  // Charge release (Spindlewight, Alan 2026-06-08): the turn AFTER a `charge`
+  // wind-up, the parked value comes back as a single big telegraphed attack.
+  // Emitting it from rollIntent makes the player SEE it coming as the next
+  // intent (honest telegraph), and it resolves through the normal attack path.
+  if (enemy.pendingChargeValue > 0) {
+    const value = enemy.pendingChargeValue;
+    enemy.pendingChargeValue = 0;
+    return { kind: 'attack', value, charged: true, telegraph: `🌀 CHARGED STRIKE ${value} — unleashing` };
+  }
   // Garth Maul (Alan, 2026-06-08): every attack is a maul, escalating and
   // alternating pool — 4 HP, 4 comp, 5 HP, 5 comp, 6 HP, 6 comp, … until
   // killed. Deterministic, not weighted. enemy.maulStep advances per roll
@@ -5099,8 +5130,9 @@ export default function App() {
       }
       return;
     }
-    if (node.type === 'combat')        return enterFight(pickActEnemyId('normal'));
-    if (node.type === 'elite')         return enterFight(pickActEnemyId('elite'));
+    const rowFrac = (currentAct?.rows > 1) ? (node.row || 0) / (currentAct.rows - 1) : 0.5;
+    if (node.type === 'combat')        return enterFight(pickActEnemyId('normal', rowFrac));
+    if (node.type === 'elite')         return enterFight(pickActEnemyId('elite', rowFrac));
     if (node.type === 'rest')          { setRestNode(node); setStage('rest'); return; }
     if (node.type === 'event')         {
       const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
@@ -5559,13 +5591,27 @@ export default function App() {
     returnToMap();
   }
 
-  function pickActEnemyId(tier) {
+  // Difficulty-tiered enemy selection (Alan, 2026-06-08): bias the pick toward
+  // the enemy's `diff` (1 easy → 3 hard) by how far the node sits along the act
+  // (rowFrac 0→1). Early nodes pull diff 1, late nodes diff 3, with ±1
+  // spillover (and a tiny chance of a far pick) so the ORDER still varies and
+  // players don't see the same sequence every run. Fixes "Silk Wraith (diff 3)
+  // as the opener." Untagged enemies default to diff 2.
+  function pickActEnemyId(tier, rowFrac = 0.5) {
     const lane = selectedCharacter?.lane || null;
     // summonerOnly enemies (e.g. Garth Maul) appear only for the handler.
     const pool = ENEMIES.filter(e => e.act === currentAct.id && e.tier === tier
       && (!e.summonerOnly || lane === 'handler'));
     if (pool.length === 0) return ENEMIES[0].id; // fallback
-    return pool[Math.floor(Math.random() * pool.length)].id;
+    const target = rowFrac < 0.34 ? 1 : rowFrac < 0.67 ? 2 : 3;
+    const weighted = pool.map(e => {
+      const dist = Math.abs((e.diff || 2) - target);
+      return { id: e.id, w: dist === 0 ? 3 : dist === 1 ? 1 : 0.05 };
+    });
+    const total = weighted.reduce((s, x) => s + x.w, 0);
+    let roll = Math.random() * total;
+    for (const x of weighted) { roll -= x.w; if (roll <= 0) return x.id; }
+    return weighted[0].id;
   }
 
   // Extract real card objects from the tray for combat-end pile merges.
@@ -5637,23 +5683,9 @@ export default function App() {
     const tmpl = ENEMIES_BY_ID[enemyId];
     if (!tmpl) return;
     // v3.4.44 (Alan: "I'm winning every time with virtually no difficulty").
-    // Global difficulty scalar. Bumps composure, HP, and per-behavior attack
-    // values for every enemy. 1.25 = 25% harder; tuneable.
-    const DIFFICULTY_MULT = 1.25;
-    const scaledBehaviors = (tmpl.behaviors || []).map(b => {
-      if (b.kind === 'attack' || b.kind === 'attack-multi') {
-        const newVal = Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT));
-        return { ...b, value: newVal, telegraph: b.telegraph ? b.telegraph.replace(/\d+/, String(newVal)) : b.telegraph };
-      }
-      return b;
-    });
-    const e = {
-      ...tmpl,
-      annotation: null,
-      composureMax: Math.round((tmpl.composureMax || 0) * DIFFICULTY_MULT),
-      hpMax: tmpl.hpMax >= 900 ? tmpl.hpMax : Math.round((tmpl.hpMax || 0) * DIFFICULTY_MULT),
-      behaviors: scaledBehaviors,
-    };
+    // Global difficulty scalar (now module-level ENEMY_DIFFICULTY_MULT, shared
+    // with mid-combat summons). Bumps composure, HP, per-behavior attacks.
+    const e = { ...scaleEnemyTemplate(tmpl), annotation: null };
     // Dev/e2e hook (?forcePhaseShift): drop the Silk Wraith straight into its
     // thinned state so the phase-shifted header layout is screenshottable
     // without grinding composure down. Consumed once.
@@ -5689,25 +5721,9 @@ export default function App() {
     // scaling). Lab/tutorial fights pass opts.noCompanion to fight solo.
     const partnerTmpl = tmpl.duoPartnerId ? ENEMIES_BY_ID[tmpl.duoPartnerId] : null;
     if (partnerTmpl && !opts.noCompanion) {
-      const pBehaviors = (partnerTmpl.behaviors || []).map(b => {
-        if (b.kind === 'attack') {
-          const newVal = Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT));
-          return { ...b, value: newVal, telegraph: b.telegraph ? b.telegraph.replace(/\d+/, String(newVal)) : b.telegraph };
-        }
-        return b;
-      });
-      const pDef = {
-        ...partnerTmpl,
-        composureMax: Math.round((partnerTmpl.composureMax || 0) * DIFFICULTY_MULT),
-        behaviors: pBehaviors,
-      };
-      commitCompanion({
-        def: pDef,
-        composure: pDef.composureMax,
-        block: 0,
-        intent: rollCompanionIntent(pDef),
-      });
-      pushLog(`👺 ${pDef.name} skitters in beside ${e.name}. Two of them, then.`);
+      const inst = buildCompanionInstance(partnerTmpl);
+      commitCompanion(inst);
+      pushLog(`👺 ${inst.def.name} skitters in beside ${e.name}. Two of them, then.`);
     } else {
       commitCompanion(null);
     }
@@ -10002,6 +10018,13 @@ export default function App() {
     setCompanion(next);
   }
 
+  // Build a fresh companion instance (scaled) from an enemy template. Shared by
+  // enterFight (duo) and the `summon` intent (mid-combat adds).
+  function buildCompanionInstance(tmpl) {
+    const def = scaleEnemyTemplate(tmpl);
+    return { def, composure: def.composureMax, block: 0, intent: rollCompanionIntent(def) };
+  }
+
   function setSpellTarget(which) {
     const c = companionRef.current;
     const target = which === 'companion' && c ? 'companion' : 'main';
@@ -12489,6 +12512,41 @@ export default function App() {
           pushLog(`🪞 ...and what about THAT time → enemy Weak (−${25*intent.value}% atk).`);
           setReflectNextDebuff(n => Math.max(0, n - 1));
         }
+      }
+    } else if (intent.kind === 'heal') {
+      // Self-regen (Patchwork Golem / Gauze Revenant) — restore Composure.
+      // Forces burst/tempo: a slow grind loses to the stitching. Bypasses
+      // nothing; just tops the enemy up toward its max.
+      const before = enemyComposureRef.current;
+      const after = Math.min(e.composureMax, before + (intent.value || 0));
+      const gained = after - before;
+      if (gained > 0) {
+        enemyComposureRef.current = after;
+        setEnemyComposure(after);
+        pushLog(`👹 ${e.name}: 🧵 re-stitches +${gained} Composure.`);
+      } else {
+        pushLog(`👹 ${e.name}: 🧵 ${intent.telegraph || 'mends'} — already whole.`);
+      }
+    } else if (intent.kind === 'charge') {
+      // Wind-up (Spindlewight) — no damage now; the strike lands NEXT enemy
+      // turn. The value is parked on the enemy instance so rollIntent emits the
+      // honest "CHARGED STRIKE" telegraph as the very next intent the player
+      // sees (no hidden damage). Resolved as a normal attack then.
+      e.pendingChargeValue = intent.value || 0;
+      pushLog(`👹 ${e.name}: 🌀 ${intent.telegraph || `winds up — ${intent.value} lands next turn`}`);
+    } else if (intent.kind === 'summon') {
+      // Mid-combat add (Spinster Matron) — call a companion into the fight if
+      // the slot is open. Re-fires after the previous add is killed (the
+      // death path nulls companionRef), so the threat compounds if you dawdle.
+      const cTmpl = ENEMIES_BY_ID[intent.companionId];
+      if (!cTmpl) {
+        pushLog(`👹 ${e.name}: ${intent.telegraph || 'calls out'} — but no one answers.`);
+      } else if (companionRef.current) {
+        pushLog(`👹 ${e.name}: ${intent.telegraph || 'calls out'} — the household is already full.`);
+      } else {
+        const inst = buildCompanionInstance(cTmpl);
+        commitCompanion(inst);
+        pushLog(`👹 ${e.name}: 🕯 ${intent.telegraph || `calls in ${inst.def.name}`}. ${inst.def.name} answers.`);
       }
     }
     // Riders: a combo intent can attach extra side-effects that fire AFTER

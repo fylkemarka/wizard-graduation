@@ -67,7 +67,7 @@ export const ENEMIES = [
     ] },
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
-  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 38, hpMax: 999, tier: 'normal',
+  { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 38, hpMax: 999, tier: 'normal', diff: 2,
     // Duo encounter (Alan, 2026-06-06): the Weaver arrives with a Bobbin
     // Imp in tow. Companion fights alongside it — see App.jsx companion
     // system. Killing the Weaver wins the fight (the imp unravels);
@@ -106,13 +106,13 @@ export const ENEMIES = [
   // kept only as a representative entry for avgAttack/report). summonerOnly
   // gates him to the handler. Race his 40 composure down before the mauls
   // outscale your shields, or feed him a body each turn to keep the rest.
-  { id: 'e2-garth-maul', act: 1, name: 'Garth Maul', composureMax: 40, hpMax: 999, tier: 'normal',
+  { id: 'e2-garth-maul', act: 1, name: 'Garth Maul', composureMax: 40, hpMax: 999, tier: 'normal', diff: 2,
     summonerOnly: true, escalatingMaul: true,
     flavor: 'He took the staff trial sideways and came back all teeth. Asks only that you hold still.',
     behaviors: [
       { kind: 'attack', maul: true, value: 4, weight: 1, telegraph: '🦷 4 ❤ maul (escalates each turn)' },
     ] },
-  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 36, hpMax: 999, tier: 'normal',
+  { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 36, hpMax: 999, tier: 'normal', diff: 3,
     behaviors: [
       // v2.9.2: silk-thread cuts now hit harder + composure-pool option.
       // v3.4.82: composure 25→36, whisper 6→8 (combats too short).
@@ -127,7 +127,7 @@ export const ENEMIES = [
       // handler's whole accumulation loop. ~14% keeps the threat, not the tax.
       { kind: 'attack', maul: true, value: 7, weight: 1, telegraph: '🦷 7 — silk-snare (unblocked → lose your strongest animal)' },
     ] },
-  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 40, hpMax: 999, tier: 'normal',
+  { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 40, hpMax: 999, tier: 'normal', diff: 2,
     // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
     // into your hand and pulls a card it "needs to weave with." Forces
     // hand-management: do you play your key spell pieces this turn or
@@ -148,7 +148,7 @@ export const ENEMIES = [
   // working at their craft, refusing to come back. Names follow the
   // Pratchett-tone with parenthetical bureaucratic annotations.
   { id: 'e-rogue-linenfast', act: 1, name: 'Bartholomew Linenfast (still adjusting the hem)',
-    composureMax: 38, hpMax: 999, tier: 'normal',
+    composureMax: 38, hpMax: 999, tier: 'normal', diff: 1,
     // failure mode: refusal. 50 years on the same hem. Wit can't
     // out-argue him (heard every version); jnsq breaks his focus.
     behaviors: [
@@ -157,7 +157,7 @@ export const ENEMIES = [
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (measures, again)' },
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
     ] },
-  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 64, hpMax: 999, tier: 'elite',
+  { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 64, hpMax: 999, tier: 'elite', diff: 2,
     behaviors: [
       // v3.4.53 (Alan: "Pattern-Maker hits too hard, BARELY beat it"). With
       // the global 1.25× scalar, base 15 → 19 HP burst and 4×3 → 5×3 = 15
@@ -176,7 +176,7 @@ export const ENEMIES = [
       // HP-side burst — the pattern lashes out physically.
       { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
     ] },
-  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 64, hpMax: 999, tier: 'elite',
+  { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 64, hpMax: 999, tier: 'elite', diff: 3,
     // v3.4.82: composure 50→64; base swing 8→10, whisper 6→8; self-block
     // weight 2→1 so it spends more turns pressuring than warding.
     behaviors: [
@@ -205,6 +205,132 @@ export const ENEMIES = [
       // menagerie investment every ~4 turns deleted handler runs outright
       // (365/500 sim deaths here). Still a boss-tier swing, no longer a coinflip.
       { kind: 'attack', maul: true, value: 10, weight: 1, telegraph: '🦷 10 — woven under (unblocked → your strongest animal goes into the pattern)' },
+    ] },
+
+  // ───── ACT 1 EXPANSION (Alan, 2026-06-08) — difficulty-tiered roster so the
+  // early fights are gentle and the pressure scales toward the boss. `diff`
+  // 1=early / 2=mid / 3=late; pickActEnemyId biases by map progress. New kinds:
+  // heal (self-regen → forces burst), charge (telegraphed big hit next turn →
+  // forces hard defense/disrupt), summon (mid-combat companion). See
+  // design/ACT1_ENEMIES.md.
+
+  // ── diff 1 — gentle openers ──
+  { id: 'e2-lint-sprite', act: 1, name: 'Lint Sprite', composureMax: 22, hpMax: 999, tier: 'normal', diff: 1,
+    flavor: 'Technically alive. Mostly lint. Deeply offended by tidiness.',
+    behaviors: [
+      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5 (a peeved tumble)' },
+      { kind: 'attack', value: 4, pool: 'composure', weight: 2, telegraph: '🎭 4 (a reproachful drift)' },
+      { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4 (puffs up)' },
+    ] },
+  // Real HP (16) — the early enemy that teaches "physical effects work here."
+  { id: 'e2-button-drone', act: 1, name: 'Button Drone', composureMax: 18, hpMax: 16, tier: 'normal', diff: 1,
+    flavor: 'Sorts buttons by virtue. Has opinions about yours.',
+    behaviors: [
+      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5 (sorting jab)' },
+      { kind: 'attack-multi', value: 2, count: 2, weight: 2, telegraph: '⚔ 2×2 (click, clack)' },
+      { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (closes a clasp)' },
+    ] },
+  { id: 'e2-unraveller', act: 1, name: 'The Unraveller', composureMax: 24, hpMax: 999, tier: 'normal', diff: 1,
+    flavor: 'Finds the loose thread in everything. Including you. Especially you.',
+    behaviors: [
+      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5 + ⛧ Weak 1 (tugs a thread)', riders: { weak: 1 } },
+      { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1 (points out the flaw)' },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 (a firm pull)' },
+      { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4 (winds the slack)' },
+    ] },
+
+  // ── diff 2 — mid ──
+  // First HEAL user — re-stitches itself; out-pace the regen or it grinds on.
+  { id: 'e2-patchwork-golem', act: 1, name: 'Patchwork Golem', composureMax: 34, hpMax: 999, tier: 'normal', diff: 2,
+    flavor: "Made of everyone's abandoned mending. Optimistic about its chances.",
+    behaviors: [
+      { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8 (a heavy seam)' },
+      { kind: 'heal',   value: 6, weight: 2, telegraph: '🧵 re-stitches +6 Composure' },
+      { kind: 'attack-multi', value: 3, count: 2, weight: 2, telegraph: '⚔ 3×2 (loose flailing)' },
+      { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6 (tucks a flap)' },
+    ] },
+  // Needlepoint Twins — DUO. Cross does the X; Stitch shields it and chips you.
+  { id: 'e2-needlepoint-cross', act: 1, name: 'Needlepoint Cross', composureMax: 30, hpMax: 999, tier: 'normal', diff: 2,
+    duoPartnerId: 'e2-stitch',
+    flavor: 'Insists on the X. Will not be talked out of the X.',
+    behaviors: [
+      { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7 (a decisive cross)' },
+      { kind: 'attack-multi', value: 3, count: 2, weight: 2, telegraph: '⚔ 3×2 (over, under)' },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (counts your mistakes)' },
+      { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
+    ] },
+  { id: 'e2-stitch', act: 1, name: 'Stitch', composureMax: 14, hpMax: 999, tier: 'companion',
+    flavor: 'Does the quiet half. Resents it quietly.',
+    behaviors: [
+      { kind: 'bolster', value: 4, weight: 3, telegraph: '🧵 shores up Cross (+4 Block)' },
+      { kind: 'attack',  value: 3, weight: 2, telegraph: '⚔ 3 — a quick prick' },
+      { kind: 'block',   value: 3, weight: 1, telegraph: '🛡 3' },
+    ] },
+  { id: 'e2-moth-choir', act: 1, name: 'The Moth Choir', composureMax: 30, hpMax: 999, tier: 'normal', diff: 2,
+    flavor: 'Several moths agreeing loudly. The agreement is the threat.',
+    behaviors: [
+      { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3 (a flutter of consensus)' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (a hymn about your coat)' },
+      { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1 (dusts your resolve)' },
+      { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4 (closes ranks)' },
+    ] },
+  // First CHARGE user — winds up a strike that lands NEXT turn. Defend or disrupt.
+  { id: 'e2-spindlewight', act: 1, name: 'Spindlewight', composureMax: 32, hpMax: 999, tier: 'normal', diff: 2,
+    flavor: 'It is winding up. It has been winding up for some time. It would like you to appreciate the wind-up.',
+    behaviors: [
+      { kind: 'charge', value: 14, weight: 2, telegraph: '🌀 winds up — 14 lands next turn' },
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (a spinning lash)' },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 1, telegraph: '🎭 5 (a dizzy murmur)' },
+      { kind: 'block',  value: 6, weight: 1, telegraph: '🛡 6 (spins in place)' },
+    ] },
+
+  // ── diff 3 — pre-boss pressure ──
+  // SUMMONER (elite) — calls Thread Wisps into the fight; close it before the
+  // adds compound. Re-summons after a Wisp is drained (slot frees).
+  { id: 'e2-spinster-matron', act: 1, name: 'The Spinster Matron', composureMax: 50, hpMax: 999, tier: 'elite', diff: 2,
+    flavor: 'Runs a tight household of one. Always has room for one more. You begin to suspect you are the one more.',
+    behaviors: [
+      { kind: 'summon', companionId: 'e2-thread-wisp', weight: 2, telegraph: 'calls in a Thread Wisp' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (a sharp summons)' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (a withering remark)' },
+      { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (busy hands)' },
+      { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (folds her arms)' },
+    ] },
+  { id: 'e2-thread-wisp', act: 1, name: 'Thread Wisp', composureMax: 12, hpMax: 999, tier: 'companion',
+    flavor: 'A loose end with somewhere to be. Briefly, urgently loyal.',
+    behaviors: [
+      { kind: 'attack',  value: 3, weight: 3, telegraph: '⚔ 3 — a snapping end' },
+      { kind: 'bolster', value: 3, weight: 2, telegraph: '🧵 re-threads the Matron (+3 Block)' },
+      { kind: 'attack',  value: 2, pool: 'composure', weight: 1, telegraph: '🎭 2 — a thin whine' },
+    ] },
+  // Warp & Weft — DUO, the heavy pre-boss gauntlet. Warp banks Weave debt and
+  // hits hard; Weft shields/bolsters it.
+  { id: 'e2-warp', act: 1, name: 'Warp', composureMax: 40, hpMax: 999, tier: 'normal', diff: 3,
+    duoPartnerId: 'e2-weft',
+    flavor: 'Holds the tension. All of it. Including the tension in the room.',
+    behaviors: [
+      { kind: 'weave',  value: 3, weight: 2, telegraph: '🪡 Weave +3 — banked 🎭 lands at the end of your next turn' },
+      { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1 (drawn taut)', riders: { weak: 1 } },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 (a snapping warp)' },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (the loom complains)' },
+    ] },
+  { id: 'e2-weft', act: 1, name: 'Weft', composureMax: 16, hpMax: 999, tier: 'companion',
+    flavor: 'Goes back and forth so Warp does not have to. Tired of the metaphor.',
+    behaviors: [
+      { kind: 'bolster', value: 5, weight: 3, telegraph: '🧵 reinforces Warp (+5 Block)' },
+      { kind: 'attack',  value: 4, weight: 2, telegraph: '⚔ 4 — a crossing strike' },
+      { kind: 'block',   value: 4, weight: 1, telegraph: '🛡 4' },
+    ] },
+  // Gauze Revenant — the proper hard LATE normal that replaces Silk Wraith as a
+  // first fight. Heals as it presses, plus a maul. Burst it before it grinds.
+  { id: 'e2-gauze-revenant', act: 1, name: 'The Gauze Revenant', composureMax: 36, hpMax: 999, tier: 'normal', diff: 3,
+    flavor: "What's left when the shroud outlives the wearer. Still cold. Still fussy about its drape.",
+    behaviors: [
+      { kind: 'attack', value: 9, weight: 3, telegraph: '⚔ 9 (a cold wrapping)' },
+      { kind: 'heal',   value: 5, weight: 2, telegraph: '🧵 draws the shroud tight +5 Composure' },
+      { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (trailing gauze)' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (a grave hush)' },
+      { kind: 'attack', maul: true, value: 7, weight: 1, telegraph: '🦷 7 — winding-sheet (unblocked → lose your strongest animal)' },
     ] },
 
   // ===== ACT 2 — The Forge Path (the mines and caves) =====

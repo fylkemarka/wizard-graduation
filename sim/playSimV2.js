@@ -62,6 +62,7 @@ const ENEMIES = SHARED_ENEMIES.map(e => ({
   comp: e.composureMax || 0,
   hp: (e.hpMax == null) ? 999 : e.hpMax,
   atk: avgAttack(e.behaviors),
+  diff: e.diff || 2, // difficulty rank (1 easy → 3 hard); biases node selection
   behaviors: (e.behaviors || []).map(b => ({ ...b })),
   insultVulnerabilities: e.insultVulnerabilities || [],
   duoPartnerId: e.duoPartnerId, // duo encounters — companion pairing
@@ -73,6 +74,13 @@ const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 // Weighted intent roll, mirroring App.jsx rollIntent (anti-repeat via
 // excludeKinds; falls back to the full pool if filtering empties it).
 function rollIntent(enemy, excludeKinds = []) {
+  // Charge release (Spindlewight): the turn after a `charge` wind-up, the
+  // parked value returns as a single big attack. Mirrors App.jsx rollIntent.
+  if (enemy.pendingChargeValue > 0) {
+    const value = enemy.pendingChargeValue;
+    enemy.pendingChargeValue = 0;
+    return { kind: 'attack', value, charged: true };
+  }
   // Garth Maul: deterministic escalating maul, alternating pool (mirrors
   // App.jsx). 4❤,4🎭,5❤,5🎭,… maulStep advances per roll on the per-combat
   // enemy instance.
@@ -103,6 +111,19 @@ function rollIntent(enemy, excludeKinds = []) {
 // leader falling ends the combat anyway, so only the former is modeled).
 function initCompanionSim(mainTmpl, DIFFICULTY_MULT) {
   const p = mainTmpl.duoPartnerId ? ENEMIES_BY_ID[mainTmpl.duoPartnerId] : null;
+  if (!p) return null;
+  const behaviors = (p.behaviors || []).map(b =>
+    b.kind === 'attack'
+      ? { ...b, value: Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT)) }
+      : { ...b });
+  const def = { ...p, comp: Math.round((p.comp || 0) * DIFFICULTY_MULT), behaviors };
+  return { def, composure: def.comp, block: 0, intent: rollIntent(def) };
+}
+
+// Build a companion instance from an enemy id (the `summon` intent's add).
+// Mirrors App.jsx buildCompanionInstance / initCompanionSim scaling.
+function buildCompanionFromIdSim(companionId, DIFFICULTY_MULT) {
+  const p = ENEMIES_BY_ID[companionId];
   if (!p) return null;
   const behaviors = (p.behaviors || []).map(b =>
     b.kind === 'attack'
@@ -177,23 +198,37 @@ const ACTS = [
   { id: 3, bossId: 'e1-boss-thornlord' },
 ];
 
-const ACT_NORMALS = {
-  1: ['e2-hollow-weaver', 'e2-silk-wraith', 'e2-loom-familiar'],
-  2: ['e3-geode-crab', 'e3-glow-mite', 'e3-crystal-beetle'],
-  3: ['e1-acolyte', 'e1-imp', 'e1-shrine-rat'],
-};
+// Derived from the shared roster (Alan, 2026-06-08) so the sim pool can't
+// drift from the live game — App's pickActEnemyId filters ENEMIES by act+tier
+// identically. Normals exclude summonerOnly (lane-gated below) and companions.
+const ACT_NORMALS = {}, ACT_ELITES = {};
+for (const e of ENEMIES) {
+  if (e.tier === 'normal' && !e.summonerOnly) (ACT_NORMALS[e.act] = ACT_NORMALS[e.act] || []).push(e.id);
+  else if (e.tier === 'elite') (ACT_ELITES[e.act] = ACT_ELITES[e.act] || []).push(e.id);
+}
 // summonerOnly normals join the pool only for the handler (mirrors
 // pickActEnemyId's lane gate). Garth Maul (e2-garth-maul) is Act 1 only.
 function actNormalsFor(actId, lane) {
-  const base = ACT_NORMALS[actId].slice();
-  if (lane === 'handler' && actId === 1) base.push('e2-garth-maul');
+  const base = (ACT_NORMALS[actId] || []).slice();
+  for (const e of ENEMIES) {
+    if (e.tier === 'normal' && e.summonerOnly && e.act === actId && lane === 'handler') base.push(e.id);
+  }
   return base;
 }
-const ACT_ELITES = {
-  1: ['e2-pattern-maker', 'e2-silent-spinner'],
-  2: ['e3-quartz-sentinel', 'e3-vein-devourer'],
-  3: ['e1-tutor', 'e1-thicket'],
-};
+// Difficulty-biased pick (mirrors App.jsx pickActEnemyId): rowFrac 0→1 maps to
+// target diff 1→3 with ±1 spillover so the fight order still varies.
+function pickActEnemyIdSim(ids, rowFrac = 0.5) {
+  if (!ids || !ids.length) return null;
+  const target = rowFrac < 0.34 ? 1 : rowFrac < 0.67 ? 2 : 3;
+  const weighted = ids.map(id => {
+    const dist = Math.abs((ENEMIES_BY_ID[id]?.diff || 2) - target);
+    return { id, w: dist === 0 ? 3 : dist === 1 ? 1 : 0.05 };
+  });
+  const total = weighted.reduce((s, x) => s + x.w, 0);
+  let roll = rnd() * total;
+  for (const x of weighted) { roll -= x.w; if (roll <= 0) return x.id; }
+  return weighted[0].id;
+}
 
 const STARTING_MAX_HP = 70;
 const STARTING_MAX_COMPOSURE = 35;
@@ -1939,6 +1974,20 @@ function handlerApplyIntent(state, combat, intent) {
     // Hollow Weaver — accrue stacks; they fire at the end of the next player
     // turn unless the player damaged the enemy. Mirrors App.jsx.
     combat.weaveStacks = (combat.weaveStacks || 0) + (intent.value || 1);
+  } else if (intent.kind === 'heal') {
+    // Self-regen (Patchwork Golem / Gauze Revenant). Mirrors App.jsx.
+    const max = combat.enemy?.startComp || combat.enemy?.comp || combat.enemyComposure;
+    combat.enemyComposure = Math.min(max, combat.enemyComposure + (intent.value || 0));
+  } else if (intent.kind === 'charge') {
+    // Wind-up (Spindlewight): park the value; it returns as a big attack next
+    // turn via rollIntent. No damage now. Mirrors App.jsx.
+    combat.enemy.pendingChargeValue = intent.value || 0;
+  } else if (intent.kind === 'summon') {
+    // Mid-combat add (Spinster Matron): fill the companion slot if open.
+    if (!combat.companion) {
+      const inst = buildCompanionFromIdSim(intent.companionId, 1.25);
+      if (inst) combat.companion = inst;
+    }
   }
   if (intent.riders) {
     const r = intent.riders;
@@ -2331,7 +2380,7 @@ function runCombat(state, enemyId, telemetry) {
   const scaledComp = Math.round((tmpl.comp || 0) * DIFFICULTY_MULT);
   const scaledHp = (tmpl.hp >= 900) ? tmpl.hp : Math.round((tmpl.hp || 0) * DIFFICULTY_MULT);
   const scaledBehaviors = (tmpl.behaviors || []).map(b => {
-    if (b.kind === 'attack' || b.kind === 'attack-multi') {
+    if (b.kind === 'attack' || b.kind === 'attack-multi' || b.kind === 'charge') {
       return { ...b, value: Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT)) };
     }
     return { ...b };
@@ -6211,9 +6260,9 @@ function simRun(forcedLane = null) {
 
   for (const act of ACTS) {
     state.currentActId = act.id; // for aiPickHandlerReward's act-gated draft bias
-    // 3 normals
+    // 3 normals — scale easy→hard across the act (mirrors map-progress bias).
     for (let i = 0; i < 3; i++) {
-      const r = runCombat(state, pickRandom(actNormalsFor(act.id, state.lane)), tele);
+      const r = runCombat(state, pickActEnemyIdSim(actNormalsFor(act.id, state.lane), i / 2), tele);
       tele.combatCount++;
       tele.combatTurns += r.turns;
       lastResult = { ...r, where: `act${act.id}-normal-${i}` };
@@ -6222,8 +6271,8 @@ function simRun(forcedLane = null) {
       postCombatHeal();
       maybeReflect();
     }
-    // 1 elite
-    const eliteR = runCombat(state, pickRandom(ACT_ELITES[act.id]), tele);
+    // 1 elite — late-act difficulty bias.
+    const eliteR = runCombat(state, pickActEnemyIdSim(ACT_ELITES[act.id], 0.8), tele);
     tele.combatCount++; tele.combatTurns += eliteR.turns;
     lastResult = { ...eliteR, where: `act${act.id}-elite` };
     if (eliteR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length, rewardsTaken: state.rewardsTaken.slice() };

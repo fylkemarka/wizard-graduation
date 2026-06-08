@@ -151,7 +151,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       // Maul attacks lead with 🦷 so the threat reads at a glance: block it
       // all or the strongest animal is torn off the board.
       const maulMark = intent.maul ? '🦷 ' : '';
-      return { display: `${maulMark}${poolIcon} ${body}${label}${riderTail}`, reduced, amplified, rawValue: raw, effValue: eff };
+      // Charged release (Spindlewight wind-up) reads loudly so the player
+      // knows the big telegraphed hit is landing this turn.
+      const chargeMark = intent.charged ? '🌀 CHARGED ' : '';
+      return { display: `${chargeMark}${maulMark}${poolIcon} ${body}${label}${riderTail}`, reduced, amplified, rawValue: raw, effValue: eff };
     }
     // v3.4.81 (Alan: "Weave + 2 is unclear. What does weave do? What's it
     // hit for?") — surface the projected composure damage if the player
