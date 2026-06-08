@@ -261,7 +261,7 @@ const CARDS = [
     flavor: 'Produced from a pocket. Warm, somehow. Best not to ask.' },
   { id: 'c-gorge', name: 'Gorge', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { gorge: true },
-    desc: 'Pick an animal: it stays +3 turns. If it was already fed this turn, it also gains +3 attack permanently.',
+    desc: 'Pick an animal: it stays +3 turns. If it was already fed this turn, it also gains +3 attack for the rest of combat.',
     flavor: 'Too much, really. That was always the plan.' },
   // ---- New bonus cards (Alan, 2026-06-07) ----
   { id: 'c-trough', name: 'Trough', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
@@ -9332,7 +9332,9 @@ export default function App() {
   }
 
   // Gorge — overfeed one animal: +3 turns, and if it was already fed this
-  // turn, a permanent +3 attack. Single-click animal target.
+  // turn, +3 attack for the rest of combat (the bonus rides on the animal's
+  // tray slot, which is wiped at enterFight, so it never crosses combats).
+  // Single-click animal target.
   function gorgeAnimalFromSlot(slotName) {
     if (!gorgePromptActive) return;
     const slot = tray?.[slotName];
@@ -9344,7 +9346,7 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, [slotName]: next }));
     setGorgePromptActive(false);
     pushLog(wasFed
-      ? `🍖 Gorge — ${animal?.name || slot.animalId} stays +3 turns AND gains +3 attack permanently.`
+      ? `🍖 Gorge — ${animal?.name || slot.animalId} stays +3 turns AND gains +3 attack for the rest of combat.`
       : `🍖 Gorge — ${animal?.name || slot.animalId} stays +3 turns.`);
   }
 
@@ -13637,16 +13639,20 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
 
   // Handler is mechanically nothing like wit/jnsq — no sentence grammar, no
   // casting. It bait-and-times animals onto the board. Its tutorial gets its
-  // own dedicated flow: stage a lure → animals arrive & tick → feed the ones
-  // about to leave → combines / tactics. Only one step is action-gated (stage
-  // a lure); the rest advance on the Continue button because feeding requires
-  // a 2-turn wait that can't be forced inside a scripted overlay.
+  // own dedicated flow that walks through every action a Handler can take:
+  // stage a lure → watch it arrive & attack Composure → placement/adjacency →
+  // feed the leavers → sacrifice for Block → special click-verbs → combines &
+  // tactics → defend. Only one step is action-gated (stage a lure); the rest
+  // advance on the Continue button, because most of the payoffs (arrivals,
+  // feeding, combines) need a multi-turn wait that can't be forced inside a
+  // scripted overlay.
   const handlerSteps = [
     {
       title: `Welcome — ${laneName} practice match.`,
       body: (<>
         <p>The Bursar has offered to spar with you. He's pulling his punches; you can't actually lose this match.</p>
-        <p className="mt-2"><b>You don't cast spells — you bait the woods.</b> Play a <b>🪱 Lure</b> card into the <b>Summoning Pitch</b> (the 3 slots above your hand). It ticks down, then transforms into an <b>🐾 Animal</b> that fights for you every turn until it leaves.</p>
+        <p className="mt-2"><b>You don't cast spells — you bait the woods.</b> You play <b>🪱 Lure</b> cards into the <b>Summoning Pitch</b> (the 3 slots above your hand). Each lure ticks down, then transforms into an <b>🐾 Animal</b> that fights for you every turn until it leaves.</p>
+        <p className="mt-2"><b>How you win:</b> your animals attack the enemy's <b>Composure</b> (the ✨ bar). Drain it to 0 and they back down. <b>How you lose:</b> the enemy whittles your <b>HP</b> (❤) to 0. So the whole game is a race — get the woods online before the enemy grinds you down.</p>
         <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), and <b>Energy</b> (⚡) at the bottom. Energy refills every turn.</p>
       </>),
       cta: 'Continue',
@@ -13655,53 +13661,91 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
     {
       title: 'Step 1 — Stage a lure in the Summoning Pitch.',
       body: (<>
-        <p>Look at your hand for a <b>🪱 Lure</b> card — <b>Fish Food</b>, <b>Birdseed</b>, or <b>Tender Greens</b>. Each one summons a different family of animal.</p>
-        <p className="mt-2">Play one (or drag it onto an <i>available</i> slot in the Summoning Pitch). It won't do anything this turn — it's a countdown. That's the point: <b>wait is not waiting.</b></p>
+        <p>Look at your hand for a <b>🪱 Lure</b> card — <b>Fish Food</b>, <b>Birdseed</b>, or <b>Tender Greens</b>. Each summons a different family of animal.</p>
+        <p className="mt-2"><b>Play one now</b> — click it, or drag it onto an <i>available</i> slot in the Summoning Pitch. It won't do anything this turn; it's a countdown. That's the point: <b>waiting is the move.</b></p>
       </>),
       cta: '(stage a Lure card)',
       waitsForAction: true,
     },
     {
-      title: 'Step 2 — Arrival and the duration clock.',
+      title: 'Step 2 — Arrival, attacks, and the duration clock.',
       body: (<>
-        <p>The lure now sits in its slot showing a <b>turns-to-arrive</b> countdown. At the end of your turns it ticks down; when it hits zero it <b>transforms in place</b> into its animal.</p>
-        <p className="mt-2">Once an animal arrives it shows a <b>turns-left</b> counter and <b>auto-attacks at the end of each of your turns</b> until it expires. Stage more lures into the other two slots in parallel — a full pitch is three threats ticking at once.</p>
-        <p className="mt-2"><b>🐻 Predator chains:</b> some animals are themselves bait. Leave a <b>🐟 Salmon</b> in its slot and a <b>🐻 Bear</b> arrives. The "useless flopping fish" is a tier-2 setup move.</p>
+        <p>The lure now sits in its slot showing a <b>turns-to-arrive</b> countdown. End your turn (bottom-right) and it ticks down; at zero it <b>transforms in place</b> into its animal.</p>
+        <p className="mt-2">Once an animal arrives it shows a <b>turns-left</b> counter and <b>auto-attacks the enemy's Composure at the end of each of your turns</b>. The <b>🐾 This Turn</b> readout above your hand totals the damage your menagerie will deal — your whole offense, building itself while you do other things.</p>
+        <p className="mt-2">Stage more lures into the other two slots in parallel — a full pitch is three threats ticking at once. <b>🐻 Predator chains:</b> some animals are themselves bait. Leave a <b>🐟 Salmon</b> in its slot and a <b>🐻 Bear</b> turns up. The "useless flopping fish" is a tier-2 setup move.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
     },
     {
-      title: 'Step 3 — Feeding & the exit bonus.',
+      title: 'Step 3 — Placement matters: adjacency & amplifiers.',
       body: (<>
-        <p>This is the Handler's signature decision. An animal on its <b>make-or-break turn</b> (one turn left before it leaves) shows a red <b>"feed now or no exit bonus"</b> badge and a feed slot.</p>
-        <p className="mt-2"><b>Drag a 🌿 Tender Greens lure onto that feed slot</b> (matching the animal's food type) to feed it. Feeding does <i>not</i> extend its stay — it stamps the animal so that when it leaves, it pays out a powerful <b>exit bonus</b> (heal, block, a parting strike). Fed animals leave proud; unfed animals just wander off.</p>
-        <p className="mt-2">Each animal eats its own food family: 🐭🐰🦌 small-land eat greens, 🐦🦅 birds eat seed, 🐟🐻 fish/bears eat fish food. You can only feed the animal that's actually about to leave — not the others.</p>
-      </>),
-      cta: 'Continue',
-      waitsForAction: false,
-    },
-    {
-      title: 'Step 4 — Combines & pack tactics.',
-      body: (<>
-        <p><b>Three of a kind combine.</b> Get three of the same animal in the pitch and they merge into a powerhouse:</p>
+        <p>Which of the three slots you drop a lure into is a real decision, because <b>neighbours interact.</b></p>
+        <p className="mt-2"><b>✨ Adjacency combos</b> — certain animals standing side-by-side fire a bonus each turn. When a pair will combo, a <b>dotted green box</b> wraps both slots with the combo's name:</p>
         <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
-          <li><b>🐭 3 Field Mice → Mouse House</b> — heavy hitter, heals 4 composure on exit.</li>
-          <li><b>🐰 3 Rabbits → The Long Hare</b> — 8 dmg/turn, applies Weak, +5 block/turn.</li>
-          <li><b>🦌 3 Young Bucks → McCloven</b> — 10 dmg/turn, +5 block/turn, heals 5 HP on exit.</li>
+          <li><b>🐭 Field Mouse + 🐰 Rabbit → Warren Rush</b> — +6 composure and draw 1.</li>
+          <li><b>🪿 Goose + 🐦‍⬛ Raven → Fowl Play</b> — +8 composure and Weak 1 on the enemy.</li>
+        </ul>
+        <p className="mt-2"><b>Amplifiers</b> care about position too: a <b>🐕 Sheepdog</b> (0 attack) buffs animals in <i>adjacent</i> slots +50% — drop it in the middle and it reaches both neighbours. A <b>🎙️ Lyrebird</b> copies the attack of whatever stands to its left. Build the pitch like a formation, not a pile.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 4 — Feeding & the exit bonus.',
+      body: (<>
+        <p>An animal on its <b>make-or-break turn</b> (one turn left before it leaves) shows a red <b>"feed now or no exit bonus"</b> badge and a feed slot.</p>
+        <p className="mt-2"><b>Drag a matching food lure onto that feed slot</b> to feed it. Feeding does <i>not</i> extend its stay — it stamps the animal so that when it leaves, it pays out a powerful <b>exit bonus</b> (heal, Block, a parting strike). Fed animals leave proud; unfed animals just wander off.</p>
+        <p className="mt-2">Each animal eats its own food family: 🐭🐰🦌 small-land eat <b>Greens</b>, 🐦🦅 birds eat <b>Seed</b>, 🐟🐻 fish/bears eat <b>Fish Food</b>. You can only feed the animal that's actually about to leave — not the others.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 5 — Click an animal: sacrifice it for Block.',
+      body: (<>
+        <p>Every animal on the board is also an emergency button. <b>Click any animal and choose 🔪 Sacrifice</b> to send it off the board <i>right now</i> — you gain <b>Block (🛡) equal to its attack</b>, but it pays <b>no exit bonus.</b></p>
+        <p className="mt-2">This is your panic defense when a big enemy swing is telegraphed and you can't out-block it any other way. The trade is real: you're spending a body you'd built up. Use it when the alternative is worse.</p>
+        <p className="mt-2">Some drafted Powers reward this — <i>Palpable Sadness</i> deals composure to all enemies every time you sacrifice; <i>Light the Mound</i> cashes in every sacrifice at once. Sacrifice can become an engine, not just a bail-out.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 6 — Special animals you click to use.',
+      body: (<>
+        <p>A few animals don't just auto-attack — they carry a <b>verb you trigger by clicking them</b> (look for "⚡ click to activate"):</p>
+        <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
+          <li><b>🧱 Mime</b> — mimes a wall: the enemy skips its next turn entirely, then the Mime bows out.</li>
+          <li><b>🐦 Pigeon</b> — struts through the plans: scrambles the enemy's telegraphed intent into a different one (once per turn).</li>
+          <li><b>🦘 Kangaroo</b> — spend 2 energy to duck into the pouch: your turn ends and you take <b>no damage</b> next enemy turn.</li>
+        </ul>
+        <p className="mt-2">Others work on their own once staged: <b>🦥 Sloth</b> slows the enemy to half speed (it skips every other turn), <b>🦔 Porcupine</b> absorbs up to 5 from each enemy hit and jabs it back as composure, and predator-chain <b>🐻 Bears</b> arrive hungry and eat <i>adjacent</i> salmon.</p>
+      </>),
+      cta: 'Continue',
+      waitsForAction: false,
+    },
+    {
+      title: 'Step 7 — Combines & Pack Tactics.',
+      body: (<>
+        <p><b>Three of a kind combine.</b> Get three of the same animal in the pitch and they merge into one powerhouse in the centre slot:</p>
+        <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
+          <li><b>🐭 3 Field Mice → Mouse House</b> — 8 composure/turn, heals 4 composure on exit.</li>
+          <li><b>🐰 3 Rabbits → The Long Hare</b> — 10 dmg/turn, applies Weak, +5 Block/turn.</li>
+          <li><b>🦌 3 Young Bucks → McCloven</b> — 10 dmg/turn, +5 Block/turn, heals 5 HP on exit.</li>
         </ul>
         <p className="mt-1"><b>Combines never need feeding</b> — they always stay their full duration and always pay their exit bonus.</p>
-        <p className="mt-2"><b>🃏 Pack Tactics</b> — you start each run with one random tactic (Birds of a Feather, Fountain of Youth, Nurture…). It lives in its own tray slot and reshapes how your summons behave. <b>On Three!</b> commits all your active animals' attacks at once.</p>
+        <p className="mt-2"><b>🃏 Pack Tactics</b> sit in their own tray slot and are <b>free</b> (0 energy) — a stance for the whole combat, not a one-shot. They reshape how your summons behave (Birds of a Feather, Fountain of Youth, Nurture…). <b>On Three!</b> commits all your active animals' attacks at once for a burst.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
     },
     {
-      title: 'Step 5 — Defense, and finish the match.',
+      title: 'Step 8 — Defense, and finish the match.',
       body: (<>
-        <p>While the animals do the hurting, you stay standing. <b>Defend</b> grants Block (🛡) to absorb HP damage; <b>Steady</b> and other skills clear pressure. Block resets at the start of your next turn — spend it.</p>
-        <p className="mt-2">Cards drift back into your deck via the discard pile; when your draw pile empties, the discard reshuffles in.</p>
-        <p className="mt-2">Bait early, defend the slots, feed the leavers, and let the woods win it. Finish the Bursar at your leisure — then pick your wizard for real.</p>
+        <p>While the animals do the hurting, you stay standing. <b>Defend</b> grants Block (🛡) to absorb HP damage; other skills clear pressure or fetch lures (<i>Rummage the Satchel</i> digs a lure out of your draw pile). Block resets at the start of your next turn — spend it the turn you make it.</p>
+        <p className="mt-2">Read the enemy's telegraphed <b>Intent</b> each turn and the <b>Incoming</b> bar — block, sacrifice, Mime, or Kangaroo accordingly. Cards drift back via the discard pile; when your draw pile empties, the discard reshuffles in.</p>
+        <p className="mt-2">Bait early, place for adjacency, feed the leavers, and let the woods win it. Finish the Bursar at your leisure — then pick your wizard for real.</p>
       </>),
       cta: 'Got it — finish him',
       waitsForAction: false,
