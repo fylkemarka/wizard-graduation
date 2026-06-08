@@ -13087,6 +13087,15 @@ export default function App() {
       enemy={enemy} enemyComposure={enemyComposure} enemyHp={enemyHp}
       companion={companion} castTarget={castTarget} onSetCastTarget={setSpellTarget}
       enemyTurnSkipped={enemySkipNextTurn}
+      enemyWillSloth={
+        // Predict the sloth slow on the UPCOMING enemy turn so the intent
+        // panel can show it BEFORE you commit (Alan, 2026-06-08: "I couldn't
+        // tell the effect was going into effect"). A sloth on the board makes
+        // the next enemy turn skip iff the alternation toggle is currently
+        // false (it flips to true → skip). Matches applyEnemyIntent's logic.
+        SLOT_ORDER.some(s => tray[s]?.kind === 'animal' && getAnimal(tray[s].animalId)?.slowsEnemy)
+        && !slothSkipToggleRef.current
+      }
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
       incomingProjection={projectIncomingDamage(enemyIntent)}
       peekedNextIntent={peekedNextIntent}

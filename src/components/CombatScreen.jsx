@@ -35,7 +35,7 @@ function StatBar({ value, max, fillClass, label }) {
 
 export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemyIntent, intentTick, incomingProjection, peekedNextIntent,
                        companion = null, castTarget = 'main', onSetCastTarget = () => {},
-                       enemyTurnSkipped = false,
+                       enemyTurnSkipped = false, enemyWillSloth = false,
                        enemyDmgMult, playerDmgMult,
                        enemyDmgTurns = 0, playerDmgTurns = 0,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
@@ -397,8 +397,16 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               🧱 WALL UP — the enemy's next turn is skipped. Nothing below will happen.
             </div>
           )}
+          {/* Sloth slow — telegraph that the upcoming enemy turn is too slow
+              to act, so the dimmed intent below won't fire (Alan 2026-06-08). */}
+          {!enemyTurnSkipped && enemyWillSloth && (
+            <div data-testid="enemy-slothd"
+                 className="px-3 py-1.5 bg-iris-900/70 border-b border-iris-600 text-iris-200 text-sm font-bold flex items-center gap-2">
+              🦥 SLOTH'D — time dilates; the enemy is too slow to act this turn.
+            </div>
+          )}
           <div key={`intent-${intentTick}`}
-               className={`intent-flash px-3 py-2 cursor-help ${enemyTurnSkipped ? 'opacity-40 line-through' : ''}`}
+               className={`intent-flash px-3 py-2 cursor-help ${(enemyTurnSkipped || enemyWillSloth) ? 'opacity-40 line-through' : ''}`}
                title={intentTooltip(enemyIntent) || 'No intent yet — it will telegraph what the enemy plans before their turn.'}>
             <div className="text-xs uppercase text-ember-300 tracking-widest">Intent <span className="text-ember-400">ⓘ</span></div>
             <div className="text-lg">
