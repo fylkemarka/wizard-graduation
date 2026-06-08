@@ -226,8 +226,8 @@ const HANDLER_TACTIC_UTIL = [
   // New bonus cards (Alan, 2026-06-07) — mirror src/App.jsx CARDS.
   { id: 'c-trough',         name: 'Trough',                cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { troughFeed: 3, exhaust: true } },
   { id: 'c-animal-midnight',name: 'Animal Midnight',       cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'animalMidnight' } },
-  { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 3, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
-  { id: 'c-the-horde',      name: 'The Horde',             cost: 3, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
+  { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
+  { id: 'c-the-horde',      name: 'The Horde',             cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
   { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 2 } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
@@ -1187,9 +1187,11 @@ function applyHandlerSkill(state, combat, card) {
     if (single.length >= 2) {
       single.sort((p, q) => (ANIMALS[q.slot.animalId]?.attack || 0) - (ANIMALS[p.slot.animalId]?.attack || 0));
       const tmpl = single[0].slot.animalId;
+      // Iter-2: all single-slot animals take the highest duration among them.
+      const maxDur = single.reduce((m, x) => Math.max(m, x.slot.durationRemaining || 0), 0);
       for (const x of single) {
-        if (x.slot.animalId === tmpl) continue;
         x.slot.animalId = tmpl;
+        x.slot.durationRemaining = maxDur;
         x.slot.nextAttackMult = 1; x.slot.extraAttacks = 0;
       }
     }
@@ -1754,7 +1756,7 @@ function handlerApplyIntent(state, combat, intent) {
     // Thread / defense relics in the baseline), so a flat floor matches.
     if (hasHandlerPower(state, 'animalMidnight')) {
       const animalCount = SLOTN.filter(s => combat.htray[s]?.kind === 'animal').length;
-      const mid = animalCount >= 3 ? 4 : animalCount >= 1 ? 3 : 0;
+      const mid = animalCount >= 3 ? 5 : animalCount >= 1 ? 3 : 0;
       if (mid > 0) raw = Math.max(1, raw - mid);
     }
     const hpBefore = state.hp;
@@ -5288,6 +5290,17 @@ function aiPickHandlerReward(state) {
   if (!ownedIds.has('c-animal-midnight') && hpDefenseCount < 4 && rnd() < 0.6) {
     return HANDLER_CARDS_BY_ID['c-animal-midnight'];
   }
+  // Iter-2 (design panel): surface the burst cards for real testing. The
+  // candidate pool is ~30 cards with only 2 non-special slots, so a flat
+  // score bump wasn't enough — inject one not-yet-owned burst card into the
+  // candidate set ~40% of the time once the deck already has an HP answer, so
+  // the sim actually exercises Horde/Mound/Herds/Trough as the structural
+  // composure-clock closers the panel identified.
+  if (hpDefenseCount >= 1 && rnd() < 0.4) {
+    const burstIds = ['c-the-horde', 'c-light-the-mound', 'c-move-in-herds', 'c-trough'];
+    const unowned = burstIds.filter(id => !ownedIds.has(id));
+    if (unowned.length) return HANDLER_CARDS_BY_ID[pickRandom(unowned)];
+  }
   // Exactly ONE special utility lure is always on offer after a normal combat
   // (mirrors App.jsx normal-combat handler draft). Prefer an unowned one.
   const unownedSpecial = SPECIAL_LURE_CARDS.filter(c => !ownedIds.has(c.id));
@@ -6044,6 +6057,7 @@ function simRun(forcedLane = null) {
   };
 
   for (const act of ACTS) {
+    state.currentActId = act.id; // for aiPickHandlerReward's act-gated draft bias
     // 3 normals
     for (let i = 0; i < 3; i++) {
       const r = runCombat(state, pickRandom(ACT_NORMALS[act.id]), tele);

@@ -269,7 +269,12 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 + ⛧ Weak 1', riders: { weak: 1 } },
       // v2.9 burst — the Devourer's "DEVOUR" is a 1-shot KO risk.
-      { kind: 'attack', value: 18, weight: 1, telegraph: '⚔ 18 (DEVOUR)' },
+      // v3.5 (1000-run iter-2): DEVOUR 18→16 (post-scalar 23→20). The 23 was
+      // a genuine outlier — bigger than any Act-3 boss single hit, on an Act-2
+      // ELITE — and single spikes dodge Animal Midnight's per-swing cut, so
+      // the player-tool buff couldn't answer it. Conditional enemy nerf,
+      // triggered because the Animal Midnight −5 underdelivered against it.
+      { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (DEVOUR)' },
     ] },
   { id: 'e3-boss-anvil', act: 2, name: 'The Anvil-Forged', composureMax: 88, hpMax: 50, tier: 'boss',
     // v2.4: Anvil flipped from handler-resist to handler-favored. It's

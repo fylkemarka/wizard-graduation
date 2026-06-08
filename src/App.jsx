@@ -261,13 +261,13 @@ const CARDS = [
     flavor: 'You set it out and step back. Dignity is for animals who had to ask.' },
   { id: 'c-animal-midnight', name: 'Animal Midnight', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'animalMidnight' },
-    desc: 'Power. While you have an animal in play, enemy attacks deal 3 less per swing — 4 less with 3 animals out.',
+    desc: 'Power. While you have an animal in play, enemy attacks deal 3 less per swing — 5 less with 3 animals out.',
     flavor: 'After a certain hour the animals outnumber the reasons. The room gets careful.' },
-  { id: 'c-move-in-herds', name: 'They DO Move in Herds', cost: 3, type: 'skill', rarity: 'rare', lane: 'handler',
+  { id: 'c-move-in-herds', name: 'They DO Move in Herds', cost: 2, type: 'skill', rarity: 'rare', lane: 'handler',
     effects: { herdConvert: true, exhaust: true },
-    desc: 'Pick a summoned animal. Every other single-slot animal becomes that animal too (turns remaining unchanged; multi-slot animals are unaffected). Exhaust.',
+    desc: 'Pick a summoned animal. Every other single-slot animal becomes that animal too, and all of them take the highest turns-remaining among them (multi-slot animals are unaffected). Exhaust.',
     flavor: 'Clever girl. And, it transpires, persuasive.' },
-  { id: 'c-the-horde', name: 'The Horde', cost: 3, type: 'skill', rarity: 'rare', lane: 'handler',
+  { id: 'c-the-horde', name: 'The Horde', cost: 2, type: 'skill', rarity: 'rare', lane: 'handler',
     effects: { damagePerSummonThisCombat: 1 },
     desc: 'Deal composure damage equal to the number of animals you have summoned this combat.',
     flavor: 'You did not, strictly, plan for this many. They came anyway, and they remember.' },
@@ -9335,30 +9335,39 @@ export default function App() {
   }
 
   // They DO Move in Herds — the clicked animal is the template; every OTHER
-  // single-slot animal becomes that species, KEEPING its own durationRemaining
-  // (and feedReceived — it's already alive). Multi-slot animals (combines with
-  // `spans`) are skipped entirely, as both template-source and conversion
-  // target. The template's species/attackBonus copy; per-slot riders reset.
+  // single-slot animal becomes that species. Iter-2 (design panel): all
+  // single-slot animals (incl. the template) take the HIGHEST turns-remaining
+  // among them, so it's a go-wide capstone that extends the herd to feed a
+  // bigger next-turn Horde, not a tempo sink. Multi-slot combines (`spans`)
+  // are skipped as both template and target. Per-slot one-shot riders reset.
   function herdClickSlot(slotName) {
     if (!herdPromptActive) return;
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'animal' || (Array.isArray(slot.spans) && slot.spans.length > 0)) return;
     const species = slot.animalId;
     const animal = getAnimal(species);
+    // Max duration among all single-slot animals (the herd's new floor).
+    const maxDur = ['intro', 'subject', 'target'].reduce((m, sn) => {
+      const s = tray[sn];
+      if (s?.kind === 'animal' && !(Array.isArray(s.spans) && s.spans.length > 0)) {
+        return Math.max(m, s.durationRemaining || 0);
+      }
+      return m;
+    }, 0);
     let converted = 0;
     setTray(p => {
       const next = { ...p };
       for (const sn of ['intro', 'subject', 'target']) {
         const s = next[sn];
-        if (sn === slotName) continue;
         if (s?.kind !== 'animal') continue;
         if (Array.isArray(s.spans) && s.spans.length > 0) continue; // leave combines alone
-        if (s.animalId === species) continue; // already this species
+        if (sn === slotName) { next[sn] = { ...s, durationRemaining: maxDur }; continue; } // template inherits floor too
+        if (s.animalId === species) { next[sn] = { ...s, durationRemaining: maxDur }; continue; }
         next[sn] = {
           ...s,
           animalId: species,
+          durationRemaining: maxDur,
           summonSet: slot.summonSet || null,
-          // duration unchanged; reset one-shot riders that don't carry across.
           nextAttackMult: 1,
           extraAttacks: 0,
         };
@@ -11497,7 +11506,7 @@ export default function App() {
     // per-swing reduction is capped at 6 so swings never fully zero out.
     const projAnimalCount = SLOT_ORDER.filter(s => tray[s]?.kind === 'animal').length;
     const hasMidnight = powers.some(p => p.installPower?.id === 'animalMidnight');
-    const midnightReduction = hasMidnight ? (projAnimalCount >= 3 ? 4 : projAnimalCount >= 1 ? 3 : 0) : 0;
+    const midnightReduction = hasMidnight ? (projAnimalCount >= 3 ? 5 : projAnimalCount >= 1 ? 3 : 0) : 0;
     const reduction = Math.min(6, Math.min(2, rawReduction) + threadReduction + midnightReduction);
     const swingReduction = nextAttackSwingReduction > 0 ? nextAttackSwingReduction : 0;
     const holdOnReduce = holdOnArmed ? (holdOnValue || 0) : 0;
@@ -11826,7 +11835,7 @@ export default function App() {
       // that's what's actually on the field when the enemy swings.
       const midnightCount = SLOT_ORDER.filter(s => boardForMaulRef.current?.[s]?.kind === 'animal').length;
       const hasMidnight = powers.some(p => p.installPower?.id === 'animalMidnight');
-      const midnightReduction = hasMidnight ? (midnightCount >= 3 ? 4 : midnightCount >= 1 ? 3 : 0) : 0;
+      const midnightReduction = hasMidnight ? (midnightCount >= 3 ? 5 : midnightCount >= 1 ? 3 : 0) : 0;
       const reduction = Math.min(6, Math.min(2, rawReduction) + threadReduction + midnightReduction);
       // v3.4.26 (Alan: "I'm not taking damage" investigation) — log
       // every reduction layer that touches incoming damage so we can
