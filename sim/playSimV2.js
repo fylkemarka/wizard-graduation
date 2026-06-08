@@ -236,6 +236,8 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
   { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
   { id: 'c-palpable-sadness',  name: 'Palpable Sadness',  cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'palpableSadness' } },
+  { id: 'c-memorial',          name: 'Memorial',          cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'memorial' } },
+  { id: 'c-strays',            name: 'Strays',            cost: 1, type: 'handler-skill', rarity: 'common', effects: { spawnFodder: 2 } },
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'costOfLittering' } },
   { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 2, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
   { id: 'c-last-supper',   name: 'Last Supper',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { sacrificeForValue: true } },
@@ -250,7 +252,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-animal-midnight',name: 'Animal Midnight',       cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'animalMidnight' } },
   { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
   { id: 'c-the-horde',      name: 'The Horde',             cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
-  { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 2 } },
+  { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 3 } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -880,7 +882,11 @@ function dealComposureAllSim(state, combat, dmg) {
 function noteSacrificeSim(state, combat, n = 1) {
   combat.sacrifices = (combat.sacrifices || 0) + n;
   if (hasHandlerPower(state, 'palpableSadness')) {
-    for (let i = 0; i < n; i++) dealComposureAllSim(state, combat, 3);
+    for (let i = 0; i < n; i++) dealComposureAllSim(state, combat, 4);
+  }
+  // Memorial fires on sacrifices here; natural exits fire it in the tick.
+  if (hasHandlerPower(state, 'memorial')) {
+    for (let i = 0; i < n; i++) dealComposureAllSim(state, combat, 4);
   }
 }
 // One funnel per summon: Horde counter (combat.summons) + Cost of Littering
@@ -1212,6 +1218,15 @@ function applyHandlerSkill(state, combat, card) {
     }
     if (departed) noteHandlerExit(state, combat, departed);
     noteSacrificeSim(state, combat, departed);
+  }
+  // Strays — drop N 1-turn fodder bodies into open slots immediately.
+  if (fx.spawnFodder) {
+    const open = SLOT.filter(s => combat.htray[s] == null);
+    const placed = open.slice(0, fx.spawnFodder);
+    for (const s of placed) {
+      combat.htray[s] = makeAnimalSlot('stray', 0, null);
+      bumpSummonsSim(state, combat, 1);
+    }
   }
   // Trough — the next 3 summoned animals arrive already fed.
   if (fx.troughFeed) combat.troughCharges = (combat.troughCharges || 0) + fx.troughFeed;
@@ -1878,7 +1893,13 @@ function handlerEndOfTurnTick(state, combat) {
 
   // The Whisperer: any animal leaving play banks a draw for next turn.
   const whispererInstalled = hasHandlerPower(state, 'whisperer');
-  const noteExit = () => { if (whispererInstalled) combat.whisperPending = (combat.whisperPending || 0) + 1; };
+  // Memorial: every natural departure deals 4 composure to all enemies
+  // (sacrifices fire it in noteSacrificeSim — these paths never overlap).
+  const memorialInstalled = hasHandlerPower(state, 'memorial');
+  const noteExit = () => {
+    if (whispererInstalled) combat.whisperPending = (combat.whisperPending || 0) + 1;
+    if (memorialInstalled) dealComposureAllSim(state, combat, 4);
+  };
 
   const onExit = (animal) => {
     const fx = animal?.onExit; if (!fx) return;

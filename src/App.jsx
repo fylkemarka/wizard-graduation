@@ -232,8 +232,21 @@ const CARDS = [
     flavor: 'Someone has to go first. The committee has determined it will not be the big one.' },
   { id: 'c-palpable-sadness', name: 'Palpable Sadness', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'palpableSadness' },
-    desc: 'Power. Every time you sacrifice an animal, deal 3 composure damage to all enemies.',
+    desc: 'Power. Every time you sacrifice an animal, deal 4 composure damage to all enemies.',
     flavor: 'The grief is genuine. It is also, you will note, weaponised.' },
+  // Sacrifice-engine anchor (Alan, 2026-06-08): turns ALL board churn — every
+  // sacrifice AND every natural exit — into AoE composure, so a deck of cheap
+  // short-lived bodies (see Strays) becomes a damage engine.
+  { id: 'c-memorial', name: 'Memorial', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'memorial' },
+    desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — deal 4 composure damage to all enemies.',
+    flavor: 'A short service for each of them. The enemy is required to attend.' },
+  // Fodder generator (Alan, 2026-06-08): bodies for the sacrifice loop and
+  // Memorial. Two 1-turn strays arrive at once into open slots.
+  { id: 'c-strays', name: 'Strays', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { spawnFodder: 2 },
+    desc: 'Summon two Strays into open slots — each swings for 2 and leaves after 1 turn. Bodies for sacrifice and Memorial.',
+    flavor: 'They followed you home. All of them. It is now, apparently, your problem.' },
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'costOfLittering' },
     desc: 'Power. Deal 5 composure damage to all enemies for every 5 animals you summon this combat.',
@@ -293,8 +306,8 @@ const CARDS = [
     desc: 'Deal composure damage equal to the number of animals you have summoned this combat.',
     flavor: 'You did not, strictly, plan for this many. They came anyway, and they remember.' },
   { id: 'c-light-the-mound', name: 'Light the Mound', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
-    effects: { damagePerSacrificeThisCombat: 2 },
-    desc: 'Deal 2 composure damage for each animal you have sacrificed this combat.',
+    effects: { damagePerSacrificeThisCombat: 3 },
+    desc: 'Deal 3 composure damage for each animal you have sacrificed this combat.',
     flavor: 'A respectful blaze. Everyone agrees they would have wanted this. No one asked them.' },
 
   // ---- COMMON ----
@@ -8259,6 +8272,28 @@ export default function App() {
         logBits.push(`🐦 Murmuration — no birds in play.`);
       }
     }
+    // Strays — drop N 1-turn fodder bodies into open slots immediately. Bodies
+    // for sacrifice-for-Block and the Memorial / Light the Mound engine.
+    if (fx.spawnFodder) {
+      const open = SLOT_ORDER.filter(s => !tray[s] || tray[s] === null);
+      const placed = open.slice(0, fx.spawnFodder);
+      if (placed.length === 0) {
+        logBits.push(`🐈‍⬛ Strays — no open slot for them. They sulk off.`);
+      } else {
+        const fodder = getAnimal('stray');
+        setTray(p => {
+          const n = { ...p };
+          for (const s of placed) n[s] = {
+            kind: 'animal', animalId: 'stray',
+            durationRemaining: fodder?.duration || 1,
+            predatorProgress: 0, adjacentSpawnProgress: 0, summonSet: null,
+          };
+          return syncTrayLegacy(n);
+        });
+        for (let i = 0; i < placed.length; i++) noteAnimalSummoned(1);
+        logBits.push(`🐈‍⬛ Strays — ${placed.length} arrive (2 atk, leave after 1 turn).`);
+      }
+    }
     // The Horde — deal composure equal to animals summoned this combat.
     if (fx.damagePerSummonThisCombat) {
       const dmg = animalsSummonedRef.current * fx.damagePerSummonThisCombat;
@@ -9258,7 +9293,12 @@ export default function App() {
     animalsSacrificedRef.current += n;
     setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
     if (hasHandlerPower('palpableSadness')) {
-      for (let i = 0; i < n; i++) dealComposureToAll(3, `😢 Palpable Sadness — 3 composure to all enemies.`);
+      for (let i = 0; i < n; i++) dealComposureToAll(4, `😢 Palpable Sadness — 4 composure to all enemies.`);
+    }
+    // Memorial fires on sacrifices here; natural exits fire it in the
+    // end-of-turn tick (one AoE per departed animal).
+    if (hasHandlerPower('memorial')) {
+      for (let i = 0; i < n; i++) dealComposureToAll(4, `⚰️ Memorial — 4 composure to all enemies (a sacrifice departs).`);
     }
   };
 
@@ -11026,6 +11066,19 @@ export default function App() {
         // the closure-vs-functional batching race.
         recycleToDiscard.push(...luresEaten);
         pushLog(`🪱 Eaten ${luresEaten.length === 1 ? 'lure' : 'lures'} → discard.`);
+      }
+      // Memorial — every animal that left play THIS tick (natural exit /
+      // short-stay) deals 4 composure to all enemies. Sacrifices fire it in
+      // noteAnimalSacrificed instead, so the two paths never double-count.
+      // Folded into composureDealt and can land the KO (summonerKilledEnemy).
+      if (hasHandlerPower('memorial') && hTick.exits.length > 0) {
+        for (const _ex of hTick.exits) {
+          const post = applyDamageToEnemyComposure(4);
+          hTick.composureDealt += 4;
+          if (post <= 0) summonerKilledEnemy = true;
+          if (companionRef.current) damageCompanion(4);
+        }
+        pushLog(`⚰️ Memorial — ${hTick.exits.length * 4} composure to all enemies (${hTick.exits.length} departed).`);
       }
       // Emit the menagerie's end-of-turn output as the Handler's "cast" —
       // the wit-equivalent per-turn combat signal. Board pressure (animals

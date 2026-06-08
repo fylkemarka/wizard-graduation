@@ -396,6 +396,19 @@ export const ANIMALS = {
     flavor: 'Roomy, surprisingly clean, smells faintly of eucalyptus. You have had worse hiding places.',
     desc: 'Click and spend 2 energy to duck into the pouch: your turn ends and you take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
   },
+  // Fodder body (Alan, 2026-06-08) — summoned in pairs by the Strays card.
+  // 1-turn life, small swing; exists to be sacrificed or to leave and feed
+  // Memorial / Light the Mound. No feedKey (never asks to be fed).
+  stray: {
+    name: 'Stray',
+    icon: '🐈‍⬛',
+    attack: 2,
+    attackPool: 'composure',
+    duration: 1,
+    special: true,
+    flavor: 'It has decided you are family now. The arrangement is, at best, provisional.',
+    desc: 'A 1-turn body. Swings for 2, then wanders off — fodder for sacrifice or Memorial.',
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────
