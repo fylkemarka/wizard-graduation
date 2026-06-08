@@ -278,9 +278,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               <ArtSlot src={`/art/enemies/${enemy.id}.png`} alt={enemy.name}
                        className="w-14 h-14 rounded-md border-2 border-ember-700 object-cover shrink-0" />
             )}
-            <div>
-            <div className="font-display text-base text-ember-300 flex items-center gap-2 flex-wrap leading-tight">
-              {enemy?.name}
+            <div className="min-w-0">
+            {/* text-sm + break-words so long names (e.g. "Bartholomew
+                Linenfast (still adjusting the hem)") wrap inside the narrow
+                1/5 enemy box instead of spilling over (Alan, 2026-06-08). */}
+            <div className="font-display text-sm text-ember-300 flex items-center gap-x-2 gap-y-0.5 flex-wrap leading-tight break-words">
+              <span className="break-words">{enemy?.name}</span>
               {companion && castTarget === 'main' && (
                 <span className="px-1.5 py-0.5 rounded bg-gold-600 text-ink-800 text-[9px] uppercase tracking-widest font-bold"
                       title="Your casts are aimed at this one. Click the companion below to switch.">

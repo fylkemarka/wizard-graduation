@@ -335,11 +335,11 @@ export const ANIMALS = {
     icon: '🦥',
     attack: 0,
     attackPool: 'composure',
-    duration: 3,
+    duration: 4, // 3 → 4 (Alan, 2026-06-08): stays one turn longer.
     special: true,
     slowsEnemy: true,
     flavor: 'It will get here. It has every intention of getting here.',
-    desc: 'Slow to arrive, and does not attack. While it hangs around, time dilates: the enemy acts at half speed, skipping every other turn. Stays 3 turns; replay its lure to extend.',
+    desc: 'Slow to arrive, and does not attack. While it hangs around, time dilates: the enemy acts at half speed, skipping every other turn. Stays 4 turns; replay its lure to extend.',
   },
   // ─────────────────────────────────────────────────────────────────────
   // BATCH 2 — PLAYER-ACTIVATED abilities (Alan, 2026-06-05). These don't act

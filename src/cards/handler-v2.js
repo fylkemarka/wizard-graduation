@@ -76,8 +76,8 @@ const SPECIAL_LURE_CARDS = [
     flavor: 'Bruised, generous, and entirely beside the point.' },
   { id: 'cv2-l-low-branch', name: 'A Low, Slow Branch', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'rare', tier: 2, special: true,
-    summon: { animalId: 'sloth', turnsToArrive: 4 },
-    desc: 'In 4T (it is, after all, a sloth), summons a Sloth (0 attack). While it hangs around, the enemy acts at half speed — skipping every other turn. No feeding needed; replay to extend.',
+    summon: { animalId: 'sloth', turnsToArrive: 3 }, // 4 → 3 (Alan, 2026-06-08)
+    desc: 'In 3T, summons a Sloth (0 attack). While it hangs around, the enemy acts at half speed — skipping every other turn. Stays 4 turns. No feeding needed; replay to extend.',
     flavor: 'An invitation with no particular deadline. It will be honoured eventually.' },
   // Batch 2 — player-activated abilities. Click the on-board animal to spend
   // its verb (App.jsx activateAnimalFromSlot).
