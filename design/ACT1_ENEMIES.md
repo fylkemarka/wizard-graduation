@@ -97,16 +97,20 @@ or EXISTING enemies. **BUILT** (App + sim):
 - **Double/Triple Maul** (`maulCount N` on a maul) — tears the N strongest
   animals off at once. On Warp (double snap).
 
-**QUEUED** (ranked by effort, not yet built):
-1. **Animal Freeze** — mark an animal; it can't attack for X turns. *(Medium:
-   per-slot frozenTurns flag checked in the attack tick, App + sim.)*
-2. **Silence** — block/limit new summons for X turns (or cap to 1/turn).
-   *(Medium: a summon-lock status checked when a lure is played.)*
-3. **Turn Against** — summoned animals attack the PLAYER this turn instead of
-   the enemy. *(Medium-heavy: re-route the animal-attack tick at the player.)*
-4. **Betrayal** — convert a summoned animal into the enemy's companion (it now
-   fights you). *(Heavy: move an animal off the board into a companion slot;
-   needs the companion-array work for the cleanest version.)*
+**ALSO BUILT** (App + sim, 2026-06-08):
+- **Animal Freeze** (`freeze N`) — freezes your strongest animal; it can't
+  attack for N turns (per-slot `frozenTurns`, ticks down in the attack tick;
+  ❄ on the pill). On **The Pattern-Maker** (elite).
+- **Silence** (`silence N`) — no new summons for N turns (lure plays blocked,
+  🤐 chip; ticks down per turn). On **The Silent Spinner** (elite) — perfect fit.
+- **Turn Against** (`turnAgainst`) — next end-of-turn, the menagerie strikes
+  YOUR composure instead of the enemy (telegraphed 🔄 chip so you can spend
+  them first). On **The Tapestry Walker** (boss).
+- **Betrayal** (`betray`) — steals your strongest animal as a Turncoat
+  companion that hits your composure (only when the companion slot is free;
+  uses `boardFullRef` so it can grab a just-arrived animal). On **The Spinster
+  Matron** (elite) — "always room for one more."
+e2e: handler-hostile-abilities (silence/freeze/betray) + act1-enemy-mechanics.
 
 ## Deferred: true 3-simultaneous fights
 The single `companion` slot supports duos + the `summon` mechanic (which adds

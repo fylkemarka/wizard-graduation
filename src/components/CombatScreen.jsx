@@ -87,6 +87,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        onCancelWellDrilled = () => {},
                        drilledSpecies = {},
                        summonStrength = 0,
+                       silencedTurns = 0,
+                       animalsTurned = false,
                        houseRulesPromptActive = false,
                        onHouseRulesClick = () => {},
                        onCancelHouseRules = () => {},
@@ -690,6 +692,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {isHandler && summonStrength > 0 && (
             <span data-testid="summon-strength" title={`Summon Strength — every one of your animals attacks for +${summonStrength} (rest of combat).`}
                   className="font-mono text-sm text-ember-300">💪{summonStrength}</span>
+          )}
+          {isHandler && silencedTurns > 0 && (
+            <span data-testid="silenced" title={`Silenced — you can't play lures (no new summons) for ${silencedTurns} more turn${silencedTurns > 1 ? 's' : ''}.`}
+                  className="font-mono text-sm text-iris-300">🤐{silencedTurns}</span>
+          )}
+          {isHandler && animalsTurned && (
+            <span data-testid="animals-turned" title="Turned — your animals will attack YOUR composure at the end of this turn unless you sacrifice / spend them first."
+                  className="font-mono text-sm text-rose-300 animate-pulse-soft">🔄 turned</span>
           )}
           {isWit && (
             <span title="Words Bank — Crescendo's currency. Only Crescendo-school cards add (+1 each). Cap 10. Spent at the CLIMAX cast."
@@ -1805,9 +1815,11 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           {armed && (
             <span className="font-mono text-[10px] opacity-70">{armedLabel.replace(/^ · /, '')}</span>
           )}
-          <span className="font-bold text-center text-base">{animal?.icon} {animal?.name}</span>
+          <span className="font-bold text-center text-base">{(card.frozenTurns || 0) > 0 ? '❄ ' : ''}{animal?.icon} {animal?.name}</span>
           <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded bg-parchment-100/95 text-ink-800 text-center leading-tight">
-            {(animal?.attack || 0) > 0
+            {(card.frozenTurns || 0) > 0
+              ? `❄ frozen — can't attack (${card.frozenTurns}t)`
+              : (animal?.attack || 0) > 0
               ? `${effAnimalAttack(animal, card, slotName)} dmg / turn · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`
               : `(flops) · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`}
             {predatorNote}

@@ -3945,6 +3945,14 @@ export default function App() {
   // tick (stale-closure discipline). Reset per combat.
   const [summonStrength, setSummonStrength] = useState(0);
   const summonStrengthRef = useRef(0);
+  // Handler-hostile enemy abilities (Alan, 2026-06-08). Silence: while > 0 the
+  // player can't play lures (no new summons). Turn Against: next end-of-turn
+  // tick, the menagerie attacks the PLAYER's composure instead of the enemy.
+  // Both ref-mirrored for the synchronous endTurn pass. Reset per combat.
+  const [silencedTurns, setSilencedTurns] = useState(0);
+  const silencedTurnsRef = useRef(0);
+  const [animalsTurned, setAnimalsTurned] = useState(false);
+  const animalsTurnedRef = useRef(false);
   // House Rules power — armed on install. Next click on an animal slot gives
   // that animal (and every other copy of the same species on the board) +2
   // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
@@ -4122,6 +4130,8 @@ export default function App() {
   // the `tray` closure — can read the CURRENT board synchronously. null for
   // non-handler lanes (no animals to maul).
   const boardForMaulRef = useRef(null);
+  // Full post-tick board (incl. just-arrived animals) for freeze/betray.
+  const boardFullRef = useRef(null);
   // Sloth (slowsEnemy, Alan 2026-06-03): toggles each enemy turn while a sloth
   // is on the board so the enemy skips every OTHER turn (time dilation). Reset
   // to false when no sloth is present so the cadence restarts cleanly.
@@ -5811,6 +5821,8 @@ export default function App() {
     setDrilledSpecies({}); drilledSpeciesRef.current = {};
     setLockedSpecies(null); lockedSpeciesRef.current = null;
     setSummonStrength(0); summonStrengthRef.current = 0;
+    setSilencedTurns(0); silencedTurnsRef.current = 0;
+    setAnimalsTurned(false); animalsTurnedRef.current = false;
     setTroughCharges(0); troughChargesRef.current = 0;
     setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
     setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0;
@@ -6217,6 +6229,13 @@ export default function App() {
     }
 
     if (card.slot === 'lure' && card.summon) {
+      // Silence (enemy ability): no new summons while silenced. Refund the
+      // energy and bail — the lure stays in hand.
+      if (silencedTurnsRef.current > 0) {
+        setEnergy(e => e + cost);
+        pushLog(`🤐 Silenced — you can't summon for ${silencedTurnsRef.current} more turn${silencedTurnsRef.current > 1 ? 's' : ''}. ${card.name} stays in hand.`);
+        return;
+      }
       const order = ['intro', 'subject', 'target'];
       // Special-lure FEED-TO-EXTEND (Alan, 2026-06-03): a special lure
       // replayed while its named animal is already on the board doesn't stage
@@ -10191,6 +10210,13 @@ export default function App() {
     // Fresh brace accumulator for this pass (see shieldBraceRef decl).
     shieldBraceRef.current = { block: 0, poise: 0 };
     postSwingVitalsRef.current = null;
+    // Silence ticks down once per player turn (this turn was blocked; next turn
+    // may be free). Lifts when it hits 0.
+    if (silencedTurnsRef.current > 0) {
+      silencedTurnsRef.current -= 1;
+      setSilencedTurns(silencedTurnsRef.current);
+      if (silencedTurnsRef.current === 0) pushLog(`🤐 The silence lifts — you can summon again.`);
+    }
     logEvent(TE.TURN_END, {
       enemyId: enemy?.id, hp, composure, energyLeft: energy, handSize: hand.length,
       trayStaged: (tray.intro ? 1 : 0) + (tray.subject ? 1 : 0) + (tray.target ? 1 : 0) + (tray.modifiers?.length || 0),
@@ -10711,7 +10737,13 @@ export default function App() {
           // 0-attack animals (Salmon — flops by design). nextAttackMult
           // multiplies this attack only (consumed below; reset in the
           // duration-tick branches).
-          if (!slot.eatenThisTurn && animal.attack > 0) {
+          // Freeze (enemy ability): a frozen animal can't attack. Tick its
+          // frozen counter down (the duration branches' `...slot` spread
+          // carries the mutated value forward).
+          if (!slot.eatenThisTurn && animal.attack > 0 && (slot.frozenTurns || 0) > 0) {
+            slot.frozenTurns = Math.max(0, (slot.frozenTurns || 0) - 1);
+            pushLog(`❄ ${animal.icon} ${animal.name} is frozen — doesn't attack${slot.frozenTurns > 0 ? ` (${slot.frozenTurns} more turn${slot.frozenTurns > 1 ? 's' : ''})` : ' (thaws next turn)'}.`);
+          } else if (!slot.eatenThisTurn && animal.attack > 0) {
             const atkMult = slot.nextAttackMult || 1;
             const ampMult = adjacentAmplifyMult(slotName, workingTray);
             const baseAtk = animal.copiesLeft ? copyLeftAttack(slotName, animal, workingTray) : animalAttackValue(animal, slot);
@@ -10725,7 +10757,13 @@ export default function App() {
             if (isRabid) atk = Math.round(atk * 1.5);
             const tacticLabel = isRabid ? ' (Rabid ×1.5)' : isShield ? ' (Shield → Block & Poise)' : '';
             hTick.attacks++;
-            if (isShield) {
+            // Turn Against (enemy ability): the menagerie strikes YOUR composure
+            // this turn instead of the enemy. Overrides the Shield stance — a
+            // turned animal isn't bracing for you.
+            if (animalsTurnedRef.current) {
+              setComposure(c => Math.max(0, c - atk));
+              pushLog(`🔄 ${animal.icon} ${animal.name} turns on you: -${atk} composure${multLabel}${ampLabel}${copyLabel}.`);
+            } else if (isShield) {
               setBlock(b => b + atk);
               setPoise(p => p + atk);
               // Mirror into the ref so applyEnemyIntent (same pass) sees it.
@@ -11200,6 +11238,9 @@ export default function App() {
         }
         pushLog(`⚰️ Memorial — ${hTick.exits.length * 4} composure to all enemies (${hTick.exits.length} departed).`);
       }
+      // Turn Against is a one-tick effect — the menagerie struck the player
+      // this turn; clear it so it doesn't persist.
+      if (animalsTurnedRef.current) { animalsTurnedRef.current = false; setAnimalsTurned(false); }
       // Emit the menagerie's end-of-turn output as the Handler's "cast" —
       // the wit-equivalent per-turn combat signal. Board pressure (animals
       // left standing + pending lures) lets us read engine cadence/uptime.
@@ -11235,6 +11276,14 @@ export default function App() {
         SLOT_ORDER.map(s => {
           const v = nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s];
           return [s, (v?.kind === 'animal' && preTickAnimalSlots.has(s)) ? v : null];
+        }));
+      // Full post-tick board (INCLUDING just-arrived animals) for abilities that
+      // target the current menagerie regardless of "out this turn" — freeze /
+      // betray. Maul stays restricted to boardForMaulRef.
+      boardFullRef.current = Object.fromEntries(
+        SLOT_ORDER.map(s => {
+          const v = nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s];
+          return [s, v?.kind === 'animal' ? v : null];
         }));
       if (summonerKilledEnemy) {
         // Combat is over — this early return skips the end-of-turn refill
@@ -12614,6 +12663,67 @@ export default function App() {
       } else {
         pushLog(`👹 ${e.name}: 🧹 ${intent.telegraph || 'looks for a stance to undo'} — you have none set.`);
       }
+    } else if (intent.kind === 'freeze') {
+      // Handler-hostile: freeze the strongest animal for N turns — it can't
+      // attack while frozen (frozenTurns ticks down in the end-of-turn tick).
+      const n = intent.value || 1;
+      const board = boardFullRef.current || tray;
+      let best = null, bestAtk = -1;
+      for (const s of SLOT_ORDER) {
+        const sl = (board[s] !== undefined ? board[s] : tray[s]);
+        if (sl?.kind !== 'animal') continue;
+        const atk = animalAttackValue(getAnimal(sl.animalId), sl);
+        if (atk > bestAtk) { bestAtk = atk; best = s; }
+      }
+      if (best) {
+        setTray(p => p[best]?.kind === 'animal' ? syncTrayLegacy({ ...p, [best]: { ...p[best], frozenTurns: n } }) : p);
+        const a = getAnimal(tray[best]?.animalId);
+        pushLog(`👹 ${e.name}: ❄ ${intent.telegraph || `freezes ${a?.name || 'your strongest animal'}`} — it can't attack for ${n} turn${n > 1 ? 's' : ''}.`);
+      } else {
+        pushLog(`👹 ${e.name}: ❄ ${intent.telegraph || 'reaches for an animal to freeze'} — nothing on the board.`);
+      }
+    } else if (intent.kind === 'silence') {
+      // Handler-hostile: no new summons for N turns. Existing lures/animals
+      // resolve; the player just can't PLAY new lures while silenced.
+      const n = intent.value || 1;
+      silencedTurnsRef.current = Math.max(silencedTurnsRef.current, n);
+      setSilencedTurns(silencedTurnsRef.current);
+      pushLog(`👹 ${e.name}: 🤐 ${intent.telegraph || 'silences the woods'} — no new lures for ${n} turn${n > 1 ? 's' : ''}.`);
+    } else if (intent.kind === 'turnAgainst') {
+      // Handler-hostile: next end-of-turn, the menagerie attacks YOUR composure
+      // instead of the enemy. Telegraphed, so the player can sacrifice/expend
+      // animals first. Consumed in the tick.
+      animalsTurnedRef.current = true;
+      setAnimalsTurned(true);
+      pushLog(`👹 ${e.name}: 🔄 ${intent.telegraph || 'turns your menagerie against you'} — next turn they strike YOU unless you spend them first.`);
+    } else if (intent.kind === 'betray') {
+      // Handler-hostile: steal the strongest animal — it leaves your board and
+      // joins the enemy as a Turncoat companion that hits your composure.
+      // Only when the companion slot is open (mirrors summon).
+      const board = boardFullRef.current || tray;
+      let best = null, bestAtk = -1, stolen = null;
+      for (const s of SLOT_ORDER) {
+        const sl = (board[s] !== undefined ? board[s] : tray[s]);
+        if (sl?.kind !== 'animal') continue;
+        const atk = animalAttackValue(getAnimal(sl.animalId), sl);
+        if (atk > bestAtk) { bestAtk = atk; best = s; stolen = sl; }
+      }
+      if (best && !companionRef.current) {
+        const a = getAnimal(stolen.animalId);
+        const updates = Array.isArray(stolen.spans) ? Object.fromEntries(stolen.spans.map(s => [s, null])) : { [best]: null };
+        setTray(p => syncTrayLegacy({ ...p, ...updates }));
+        const atk = Math.max(2, bestAtk);
+        const def = {
+          id: `turncoat-${stolen.animalId}`, name: `Turncoat ${a?.name || stolen.animalId}`,
+          composureMax: Math.max(10, atk * 3), tier: 'companion',
+          behaviors: [{ kind: 'attack', value: atk, pool: 'composure', weight: 3, telegraph: `🎭 ${atk} — turned on you` },
+                      { kind: 'attack', value: Math.max(1, Math.round(atk * 0.6)), weight: 1, telegraph: `⚔ ${Math.max(1, Math.round(atk * 0.6))}` }],
+        };
+        commitCompanion({ def, composure: def.composureMax, block: 0, intent: { ...def.behaviors[0] } });
+        pushLog(`👹 ${e.name}: 🗡 ${intent.telegraph || `turns ${a?.name || 'your animal'}`} — it defects! Drain its composure to put it down.`);
+      } else {
+        pushLog(`👹 ${e.name}: 🗡 ${intent.telegraph || 'tries to turn an animal'} — ${companionRef.current ? 'already has an ally' : 'nothing to turn'}.`);
+      }
     }
     // Riders: a combo intent can attach extra side-effects that fire AFTER
     // the main effect. Keys: weak (player potency down), vulnerable (player
@@ -13560,6 +13670,8 @@ export default function App() {
       onWellDrilledClick={wellDrilledClickSlot}
       drilledSpecies={drilledSpecies}
       summonStrength={summonStrength}
+      silencedTurns={silencedTurns}
+      animalsTurned={animalsTurned}
       onCancelWellDrilled={cancelWellDrilledPrompt}
       houseRulesPromptActive={houseRulesPromptActive}
       onHouseRulesClick={houseRulesClickSlot}

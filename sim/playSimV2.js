@@ -1047,7 +1047,12 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotNa
   const isShield = combat.tactic === 'shield';
   const isRabid  = combat.tactic === 'rabid';
   if (isRabid) atk = Math.round(atk * 1.5);
-  if (isShield) {
+  if (combat.animalsTurned) {
+    // Turn Against (enemy ability): the animal strikes the player's composure
+    // instead of the enemy. Overrides the Shield stance. Mirrors App.jsx.
+    state.composure = Math.max(0, state.composure - atk);
+    combat.totalDamageTaken = (combat.totalDamageTaken || 0) + atk;
+  } else if (isShield) {
     state.block += atk; state.poise += atk; combat.menagerieBlock += atk;
   } else {
     // Duo: animals ARE the handler's attacks — they follow the target
@@ -1531,6 +1536,8 @@ function aiTurnHandler(state, combat) {
   // Drillmaster — ramping Summon Strength: +1 every turn (mirrors App.jsx
   // start-of-turn power tick). Installed via installPower.
   if (hasHandlerPower(state, 'drillmaster')) combat.summonStrength = (combat.summonStrength || 0) + 1;
+  // Silence ticks down once per player turn (mirrors App.jsx endTurn).
+  if (combat.silencedTurns > 0) combat.silencedTurns -= 1;
   const whisperDraw = combat.whisperPending || 0;
   combat.whisperPending = 0;
   drawCards(state, HAND_SIZE + whisperDraw + (combat.turn === 1 ? (combat.fb.startCombatDraw || 0) : 0));
@@ -1768,9 +1775,12 @@ function aiTurnHandler(state, combat) {
       const ei = state.hand.findIndex(c => c.util === 'eatNow' && c.cost <= state.energy);
       if (ei >= 0) { playHandlerCard(state, combat, ei); continue; }
     }
+    // Silence (enemy ability): no new summons while silenced — skip all lure
+    // plays. Mirrors App.jsx's lure-play gate.
+    const silenced = (combat.silencedTurns || 0) > 0;
     const featherActive = combat.tactic === 'feather';
-    const luresInHand = state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length;
-    const shouldBuffet = !combat.buffetArmed && emptyCount() >= 2 && luresInHand >= 1;
+    const luresInHand = !silenced ? state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length : 0;
+    const shouldBuffet = !silenced && !combat.buffetArmed && emptyCount() >= 2 && luresInHand >= 1;
     const featherBuffetPriority = featherActive && luresInHand >= 2 && emptyCount() >= 2 && !combat.buffetArmed;
     if (featherBuffetPriority || shouldBuffet) {
       const bi = state.hand.findIndex(c => c.util === 'buffet' && c.cost <= state.energy);
@@ -1780,7 +1790,7 @@ function aiTurnHandler(state, combat) {
     const featherInHand = state.hand.some(c => c.type === 'tactic' && c.tactic?.id === 'feather' && c.cost <= state.energy);
     const lureInHand = state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length;
     const holdForFeather = animalCnt === 1 && featherInHand && lureInHand >= 2 && combat.tactic !== 'feather';
-    if (emptyCount() > 0 && !holdForFeather) {
+    if (emptyCount() > 0 && !holdForFeather && !silenced) {
       const li = pickBestLure(state, combat);
       if (li >= 0) { playHandlerCard(state, combat, li); continue; }
     }
@@ -2011,6 +2021,43 @@ function handlerApplyIntent(state, combat, intent) {
   } else if (intent.kind === 'undermineTactic') {
     // Dispel the active Pack Tactic (Spinster Matron). Mirrors App.jsx.
     combat.tactic = null;
+  } else if (intent.kind === 'freeze') {
+    // Freeze the strongest animal for N turns (Pattern-Maker). Mirrors App.jsx.
+    const n = intent.value || 1;
+    let best = null, bestAtk = -1;
+    for (const s of SLOTN) {
+      const sl = combat.htray[s];
+      if (sl?.kind !== 'animal') continue;
+      const a = ANIMALS[sl.animalId]; let atk = (a?.attack || 0); if (atk > 0) atk += (sl.attackBonus || 0) + (combat.summonStrength || 0);
+      if (atk > bestAtk) { bestAtk = atk; best = s; }
+    }
+    if (best) combat.htray[best].frozenTurns = n;
+  } else if (intent.kind === 'silence') {
+    // No new summons for N turns (Silent Spinner). Mirrors App.jsx.
+    combat.silencedTurns = Math.max(combat.silencedTurns || 0, intent.value || 1);
+  } else if (intent.kind === 'turnAgainst') {
+    // Next tick, the menagerie hits the player (Tapestry Walker). Mirrors App.jsx.
+    combat.animalsTurned = true;
+  } else if (intent.kind === 'betray') {
+    // Steal the strongest animal as a Turncoat companion (Spinster Matron).
+    if (!combat.companion) {
+      let best = null, bestAtk = -1;
+      for (const s of SLOTN) {
+        const sl = combat.htray[s];
+        if (sl?.kind !== 'animal') continue;
+        const a = ANIMALS[sl.animalId]; let atk = (a?.attack || 0); if (atk > 0) atk += (sl.attackBonus || 0) + (combat.summonStrength || 0);
+        if (atk > bestAtk) { bestAtk = atk; best = s; }
+      }
+      if (best) {
+        const sl = combat.htray[best];
+        if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
+        else combat.htray[best] = null;
+        const atk = Math.max(2, bestAtk);
+        const def = { id: `turncoat-${sl.animalId}`, name: `Turncoat`, comp: Math.max(10, atk * 3), tier: 'companion',
+          behaviors: [{ kind: 'attack', value: atk, pool: 'composure', weight: 3 }] };
+        combat.companion = { def, composure: def.comp, block: 0, intent: { ...def.behaviors[0] } };
+      }
+    }
   }
   if (intent.riders) {
     const r = intent.riders;
@@ -2219,7 +2266,11 @@ function handlerEndOfTurnTick(state, combat) {
     }
     const animal = ANIMALS[slot.animalId];
     if (!animal) { next[slotName] = null; continue; }
-    if (!slot.eatenThisTurn && animal.attack > 0) {
+    // Freeze (enemy ability): a frozen animal can't attack; tick it down (the
+    // `...slot` spread in the duration branches carries the value forward).
+    if (!slot.eatenThisTurn && animal.attack > 0 && (slot.frozenTurns || 0) > 0) {
+      slot.frozenTurns = Math.max(0, (slot.frozenTurns || 0) - 1);
+    } else if (!slot.eatenThisTurn && animal.attack > 0) {
       handlerAnimalAttack(state, combat, slot, animal, 1, work, slotName);
       // Deferred re-attacks armed this turn by On Three! / Stampede. The
       // one-shot nextAttackMult was spent by the natural swing above, so the
@@ -2304,6 +2355,8 @@ function handlerEndOfTurnTick(state, combat) {
     for (const s of SLOT) { const sl = next[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
     if (Object.values(counts).some(n => n >= 3)) combat.tactic = null;
   }
+  // Turn Against is a one-tick effect (mirrors App.jsx) — clear after the tick.
+  if (combat.animalsTurned) combat.animalsTurned = false;
   combat.htray = { intro: next.intro ?? null, subject: next.subject ?? null, target: next.target ?? null };
 }
 function flushStagedLures(state, combat) {
@@ -2341,6 +2394,8 @@ function runHandlerCombat(state, enemy, telemetry) {
     drilledSpecies: {}, // Well-Drilled — species → +2/stack on all + future copies
     lockedSpecies: null, // Pedigree — lures resolve to this species
     summonStrength: 0,  // Summon Strength — flat +N to every animal attack
+    silencedTurns: 0,   // Silence — no new summons while > 0
+    animalsTurned: false, // Turn Against — animals hit the player next tick
     sacrifices: 0,    // Light the Mound — animals deliberately sacrificed
     lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,

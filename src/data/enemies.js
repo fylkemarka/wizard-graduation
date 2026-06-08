@@ -175,6 +175,9 @@ export const ENEMIES = [
       { kind: 'attack', value: 9, pool: 'composure', weight: 1, telegraph: '🎭 9 (PATTERN COMPLETE)' },
       // HP-side burst — the pattern lashes out physically.
       { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
+      // Freeze (Alan, 2026-06-08): pins your strongest animal into the pattern
+      // — it can't attack for 2 turns. Work around it or wait it out.
+      { kind: 'freeze', value: 2, weight: 1, telegraph: 'pins your strongest animal into the pattern (frozen 2 turns)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 64, hpMax: 999, tier: 'elite', diff: 3,
     // v3.4.82: composure 50→64; base swing 8→10, whisper 6→8; self-block
@@ -183,6 +186,9 @@ export const ENEMIES = [
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 10,  weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      // Silence (Alan, 2026-06-08): the Silent Spinner imposes its vow on the
+      // woods — no new summons for 2 turns. Thematically perfect.
+      { kind: 'silence', value: 2, weight: 1, telegraph: 'imposes its silence (no new summons, 2 turns)' },
       // v2.9 burst — telegraphed big swing to HP. "Loud silence" is a
       // breaking-of-the-vow moment.
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
@@ -199,6 +205,9 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 4, weight: 2, telegraph: '⚔ 3×4' },
       { kind: 'attack', value: 9, pool: 'composure', weight: 1, telegraph: '🎭 9 (loom-song)' },
       { kind: 'block',  value: 10, weight: 1, telegraph: '🛡 10' },
+      // Turn Against (Alan, 2026-06-08): the Walker re-weaves your menagerie's
+      // will — next turn they strike YOUR composure unless you spend them first.
+      { kind: 'turnAgainst', weight: 1, telegraph: 're-weaves your menagerie — next turn they strike YOU' },
       // Maul (Alan, 2026-06-02): the Walker weaves your strongest beast into
       // the tapestry. Block it all or lose it. Boss-tier stakes.
       // v3.4.69 (1000-run cycle 1): weight 2→1 (~25%→~14%). Losing a 2-3-turn
@@ -294,6 +303,9 @@ export const ENEMIES = [
       // Tactic Undermine (Alan, 2026-06-08): dispels the Handler's active Pack
       // Tactic stance — punishes leaning on one stance, no-op for other lanes.
       { kind: 'undermineTactic', weight: 1, telegraph: 'unpicks your stance' },
+      // Betrayal (Alan, 2026-06-08): "always room for one more" — recruits your
+      // strongest animal as a Turncoat that hits your composure. Drain it down.
+      { kind: 'betray', weight: 1, telegraph: 'recruits your strongest animal into the household' },
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (a sharp summons)' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (a withering remark)' },
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (busy hands)' },
