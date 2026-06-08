@@ -218,6 +218,17 @@ const CARDS = [
     installPower: { id: 'wellDrilled' },
     desc: 'Pick a summoned animal. It — and every other copy of it on the board — gains +2 attack for the rest of combat.',
     flavor: 'They have, it turns out, been practising. Quietly. Without you.' },
+  // Monoculture / drilling archetype (Alan, 2026-06-08): commit to ONE species
+  // and snowball it. Pedigree makes the commit reliable; Best in Show pays off
+  // every repeat. Pairs with Well-Drilled (per-species +2) and the combines.
+  { id: 'c-pedigree', name: 'Pedigree', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { lockLureSpecies: true },
+    desc: 'Lock every lure to your most-numerous animal for the rest of combat — they only summon that species. Commit to the bloodline.',
+    flavor: 'You settle, at last, on a breed. The committee notes your decisiveness with suspicion.' },
+  { id: 'c-best-in-show', name: 'Best in Show', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'bestInShow' },
+    desc: 'Power. When you summon an animal whose species is already on the board, it arrives with +2 attack for the rest of combat.',
+    flavor: 'They match. They are, the judge concedes, a remarkably consistent set.' },
   { id: 'c-whisperer', name: 'The Whisperer', cost: 2, type: 'power', rarity: 'rare', lane: 'handler',
     installPower: { id: 'whisperer' },
     desc: 'Power. Whenever one of your animals leaves play, draw 1 next turn.',
@@ -3879,6 +3890,11 @@ export default function App() {
   // synchronous end-of-turn tick (stale-closure discipline). Reset per combat.
   const [drilledSpecies, setDrilledSpecies] = useState({});
   const drilledSpeciesRef = useRef({});
+  // Pedigree locks every lure to one species for the rest of combat — lure
+  // pools resolve to this id when they can produce it. Ref mirrors state for
+  // the synchronous end-of-turn transform. Reset per combat.
+  const [lockedSpecies, setLockedSpecies] = useState(null);
+  const lockedSpeciesRef = useRef(null);
   // House Rules power — armed on install. Next click on an animal slot gives
   // that animal (and every other copy of the same species on the board) +2
   // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
@@ -5758,6 +5774,7 @@ export default function App() {
     // New bonus-card per-combat resets (Alan, 2026-06-07).
     setHerdPromptActive(false);
     setDrilledSpecies({}); drilledSpeciesRef.current = {};
+    setLockedSpecies(null); lockedSpeciesRef.current = null;
     setTroughCharges(0); troughChargesRef.current = 0;
     setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
     setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0;
@@ -8272,6 +8289,24 @@ export default function App() {
         logBits.push(`🐦 Murmuration — no birds in play.`);
       }
     }
+    // Pedigree — lock all lures to the most-numerous on-board species for the
+    // rest of combat. Counts current animals; ties break to the first slot.
+    if (fx.lockLureSpecies) {
+      const counts = {};
+      for (const s of SLOT_ORDER) {
+        const sl = tray[s];
+        if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1;
+      }
+      let pick = null, pickN = 0;
+      for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
+      if (pick) {
+        lockedSpeciesRef.current = pick;
+        setLockedSpecies(pick);
+        logBits.push(`🧬 Pedigree — lures now only summon ${getAnimal(pick)?.name || pick}.`);
+      } else {
+        logBits.push(`🧬 Pedigree — no animal on the board to set the bloodline. Summon one first.`);
+      }
+    }
     // Strays — drop N 1-turn fodder bodies into open slots immediately. Bodies
     // for sacrifice-for-Block and the Memorial / Light the Mound engine.
     if (fx.spawnFodder) {
@@ -9814,6 +9849,8 @@ export default function App() {
       }
       if (forcedSpecies && pool && pool.includes(forcedSpecies)) {
         resolvedAnimalId = forcedSpecies;
+      } else if (lockedSpeciesRef.current && pool && pool.includes(lockedSpeciesRef.current)) {
+        resolvedAnimalId = lockedSpeciesRef.current; // Pedigree lock
       } else {
         resolvedAnimalId = pool && pool.length > 0
           ? pool[Math.floor(Math.random() * pool.length)]
@@ -9837,6 +9874,12 @@ export default function App() {
     pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives now${eatTroughFed ? ' (Trough: fed)' : ''}.`);
     if (slot.card) setDiscard(d => [...d, { ...slot.card, uid: uid() }]);
     const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
+    // Best in Show — matching a species already on the board → +2 attack.
+    let eatArrivalBonus = 0;
+    if (hasHandlerPower('bestInShow')) {
+      const already = SLOT_ORDER.some(s => s !== slotName && tray[s]?.kind === 'animal' && tray[s].animalId === resolvedAnimalId);
+      if (already) { eatArrivalBonus = 2; pushLog(`🏆 Best in Show — ${animal?.name || resolvedAnimalId} matches the set: +2 attack.`); }
+    }
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
       kind: 'animal',
       animalId: resolvedAnimalId,
@@ -9845,6 +9888,7 @@ export default function App() {
       adjacentSpawnProgress: 0,
       summonSet: slot.summonSet || null,
       feedReceived: eatTroughFed || undefined,
+      attackBonus: eatArrivalBonus || undefined,
     } }));
     setEatItPromptActive(false);
   }
@@ -10972,6 +11016,9 @@ export default function App() {
               }
               if (forcedSpecies && pool && pool.includes(forcedSpecies)) {
                 resolvedAnimalId = forcedSpecies;
+              } else if (lockedSpeciesRef.current && pool && pool.includes(lockedSpeciesRef.current)) {
+                // Pedigree: this lure's pool can make the locked species, so it does.
+                resolvedAnimalId = lockedSpeciesRef.current;
               } else {
                 resolvedAnimalId = pool && pool.length > 0
                   ? pool[Math.floor(Math.random() * pool.length)]
@@ -11004,6 +11051,18 @@ export default function App() {
               troughChargesRef.current -= 1;
               pushLog(`🪣 Trough — ${animal?.name || resolvedAnimalId} arrives already fed.`);
             }
+            // Best in Show — if this species is already on the board, the new
+            // arrival comes in with +2 attack for the rest of combat.
+            let arrivalBonus = 0;
+            if (hasHandlerPower('bestInShow')) {
+              const already = SLOT_ORDER.some(s => s !== slotName &&
+                (nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])?.kind === 'animal' &&
+                (nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])?.animalId === resolvedAnimalId);
+              if (already) {
+                arrivalBonus = 2;
+                pushLog(`🏆 Best in Show — ${animal?.name || resolvedAnimalId} matches the set: +2 attack.`);
+              }
+            }
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: resolvedAnimalId,
@@ -11012,6 +11071,7 @@ export default function App() {
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
               feedReceived: troughFed || undefined,
+              attackBonus: arrivalBonus || undefined,
             };
           } else {
             nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };

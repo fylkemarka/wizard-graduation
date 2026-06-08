@@ -232,6 +232,8 @@ const HANDLER_TACTIC_UTIL = [
   // The new effect-key skills are routed in playHandlerCard / applyHandlerSkill.
   { id: 'c-house-rules',   name: 'House Rules',     cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'houseRules' } },
   { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
+  { id: 'c-pedigree',      name: 'Pedigree',        cost: 1, type: 'handler-skill', rarity: 'common',   effects: { lockLureSpecies: true } },
+  { id: 'c-best-in-show',  name: 'Best in Show',    cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'bestInShow' } },
   { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
   { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
@@ -911,6 +913,15 @@ function makeAnimalSlot(animalId, youthBonus, summonSet, durBonus) {
     attackBonus: 0,
   };
 }
+// Best in Show — a fresh arrival whose species is already on the board comes
+// in with +2 attack. `board` is the live/projected htray view. Mutates slot.
+function applyBestInShowSim(state, combat, board, slot, selfSlot) {
+  if (!slot || !hasHandlerPower(state, 'bestInShow')) return slot;
+  const SLOT = ['intro', 'subject', 'target'];
+  const already = SLOT.some(s => s !== selfSlot && board[s]?.kind === 'animal' && board[s].animalId === slot.animalId);
+  if (already) slot.attackBonus = (slot.attackBonus || 0) + 2;
+  return slot;
+}
 // Trough: if a charge is available and the animal is a fed type, mark the
 // fresh slot fed and consume a charge. Mirrors App.jsx lure-transform.
 function applyTroughFeed(combat, slot) {
@@ -934,6 +945,8 @@ function resolveLureSpecies(lure, combat) {
     const kept = pool.filter(x => !excluded.includes(x));
     if (kept.length >= 2) pool = kept;
   }
+  // Pedigree lock — this lure's pool can make the locked species, so it does.
+  if (combat.lockedSpecies && pool && pool.includes(combat.lockedSpecies)) return combat.lockedSpecies;
   let id = (pool && pool.length) ? pool[Math.floor(Math.random() * pool.length)] : s.animalId;
   const base = ANIMALS[id];
   if (base?.elite && Math.random() < 0.035) id = base.elite;
@@ -1103,7 +1116,9 @@ function stageHandlerLure(state, combat, lure) {
     const withCard = idx === 0;
     if (nurture) {
       const animalId = resolveLureSpecies(lure, combat);
-      combat.htray[s] = applyTroughFeed(combat, makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet));
+      const ns = applyTroughFeed(combat, makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet));
+      applyBestInShowSim(state, combat, combat.htray, ns, s);
+      combat.htray[s] = ns;
       bumpSummonsSim(state, combat, 1);
       if (withCard) state.discard.push(lure);
     } else {
@@ -1138,7 +1153,9 @@ function applyHandlerUtil(state, combat, card) {
       const lure = combat.htray[s];
       const animalId = resolveLureSpecies(lure, combat);
       if (lure.card) state.discard.push({ ...lure.card });
-      combat.htray[s] = applyTroughFeed(combat, makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet));
+      const ns = applyTroughFeed(combat, makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet));
+      applyBestInShowSim(state, combat, combat.htray, ns, s);
+      combat.htray[s] = ns;
       bumpSummonsSim(state, combat, 1);
     }
     return;
@@ -1218,6 +1235,14 @@ function applyHandlerSkill(state, combat, card) {
     }
     if (departed) noteHandlerExit(state, combat, departed);
     noteSacrificeSim(state, combat, departed);
+  }
+  // Pedigree — lock all lures to the most-numerous on-board species.
+  if (fx.lockLureSpecies) {
+    const counts = {};
+    for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
+    let pick = null, pickN = 0;
+    for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
+    if (pick) combat.lockedSpecies = pick;
   }
   // Strays — drop N 1-turn fodder bodies into open slots immediately.
   if (fx.spawnFodder) {
@@ -2078,6 +2103,8 @@ function handlerEndOfTurnTick(state, combat) {
         bumpSummonsSim(state, combat, 1);
         if (ANIMALS[animalId]?.special) combat.specialSummons = (combat.specialSummons || 0) + 1;
         const animalSlot = applyTroughFeed(combat, makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet));
+        const boardNow = {}; for (const bs of SLOT) boardNow[bs] = (next[bs] !== undefined ? next[bs] : work[bs]);
+        applyBestInShowSim(state, combat, boardNow, animalSlot, slotName);
         next[slotName] = animalSlot;
       } else next[slotName] = { ...slot, turnsRemaining: nt };
       continue;
@@ -2204,6 +2231,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     tactic: null, youthUses: 0, buffetArmed: false,
     troughCharges: 0, // Trough — auto-feed next N arrivals
     drilledSpecies: {}, // Well-Drilled — species → +2/stack on all + future copies
+    lockedSpecies: null, // Pedigree — lures resolve to this species
     sacrifices: 0,    // Light the Mound — animals deliberately sacrificed
     lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,

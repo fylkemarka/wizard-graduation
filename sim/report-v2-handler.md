@@ -4,7 +4,7 @@ N = **20** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **0 wins / 20** = **0.0%**
-- Losses by acts-cleared: 0=12 · 1=7 · 2=1 · 3=0
+- Losses by acts-cleared: 0=13 · 1=6 · 2=1 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
@@ -12,14 +12,14 @@ N = **20** runs simulated with a greedy v2 AI.
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-snake**: 3 runs · 0 wins (0.0%)
-- **fam-crow**: 6 runs · 0 wins (0.0%)
-- **fam-beetle**: 1 runs · 0 wins (0.0%)
-- **fam-cat**: 3 runs · 0 wins (0.0%)
-- **fam-rabbit**: 2 runs · 0 wins (0.0%)
-- **fam-owl**: 1 runs · 0 wins (0.0%)
-- **fam-raven**: 2 runs · 0 wins (0.0%)
+- **fam-mouse**: 2 runs · 0 wins (0.0%)
+- **fam-snake**: 2 runs · 0 wins (0.0%)
+- **fam-crow**: 7 runs · 0 wins (0.0%)
 - **fam-hedgehog**: 1 runs · 0 wins (0.0%)
+- **fam-owl**: 3 runs · 0 wins (0.0%)
+- **fam-cat**: 2 runs · 0 wins (0.0%)
+- **fam-rabbit**: 1 runs · 0 wins (0.0%)
+- **fam-beetle**: 1 runs · 0 wins (0.0%)
 - **fam-toad**: 1 runs · 0 wins (0.0%)
 
 ## Cast distribution
@@ -31,15 +31,15 @@ N = **20** runs simulated with a greedy v2 AI.
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
 - Handler runs: 20 · 0 wins (0.0%)
-- Combats fought: 129
-- Summons: 1108 · feeds: 671 · short-stays (unfed left early): 165 · combines: 21
-- Combine payoff: burst 294 (avg 14.0/combine) · lifetime attacks 392 (avg 18.7/combine) · combine = 8.4% of all menagerie composure
-- Menagerie composure dealt: 8179 · block generated: 4385
-- Avg summons/combat: 8.59 · avg feeds/combat: 5.20
-- Tactic changes: 118 · avg distinct tactics/combat: 0.64
-- Special-lure animals: summons 148 · porcupine thorns dealt 128 · sloth enemy-turns skipped 21
-- Activated abilities (Mime/Pigeon/Kangaroo): 35 activations
-- Tactic engagement: shield 47 · rabid 26 · youth 18 · nurture 9 · feather 18
+- Combats fought: 136
+- Summons: 1167 · feeds: 695 · short-stays (unfed left early): 144 · combines: 20
+- Combine payoff: burst 280 (avg 14.0/combine) · lifetime attacks 416 (avg 20.8/combine) · combine = 8.1% of all menagerie composure
+- Menagerie composure dealt: 8610 · block generated: 3161
+- Avg summons/combat: 8.58 · avg feeds/combat: 5.11
+- Tactic changes: 87 · avg distinct tactics/combat: 0.44
+- Special-lure animals: summons 162 · porcupine thorns dealt 189 · sloth enemy-turns skipped 0
+- Activated abilities (Mime/Pigeon/Kangaroo): 40 activations
+- Tactic engagement: shield 39 · rabid 15 · youth 0 · nurture 13 · feather 20
 
 ## Wit LONG THREAD (v2.34)
 - Combats reaching LT ≥ 1: 0 (runs: 0 / 20, 0.0%)
@@ -52,7 +52,7 @@ N = **20** runs simulated with a greedy v2 AI.
 - v2.43 thread-preservation skip-casts: 0
 - v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 19 granted, 0 played
+- v2.92 Passing Thoughts: 24 granted, 0 played
 - v2.93 Find the Seam (bypass-effectiveness) fires: 0
 - v2.93 Precedent (echo-last-damage) fires: 0
 - v2.93 Insult-to-Injury (×N mult) fires: 0
@@ -171,18 +171,15 @@ N = **20** runs simulated with a greedy v2 AI.
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 10.91
-- Avg damage / run: 457
-- Mean final deck size: 12.8
+- Avg turns / combat: 11.04
+- Avg damage / run: 490
+- Mean final deck size: 13.2
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e2-silent-spinner (The Silent Spinner): 5
-- e3-boss-anvil (The Anvil-Forged): 5
-- e2-boss-tapestry (The Tapestry Walker): 4
-- e2-silk-wraith (Silk Wraith): 2
-- e2-garth-maul (Garth Maul): 1
-- e3-crystal-beetle (Crystal Beetle): 1
+- e2-boss-tapestry (The Tapestry Walker): 11
+- e3-boss-anvil (The Anvil-Forged): 4
+- e2-pattern-maker (The Pattern-Maker): 2
+- e3-vein-devourer (Vein Devourer): 2
 - e1-boss-thornlord (The Thornlord): 1
-- e3-quartz-sentinel (Quartz Sentinel): 1
