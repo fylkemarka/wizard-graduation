@@ -277,6 +277,9 @@ const HANDLER_REWARD_POOL = [
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   'c-narrow', 'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
   'c-light-the-mound', 'c-palpable-sadness', 'c-cost-of-littering',
+  // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
+  'c-hunker-down', 'c-dig-in',
+  'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show',
 ];
 
 // =============================================================================
@@ -1741,6 +1744,19 @@ function aiTurnHandler(state, combat) {
       const stuckLure = state.hand.some(c => c.type === 'lure' && c.cost > state.energy);
       const spare = liveAnimals().some(sl => (sl.durationRemaining || 0) >= 2);
       if (stuckLure && spare) { playHandlerCard(state, combat, lsIdx); continue; }
+    }
+    // Strays — drop fodder bodies when slots are open and the board is thin
+    // (ammo for the sacrifice engine / Memorial). Cheap board-filler.
+    const straysIdx = state.hand.findIndex(c => c.effects?.spawnFodder && c.cost <= state.energy);
+    if (straysIdx >= 0 && emptyCount() >= 1 && animalCount() < 2) { playHandlerCard(state, combat, straysIdx); continue; }
+    // Pedigree — once committed to a species (2+ of one on the board), lock the
+    // lures to it so the monoculture snowball is reliable.
+    const pedIdx = state.hand.findIndex(c => c.effects?.lockLureSpecies && c.cost <= state.energy);
+    if (pedIdx >= 0 && !combat.lockedSpecies) {
+      const counts = {};
+      for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
+      const dense = Object.values(counts).reduce((m, v) => Math.max(m, v), 0);
+      if (dense >= 2) { playHandlerCard(state, combat, pedIdx); continue; }
     }
     break;
   }
@@ -5431,6 +5447,15 @@ function aiPickHandlerReward(state) {
       // New build/burst utilities — score them competitively so the sim
       // actually exercises the 2026-06-07 batch (was a flat 6 → auto-passed).
       s += ownedIds.has(card.id) ? 5 : 10;
+    } else if (card.effects?.block) {
+      // Plain block answers (Hunker Down / Dig In) — direct HP defense, the
+      // handler's biggest death cause. Value high when the deck is light on it.
+      s += ownedIds.has(card.id) ? 6 : (hpDefenseCount < 4 ? 13 : 8);
+    } else if (card.installPower?.id === 'memorial' || card.installPower?.id === 'bestInShow'
+            || card.effects?.spawnFodder || card.effects?.lockLureSpecies) {
+      // 2026-06-08 synergy archetypes (Sacrifice engine / Monoculture). Score
+      // competitively so the 1000-run loop exercises them; tune from telemetry.
+      s += ownedIds.has(card.id) ? 5 : 11;
     } else {
       s += 6;
     }
@@ -6211,6 +6236,24 @@ function aggregate(results) {
       lossesByAct[r.actsCleared || 0]++;
     }
   }
+  // 2026-06-08 new-card analysis: draft rate + acts-cleared correlation for the
+  // synergy/block cards, so the design loop can tell if they're exercised and
+  // whether decks that drafted them go further.
+  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show'];
+  const newCardStats = {};
+  const handlerRuns = results.filter(r => r.lane === 'handler');
+  for (const id of NEW_CARD_IDS) {
+    const withIt = handlerRuns.filter(r => (r.rewardsTaken || []).includes(id));
+    const without = handlerRuns.filter(r => !(r.rewardsTaken || []).includes(id));
+    const avgActs = a => a.length ? a.reduce((s, r) => s + (r.actsCleared || 0), 0) / a.length : 0;
+    newCardStats[id] = {
+      drafts: withIt.length,
+      draftRate: handlerRuns.length ? withIt.length / handlerRuns.length : 0,
+      winsWith: withIt.filter(r => r.outcome === 'won').length,
+      avgActsWith: avgActs(withIt),
+      avgActsWithout: avgActs(without),
+    };
+  }
   const byLane = { wit: [], handler: [], jnsq: [] };
   for (const r of results) byLane[r.lane].push(r);
   const laneStats = {};
@@ -6235,7 +6278,7 @@ function aggregate(results) {
   return {
     N: results.length, wins, winRate: wins / results.length,
     lossesByEnemy, lossesByAct,
-    laneStats, famStats,
+    laneStats, famStats, newCardStats,
     totalCasts: results.reduce((s, r) => s + (r.castsAttempted || 0), 0),
     totalFizzles: results.reduce((s, r) => s + (r.fizzles || 0), 0),
     totalHolds: results.reduce((s, r) => s + (r.holds || 0), 0),
@@ -6503,6 +6546,14 @@ function buildReport(agg) {
     lines.push(`- Tactic engagement: ${parts.join(' · ')}`);
   }
   lines.push('');
+  if (agg.newCardStats) {
+    lines.push(`## NEW CARDS (2026-06-08 — block + synergy archetypes)`);
+    lines.push(`Draft rate among handler runs, and avg acts-cleared with vs without the card in deck.`);
+    for (const [id, s] of Object.entries(agg.newCardStats)) {
+      lines.push(`- **${id}**: drafted ${s.drafts} (${pct(s.draftRate)}) · ${s.winsWith} wins · avg acts ${s.avgActsWith.toFixed(2)} with / ${s.avgActsWithout.toFixed(2)} without`);
+    }
+    lines.push('');
+  }
   lines.push(`## Wit LONG THREAD (v2.34)`);
   lines.push(`- Combats reaching LT ≥ 1: ${agg.combatsWithThread} (runs: ${agg.threadRuns} / ${agg.N}, ${pct(agg.threadRuns / agg.N)})`);
   lines.push(`- Avg peak LT per run (across all combats): ${(agg.longThreadPeakSum / agg.N).toFixed(2)}`);
