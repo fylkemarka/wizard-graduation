@@ -69,13 +69,44 @@
    disappears too fast to read" (Alan, 2026-06-08). --dx/--dy fan concurrent
    numbers apart so a multi-hit tick reads left-to-right instead of stacking;
    -50% keeps the column centred on the card. */
+/* Punchy overshoot pop → settle → HOLD readable → drift up + fade. The big
+   scale(1.5) overshoot at 9% gives the number a satisfying "snap" in; the
+   long full-opacity hold (down to 60% of 1500ms) keeps it readable. --dx/--dy
+   fan concurrent numbers apart; -50% keeps the column centred. */
 @keyframes float-up {
-  0%   { transform: translate(calc(-50% + var(--dx, 0px)), var(--dy, 0px))        scale(0.7); opacity: 0; }
-  12%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-6px + var(--dy, 0px)))  scale(1.25); opacity: 1; }
-  60%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-16px + var(--dy, 0px))) scale(1);    opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-70px + var(--dy, 0px))) scale(0.9);  opacity: 0; }
+  0%   { transform: translate(calc(-50% + var(--dx, 0px)), var(--dy, 0px))        scale(0.4); opacity: 0; }
+  9%   { transform: translate(calc(-50% + var(--dx, 0px)), calc(-8px + var(--dy, 0px)))  scale(1.5);  opacity: 1; }
+  20%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-12px + var(--dy, 0px))) scale(1.05); opacity: 1; }
+  60%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-18px + var(--dy, 0px))) scale(1);    opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-74px + var(--dy, 0px))) scale(0.9);  opacity: 0; }
 }
-.dmg-float { animation: float-up 1500ms cubic-bezier(0.22, 0.9, 0.3, 1) forwards; }
+/* Glow flash on impact, then it cools to a clean drop-shadow as it rises. */
+@keyframes dmg-glow {
+  0%   { text-shadow: 0 0 0 currentColor, 0 2px 3px rgba(0,0,0,0.7); }
+  9%   { text-shadow: 0 0 18px currentColor, 0 0 6px currentColor, 0 2px 4px rgba(0,0,0,0.8); }
+  45%  { text-shadow: 0 0 6px currentColor, 0 2px 4px rgba(0,0,0,0.8); }
+  100% { text-shadow: 0 0 0 rgba(0,0,0,0), 0 2px 3px rgba(0,0,0,0.6); }
+}
+.dmg-float {
+  animation: float-up 1500ms cubic-bezier(0.18, 1.4, 0.4, 1) forwards,
+             dmg-glow 1500ms ease-out forwards;
+  -webkit-text-stroke: 1px rgba(20, 15, 8, 0.55); /* crisp edge on busy art */
+}
+/* Heavy hits (>=10) — bigger overshoot + a longer, hotter glow flash. */
+.dmg-float-big { animation-name: float-up-big, dmg-glow-big; }
+@keyframes float-up-big {
+  0%   { transform: translate(calc(-50% + var(--dx, 0px)), var(--dy, 0px))        scale(0.4); opacity: 0; }
+  10%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-10px + var(--dy, 0px))) scale(1.75); opacity: 1; }
+  22%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-14px + var(--dy, 0px))) scale(1.1);  opacity: 1; }
+  62%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-20px + var(--dy, 0px))) scale(1.02); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-82px + var(--dy, 0px))) scale(0.95); opacity: 0; }
+}
+@keyframes dmg-glow-big {
+  0%   { text-shadow: 0 0 0 currentColor, 0 2px 3px rgba(0,0,0,0.7); }
+  10%  { text-shadow: 0 0 28px currentColor, 0 0 10px currentColor, 0 2px 5px rgba(0,0,0,0.85); }
+  50%  { text-shadow: 0 0 10px currentColor, 0 2px 5px rgba(0,0,0,0.85); }
+  100% { text-shadow: 0 0 0 rgba(0,0,0,0), 0 2px 3px rgba(0,0,0,0.6); }
+}
 
 /* Gentler than Tailwind's animate-pulse (which dips to 50%) — used on armed
    on-board animals (e.g. click-to-activate Mime/Pigeon/Kangaroo) so the

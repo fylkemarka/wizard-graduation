@@ -243,11 +243,11 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           <div className="pointer-events-none absolute left-1/2 top-10 z-20">
             {dmgFloaters.map(f => (
               <div key={f.id}
-                className={`dmg-float absolute font-display font-bold text-3xl tabular-nums whitespace-nowrap drop-shadow-lg ${
-                  f.dmgType === 'physical' ? 'text-ember-300' : 'text-iris-200'
-                }`}
+                className={`dmg-float absolute font-display font-black tabular-nums whitespace-nowrap ${
+                  f.big ? 'text-5xl dmg-float-big' : 'text-3xl'
+                } ${f.dmgType === 'physical' ? 'text-ember-300' : 'text-iris-200'}`}
                 style={{ left: 0, '--dx': `${f.dx || 0}px`, '--dy': `${f.dy || 0}px` }}>
-                −{f.amount}
+                −{f.amount}{f.big && <span className="text-2xl align-top ml-0.5">!</span>}
               </div>
             ))}
           </div>

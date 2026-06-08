@@ -3580,7 +3580,9 @@ export default function App() {
     const dx = ((seq % 5) - 2) * 58;
     // Vertical jitter so two hits landing in the same column still separate.
     const dy = (seq % 2) * 14;
-    setDmgFloaters(prev => [...prev, { id, amount, dmgType, dx, dy }]);
+    // Heavy hits read bigger + glow harder (a soft "that one hurt" beat).
+    const big = amount >= 10;
+    setDmgFloaters(prev => [...prev, { id, amount, dmgType, dx, dy, big }]);
     setEnemyHitFlash(Date.now());
     setTimeout(() => {
       setDmgFloaters(prev => prev.filter(f => f.id !== id));
