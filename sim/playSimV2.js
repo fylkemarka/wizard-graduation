@@ -269,7 +269,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
   { id: 'c-pedigree',      name: 'Pedigree',        cost: 1, type: 'handler-skill', rarity: 'common',   effects: { lockLureSpecies: true, exhaust: true } },
   { id: 'c-best-in-show',  name: 'Best in Show',    cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'bestInShow' } },
-  { id: 'c-rally-the-pack',name: 'Rally the Pack',  cost: 1, type: 'handler-skill', rarity: 'common',   effects: { summonStrength: 2 } },
+  { id: 'c-rally-the-pack',name: 'Rally the Pack',  cost: 2, type: 'handler-skill', rarity: 'common',   effects: { summonStrength: 2, exhaust: true } },
   { id: 'c-drillmaster',   name: 'Drillmaster',     cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'drillmaster' } },
   { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },

@@ -255,9 +255,9 @@ const CARDS = [
   // +N to EVERY animal's attack, rest of combat. The player-side push that
   // pairs with the new enemy debuffs. Crack the Whip = burst grant; Drillmaster
   // = ramping build-around.
-  { id: 'c-rally-the-pack', name: 'Rally the Pack', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { summonStrength: 2 }, upgrade: { effects: { summonStrength: 3 } },
-    desc: '+2 Summon Strength — every animal attacks for +2 for the rest of combat.',
+  { id: 'c-rally-the-pack', name: 'Rally the Pack', cost: 2, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { summonStrength: 2, exhaust: true }, upgrade: { effects: { summonStrength: 3, exhaust: true } },
+    desc: '+2 Summon Strength — every animal attacks for +2 for the rest of combat. Exhaust.',
     flavor: 'Not cruelty. Standards. The menagerie understands the difference, mostly.' },
   { id: 'c-drillmaster', name: 'Drillmaster', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
@@ -578,12 +578,9 @@ const CARDS = [
     upgrade: { effects: { enemyDmgMod: -0.30, playerDmgMod: +0.30, exhaust: true } },
     desc: 'Enemy attack −15%, your potency +15%. Exhaust.',
     flavor: 'You wave a hand. Several small certainties fall out of the air.' },
-  { id: 'c-steady-hand', name: 'Steady', lane: 'handler',
-    cost: 0, type: 'skill', rarity: 'uncommon',
-    effects: { enemyDmgMod: -0.15, playerDmgMod: +0.15, exhaust: true },
-    upgrade: { effects: { enemyDmgMod: -0.30, playerDmgMod: +0.30, exhaust: true } },
-    desc: 'Enemy attack −15%, your potency +15%. Exhaust.',
-    flavor: 'A hand on the shoulder. The shoulder reconsiders.' },
+  // Steady (c-steady-hand) removed from the handler entirely (Alan, 2026-06-08):
+  // its fractional ±15% potency/attack mods are exactly the fuzzy non-whole math
+  // we're moving away from. Gone from the reward pool with the def.
 
   // =============================================================================
   // POWERS — install on the field, trigger via turn hooks.
