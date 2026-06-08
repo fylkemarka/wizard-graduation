@@ -259,6 +259,15 @@ const CARDS = [
     effects: { summonStrength: 2, exhaust: true }, upgrade: { effects: { summonStrength: 3, exhaust: true } },
     desc: '+2 Summon Strength — every animal attacks for +2 for the rest of combat. Exhaust.',
     flavor: 'Not cruelty. Standards. The menagerie understands the difference, mostly.' },
+  // Basic Training (Alan, 2026-06-08) — the TEAM-building lever: invest in a
+  // SPECIFIC animal on the board. The buff is permanent for that summon
+  // (slot.attackBonus / slot.blockBonus), so losing the animal loses the
+  // investment. Pairs with keepers (the Ox) — train the wall up over a fight.
+  { id: 'c-basic-training', name: 'Basic Training', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { strengthenAnimal: { attack: 3, block: 3 } },
+    upgrade: { effects: { strengthenAnimal: { attack: 4, block: 4 } } },
+    desc: 'Pick an animal on the board. It permanently gains +3 attack and +3 Block per turn — for as long as it stays. Lose the animal, lose the training.',
+    flavor: 'Sit. Stay. Hold the line against the existential dread. Good boy.' },
   { id: 'c-drillmaster', name: 'Drillmaster', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
     desc: 'Power. At the start of each turn, gain +1 Summon Strength (every animal attacks for more, building each turn).',
@@ -3918,6 +3927,9 @@ export default function App() {
   // Treat prompt — armed by playing Treat. Next click on an animal slot
   // adds +1 to that animal's durationRemaining.
   const [treatPromptActive, setTreatPromptActive] = useState(false);
+  // Basic Training prompt — armed by playing Basic Training. Next click on an
+  // animal slot stamps a permanent-for-summon attack + per-turn-block buff.
+  const [strengthenPromptActive, setStrengthenPromptActive] = useState(false);
   // Just Eat It prompt — next click on a lure slot transforms that lure
   // into its animal immediately, recycling the lure card to discard via
   // the recycleToDiscard buffer.
@@ -5824,6 +5836,7 @@ export default function App() {
     setWhistlePromptActive(false);
     setWhistlePick1Slot(null);
     setTreatPromptActive(false);
+    setStrengthenPromptActive(false);
     setEatItPromptActive(false);
     setSacrificePromptActive(false);
     setGorgePromptActive(false);
@@ -6096,7 +6109,7 @@ export default function App() {
         || card.effects.treatExtend || card.effects.eatLureNow
         || card.effects.sacrificeForValue || card.effects.gorge
         || card.effects.buffetArmed || card.effects.narrowLure
-        || card.effects.herdConvert));
+        || card.effects.herdConvert || card.effects.strengthenAnimal));
     setArmedRefund(armsCancelablePrompt
       ? { card, cost, isPower: card.type === 'power', exhaust: !!card.effects?.exhaust }
       : null);
@@ -8293,6 +8306,7 @@ export default function App() {
       setWhistlePromptActive(which === 'whistle');
       if (which !== 'whistle') setWhistlePick1Slot(null);
       setTreatPromptActive(which === 'treat');
+      setStrengthenPromptActive(which === 'strengthen');
       setEatItPromptActive(which === 'eatIt');
       setSacrificePromptActive(which === 'sacrifice');
       setGorgePromptActive(which === 'gorge');
@@ -8310,6 +8324,13 @@ export default function App() {
     if (fx.treatExtend) {
       armTargetingPrompt('treat');
       logBits.push(`🍖 Treat armed — pick an animal to extend.`);
+    }
+    // Basic Training — arm a 1-click prompt. Click any animal slot → permanent
+    // (for that summon) +attack and +per-turn-Block. Resolved in
+    // strengthenClickSlot, which reads the buff off the armed card.
+    if (fx.strengthenAnimal) {
+      armTargetingPrompt('strengthen');
+      logBits.push(`💪 Basic Training armed — pick an animal to strengthen.`);
     }
     // Just Eat It — arm a 1-click prompt. Click any lure slot → transforms
     // immediately into the animal it summons; lure card → discard.
@@ -9896,6 +9917,33 @@ export default function App() {
     pushLog(`🍖 Treat dismissed without extending.${refunded}`);
   }
 
+  // Basic Training click — pick an animal; stamp a permanent-for-summon
+  // attack + per-turn-block buff. Buff amounts are read off the armed card
+  // (so the upgraded version grants more), then armedRefund is cleared so the
+  // resolved card can't also be cancel-refunded.
+  function strengthenClickSlot(slotName) {
+    if (!strengthenPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const animal = getAnimal(slot.animalId);
+    const buff = armedRefund?.card?.effects?.strengthenAnimal || { attack: 3, block: 3 };
+    setArmedRefund(null);
+    setTray(p => syncTrayLegacy({ ...p, [slotName]: {
+      ...slot,
+      attackBonus: (slot.attackBonus || 0) + (buff.attack || 0),
+      blockBonus: (slot.blockBonus || 0) + (buff.block || 0),
+    } }));
+    setStrengthenPromptActive(false);
+    pushLog(`💪 Basic Training — ${animal?.name || slot.animalId} gains +${buff.attack || 0} attack and +${buff.block || 0} Block/turn (for as long as it stays).`);
+  }
+
+  function cancelStrengthenPrompt() {
+    if (!strengthenPromptActive) return;
+    setStrengthenPromptActive(false);
+    const refunded = refundArmedCard();
+    pushLog(`💪 Basic Training dismissed without training.${refunded}`);
+  }
+
   // Just Eat It click — pick a staged lure; it transforms immediately into
   // its summoned animal. The lure card cycles back to discard via the
   // recycleToDiscard buffer (same pattern as the normal transform path,
@@ -10914,16 +10962,18 @@ export default function App() {
           // eatenThisTurn or whether the animal attacked. Also fires for
           // turnGrantTemp riders the row-bonus pre-pass stamps on slots.
           const grant = animal.turnGrant || slot.turnGrantTemp;
-          if (grant) {
-            if (grant.block > 0) {
-              setBlock(b => b + grant.block);
-              hTick.blockGained += grant.block;
-              pushLog(`${animal.icon} ${animal.name} braces: +${grant.block} Block.`);
-            }
-            if (grant.poise > 0) {
-              setPoise(p => p + grant.poise);
-              pushLog(`${animal.icon} ${animal.name} steadies you: +${grant.poise} Poise.`);
-            }
+          // Per-turn Block = the animal's innate grant PLUS any Basic Training
+          // investment (slot.blockBonus, permanent for this summon). This is
+          // what makes a keeper a buildable WALL.
+          const grantBlock = (grant?.block || 0) + (slot.blockBonus || 0);
+          if (grantBlock > 0) {
+            setBlock(b => b + grantBlock);
+            hTick.blockGained += grantBlock;
+            pushLog(`${animal.icon} ${animal.name} braces: +${grantBlock} Block.`);
+          }
+          if (grant?.poise > 0) {
+            setPoise(p => p + grant.poise);
+            pushLog(`${animal.icon} ${animal.name} steadies you: +${grant.poise} Poise.`);
           }
           // Decrement duration and tick chain counters. A combine on its
           // formation turn attacks (payoff) but does NOT spend a duration
@@ -13712,6 +13762,9 @@ export default function App() {
       treatPromptActive={treatPromptActive}
       onTreatClick={treatClickSlot}
       onCancelTreat={cancelTreatPrompt}
+      strengthenPromptActive={strengthenPromptActive}
+      onStrengthenClick={strengthenClickSlot}
+      onCancelStrengthen={cancelStrengthenPrompt}
       eatItPromptActive={eatItPromptActive}
       onEatItClick={eatItClickSlot}
       onCancelEatIt={cancelEatItPrompt}

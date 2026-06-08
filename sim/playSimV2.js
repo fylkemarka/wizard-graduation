@@ -292,6 +292,8 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
   { id: 'c-the-horde',      name: 'The Horde',             cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
   { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 5 } },
+  // Team retool (Alan, 2026-06-08) — invest in a specific animal.
+  { id: 'c-basic-training', name: 'Basic Training',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 3, block: 3 } } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -317,7 +319,7 @@ const HANDLER_REWARD_POOL = [
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
   'c-hunker-down', 'c-dig-in',
   'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show',
-  'c-rally-the-pack', 'c-drillmaster',
+  'c-rally-the-pack', 'c-drillmaster', 'c-basic-training',
 ];
 
 // =============================================================================
@@ -1371,6 +1373,20 @@ function applyHandlerSkill(state, combat, card) {
       if (tgt.slot.fedThisTurn) tgt.slot.attackBonus = (tgt.slot.attackBonus || 0) + 3;
     }
   }
+  // Basic Training — permanent +attack / +block-per-turn on one animal (for
+  // that summon). AI: prefer a keeper (build the wall), else the strongest.
+  if (fx.strengthenAnimal) {
+    const buff = fx.strengthenAnimal;
+    const list = animals();
+    if (list.length) {
+      const keepers = list.filter(x => ANIMALS[x.slot.animalId]?.keeper);
+      const pool = (keepers.length ? keepers : list.slice())
+        .sort((p, q) => (ANIMALS[q.slot.animalId]?.attack || 0) - (ANIMALS[p.slot.animalId]?.attack || 0));
+      const tgt = pool[0];
+      tgt.slot.attackBonus = (tgt.slot.attackBonus || 0) + (buff.attack || 0);
+      tgt.slot.blockBonus = (tgt.slot.blockBonus || 0) + (buff.block || 0);
+    }
+  }
   // Acquired Taste — narrow a variable lure toward an adjacency combo. AI:
   // find a narrowable lure (pool ≥3 after current exclusions) whose pool
   // contains both halves of an ADJACENCY_COMBOS pair, then exclude a species
@@ -1878,6 +1894,18 @@ function aiTurnHandler(state, combat) {
       const hasMono = hasHandlerPower(state, 'bestInShow') || hasHandlerPower(state, 'wellDrilled');
       if (dense >= 2 || (dense >= 1 && hasMono)) { playHandlerCard(state, combat, pedIdx); continue; }
     }
+    // Basic Training — invest in an animal that will stick around. Worth it
+    // on a keeper (long stay) or any animal with ≥3 turns left; pointless on a
+    // body that's about to leave.
+    const trainIdx = state.hand.findIndex(c => c.effects?.strengthenAnimal && c.cost <= state.energy);
+    if (trainIdx >= 0) {
+      const worth = SLOT.some(s => {
+        const sl = combat.htray[s];
+        if (sl?.kind !== 'animal') return false;
+        return ANIMALS[sl.animalId]?.keeper || (sl.durationRemaining || 0) >= 3;
+      });
+      if (worth) { playHandlerCard(state, combat, trainIdx); continue; }
+    }
     break;
   }
 
@@ -2343,7 +2371,10 @@ function handlerEndOfTurnTick(state, combat) {
       }
     }
     const grant = animal.turnGrant || slot.turnGrantTemp;
-    if (grant) { if (grant.block > 0) { state.block += grant.block; combat.menagerieBlock += grant.block; } if (grant.poise > 0) state.poise += grant.poise; }
+    // Per-turn Block = innate grant + Basic Training investment (blockBonus).
+    const grantBlock = (grant?.block || 0) + (slot.blockBonus || 0);
+    if (grantBlock > 0) { state.block += grantBlock; combat.menagerieBlock += grantBlock; }
+    if (grant?.poise > 0) state.poise += grant.poise;
 
     let nextDur = slot.justCombined ? slot.durationRemaining : slot.durationRemaining - 1;
     const nextPred = (slot.predatorProgress || 0) + 1;

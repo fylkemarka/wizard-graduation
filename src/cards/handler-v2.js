@@ -96,6 +96,13 @@ const SPECIAL_LURE_CARDS = [
     summon: { animalId: 'kangaroo', turnsToArrive: 1 },
     desc: 'In 1T, summons a Kangaroo. Click and spend 2 energy to duck into the pouch — end your turn, take no damage next turn. No feeding needed; replay to extend.',
     flavor: 'Smells like somewhere far away with better weather and more kicking.' },
+  // KEEPER lure (Alan, 2026-06-08) — the Anchor. Summons a Drystone Ox: a
+  // defensive keeper you devote a slot to and strengthen into a wall.
+  { id: 'cv2-l-bag-of-oats', name: 'A Bag of Oats', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'uncommon', tier: 2, special: true,
+    summon: { animalId: 'ox', turnsToArrive: 1 },
+    desc: 'In 1T, summons a Drystone Ox — a keeper. Stays 6 turns, braces for 6 Block each turn, chips 2 composure. Never needs feeding. Strengthen it into a wall.',
+    flavor: 'It is, you are assured, the good oats. The ox will be the judge of that.' },
 ];
 
 export const HANDLER_V2 = [...LURE_CARDS, ...SPECIAL_LURE_CARDS];

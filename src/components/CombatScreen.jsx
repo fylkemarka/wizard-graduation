@@ -73,6 +73,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        treatPromptActive = false,
                        onTreatClick = () => {},
                        onCancelTreat = () => {},
+                       strengthenPromptActive = false,
+                       onStrengthenClick = () => {},
+                       onCancelStrengthen = () => {},
                        eatItPromptActive = false,
                        onEatItClick = () => {},
                        onCancelEatIt = () => {},
@@ -926,6 +929,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         animals={animals} luresPlayedThisTurn={luresPlayedThisTurn} tutorArmed={tutorArmed}
         whistlePromptActive={whistlePromptActive} whistlePick1Slot={whistlePick1Slot} onWhistleClick={onWhistleClick}
         treatPromptActive={treatPromptActive} onTreatClick={onTreatClick}
+        strengthenPromptActive={strengthenPromptActive} onStrengthenClick={onStrengthenClick}
         eatItPromptActive={eatItPromptActive} onEatItClick={onEatItClick}
         sacrificePromptActive={sacrificePromptActive} onSacrificeClick={onSacrificeClick}
         gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
@@ -977,6 +981,17 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="font-bold">🍖 Treat:</span> click a summoned animal to extend its stay by 1 turn.
           </div>
           <button onClick={onCancelTreat}
+            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {strengthenPromptActive && (
+        <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
+          <div className="text-sm text-gold-100">
+            <span className="font-bold">💪 Basic Training:</span> click an animal to strengthen it — permanent +attack and +Block/turn for as long as it stays.
+          </div>
+          <button onClick={onCancelStrengthen}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
@@ -1316,6 +1331,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        animals = {}, luresPlayedThisTurn = [], tutorArmed = false,
                        whistlePromptActive = false, whistlePick1Slot = null, onWhistleClick = () => {},
                        treatPromptActive = false, onTreatClick = () => {},
+                       strengthenPromptActive = false, onStrengthenClick = () => {},
                        eatItPromptActive = false, onEatItClick = () => {},
                        sacrificePromptActive = false, onSacrificeClick = () => {},
                        gorgePromptActive = false, onGorgeClick = () => {},
@@ -1748,6 +1764,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       // Animals are click targets for Treat, Whistle, Sacrifice, and Gorge.
       // Precedence: Treat → Whistle → Sacrifice → Gorge.
       const treatArmed = treatPromptActive;
+      const strengthenArmed = strengthenPromptActive;
       const whistleArmed = whistlePromptActive;
       const sacrificeArmed = sacrificePromptActive;
       const gorgeArmed = gorgePromptActive;
@@ -1758,11 +1775,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       // Player-activated ability (Mime / Pigeon / Kangaroo): when NO targeting
       // prompt is armed, an animal carrying an activatedAbility is its own
       // click target. Per-turn verbs grey out once spent this turn.
-      const anyPromptArmed = treatArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed || herdArmed;
+      const anyPromptArmed = treatArmed || strengthenArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed || herdArmed;
       const ability = animal?.activatedAbility;
       const abilitySpent = ability?.cadence === 'per-turn' && abilitiesUsedThisTurn.includes(slotName);
       const activatable = !anyPromptArmed && !!ability && !abilitySpent;
       const clickHandler = treatArmed ? () => onTreatClick(slotName)
+                          : strengthenArmed ? () => onStrengthenClick(slotName)
                           : whistleArmed ? () => onWhistleClick(slotName)
                           : sacrificeArmed ? () => onSacrificeClick(slotName)
                           : gorgeArmed ? () => onGorgeClick(slotName)
@@ -1774,6 +1792,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const armed = anyPromptArmed || activatable;
       const armedTitle = treatArmed
         ? `🍖 Click to extend ${animal?.name || 'animal'} by 1 turn.`
+        : strengthenArmed
+        ? `💪 Click to strengthen ${animal?.name || 'animal'} — permanent +attack and +Block/turn.`
         : whistleArmed
         ? `🎶 Click to ${whistlePick1Slot ? 'swap with ' + whistlePick1Slot : 'pick this slot'}.`
         : sacrificeArmed
@@ -1793,6 +1813,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             return `${animal?.name || card.animalId} — ${animal?.desc || ''} ${shownDur} turn${shownDur === 1 ? '' : 's'} left.${predatorNote}`;
           })();
       const armedLabel = treatArmed ? ' · 🍖 click to treat'
+                       : strengthenArmed ? ' · 💪 click to train'
                        : whistleArmed ? (isWhistlePick1 ? ' · 🎶' : ' · 🎶 click to swap')
                        : sacrificeArmed ? ' · 🔪 click to cash in'
                        : gorgeArmed ? ' · 🍖 click to gorge'
@@ -1834,6 +1855,49 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               : `(flops) · ${Math.max(0, (card.durationRemaining || 0) - 1)}t left`}
             {predatorNote}
           </span>
+          {(() => {
+            // Per-turn Block grant (keepers / McCloven / trained animals) — the
+            // wall, shown as its own chip so the player can build around it.
+            const effBlock = (animal?.turnGrant?.block || 0) + (card.blockBonus || 0);
+            const trained = (card.attackBonus || 0) > 0 || (card.blockBonus || 0) > 0;
+            // Exit-bonus legibility (Alan, 2026-06-08): surface what this animal
+            // does WHEN IT LEAVES, on the board, so exits are something you plan
+            // around — not a number buried in the log.
+            const ex = animal?.onExit;
+            const exBits = [];
+            if (ex) {
+              if (ex.damage > 0)        exBits.push(`💔${ex.damage}`);
+              if (ex.block > 0)         exBits.push(`🛡${ex.block}`);
+              if (ex.healComp > 0)      exBits.push(`💟${ex.healComp}`);
+              if (ex.healHp > 0)        exBits.push(`❤${ex.healHp}`);
+              if (ex.applyWeak > 0)     exBits.push(`💢weak`);
+              if (ex.applyVulnerable>0) exBits.push(`💫vuln`);
+              if (ex.redirectEnemyAttack) exBits.push(`↩`);
+            }
+            if (effBlock <= 0 && !trained && exBits.length === 0) return null;
+            return (
+              <span className="flex flex-wrap gap-1 justify-center mt-0.5">
+                {effBlock > 0 && (
+                  <span className="font-mono text-[9px] px-1 rounded bg-sky-900/70 text-sky-100 border border-sky-500"
+                        title={`Braces for ${effBlock} Block each turn${trained ? ' (incl. Basic Training)' : ''}.`}>
+                    🛡 {effBlock}/turn
+                  </span>
+                )}
+                {trained && (
+                  <span className="font-mono text-[9px] px-1 rounded bg-gold-900/70 text-gold-100 border border-gold-500"
+                        title={`Trained: +${card.attackBonus || 0} attack, +${card.blockBonus || 0} Block/turn (lost if this animal leaves).`}>
+                    💪 trained
+                  </span>
+                )}
+                {exBits.length > 0 && (
+                  <span className="font-mono text-[9px] px-1 rounded bg-rose-950/70 text-rose-100 border border-rose-700"
+                        title={`When ${animal?.name || 'this animal'} leaves play (fed), it: ${exBits.join(' ')}.`}>
+                    on exit: {exBits.join(' ')}
+                  </span>
+                )}
+              </span>
+            );
+          })()}
           {(() => {
             // Lifespan pip-train (Human-AI rec 2026-06-02): show remaining
             // turns as a visible countdown FROM SUMMON, not just the text or

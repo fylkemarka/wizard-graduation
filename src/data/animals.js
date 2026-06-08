@@ -409,6 +409,31 @@ export const ANIMALS = {
     flavor: 'It has decided you are family now. The arrangement is, at best, provisional.',
     desc: 'A 1-turn body. Swings for 2, then wanders off — fodder for sacrifice or Memorial.',
   },
+
+  // ─────────────────────────────────────────────────────────────────────
+  // KEEPERS (Alan, 2026-06-08) — the menagerie as a TEAM you form, retain,
+  // and buff, not a conveyor of disposable summons. A keeper has a long stay
+  // and never needs feeding (no feedKey → the feed gate always reads it as
+  // fed), so it sticks around to be invested in. Buffs from Basic Training
+  // (slot.attackBonus / slot.blockBonus) are PERMANENT for that summon — lose
+  // the keeper (maul, sacrifice, expiry) and you lose the investment.
+  // See memory: project_wg_handler_team_retool.
+  // ─────────────────────────────────────────────────────────────────────
+  // The Anchor — the first defensive keeper. Grants a set Block EACH TURN
+  // (resets like player Block), and that per-turn grant is buffable. Devote
+  // one slot to the wall; strengthen it; fight out of the other two.
+  ox: {
+    name: 'Drystone Ox',
+    icon: '🐂',
+    attack: 2,
+    attackPool: 'composure',
+    duration: 6,        // keeper: long stay so you can invest in it
+    keeper: true,
+    turnGrant: { block: 6 },
+    flavor: 'It was here before you. It will be here after. It is, in the meantime, in the way.',
+    desc: 'A keeper. Stays 6 turns and never needs feeding. Braces for 6 Block each turn and chips 2 composure. Strengthen it to grow the wall — and the swing.',
+    upgrade: { attack: 3, duration: 7, turnGrant: { block: 9 } },
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────
