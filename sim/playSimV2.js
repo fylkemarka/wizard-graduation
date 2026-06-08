@@ -223,6 +223,11 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-gorge',         name: 'Gorge',           cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
   { id: 'c-snack',         name: 'Treat',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
   { id: 'c-narrow',        name: 'Acquired Taste',  cost: 1, type: 'handler-skill', rarity: 'common', effects: { narrowLure: true, exhaust: true } },
+  // New bonus cards (Alan, 2026-06-07) — mirror src/App.jsx CARDS.
+  { id: 'c-trough',         name: 'Trough',                cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { troughFeed: 3, exhaust: true } },
+  { id: 'c-animal-midnight',name: 'Animal Midnight',       cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'animalMidnight' } },
+  { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 3, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
+  { id: 'c-the-horde',      name: 'The Horde',             cost: 3, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -243,7 +248,7 @@ const HANDLER_REWARD_POOL = [
   'c-pack-tactics', 'c-just-eat-it', 'c-treat', 'c-sharp-whistle',
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
-  'c-narrow',
+  'c-narrow', 'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
 ];
 
 // =============================================================================
@@ -851,6 +856,15 @@ function makeAnimalSlot(animalId, youthBonus, summonSet, durBonus) {
     attackBonus: 0,
   };
 }
+// Trough: if a charge is available and the animal is a fed type, mark the
+// fresh slot fed and consume a charge. Mirrors App.jsx lure-transform.
+function applyTroughFeed(combat, slot) {
+  if ((combat.troughCharges || 0) > 0 && ANIMALS[slot.animalId]?.feedKey) {
+    slot.feedReceived = true;
+    combat.troughCharges -= 1;
+  }
+  return slot;
+}
 function resolveLureSpecies(lure, combat) {
   if (combat.tactic === 'feather') {
     const existing = ['intro', 'subject', 'target'].map(x => combat.htray[x]).find(v => v?.kind === 'animal');
@@ -1034,7 +1048,7 @@ function stageHandlerLure(state, combat, lure) {
     const withCard = idx === 0;
     if (nurture) {
       const animalId = resolveLureSpecies(lure, combat);
-      combat.htray[s] = makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet);
+      combat.htray[s] = applyTroughFeed(combat, makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet));
       combat.summons++;
       if (withCard) state.discard.push(lure);
     } else {
@@ -1069,7 +1083,7 @@ function applyHandlerUtil(state, combat, card) {
       const lure = combat.htray[s];
       const animalId = resolveLureSpecies(lure, combat);
       if (lure.card) state.discard.push({ ...lure.card });
-      combat.htray[s] = makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet);
+      combat.htray[s] = applyTroughFeed(combat, makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet));
       combat.summons++;
     }
     return;
@@ -1147,6 +1161,29 @@ function applyHandlerSkill(state, combat, card) {
       departed++;
     }
     if (departed) noteHandlerExit(state, combat, departed);
+  }
+  // Trough — the next 3 summoned animals arrive already fed.
+  if (fx.troughFeed) combat.troughCharges = (combat.troughCharges || 0) + fx.troughFeed;
+  // The Horde — composure equal to animals summoned this combat
+  // (combat.summons is the running per-combat summon count).
+  if (fx.damagePerSummonThisCombat) {
+    const dmg = (combat.summons || 0) * fx.damagePerSummonThisCombat;
+    if (dmg > 0) { handlerDealComposure(combat, dmg); combat.totalDamageDealt += dmg; }
+  }
+  // They DO Move in Herds — convert every other single-slot animal into the
+  // highest-attack animal currently on the board (AI heuristic for "best
+  // template"). Duration kept; multi-slot (spans) animals untouched.
+  if (fx.herdConvert) {
+    const single = animals().filter(x => !(x.slot.spans && x.slot.spans.length));
+    if (single.length >= 2) {
+      single.sort((p, q) => (ANIMALS[q.slot.animalId]?.attack || 0) - (ANIMALS[p.slot.animalId]?.attack || 0));
+      const tmpl = single[0].slot.animalId;
+      for (const x of single) {
+        if (x.slot.animalId === tmpl) continue;
+        x.slot.animalId = tmpl;
+        x.slot.nextAttackMult = 1; x.slot.extraAttacks = 0;
+      }
+    }
   }
   // Gorge — pick a fed animal: +3 turns, +3 permanent attack if fed this turn.
   if (fx.gorge) {
@@ -1470,6 +1507,29 @@ function aiTurnHandler(state, combat) {
       const stIdx = state.hand.findIndex(c => c.effects?.smallLandAttackAgain && c.cost <= state.energy);
       if (stIdx >= 0) { playHandlerCard(state, combat, stIdx); continue; }
     }
+    // The Horde — fire when summons-this-combat × 1 clears the enemy's
+    // remaining composure, or as chip when ≥4 summoned (decent value).
+    const hordeIdx = state.hand.findIndex(c => c.effects?.damagePerSummonThisCombat && c.cost <= state.energy);
+    if (hordeIdx >= 0) {
+      const dmg = (combat.summons || 0);
+      if (dmg >= combat.enemyComposure - combat.enemyBlock || dmg >= 4) { playHandlerCard(state, combat, hordeIdx); continue; }
+    }
+    // Trough — set it down early when lures are still coming and charges
+    // would land on future arrivals (≥1 pending lure or lure in hand).
+    if ((combat.troughCharges || 0) === 0) {
+      const troughIdx = state.hand.findIndex(c => c.effects?.troughFeed && c.cost <= state.energy);
+      const lureSoon = SLOT.some(s => combat.htray[s]?.kind === 'lure')
+        || state.hand.some(c => c.type === 'lure');
+      if (troughIdx >= 0 && lureSoon) { playHandlerCard(state, combat, troughIdx); continue; }
+    }
+    // They DO Move in Herds — convert toward the strongest animal when 2+
+    // single-slot animals are out and they aren't already uniform.
+    const herdIdx = state.hand.findIndex(c => c.effects?.herdConvert && c.cost <= state.energy);
+    if (herdIdx >= 0) {
+      const single = liveAnimals().filter(sl => !(sl.spans && sl.spans.length));
+      const species = new Set(single.map(sl => sl.animalId));
+      if (single.length >= 2 && species.size >= 2) { playHandlerCard(state, combat, herdIdx); continue; }
+    }
     // Gorge — overfeed a fed, attacking animal for +3 turns / +3 attack.
     const gorgeIdx = state.hand.findIndex(c => c.effects?.gorge && c.cost <= state.energy);
     if (gorgeIdx >= 0 && liveAnimals().some(sl => sl.fedThisTurn && effAtk(sl) > 0)) {
@@ -1644,6 +1704,11 @@ function handlerApplyIntent(state, combat, intent) {
     }
     const targetsComposure = intent.pool === 'composure';
     let raw = Math.round(intent.value * combat.enemyDmgMult);
+    // Animal Midnight power: −2 per swing while ≥2 animals are on the board.
+    if (hasHandlerPower(state, 'animalMidnight')) {
+      const animalCount = SLOTN.filter(s => combat.htray[s]?.kind === 'animal').length;
+      if (animalCount >= 2) raw = Math.max(1, raw - 2);
+    }
     const hpBefore = state.hp;
     let wBlock = state.block, wPoise = state.poise || 0, wHp = state.hp, wComp = state.composure;
     for (let i = 0; i < hits; i++) {
@@ -1895,7 +1960,7 @@ function handlerEndOfTurnTick(state, combat) {
         if (slot.card) state.discard.push({ ...slot.card });
         combat.summons++;
         if (ANIMALS[animalId]?.special) combat.specialSummons = (combat.specialSummons || 0) + 1;
-        const animalSlot = makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet);
+        const animalSlot = applyTroughFeed(combat, makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet));
         next[slotName] = animalSlot;
       } else next[slotName] = { ...slot, turnsRemaining: nt };
       continue;
@@ -2020,6 +2085,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     companion: initCompanionSim(enemy, 1.25),
     htray: { intro: null, subject: null, target: null },
     tactic: null, youthUses: 0, buffetArmed: false,
+    troughCharges: 0, // Trough — auto-feed next N arrivals
     lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,
     tacticsEngaged: {}, tacticTurns: {},

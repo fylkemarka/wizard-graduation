@@ -254,6 +254,23 @@ const CARDS = [
     effects: { gorge: true },
     desc: 'Pick an animal: it stays +3 turns. If it was already fed this turn, it also gains +3 attack permanently.',
     flavor: 'Too much, really. That was always the plan.' },
+  // ---- New bonus cards (Alan, 2026-06-07) ----
+  { id: 'c-trough', name: 'Trough', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { troughFeed: 3, exhaust: true },
+    desc: 'Your next 3 summoned animals arrive already fed. Exhaust.',
+    flavor: 'You set it out and step back. Dignity is for animals who had to ask.' },
+  { id: 'c-animal-midnight', name: 'Animal Midnight', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'animalMidnight' },
+    desc: 'Power. While you have at least 2 animals in play, enemy attacks deal 2 less per swing.',
+    flavor: 'After a certain hour the animals outnumber the reasons. The room gets careful.' },
+  { id: 'c-move-in-herds', name: 'They DO Move in Herds', cost: 3, type: 'skill', rarity: 'rare', lane: 'handler',
+    effects: { herdConvert: true, exhaust: true },
+    desc: 'Pick a summoned animal. Every other single-slot animal becomes that animal too (turns remaining unchanged; multi-slot animals are unaffected). Exhaust.',
+    flavor: 'Clever girl. And, it transpires, persuasive.' },
+  { id: 'c-the-horde', name: 'The Horde', cost: 3, type: 'skill', rarity: 'rare', lane: 'handler',
+    effects: { damagePerSummonThisCombat: 1 },
+    desc: 'Deal composure damage equal to the number of animals you have summoned this combat.',
+    flavor: 'You did not, strictly, plan for this many. They came anyway, and they remember.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
@@ -3772,6 +3789,24 @@ export default function App() {
   // that animal (and every other copy of the same species on the board) +2
   // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
   const [houseRulesPromptActive, setHouseRulesPromptActive] = useState(false);
+  // They DO Move in Herds — armed on play. Next click on an animal slot
+  // converts every OTHER single-slot animal into that species (turns
+  // remaining kept). Multi-slot (combine) animals are untouched.
+  const [herdPromptActive, setHerdPromptActive] = useState(false);
+  // Trough — the next N summoned animals arrive already fed. State drives
+  // the badge; troughChargesRef is the synchronous copy the end-of-turn
+  // lure-transform reads/decrements (same stale-closure discipline as the
+  // shield brace — the tick mutates it before any setState flushes).
+  const [troughCharges, setTroughCharges] = useState(0);
+  const troughChargesRef = useRef(0);
+  // Sacrifice-for-Block — armed by its card. Click any animal → it leaves
+  // immediately (no exit bonus); gain Block equal to its current attack.
+  const [sacrificeForBlockPromptActive, setSacrificeForBlockPromptActive] = useState(false);
+  // Animals summoned this combat — drives The Horde's damage. Counts every
+  // arrival (lure transform, predator chain, adjacent spawn, combine, Just
+  // Eat It). Reset per combat. Ref-backed so same-pass reads are accurate.
+  const [animalsSummonedThisCombat, setAnimalsSummonedThisCombat] = useState(0);
+  const animalsSummonedRef = useRef(0);
   // The Whisperer power — animal departures bank a draw delivered into the
   // next turn's hand. Instant-play exits (Last Supper / Make It Count)
   // bump this during the turn; the end-of-turn tick adds its own departures
@@ -4317,6 +4352,7 @@ export default function App() {
   useEffect(() => { enemyComposureRef.current = enemyComposure; }, [enemyComposure]);
   useEffect(() => { enemyHpRef.current = enemyHp; }, [enemyHp]);
   useEffect(() => { enemyBlockRef.current = enemyBlock; }, [enemyBlock]);
+  useEffect(() => { troughChargesRef.current = troughCharges; }, [troughCharges]);
 
   // v2.89: auto-dismiss the chaos-roll flash after 3.5s. Player can also
   // click to dismiss early via the modal's backdrop.
@@ -5600,6 +5636,11 @@ export default function App() {
     setWhisperDrawsPending(0);
     setFirstLureUsedThisTurn(false);
     setBuffetArmed(false);
+    // New bonus-card per-combat resets (Alan, 2026-06-07).
+    setHerdPromptActive(false);
+    setSacrificeForBlockPromptActive(false);
+    setTroughCharges(0); troughChargesRef.current = 0;
+    setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
     setLuresPlayedThisTurn([]);
     setLureNarrowing({});
     setNarrowChooserOpen(false);
@@ -5851,7 +5892,8 @@ export default function App() {
       !!(card.effects && (card.effects.whistleSwap
         || card.effects.treatExtend || card.effects.eatLureNow
         || card.effects.sacrificeForValue || card.effects.gorge
-        || card.effects.buffetArmed || card.effects.narrowLure));
+        || card.effects.buffetArmed || card.effects.narrowLure
+        || card.effects.herdConvert || card.effects.sacrificeForBlock));
     setArmedRefund(armsCancelablePrompt
       ? { card, cost, isPower: card.type === 'power', exhaust: !!card.effects?.exhaust }
       : null);
@@ -8049,6 +8091,8 @@ export default function App() {
       setGorgePromptActive(which === 'gorge');
       setWellDrilledPromptActive(which === 'wellDrilled');
       setHouseRulesPromptActive(which === 'houseRules');
+      setHerdPromptActive(which === 'herd');
+      setSacrificeForBlockPromptActive(which === 'sacrificeBlock');
     };
     // Whistle — arm a 2-click swap. First click sets one slot; second click
     // swaps that slot's contents with the second-clicked slot.
@@ -8080,6 +8124,23 @@ export default function App() {
       armTargetingPrompt('gorge');
       logBits.push(`🍖 Gorge armed — pick an animal to overfeed.`);
     }
+    // Trough — the next N summoned animals arrive already fed.
+    if (fx.troughFeed) {
+      setTroughCharges(c => c + fx.troughFeed);
+      troughChargesRef.current += fx.troughFeed;
+      logBits.push(`🪣 Trough set — your next ${fx.troughFeed} animals arrive fed.`);
+    }
+    // They DO Move in Herds — arm a 1-click prompt (resolved in herdClickSlot).
+    if (fx.herdConvert) {
+      armTargetingPrompt('herd');
+      logBits.push(`🦖 They DO Move in Herds armed — pick the animal the others become.`);
+    }
+    // Sacrifice-for-Block — arm a 1-click prompt. Click any animal → it leaves
+    // immediately (no exit bonus) and grants Block equal to its current attack.
+    if (fx.sacrificeForBlock) {
+      armTargetingPrompt('sacrificeBlock');
+      logBits.push(`🛡 Pick an animal to sacrifice for Block equal to its damage.`);
+    }
     // Murmuration — deal composure for each bird currently in play. Birds are
     // animals with feedKey 'bird' (rabid-scrubjay / goose / raven / owl).
     if (fx.compDmgPerBird) {
@@ -8093,6 +8154,16 @@ export default function App() {
         logBits.push(`🐦 Murmuration: ${dmg} composure (${birds} bird${birds === 1 ? '' : 's'})`);
       } else {
         logBits.push(`🐦 Murmuration — no birds in play.`);
+      }
+    }
+    // The Horde — deal composure equal to animals summoned this combat.
+    if (fx.damagePerSummonThisCombat) {
+      const dmg = animalsSummonedRef.current * fx.damagePerSummonThisCombat;
+      if (dmg > 0) {
+        applyCastDamageToTarget(dmg, 'composure');
+        logBits.push(`🐾 The Horde: ${dmg} composure (${animalsSummonedRef.current} summoned this combat)`);
+      } else {
+        logBits.push(`🐾 The Horde — no animals summoned yet this combat.`);
       }
     }
     // Stampede — arm an extra attack on every small-land animal. Like On
@@ -9254,6 +9325,79 @@ export default function App() {
     pushLog(`🎯 Well-Drilled dismissed without picking an animal.${refunded}`);
   }
 
+  // They DO Move in Herds — the clicked animal is the template; every OTHER
+  // single-slot animal becomes that species, KEEPING its own durationRemaining
+  // (and feedReceived — it's already alive). Multi-slot animals (combines with
+  // `spans`) are skipped entirely, as both template-source and conversion
+  // target. The template's species/attackBonus copy; per-slot riders reset.
+  function herdClickSlot(slotName) {
+    if (!herdPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal' || (Array.isArray(slot.spans) && slot.spans.length > 0)) return;
+    const species = slot.animalId;
+    const animal = getAnimal(species);
+    let converted = 0;
+    setTray(p => {
+      const next = { ...p };
+      for (const sn of ['intro', 'subject', 'target']) {
+        const s = next[sn];
+        if (sn === slotName) continue;
+        if (s?.kind !== 'animal') continue;
+        if (Array.isArray(s.spans) && s.spans.length > 0) continue; // leave combines alone
+        if (s.animalId === species) continue; // already this species
+        next[sn] = {
+          ...s,
+          animalId: species,
+          summonSet: slot.summonSet || null,
+          // duration unchanged; reset one-shot riders that don't carry across.
+          nextAttackMult: 1,
+          extraAttacks: 0,
+        };
+        converted++;
+      }
+      return syncTrayLegacy(next);
+    });
+    setHerdPromptActive(false);
+    pushLog(converted > 0
+      ? `🦖 They DO Move in Herds — ${converted} animal${converted === 1 ? '' : 's'} become ${animal?.name || species}.`
+      : `🦖 They DO Move in Herds — nothing else to convert.`);
+  }
+
+  function cancelHerdPrompt() {
+    if (!herdPromptActive) return;
+    setHerdPromptActive(false);
+    const refunded = refundArmedCard();
+    pushLog(`🦖 They DO Move in Herds dismissed without picking.${refunded}`);
+  }
+
+  // Sacrifice-for-Block — the clicked animal leaves the board IMMEDIATELY with
+  // NO exit bonus; you gain Block equal to its current attack value (incl.
+  // permanent attackBonus). A pre-played On Three!/Stampede double does NOT
+  // apply — those add extraAttacks resolved at end of turn, not to the base
+  // attack value read here.
+  function sacrificeForBlockClickSlot(slotName) {
+    if (!sacrificeForBlockPromptActive) return;
+    const slot = tray?.[slotName];
+    if (!slot || slot.kind !== 'animal') return;
+    const animal = getAnimal(slot.animalId);
+    const blockGain = Math.max(0, animalAttackValue(animal, slot));
+    const updates = {};
+    if (Array.isArray(slot.spans)) for (const s of slot.spans) updates[s] = null;
+    else updates[slotName] = null;
+    setTray(p => syncTrayLegacy({ ...p, ...updates }));
+    noteAnimalDeparted();
+    if (blockGain > 0) setBlock(b => b + blockGain);
+    setSacrificeForBlockPromptActive(false);
+    pushLog(`🛡 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is sacrificed — +${blockGain} Block (no exit bonus).`);
+  }
+
+  function cancelSacrificeForBlockPrompt() {
+    if (!sacrificeForBlockPromptActive) return;
+    setSacrificeForBlockPromptActive(false);
+    const refunded = refundArmedCard();
+    pushLog(`🛡 Sacrifice dismissed without picking an animal.${refunded}`);
+  }
+
   // House Rules — designate an animal; it and every other copy of the same
   // species currently on the board stay +2 turns. Single-click animal target,
   // mirroring Well-Drilled. Stacks onto durationRemaining.
@@ -9488,7 +9632,12 @@ export default function App() {
       }
     }
     const animal = getAnimal(resolvedAnimalId);
-    pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives now.`);
+    animalsSummonedRef.current += 1; // The Horde counter
+    setAnimalsSummonedThisCombat(animalsSummonedRef.current);
+    // Trough: an instant summon also draws a charge if it's a fed type.
+    const eatTroughFed = animal?.feedKey && troughChargesRef.current > 0;
+    if (eatTroughFed) { troughChargesRef.current -= 1; setTroughCharges(troughChargesRef.current); }
+    pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives now${eatTroughFed ? ' (Trough: fed)' : ''}.`);
     if (slot.card) setDiscard(d => [...d, { ...slot.card, uid: uid() }]);
     const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
@@ -9498,6 +9647,7 @@ export default function App() {
       predatorProgress: 0,
       adjacentSpawnProgress: 0,
       summonSet: slot.summonSet || null,
+      feedReceived: eatTroughFed || undefined,
     } }));
     setEatItPromptActive(false);
   }
@@ -10645,11 +10795,18 @@ export default function App() {
             }
             const animal = getAnimal(resolvedAnimalId);
             hTick.arrivals.push(resolvedAnimalId);
+            animalsSummonedRef.current += 1; // The Horde counter
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
             // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
             // Fountain of Youth tactic: +1 duration to fresh summons.
             const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
+            // Trough: a charge auto-feeds this fed-type arrival.
+            const troughFed = animal?.feedKey && troughChargesRef.current > 0;
+            if (troughFed) {
+              troughChargesRef.current -= 1;
+              pushLog(`🪣 Trough — ${animal?.name || resolvedAnimalId} arrives already fed.`);
+            }
             nextSlots[slotName] = {
               kind: 'animal',
               animalId: resolvedAnimalId,
@@ -10657,6 +10814,7 @@ export default function App() {
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
+              feedReceived: troughFed || undefined,
             };
           } else {
             nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };
@@ -10734,6 +10892,10 @@ export default function App() {
         pendingLures: SLOT_ORDER.map(s => nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])
           .filter(v => v?.kind === 'lure').length,
       });
+      // Flush the ref-tracked Trough + Horde counters into state so the
+      // badge / The Horde preview update (the tick mutated the refs above).
+      setTroughCharges(troughChargesRef.current);
+      setAnimalsSummonedThisCombat(animalsSummonedRef.current);
       // Maul: snapshot the post-tick board for applyEnemyIntent, which runs
       // later this endTurn before the tray setState has flushed to closure.
       // Only slots that ALREADY held an animal during the player's turn are
@@ -11325,7 +11487,10 @@ export default function App() {
     const rawReduction = effectSources().reduce((s, x) => s + (x.effect?.damageReduction || 0), 0)
                        + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
     const threadReduction = Math.min(2, longThread || 0);
-    const reduction = Math.min(2, rawReduction) + threadReduction;
+    // Animal Midnight power: −2 per swing while ≥2 animals are in play.
+    const projAnimalCount = SLOT_ORDER.filter(s => tray[s]?.kind === 'animal').length;
+    const midnightReduction = (powers.some(p => p.installPower?.id === 'animalMidnight') && projAnimalCount >= 2) ? 2 : 0;
+    const reduction = Math.min(2, rawReduction) + threadReduction + midnightReduction;
     const swingReduction = nextAttackSwingReduction > 0 ? nextAttackSwingReduction : 0;
     const holdOnReduce = holdOnArmed ? (holdOnValue || 0) : 0;
 
@@ -11643,7 +11808,12 @@ export default function App() {
       // contribution at 2 keeps the school's identity loop intact but
       // stops the multi-layer stack from zero-ing out attacks entirely.
       const threadReduction = Math.min(2, longThread || 0);
-      const reduction = Math.min(2, rawReduction) + threadReduction;
+      // Animal Midnight power: −2 per swing while ≥2 animals are out. Reads
+      // the post-tick board snapshot (same source maul/sloth use), since
+      // that's what's actually on the field when the enemy swings.
+      const midnightCount = SLOT_ORDER.filter(s => boardForMaulRef.current?.[s]?.kind === 'animal').length;
+      const midnightReduction = (powers.some(p => p.installPower?.id === 'animalMidnight') && midnightCount >= 2) ? 2 : 0;
+      const reduction = Math.min(2, rawReduction) + threadReduction + midnightReduction;
       // v3.4.26 (Alan: "I'm not taking damage" investigation) — log
       // every reduction layer that touches incoming damage so we can
       // SEE exactly where it's vanishing. Fires once per enemy attack
@@ -12929,6 +13099,12 @@ export default function App() {
       houseRulesPromptActive={houseRulesPromptActive}
       onHouseRulesClick={houseRulesClickSlot}
       onCancelHouseRules={cancelHouseRulesPrompt}
+      herdPromptActive={herdPromptActive}
+      onHerdClick={herdClickSlot}
+      onCancelHerd={cancelHerdPrompt}
+      sacrificeForBlockPromptActive={sacrificeForBlockPromptActive}
+      onSacrificeForBlockClick={sacrificeForBlockClickSlot}
+      onCancelSacrificeForBlock={cancelSacrificeForBlockPrompt}
       onActivateAnimal={activateAnimalFromSlot}
       abilitiesUsedThisTurn={abilitiesUsedThisTurn}
       narrowChooserOpen={narrowChooserOpen}
