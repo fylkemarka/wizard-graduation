@@ -3591,6 +3591,11 @@ export default function App() {
   // Maul notice — names the animal torn off and WHY, as a transient toast
   // over the board so it's obvious which body died and that it was a maul.
   const [maulNotice, setMaulNotice] = useState(null);
+  // Pouch notice — the kangaroo pouch absorbed an entire enemy turn. The
+  // "Safe in the pouch" log line gets buried by end-of-turn spam within a
+  // tick, so a transient toast makes the no-damage outcome visible (Alan,
+  // 2026-06-08).
+  const [pouchNotice, setPouchNotice] = useState(null);
   const [dmgFloaters, setDmgFloaters] = useState([]);
   // Rotating sequence so simultaneous floaters (e.g. a 3-animal menagerie
   // tick) fan out instead of stacking on the same pixel and becoming an
@@ -4064,6 +4069,11 @@ export default function App() {
     const id = setTimeout(() => setMaulNotice(null), 3200);
     return () => clearTimeout(id);
   }, [maulNotice]);
+  useEffect(() => {
+    if (!pouchNotice) return;
+    const id = setTimeout(() => setPouchNotice(null), 2600);
+    return () => clearTimeout(id);
+  }, [pouchNotice]);
   // HIT ME AGAIN reactive-recoil power ripped 2026-05-31 with the chutzpah
   // → handler pivot. The card no longer exists in the pool.
   // v2.33: Stubborn Block was removed (Power that converted unspent energy
@@ -5761,6 +5771,7 @@ export default function App() {
     // should never start with a stale modal.
     setCardLossNotice(null);
     setMaulNotice(null);
+    setPouchNotice(null);
     setScreenHitFlash(0);
 
     // Apply start-of-combat effects from equipment AND relics.
@@ -11712,6 +11723,7 @@ export default function App() {
       pouchGuardRef.current = false;
       setPouchGuard(false);
       pushLog(`🦘 Safe in the pouch — ${e.name}'s turn glances off. No damage.`);
+      setPouchNotice({ id: Date.now(), enemy: e.name || 'The enemy' });
       return;
     }
     // Sloth (slowsEnemy, Alan 2026-06-03): while a sloth hangs around, time
@@ -13184,7 +13196,7 @@ export default function App() {
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyDmgTurns={enemyDmgTurns} playerDmgTurns={playerDmgTurns}
       enemyHitFlash={enemyHitFlash} playerHitFlash={playerHitFlash} dmgFloaters={dmgFloaters}
-      screenHitFlash={screenHitFlash} maulNotice={maulNotice}
+      screenHitFlash={screenHitFlash} maulNotice={maulNotice} pouchNotice={pouchNotice}
       hp={hp} maxHp={maxHp}
       playerComposure={composure} playerComposureMax={composureMax}
       block={block} poise={poise} energy={energy} hand={hand}

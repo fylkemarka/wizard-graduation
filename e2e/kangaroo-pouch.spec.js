@@ -50,6 +50,9 @@ test('ducking into the kangaroo pouch blocks the next enemy turn', async ({ page
   await expect(kangaroo).toBeVisible();
   await kangaroo.click();
 
+  // A transient toast announces the absorbed turn (the log line buries fast).
+  await expect(page.getByTestId('pouch-notice')).toBeVisible();
+
   // After the enemy turn resolves, HP is untouched. (Before the fix the stale
   // guard let the 9-damage maul through.) Poll until the turn settles.
   await expect(page.getByTestId('player-hp')).toHaveAttribute('data-hp', String(hpBefore));

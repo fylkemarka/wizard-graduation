@@ -39,7 +39,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        enemyDmgMult, playerDmgMult,
                        enemyDmgTurns = 0, playerDmgTurns = 0,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
-                       screenHitFlash = 0, maulNotice = null,
+                       screenHitFlash = 0, maulNotice = null, pouchNotice = null,
                        hp, maxHp, playerComposure, playerComposureMax,
                        block, poise, energy, energyMax, hand, deck, discard, exiled = [], tray,
                        amplifyPlaysThisCombat, getEffectiveCost,
@@ -235,6 +235,22 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             </div>
             <div className="text-sm text-parchment-300 italic mt-0.5">
               {maulNotice.enemy} mauled it — {maulNotice.reason}.
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Pouch toast — the kangaroo pouch absorbed the whole enemy turn. The
+          log line buries fast, so this makes the no-damage outcome obvious. */}
+      {pouchNotice && (
+        <div data-testid="pouch-notice" key={pouchNotice.id}
+             className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none maul-toast">
+          <div className="parchment-card-strong px-6 py-3 border-2 border-moss-400 shadow-2xl text-center">
+            <div className="text-xs uppercase tracking-widest text-moss-300 font-display">🦘 Safe in the Pouch</div>
+            <div className="text-2xl font-display text-parchment-50 mt-1">
+              No damage <span className="text-moss-300">this turn</span>
+            </div>
+            <div className="text-sm text-parchment-300 italic mt-0.5">
+              {pouchNotice.enemy}'s turn glances right off.
             </div>
           </div>
         </div>
