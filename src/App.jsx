@@ -3762,6 +3762,12 @@ export default function App() {
   // their turn) and takes NO damage on the next enemy turn. Consumed at the
   // top of applyEnemyIntent.
   const [pouchGuard, setPouchGuard] = useState(false);
+  // Mirror of pouchGuard for synchronous reads inside applyEnemyIntent (same
+  // stale-closure discipline as shieldBraceRef): the pouch ability calls
+  // endTurn() in the same tick as setPouchGuard(true), so the enemy turn that
+  // immediately follows reads the STALE state (false) and damages the player
+  // anyway. Read the ref in that path instead. (Alan bug, 2026-06-08.)
+  const pouchGuardRef = useRef(false);
   // Per-turn activated-ability usage (slot names). Pigeon's scramble is once
   // per player turn; Mime self-consumes and Kangaroo ends the turn, so only
   // the persistent per-turn verbs need this gate. Reset at player-turn-start.
@@ -5610,6 +5616,7 @@ export default function App() {
     redirectEnemyAttackRef.current = false;
     setEnemySkipNextTurn(false);
     setPouchGuard(false);
+    pouchGuardRef.current = false;
     setAbilitiesUsedThisTurn([]);
     setEnemyIntent(rollIntent(e));
     setIntentTick(t => t + 1);
@@ -9397,6 +9404,7 @@ export default function App() {
       }
       setEnergy(e => e - 2);
       setPouchGuard(true);
+      pouchGuardRef.current = true; // sync mirror — endTurn() below reads it this tick
       setAbilitiesUsedThisTurn(u => [...u, slotName]);
       pushLog(`🦘 ${animal.icon} You duck into the pouch — no damage next turn. (−2 energy, your turn ends.)`);
       endTurn();
@@ -9940,10 +9948,10 @@ export default function App() {
     const c = companionRef.current;
     if (!c || !c.intent) return;
     // Whole-enemy-side skips: the pouch covers both attackers, and a
-    // Speechless enemy side stays speechless. Closure values are pre-
-    // consumption (applyEnemyIntent's setters haven't committed), so they
-    // still read true for the companion in the same pass.
-    if (pouchGuard) { pushLog(`🦘 ${c.def.name}'s jab glances off the pouch.`); }
+    // Speechless enemy side stays speechless. Read the ref (not state): the
+    // pouch ability sets it in the same tick it calls endTurn, so the state
+    // closure here is stale-false (Alan bug, 2026-06-08).
+    if (pouchGuardRef.current) { pushLog(`🦘 ${c.def.name}'s jab glances off the pouch.`); }
     else if (enemySkipNextTurn) { pushLog(`🤐 ${c.def.name} has nothing to add.`); }
     else {
       const it = c.intent;
@@ -11700,7 +11708,8 @@ export default function App() {
     // Kangaroo pouch (Alan 2026-06-05): the player ducked in last turn, so this
     // enemy turn deals NO damage. The enemy still "acts" (the swing whiffs
     // against the pouch), but riders/damage are skipped entirely. Consumed here.
-    if (pouchGuard) {
+    if (pouchGuardRef.current) {
+      pouchGuardRef.current = false;
       setPouchGuard(false);
       pushLog(`🦘 Safe in the pouch — ${e.name}'s turn glances off. No damage.`);
       return;

@@ -638,7 +638,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                    label={`Composure ${playerComposure}/${playerComposureMax}`} />
         </div>
         <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
-          <span title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
+          <span data-testid="player-hp" data-hp={hp} title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
           <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
           <span title="Energy — refills each turn." className="font-mono text-sm text-gold-300"><Icon name="energy" className="mr-0.5" />{energy}/{energyMax}</span>
           <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-sm text-iris-300"><Icon name="block" className="mr-0.5" />{block}</span>
@@ -1752,6 +1752,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
           onClick={clickHandler}
+          data-testid="board-animal"
+          data-animal-id={card.animalId}
           data-combo={comboHere ? comboHere.name : undefined}
           title={comboHere ? `${armedTitle}\n\n✨ ${comboHere.name} — ${comboHere.desc}` : armedTitle}
           className={`px-3 py-2 rounded text-parchment-50 text-xs flex flex-col items-center gap-0.5 min-w-[110px] max-w-[200px] ${
