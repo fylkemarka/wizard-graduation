@@ -331,6 +331,10 @@ function uid() { return _uid++; }
 // a card is drafted-but-dead-in-hand). Module-scope = fresh per `node` process.
 const NEW_CARD_PLAYS = {};
 function notePlay(id) { NEW_CARD_PLAYS[id] = (NEW_CARD_PLAYS[id] || 0) + 1; }
+// Batch-level fire counts for the new ENEMY mechanics (Alan 1000-run, 2026-06-08):
+// did they actually proc, and how often? Module-scope = fresh per `node` process.
+const ENEMY_PROCS = {};
+function noteEnemyProc(kind) { ENEMY_PROCS[kind] = (ENEMY_PROCS[kind] || 0) + 1; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function rnd() { return Math.random(); }
 function pickRandom(arr) { return arr[Math.floor(rnd() * arr.length)]; }
@@ -347,7 +351,16 @@ function buildStarterDeck(lane) {
   // Handler (Animal Summoner) opens with the lure/tactic/utility starter —
   // no word-pool, no verbal effect cards. Mirrors App.jsx handler starter.
   if (lane === 'handler') {
-    return shuffle(HANDLER_STARTER.map(id => ({ ...HANDLER_CARDS_BY_ID[id], uid: uid() })));
+    const ids = HANDLER_STARTER.slice();
+    // SEED_CARDS env (Alan 1000-run, 2026-06-08): inject extra handler cards
+    // into the starting deck to force a build path (sacrifice / monoculture /
+    // strength) for targeted runs. Unknown ids ignored.
+    if (typeof process !== 'undefined' && process.env.SEED_CARDS) {
+      for (const id of process.env.SEED_CARDS.split(',').map(s => s.trim()).filter(Boolean)) {
+        if (HANDLER_CARDS_BY_ID[id]) ids.push(id);
+      }
+    }
+    return shuffle(ids.map(id => ({ ...HANDLER_CARDS_BY_ID[id], uid: uid() })));
   }
   const pool = LANE_POOL_BY_SLOT[lane];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
@@ -1978,6 +1991,7 @@ function handlerApplyIntent(state, combat, intent) {
         cands.push({ s, slot, atk });
       }
       cands.sort((a, b) => redirect ? a.atk - b.atk : b.atk - a.atk);
+      if (cands.length) noteEnemyProc((intent.maulCount || 1) > 1 ? 'doubleMaul' : 'maul');
       // maulCount > 1 = double/triple maul (Warp). Mirrors App.jsx.
       for (const v of cands.slice(0, Math.max(1, intent.maulCount || 1))) {
         if (Array.isArray(v.slot.spans)) for (const s of v.slot.spans) combat.htray[s] = null;
@@ -2000,26 +2014,32 @@ function handlerApplyIntent(state, combat, intent) {
   } else if (intent.kind === 'heal') {
     // Self-regen (Patchwork Golem / Gauze Revenant). Mirrors App.jsx.
     const max = combat.enemy?.startComp || combat.enemy?.comp || combat.enemyComposure;
+    const before = combat.enemyComposure;
     combat.enemyComposure = Math.min(max, combat.enemyComposure + (intent.value || 0));
+    if (combat.enemyComposure > before) noteEnemyProc('heal');
   } else if (intent.kind === 'charge') {
     // Wind-up (Spindlewight): park the value; it returns as a big attack next
     // turn via rollIntent. No damage now. Mirrors App.jsx.
     combat.enemy.pendingChargeValue = intent.value || 0;
+    noteEnemyProc('charge');
   } else if (intent.kind === 'summon') {
     // Mid-combat add (Spinster Matron): fill the companion slot if open.
     if (!combat.companion) {
       const inst = buildCompanionFromIdSim(intent.companionId, 1.25);
-      if (inst) combat.companion = inst;
+      if (inst) { combat.companion = inst; noteEnemyProc('summon'); }
     }
   } else if (intent.kind === 'cutShort') {
     // Snip N turns off every on-board animal (Gauze Revenant). Mirrors App.jsx.
     const n = intent.value || 1;
+    let hit = false;
     for (const s of SLOTN) {
       const sl = combat.htray[s];
-      if (sl?.kind === 'animal') sl.durationRemaining = Math.max(0, (sl.durationRemaining || 0) - n);
+      if (sl?.kind === 'animal') { sl.durationRemaining = Math.max(0, (sl.durationRemaining || 0) - n); hit = true; }
     }
+    if (hit) noteEnemyProc('cutShort');
   } else if (intent.kind === 'undermineTactic') {
     // Dispel the active Pack Tactic (Spinster Matron). Mirrors App.jsx.
+    if (combat.tactic) noteEnemyProc('undermineTactic');
     combat.tactic = null;
   } else if (intent.kind === 'freeze') {
     // Freeze the strongest animal for N turns (Pattern-Maker). Mirrors App.jsx.
@@ -2031,13 +2051,15 @@ function handlerApplyIntent(state, combat, intent) {
       const a = ANIMALS[sl.animalId]; let atk = (a?.attack || 0); if (atk > 0) atk += (sl.attackBonus || 0) + (combat.summonStrength || 0);
       if (atk > bestAtk) { bestAtk = atk; best = s; }
     }
-    if (best) combat.htray[best].frozenTurns = n;
+    if (best) { combat.htray[best].frozenTurns = n; noteEnemyProc('freeze'); }
   } else if (intent.kind === 'silence') {
     // No new summons for N turns (Silent Spinner). Mirrors App.jsx.
     combat.silencedTurns = Math.max(combat.silencedTurns || 0, intent.value || 1);
+    noteEnemyProc('silence');
   } else if (intent.kind === 'turnAgainst') {
     // Next tick, the menagerie hits the player (Tapestry Walker). Mirrors App.jsx.
     combat.animalsTurned = true;
+    noteEnemyProc('turnAgainst');
   } else if (intent.kind === 'betray') {
     // Steal the strongest animal as a Turncoat companion (Spinster Matron).
     if (!combat.companion) {
@@ -2056,6 +2078,7 @@ function handlerApplyIntent(state, combat, intent) {
         const def = { id: `turncoat-${sl.animalId}`, name: `Turncoat`, comp: Math.max(10, atk * 3), tier: 'companion',
           behaviors: [{ kind: 'attack', value: atk, pool: 'composure', weight: 3 }] };
         combat.companion = { def, composure: def.comp, block: 0, intent: { ...def.behaviors[0] } };
+        noteEnemyProc('betray');
       }
     }
   }
@@ -6715,6 +6738,10 @@ function buildReport(agg) {
       lines.push(`- **${id}**: drafted ${s.drafts} (${pct(s.draftRate)}) · played ${plays}× · ${s.winsWith} wins · avg acts ${s.avgActsWith.toFixed(2)} with / ${s.avgActsWithout.toFixed(2)} without`);
     }
     lines.push(`- Memorial AoE procs (every exit/sacrifice while installed): ${NEW_CARD_PLAYS['_memorialProcs'] || 0}`);
+    lines.push('');
+    lines.push(`## NEW ENEMY MECHANICS — fire counts (this batch)`);
+    const procOrder = ['heal', 'charge', 'summon', 'cutShort', 'undermineTactic', 'doubleMaul', 'freeze', 'silence', 'turnAgainst', 'betray', 'maul'];
+    lines.push('- ' + procOrder.map(k => `${k} ${ENEMY_PROCS[k] || 0}`).join(' · '));
     lines.push('');
   }
   lines.push(`## Wit LONG THREAD (v2.34)`);
