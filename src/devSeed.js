@@ -41,6 +41,11 @@ export function installSeedFromUrl() {
     // maul behavior (consumed once in rollIntent), so the maul render path is
     // regression-testable without hunting a fragile RNG seed. No-op when absent.
     if (params.get('forceMaul') != null) window.__forceMaul = true;
+    // E2E/dev hook: ?forcePhaseShift forces the Silk Wraith into its
+    // phase-shifted state at combat start, so the thinned-header layout is
+    // screenshot/regression-testable without grinding composure down. No-op
+    // when absent or against any other enemy.
+    if (params.get('forcePhaseShift') != null) window.__forcePhaseShift = true;
     // E2E hook: ?forceIntentKind=block pins the next intent roll to that
     // kind (consumed once). No-op when the enemy lacks the kind.
     const forcedIntentKind = params.get('forceIntentKind');

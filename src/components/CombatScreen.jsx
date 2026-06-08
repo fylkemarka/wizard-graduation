@@ -255,7 +255,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           enemies) takes the middle, Your State is 1/5 on the right. Solo
           fights: the forecast widens into the companion's column. */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-      <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative lg:col-span-1 ${shakeClass}`}>
+      <div data-testid="enemy-panel" key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative lg:col-span-1 ${shakeClass}`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
         {dmgFloaters && dmgFloaters.length > 0 && (
           <div className="pointer-events-none absolute left-1/2 top-10 z-20">
@@ -270,19 +270,19 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             ))}
           </div>
         )}
-        <div className="flex justify-between items-start mb-0.5">
-          <div className="flex items-start gap-2">
-            {/* Bitmap portrait slot — appears once /art/enemies/<id>.png
-                exists (see design/ART_PROMPTS.md); hidden until then. */}
-            {enemy?.id && (
-              <ArtSlot src={`/art/enemies/${enemy.id}.png`} alt={enemy.name}
-                       className="w-14 h-14 rounded-md border-2 border-ember-700 object-cover shrink-0" />
-            )}
-            <div className="min-w-0">
-            {/* text-sm + break-words so long names (e.g. "Bartholomew
-                Linenfast (still adjusting the hem)") wrap inside the narrow
-                1/5 enemy box instead of spilling over (Alan, 2026-06-08). */}
-            <div className="font-display text-sm text-ember-300 flex items-center gap-x-2 gap-y-0.5 flex-wrap leading-tight break-words">
+        {/* Header restructured (Alan, 2026-06-08): name + numeric readouts
+            were one horizontal row, so a wrapping name (Silk Wraith / long
+            rogue names) collided with the composure number. Now they STACK —
+            portrait+name on top (name wraps freely), then a full-width
+            readout row, then the vitals bars. Nothing overlaps. */}
+        <div className="flex items-start gap-2 mb-1">
+          {/* Bitmap portrait slot — /art/enemies/<id>.png; hidden until then. */}
+          {enemy?.id && (
+            <ArtSlot src={`/art/enemies/${enemy.id}.png`} alt={enemy.name}
+                     className="w-14 h-14 rounded-md border-2 border-ember-700 object-cover shrink-0" />
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="font-display text-sm text-ember-300 leading-tight break-words flex items-center gap-x-2 gap-y-0.5 flex-wrap">
               <span className="break-words">{enemy?.name}</span>
               {companion && castTarget === 'main' && (
                 <span className="px-1.5 py-0.5 rounded bg-gold-600 text-ink-800 text-[9px] uppercase tracking-widest font-bold"
@@ -290,11 +290,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                   🎯 your casts
                 </span>
               )}
-              {/* v2.99.2: phase-shift badge — prominent next to the enemy
-                  name so players see the state change immediately when
-                  the Silk Wraith (or future phase-shifters) thins. */}
+              {/* Phase-shift badge — slimmer chip so it doesn't shove the name. */}
               {enemy?.phaseShifted && (
-                <span className="text-xs px-2 py-1 rounded uppercase tracking-widest font-bold font-mono bg-iris-900 border-2 border-iris-400 text-iris-200 animate-pulse"
+                <span className="text-[9px] px-1.5 py-0.5 rounded uppercase tracking-widest font-bold font-mono bg-iris-900 border border-iris-400 text-iris-200"
                   title="The enemy has shifted phase. Its per-turn behavior has changed.">
                   🕸 Thinned
                 </span>
@@ -303,51 +301,42 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <div className="text-[10px] text-parchment-300 italic leading-none">
               {enemy?.tier === 'boss' ? 'Boss' : enemy?.tier === 'elite' ? 'Elite' : 'Enemy'}
             </div>
-            </div>
-          </div>
-          <div className="text-right flex items-baseline gap-2">
-            {showComposure && (
-              <span className="text-base font-mono text-iris-300" title="Composure — drain to 0 to make them back down.">
-                <Icon name="composure" className="mr-0.5" />{enemyComposure}<span className="text-[11px] text-parchment-300">/{composureMax}</span>
-              </span>
-            )}
-            {/* v3.4.60 — Silk Wraith phase-shift composure regen. Persistent
-                chip so the player understands why their drain isn't sticking. */}
-            {enemy?.id === 'e2-silk-wraith' && enemy?.phaseShifted && (
-              <span className="text-[11px] font-mono text-moss-300 cursor-help"
-                    title="The Silk Wraith has phase-shifted (at ≤50% Composure). It re-weaves +1 Composure at the start of each of its turns, and is wit-resistant (×0.5).">
-                🕸 +1 comp/turn
-              </span>
-            )}
-            {/* v3.4.67 — Handler Pressure chip. Bluster casts stack
-                Pressure on the enemy; Bluster cards with pressureBonus get
-                +Pressure flat damage; capstones consume Pressure × N. */}
-            {enemyPressure > 0 && (
-              <span className="text-[11px] font-mono text-ember-300 cursor-help"
-                    title={`Pressure: ${enemyPressure} stack${enemyPressure > 1 ? 's' : ''}. Bluster casts deal +${enemyPressure} flat damage; capstones consume it for a × multiplier spike.`}>
-                <Icon name="pressure" className="mr-0.5" />{enemyPressure} pressure
-              </span>
-            )}
-            {showHp && (
-              <span className="text-base font-mono text-ember-400" title="Physical HP — only physical effects hit this.">
-                <Icon name="hp" className="mr-0.5" />{enemyHp}<span className="text-[11px] text-parchment-300">/{hpMax}</span>
-              </span>
-            )}
-            <span className="text-[11px] font-mono"><Icon name="block" className="mr-0.5" />{enemyBlock}</span>
-            {/* v3.4: enemy DoT counter (Poison-style). Shows current
-                damage-per-turn AND turns remaining. Drains to 0 → expires. */}
-            {enemy?.dot?.turnsRemaining > 0 && enemy?.dot?.damage > 0 && (
-              <div className="text-base text-ember-300"
-                   title={`Damage-over-time: each enemy turn, they take ${enemy.dot.damage} composure damage. ${enemy.dot.turnsRemaining} turns left. Bypasses block.`}>
-                <Icon name="bleed" className="mr-0.5" />DoT {enemy.dot.damage}/turn × {enemy.dot.turnsRemaining}
-              </div>
-            )}
-            {/* v2.65: removed duplicate Atk ×N chip — the STATUS row
-                below now surfaces enemyDmgMult / playerDmgMult shifts
-                more prominently. */}
           </div>
         </div>
-        {/* v3.5 art pass — enemy vitals bars under the header numbers. */}
+        {/* Numeric readouts — own full-width row, can't collide with the name. */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mb-1 font-mono">
+          {showComposure && (
+            <span className="text-base text-iris-300" title="Composure — drain to 0 to make them back down.">
+              <Icon name="composure" className="mr-0.5" />{enemyComposure}<span className="text-[11px] text-parchment-300">/{composureMax}</span>
+            </span>
+          )}
+          {showHp && (
+            <span className="text-base text-ember-400" title="Physical HP — only physical effects hit this.">
+              <Icon name="hp" className="mr-0.5" />{enemyHp}<span className="text-[11px] text-parchment-300">/{hpMax}</span>
+            </span>
+          )}
+          <span className="text-[11px]"><Icon name="block" className="mr-0.5" />{enemyBlock}</span>
+          {/* Silk Wraith phase-shift composure regen — why your drain slips. */}
+          {enemy?.id === 'e2-silk-wraith' && enemy?.phaseShifted && (
+            <span className="text-[11px] text-moss-300 cursor-help"
+                  title="The Silk Wraith has phase-shifted (at ≤50% Composure). It re-weaves +1 Composure at the start of each of its turns, and is wit-resistant (×0.5).">
+              🕸 +1 comp/turn
+            </span>
+          )}
+          {enemyPressure > 0 && (
+            <span className="text-[11px] text-ember-300 cursor-help"
+                  title={`Pressure: ${enemyPressure} stack${enemyPressure > 1 ? 's' : ''}. Bluster casts deal +${enemyPressure} flat damage; capstones consume it for a × multiplier spike.`}>
+              <Icon name="pressure" className="mr-0.5" />{enemyPressure} pressure
+            </span>
+          )}
+          {enemy?.dot?.turnsRemaining > 0 && enemy?.dot?.damage > 0 && (
+            <span className="text-[11px] text-ember-300"
+                  title={`Damage-over-time: each enemy turn, they take ${enemy.dot.damage} composure damage. ${enemy.dot.turnsRemaining} turns left. Bypasses block.`}>
+              <Icon name="bleed" className="mr-0.5" />DoT {enemy.dot.damage}×{enemy.dot.turnsRemaining}
+            </span>
+          )}
+        </div>
+        {/* v3.5 art pass — enemy vitals bars under the readouts. */}
         <div className="flex gap-2 items-center mb-1">
           {showComposure && (
             <StatBar value={enemyComposure} max={composureMax} fillClass="bg-iris-400"

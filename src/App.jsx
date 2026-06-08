@@ -5583,6 +5583,13 @@ export default function App() {
       hpMax: tmpl.hpMax >= 900 ? tmpl.hpMax : Math.round((tmpl.hpMax || 0) * DIFFICULTY_MULT),
       behaviors: scaledBehaviors,
     };
+    // Dev/e2e hook (?forcePhaseShift): drop the Silk Wraith straight into its
+    // thinned state so the phase-shifted header layout is screenshottable
+    // without grinding composure down. Consumed once.
+    if (typeof window !== 'undefined' && window.__forcePhaseShift && e.id === 'e2-silk-wraith') {
+      e.phaseShifted = true;
+      window.__forcePhaseShift = false;
+    }
     logEvent(TE.COMBAT_START, { enemyId: e.id, enemyName: e.name, tier: e.tier, act: e.act, hp, composure, deckSize: deck.length + hand.length + discard.length, equipment: equipment.map(eq => eq.id), piles: pilesSnapshot() });
     setEnemy(e);
     setEnemyComposure(e.composureMax);
