@@ -228,6 +228,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-animal-midnight',name: 'Animal Midnight',       cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'animalMidnight' } },
   { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 3, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
   { id: 'c-the-horde',      name: 'The Horde',             cost: 3, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
+  { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 2 } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -249,6 +250,7 @@ const HANDLER_REWARD_POOL = [
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   'c-narrow', 'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
+  'c-light-the-mound',
 ];
 
 // =============================================================================
@@ -1149,6 +1151,7 @@ function applyHandlerSkill(state, combat, card) {
       drawCards(state, 1);
       noteHandlerExit(state, combat);
       clearHandlerSlot(combat.htray, tgt.slot, tgt.s);
+      combat.sacrifices = (combat.sacrifices || 0) + 1; // Light the Mound
     }
   }
   // Make It Count — every animal attacks for double, then leaves play.
@@ -1161,6 +1164,7 @@ function applyHandlerSkill(state, combat, card) {
       departed++;
     }
     if (departed) noteHandlerExit(state, combat, departed);
+    combat.sacrifices = (combat.sacrifices || 0) + departed; // Light the Mound
   }
   // Trough — the next 3 summoned animals arrive already fed.
   if (fx.troughFeed) combat.troughCharges = (combat.troughCharges || 0) + fx.troughFeed;
@@ -1168,6 +1172,11 @@ function applyHandlerSkill(state, combat, card) {
   // (combat.summons is the running per-combat summon count).
   if (fx.damagePerSummonThisCombat) {
     const dmg = (combat.summons || 0) * fx.damagePerSummonThisCombat;
+    if (dmg > 0) { handlerDealComposure(combat, dmg); combat.totalDamageDealt += dmg; }
+  }
+  // Light the Mound — 2 composure per animal sacrificed this combat.
+  if (fx.damagePerSacrificeThisCombat) {
+    const dmg = (combat.sacrifices || 0) * fx.damagePerSacrificeThisCombat;
     if (dmg > 0) { handlerDealComposure(combat, dmg); combat.totalDamageDealt += dmg; }
   }
   // They DO Move in Herds — convert every other single-slot animal into the
@@ -1513,6 +1522,14 @@ function aiTurnHandler(state, combat) {
     if (hordeIdx >= 0) {
       const dmg = (combat.summons || 0);
       if (dmg >= combat.enemyComposure - combat.enemyBlock || dmg >= 4) { playHandlerCard(state, combat, hordeIdx); continue; }
+    }
+    // Light the Mound — worth it once 2+ animals have been sacrificed (≥4 dmg),
+    // or when lethal. The sim AI rarely sacrifices for Block, so this mostly
+    // fires off Last Supper / Make It Count send-offs.
+    const moundIdx = state.hand.findIndex(c => c.effects?.damagePerSacrificeThisCombat && c.cost <= state.energy);
+    if (moundIdx >= 0) {
+      const dmg = (combat.sacrifices || 0) * 2;
+      if (dmg > 0 && (dmg >= combat.enemyComposure - combat.enemyBlock || dmg >= 4)) { playHandlerCard(state, combat, moundIdx); continue; }
     }
     // Trough — set it down early when lures are still coming and charges
     // would land on future arrivals (≥1 pending lure or lure in hand).
@@ -2086,6 +2103,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     htray: { intro: null, subject: null, target: null },
     tactic: null, youthUses: 0, buffetArmed: false,
     troughCharges: 0, // Trough — auto-feed next N arrivals
+    sacrifices: 0,    // Light the Mound — animals deliberately sacrificed
     lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,
     tacticsEngaged: {}, tacticTurns: {},

@@ -271,6 +271,10 @@ const CARDS = [
     effects: { damagePerSummonThisCombat: 1 },
     desc: 'Deal composure damage equal to the number of animals you have summoned this combat.',
     flavor: 'You did not, strictly, plan for this many. They came anyway, and they remember.' },
+  { id: 'c-light-the-mound', name: 'Light the Mound', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { damagePerSacrificeThisCombat: 2 },
+    desc: 'Deal 2 composure damage for each animal you have sacrificed this combat.',
+    flavor: 'A respectful blaze. Everyone agrees they would have wanted this. No one asked them.' },
 
   // ---- COMMON ----
   { id: 'c-mend', name: 'Mend', lane: 'wit', cost: 1, type: 'skill', rarity: 'common',
@@ -3799,14 +3803,16 @@ export default function App() {
   // shield brace — the tick mutates it before any setState flushes).
   const [troughCharges, setTroughCharges] = useState(0);
   const troughChargesRef = useRef(0);
-  // Sacrifice-for-Block — armed by its card. Click any animal → it leaves
-  // immediately (no exit bonus); gain Block equal to its current attack.
-  const [sacrificeForBlockPromptActive, setSacrificeForBlockPromptActive] = useState(false);
   // Animals summoned this combat — drives The Horde's damage. Counts every
   // arrival (lure transform, predator chain, adjacent spawn, combine, Just
   // Eat It). Reset per combat. Ref-backed so same-pass reads are accurate.
   const [animalsSummonedThisCombat, setAnimalsSummonedThisCombat] = useState(0);
   const animalsSummonedRef = useRef(0);
+  // Animals deliberately SACRIFICED this combat (sacrifice-for-Block click,
+  // Last Supper, Make It Count) — drives Light the Mound. Natural exits
+  // (duration ran out) do NOT count. Reset per combat; ref for same-pass reads.
+  const [animalsSacrificedThisCombat, setAnimalsSacrificedThisCombat] = useState(0);
+  const animalsSacrificedRef = useRef(0);
   // The Whisperer power — animal departures bank a draw delivered into the
   // next turn's hand. Instant-play exits (Last Supper / Make It Count)
   // bump this during the turn; the end-of-turn tick adds its own departures
@@ -5638,9 +5644,9 @@ export default function App() {
     setBuffetArmed(false);
     // New bonus-card per-combat resets (Alan, 2026-06-07).
     setHerdPromptActive(false);
-    setSacrificeForBlockPromptActive(false);
     setTroughCharges(0); troughChargesRef.current = 0;
     setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
+    setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0;
     setLuresPlayedThisTurn([]);
     setLureNarrowing({});
     setNarrowChooserOpen(false);
@@ -5893,7 +5899,7 @@ export default function App() {
         || card.effects.treatExtend || card.effects.eatLureNow
         || card.effects.sacrificeForValue || card.effects.gorge
         || card.effects.buffetArmed || card.effects.narrowLure
-        || card.effects.herdConvert || card.effects.sacrificeForBlock));
+        || card.effects.herdConvert));
     setArmedRefund(armsCancelablePrompt
       ? { card, cost, isPower: card.type === 'power', exhaust: !!card.effects?.exhaust }
       : null);
@@ -8092,7 +8098,6 @@ export default function App() {
       setWellDrilledPromptActive(which === 'wellDrilled');
       setHouseRulesPromptActive(which === 'houseRules');
       setHerdPromptActive(which === 'herd');
-      setSacrificeForBlockPromptActive(which === 'sacrificeBlock');
     };
     // Whistle — arm a 2-click swap. First click sets one slot; second click
     // swaps that slot's contents with the second-clicked slot.
@@ -8135,12 +8140,6 @@ export default function App() {
       armTargetingPrompt('herd');
       logBits.push(`🦖 They DO Move in Herds armed — pick the animal the others become.`);
     }
-    // Sacrifice-for-Block — arm a 1-click prompt. Click any animal → it leaves
-    // immediately (no exit bonus) and grants Block equal to its current attack.
-    if (fx.sacrificeForBlock) {
-      armTargetingPrompt('sacrificeBlock');
-      logBits.push(`🛡 Pick an animal to sacrifice for Block equal to its damage.`);
-    }
     // Murmuration — deal composure for each bird currently in play. Birds are
     // animals with feedKey 'bird' (rabid-scrubjay / goose / raven / owl).
     if (fx.compDmgPerBird) {
@@ -8164,6 +8163,16 @@ export default function App() {
         logBits.push(`🐾 The Horde: ${dmg} composure (${animalsSummonedRef.current} summoned this combat)`);
       } else {
         logBits.push(`🐾 The Horde — no animals summoned yet this combat.`);
+      }
+    }
+    // Light the Mound — 2 composure per animal sacrificed this combat.
+    if (fx.damagePerSacrificeThisCombat) {
+      const dmg = animalsSacrificedRef.current * fx.damagePerSacrificeThisCombat;
+      if (dmg > 0) {
+        applyCastDamageToTarget(dmg, 'composure');
+        logBits.push(`🔥 Light the Mound: ${dmg} composure (${animalsSacrificedRef.current} sacrificed this combat)`);
+      } else {
+        logBits.push(`🔥 Light the Mound — nothing sacrificed yet this combat.`);
       }
     }
     // Stampede — arm an extra attack on every small-land animal. Like On
@@ -8211,6 +8220,9 @@ export default function App() {
           return syncTrayLegacy(n);
         });
         if (whisperBank > 0) setWhisperDrawsPending(d => d + whisperBank);
+        // Light the Mound: a mass send-off counts as `count` sacrifices.
+        animalsSacrificedRef.current += count;
+        setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
       }
       logBits.push(count > 0 ? `💥 Make It Count — ${count} sent` : `💥 Make It Count — no animals in play.`);
     }
@@ -9189,6 +9201,8 @@ export default function App() {
     noteAnimalDeparted();
     setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
     setSacrificePromptActive(false);
+    animalsSacrificedRef.current += 1; // Light the Mound
+    setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
     pushLog(`🍽 Last Supper — ${animal?.name || slot.animalId} departs. +${turnsLeft} Energy, draw 1.`);
   }
 
@@ -9370,13 +9384,13 @@ export default function App() {
     pushLog(`🦖 They DO Move in Herds dismissed without picking.${refunded}`);
   }
 
-  // Sacrifice-for-Block — the clicked animal leaves the board IMMEDIATELY with
-  // NO exit bonus; you gain Block equal to its current attack value (incl.
+  // Sacrifice-for-Block — ALWAYS-AVAILABLE click affordance (Alan, 2026-06-07):
+  // a small button on each animal pill. The animal leaves IMMEDIATELY with NO
+  // exit bonus; you gain Block equal to its current attack value (incl.
   // permanent attackBonus). A pre-played On Three!/Stampede double does NOT
-  // apply — those add extraAttacks resolved at end of turn, not to the base
-  // attack value read here.
-  function sacrificeForBlockClickSlot(slotName) {
-    if (!sacrificeForBlockPromptActive) return;
+  // apply — those add extraAttacks resolved at end of turn, not the base
+  // attack value read here. Counts toward Light the Mound.
+  function sacrificeAnimalForBlock(slotName) {
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'animal') return;
     const animal = getAnimal(slot.animalId);
@@ -9387,15 +9401,9 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
     noteAnimalDeparted();
     if (blockGain > 0) setBlock(b => b + blockGain);
-    setSacrificeForBlockPromptActive(false);
+    animalsSacrificedRef.current += 1;
+    setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
     pushLog(`🛡 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is sacrificed — +${blockGain} Block (no exit bonus).`);
-  }
-
-  function cancelSacrificeForBlockPrompt() {
-    if (!sacrificeForBlockPromptActive) return;
-    setSacrificeForBlockPromptActive(false);
-    const refunded = refundArmedCard();
-    pushLog(`🛡 Sacrifice dismissed without picking an animal.${refunded}`);
   }
 
   // House Rules — designate an animal; it and every other copy of the same
@@ -13102,9 +13110,7 @@ export default function App() {
       herdPromptActive={herdPromptActive}
       onHerdClick={herdClickSlot}
       onCancelHerd={cancelHerdPrompt}
-      sacrificeForBlockPromptActive={sacrificeForBlockPromptActive}
-      onSacrificeForBlockClick={sacrificeForBlockClickSlot}
-      onCancelSacrificeForBlock={cancelSacrificeForBlockPrompt}
+      onSacrificeAnimal={sacrificeAnimalForBlock}
       onActivateAnimal={activateAnimalFromSlot}
       abilitiesUsedThisTurn={abilitiesUsedThisTurn}
       narrowChooserOpen={narrowChooserOpen}
