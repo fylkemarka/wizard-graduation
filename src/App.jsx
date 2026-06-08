@@ -4759,11 +4759,12 @@ export default function App() {
     setSelectedCharacter(c);
     logEvent('character.select', { characterId: c.id, lane: c.lane, name: c.name });
     pushLog(`🧙 You are ${c.name}, ${c.title}.`);
-    // v3.4.50 / v3.4.72 (Alan): ALL wizards skip the supply shop. Each
-    // wizard gets a random common relic auto-strapped on, then goes
+    // v3.4.50 / v3.4.72 (Alan): ALL wizards skip the supply shop and go
     // straight to familiar-shop. Wit additionally defaults to the
     // slowburn-4 starting row (Lingering Point); handler seeds bluster-1
     // automatically via buildStartingDeck; jnsq uses the lane defaults.
+    // 2026-06-07 (Alan): no more random starting relic — players begin
+    // with just their starter deck. Relics are earned, not handed out.
     if (c.lane === 'wit') {
       const row = WIT_ROW_BY_ID['slowburn-4'];
       setStartingRow(row);
@@ -4774,12 +4775,6 @@ export default function App() {
     } else {
       const starterDeck = buildStartingDeck(c.lane);
       setDeck(starterDeck);
-    }
-    const commonRelics = RELICS.filter(r => r.rarity === 'common');
-    const grantedRelic = commonRelics[Math.floor(Math.random() * commonRelics.length)];
-    if (grantedRelic) {
-      grantRelic(grantedRelic, 'Starting supplies');
-      logEvent(TE.STARTING_PICK, { kind: 'relic', relicId: grantedRelic.id, relicName: grantedRelic.name, rarity: grantedRelic.rarity, auto: true });
     }
     setStage('familiar-shop');
   }
