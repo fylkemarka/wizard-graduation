@@ -307,6 +307,9 @@ const HANDLER_STARTER = [
   // c-buffet pulled from the starter 2026-06-07 (Alan: too strong for
   // turn 1) — stays in HANDLER_REWARD_POOL below.
   'c-pack-tactics', 'c-tactic-shield',
+  // Team-retool slice 1 (Alan, 2026-06-08) — keeper loop seeded into the
+  // opening for playtest reach. Mirrors src/App.jsx buildStarterDeckForLane.
+  'cv2-l-bag-of-oats', 'c-basic-training',
 ];
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',

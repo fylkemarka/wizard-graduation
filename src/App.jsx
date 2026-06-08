@@ -1150,6 +1150,13 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
     // c-buffet removed from the game entirely 2026-06-07 (see CARDS note).
     ids.push('c-tactic-shield');        // Summoned Shield — play to route animal attacks into Block
+    // Team-retool slice 1 (Alan, 2026-06-08): seed the keeper loop into the
+    // opening so it's playtest-reachable without the special-lure RNG. The Ox
+    // (A Bag of Oats) + Basic Training let the player feel the wall-building
+    // immediately. NB engine cards normally belong in reward pools, not
+    // starters (see Buffet-removal) — revisit placement once v3 lands.
+    ids.push('cv2-l-bag-of-oats');      // keeper: Drystone Ox
+    ids.push('c-basic-training');       // invest in an animal (perm +atk/+block)
   }
   return ids;
 }
