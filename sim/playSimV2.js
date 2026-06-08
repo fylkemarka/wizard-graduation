@@ -288,6 +288,11 @@ const HANDLER_REWARD_POOL = [
 
 let _uid = 1;
 function uid() { return _uid++; }
+// Batch-level play/proc tally for the new cards (panel measurement fix: drafts
+// alone are survivorship-confounded; we need PLAY counts + key procs to know if
+// a card is drafted-but-dead-in-hand). Module-scope = fresh per `node` process.
+const NEW_CARD_PLAYS = {};
+function notePlay(id) { NEW_CARD_PLAYS[id] = (NEW_CARD_PLAYS[id] || 0) + 1; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function rnd() { return Math.random(); }
 function pickRandom(arr) { return arr[Math.floor(rnd() * arr.length)]; }
@@ -891,7 +896,7 @@ function noteSacrificeSim(state, combat, n = 1) {
   }
   // Memorial fires on sacrifices here; natural exits fire it in the tick.
   if (hasHandlerPower(state, 'memorial')) {
-    for (let i = 0; i < n; i++) dealComposureAllSim(state, combat, 4);
+    for (let i = 0; i < n; i++) { dealComposureAllSim(state, combat, 4); notePlay('_memorialProcs'); }
   }
 }
 // One funnel per summon: Horde counter (combat.summons) + Cost of Littering
@@ -1336,6 +1341,7 @@ function applyHandlerSkill(state, combat, card) {
 function playHandlerCard(state, combat, idx) {
   const card = state.hand[idx];
   state.hand.splice(idx, 1);
+  notePlay(card.id);
   // Open Door Policy: first lure each turn costs 0. Mirrors App.jsx
   // effectiveCardCost + firstLureUsedThisTurn.
   const isLure = card.type === 'lure';
@@ -1508,8 +1514,19 @@ function aiTurnHandler(state, combat) {
       const expected = handlerAdjustIncoming(combat, incoming);
       const pool = targetsComp ? state.poise : state.block;
       if (expected > pool + 1) {
-        const di = state.hand.findIndex(c => c.type === 'handler-skill' && c.cost <= state.energy && (targetsComp ? c.effects?.poise : c.effects?.block));
-        if (di >= 0) { playHandlerCard(state, combat, di); continue; }
+        // Panel fix (2026-06-08): pick the affordable defense skill that best
+        // COVERS the uncovered hit at least cost — not findIndex-first-in-hand.
+        // Prefer the smallest block/poise that still covers the gap; if none
+        // covers it, take the biggest available.
+        const need = expected - pool;
+        const defs = state.hand
+          .map((c, i) => ({ c, i, v: targetsComp ? (c.effects?.poise || 0) : (c.effects?.block || 0) }))
+          .filter(o => o.c.type === 'handler-skill' && o.c.cost <= state.energy && o.v > 0);
+        if (defs.length) {
+          const covering = defs.filter(o => o.v >= need).sort((a, b) => a.v - b.v || a.c.cost - b.c.cost);
+          const pick = covering[0] || defs.sort((a, b) => b.v - a.v)[0];
+          playHandlerCard(state, combat, pick.i); continue;
+        }
       }
     }
     if (tryHandlerFeed(state, combat)) continue;
@@ -1745,18 +1762,21 @@ function aiTurnHandler(state, combat) {
       const spare = liveAnimals().some(sl => (sl.durationRemaining || 0) >= 2);
       if (stuckLure && spare) { playHandlerCard(state, combat, lsIdx); continue; }
     }
-    // Strays — drop fodder bodies when slots are open and the board is thin
-    // (ammo for the sacrifice engine / Memorial). Cheap board-filler.
+    // Strays — drop fodder bodies whenever 2+ slots are open (panel: the old
+    // animalCount<2 clamp meant the sacrifice build's ammo almost never hit the
+    // board). Bodies for Memorial / Light the Mound / sacrifice-for-Block.
     const straysIdx = state.hand.findIndex(c => c.effects?.spawnFodder && c.cost <= state.energy);
-    if (straysIdx >= 0 && emptyCount() >= 1 && animalCount() < 2) { playHandlerCard(state, combat, straysIdx); continue; }
-    // Pedigree — once committed to a species (2+ of one on the board), lock the
-    // lures to it so the monoculture snowball is reliable.
+    if (straysIdx >= 0 && emptyCount() >= 2) { playHandlerCard(state, combat, straysIdx); continue; }
+    // Pedigree — lock to the densest species. Once a monoculture power
+    // (Best in Show / Well-Drilled) is installed, commit at density ≥1 so the
+    // snowball actually starts (panel: dense≥2 gate kept the path unmeasurable).
     const pedIdx = state.hand.findIndex(c => c.effects?.lockLureSpecies && c.cost <= state.energy);
     if (pedIdx >= 0 && !combat.lockedSpecies) {
       const counts = {};
       for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
       const dense = Object.values(counts).reduce((m, v) => Math.max(m, v), 0);
-      if (dense >= 2) { playHandlerCard(state, combat, pedIdx); continue; }
+      const hasMono = hasHandlerPower(state, 'bestInShow') || hasHandlerPower(state, 'wellDrilled');
+      if (dense >= 2 || (dense >= 1 && hasMono)) { playHandlerCard(state, combat, pedIdx); continue; }
     }
     break;
   }
@@ -1939,7 +1959,7 @@ function handlerEndOfTurnTick(state, combat) {
   const memorialInstalled = hasHandlerPower(state, 'memorial');
   const noteExit = () => {
     if (whispererInstalled) combat.whisperPending = (combat.whisperPending || 0) + 1;
-    if (memorialInstalled) dealComposureAllSim(state, combat, 4);
+    if (memorialInstalled) { dealComposureAllSim(state, combat, 4); notePlay('_memorialProcs'); }
   };
 
   const onExit = (animal) => {
@@ -5448,14 +5468,27 @@ function aiPickHandlerReward(state) {
       // actually exercises the 2026-06-07 batch (was a flat 6 → auto-passed).
       s += ownedIds.has(card.id) ? 5 : 10;
     } else if (card.effects?.block) {
-      // Plain block answers (Hunker Down / Dig In) — direct HP defense, the
-      // handler's biggest death cause. Value high when the deck is light on it.
-      s += ownedIds.has(card.id) ? 6 : (hpDefenseCount < 4 ? 13 : 8);
+      // Plain block answers — direct HP defense, the handler's biggest death
+      // cause. Panel fix (2026-06-08): value BLOCK-PER-ENERGY (not flat) plus a
+      // cheap-1E tempo bump, so the affordable Hunker Down (9/1) actually
+      // competes with Dig In (16/2) instead of always losing the uncommon
+      // tiebreak. Return directly so the trailing +2-uncommon can't re-flip it.
+      if (ownedIds.has(card.id)) return s + 6;
+      const bpe = card.effects.block / Math.max(1, card.cost || 1);
+      return s + (hpDefenseCount < 4 ? 8 : 4) + Math.round(bpe) + ((card.cost || 1) === 1 ? 3 : 0);
     } else if (card.installPower?.id === 'memorial' || card.installPower?.id === 'bestInShow'
+            || card.installPower?.id === 'wellDrilled'
             || card.effects?.spawnFodder || card.effects?.lockLureSpecies) {
       // 2026-06-08 synergy archetypes (Sacrifice engine / Monoculture). Score
-      // competitively so the 1000-run loop exercises them; tune from telemetry.
+      // competitively, AND bump a piece when its archetype partners are already
+      // in the deck (panel: the sim drafted pieces independently, so the
+      // intended builds never assembled). Soft co-draft weights, not hard pulls.
       s += ownedIds.has(card.id) ? 5 : 11;
+      const ownsSacPayoff = ['c-memorial', 'c-palpable-sadness', 'c-light-the-mound'].some(x => ownedIds.has(x));
+      const ownsMonoPayoff = ['c-pedigree', 'c-best-in-show', 'c-well-drilled'].some(x => ownedIds.has(x));
+      if ((card.effects?.spawnFodder) && ownsSacPayoff) s += 5;            // Strays ← sacrifice payoff present
+      if ((card.installPower?.id === 'memorial') && ownedIds.has('c-strays')) s += 3;
+      if ((card.effects?.lockLureSpecies || card.installPower?.id === 'bestInShow' || card.installPower?.id === 'wellDrilled') && ownsMonoPayoff) s += 4;
     } else {
       s += 6;
     }
@@ -6239,7 +6272,7 @@ function aggregate(results) {
   // 2026-06-08 new-card analysis: draft rate + acts-cleared correlation for the
   // synergy/block cards, so the design loop can tell if they're exercised and
   // whether decks that drafted them go further.
-  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show'];
+  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show', 'c-well-drilled'];
   const newCardStats = {};
   const handlerRuns = results.filter(r => r.lane === 'handler');
   for (const id of NEW_CARD_IDS) {
@@ -6548,10 +6581,12 @@ function buildReport(agg) {
   lines.push('');
   if (agg.newCardStats) {
     lines.push(`## NEW CARDS (2026-06-08 — block + synergy archetypes)`);
-    lines.push(`Draft rate among handler runs, and avg acts-cleared with vs without the card in deck.`);
+    lines.push(`Draft rate among handler runs, total PLAYS this batch (drafted-but-low-plays = dead in hand), and avg acts-cleared with vs without (survivorship-confounded — relative reads only).`);
     for (const [id, s] of Object.entries(agg.newCardStats)) {
-      lines.push(`- **${id}**: drafted ${s.drafts} (${pct(s.draftRate)}) · ${s.winsWith} wins · avg acts ${s.avgActsWith.toFixed(2)} with / ${s.avgActsWithout.toFixed(2)} without`);
+      const plays = NEW_CARD_PLAYS[id] || 0;
+      lines.push(`- **${id}**: drafted ${s.drafts} (${pct(s.draftRate)}) · played ${plays}× · ${s.winsWith} wins · avg acts ${s.avgActsWith.toFixed(2)} with / ${s.avgActsWithout.toFixed(2)} without`);
     }
+    lines.push(`- Memorial AoE procs (every exit/sacrifice while installed): ${NEW_CARD_PLAYS['_memorialProcs'] || 0}`);
     lines.push('');
   }
   lines.push(`## Wit LONG THREAD (v2.34)`);
