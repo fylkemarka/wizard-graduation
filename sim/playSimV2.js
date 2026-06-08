@@ -222,7 +222,7 @@ function pickActEnemyIdSim(ids, rowFrac = 0.5) {
   const target = rowFrac < 0.34 ? 1 : rowFrac < 0.67 ? 2 : 3;
   const weighted = ids.map(id => {
     const dist = Math.abs((ENEMIES_BY_ID[id]?.diff || 2) - target);
-    return { id, w: dist === 0 ? 3 : dist === 1 ? 1 : 0.05 };
+    return { id, w: dist === 0 ? 2 : dist === 1 ? 1 : 0.05 };
   });
   const total = weighted.reduce((s, x) => s + x.w, 0);
   let roll = rnd() * total;
@@ -267,7 +267,7 @@ const HANDLER_TACTIC_UTIL = [
   // The new effect-key skills are routed in playHandlerCard / applyHandlerSkill.
   { id: 'c-house-rules',   name: 'House Rules',     cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'houseRules' } },
   { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
-  { id: 'c-pedigree',      name: 'Pedigree',        cost: 1, type: 'handler-skill', rarity: 'common',   effects: { lockLureSpecies: true } },
+  { id: 'c-pedigree',      name: 'Pedigree',        cost: 1, type: 'handler-skill', rarity: 'common',   effects: { lockLureSpecies: true, exhaust: true } },
   { id: 'c-best-in-show',  name: 'Best in Show',    cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'bestInShow' } },
   { id: 'c-rally-the-pack',name: 'Rally the Pack',  cost: 1, type: 'handler-skill', rarity: 'common',   effects: { summonStrength: 2 } },
   { id: 'c-drillmaster',   name: 'Drillmaster',     cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'drillmaster' } },
@@ -291,7 +291,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-animal-midnight',name: 'Animal Midnight',       cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'animalMidnight' } },
   { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
   { id: 'c-the-horde',      name: 'The Horde',             cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
-  { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 3 } },
+  { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 5 } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -947,7 +947,7 @@ function noteSacrificeSim(state, combat, n = 1) {
   }
   // Memorial fires on sacrifices here; natural exits fire it in the tick.
   if (hasHandlerPower(state, 'memorial')) {
-    for (let i = 0; i < n; i++) { dealComposureAllSim(state, combat, 4); notePlay('_memorialProcs'); }
+    for (let i = 0; i < n; i++) { dealComposureAllSim(state, combat, 5); notePlay('_memorialProcs'); }
   }
 }
 // One funnel per summon: Horde counter (combat.summons) + Cost of Littering
@@ -972,13 +972,22 @@ function makeAnimalSlot(animalId, youthBonus, summonSet, durBonus) {
     attackBonus: 0,
   };
 }
-// Best in Show — a fresh arrival whose species is already on the board comes
-// in with +2 attack. `board` is the live/projected htray view. Mutates slot.
+// Best in Show — a fresh arrival whose species is already on the board makes
+// EVERY copy of that species (old + new) gain +2 attack (snowballs as the set
+// grows). `board` is the live/projected htray view. Mutates slot + existing
+// matching slots. Mirrors App.jsx whole-set rework (2026-06-08).
 function applyBestInShowSim(state, combat, board, slot, selfSlot) {
   if (!slot || !hasHandlerPower(state, 'bestInShow')) return slot;
   const SLOT = ['intro', 'subject', 'target'];
   const already = SLOT.some(s => s !== selfSlot && board[s]?.kind === 'animal' && board[s].animalId === slot.animalId);
-  if (already) slot.attackBonus = (slot.attackBonus || 0) + 2;
+  if (already) {
+    slot.attackBonus = (slot.attackBonus || 0) + 2;
+    for (const s of SLOT) {
+      if (s !== selfSlot && board[s]?.kind === 'animal' && board[s].animalId === slot.animalId) {
+        board[s].attackBonus = (board[s].attackBonus || 0) + 2;
+      }
+    }
+  }
   return slot;
 }
 // Trough: if a charge is available and the animal is a fed type, mark the
@@ -1518,15 +1527,27 @@ function pickBestLure(state, combat) {
   const haveByKey = {};
   for (const c of state.hand) if (c.type === 'lure' && c.feedKey) haveByKey[c.feedKey] = (haveByKey[c.feedKey] || 0) + 1;
   const scarce = (k) => k && (needByKey[k] || 0) >= (haveByKey[k] || 0) && (needByKey[k] || 0) > 0;
+  // Species commitment (panel rank-2): when Pedigree has locked a species, or a
+  // monoculture power (Best in Show / Well-Drilled) is installed, figure out the
+  // committed species and prefer lures that can produce it — so the greedy AI
+  // can actually execute the monoculture build instead of scattering species.
+  let committed = combat.lockedSpecies || null;
+  if (!committed && (hasHandlerPower(state, 'bestInShow') || hasHandlerPower(state, 'wellDrilled'))) {
+    const counts = {};
+    for (const s of SLOT) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
+    let dn = 0; for (const id in counts) if (counts[id] > dn) { dn = counts[id]; committed = id; }
+  }
+  const canProduce = (c, sp) => sp && ((c.summon?.animalIds || []).includes(sp) || c.summon?.animalId === sp);
   let bestIdx = -1, bestPriority = -1;
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
     if (c.type !== 'lure' || c.cost > state.energy) continue;
     let priority = 0;
-    if (c.summon?.summonSet === 'tender-greens' && wantCombine) priority = 3;
+    if (committed && canProduce(c, committed)) priority = 4; // commit to the bloodline
+    else if (c.summon?.summonSet === 'tender-greens' && wantCombine) priority = 3;
     else if (c.summon?.summonSet === 'tender-greens') priority = 1;
     else priority = 2;
-    // Reserve a scarce feed lure (unless it's a combine play).
+    // Reserve a scarce feed lure (unless it's a combine / commit play).
     if (priority < 3 && scarce(c.feedKey)) priority = -1;
     if (priority > bestPriority) { bestPriority = priority; bestIdx = i; }
   }
@@ -1800,6 +1821,14 @@ function aiTurnHandler(state, combat) {
       if (bi >= 0) { playHandlerCard(state, combat, bi); continue; }
     }
     const animalCnt = animalCount();
+    // Sacrifice build: drop Strays BEFORE lures so fodder actually hits the
+    // board (panel rank-1: lures otherwise eat the open slots first).
+    const ownsSacPayoff = hasHandlerPower(state, 'memorial') || hasHandlerPower(state, 'palpableSadness')
+      || [...state.deck, ...state.hand, ...state.discard].some(c => c.effects?.damagePerSacrificeThisCombat);
+    if (ownsSacPayoff && emptyCount() >= 1) {
+      const sEarly = state.hand.findIndex(c => c.effects?.spawnFodder && c.cost <= state.energy);
+      if (sEarly >= 0) { playHandlerCard(state, combat, sEarly); continue; }
+    }
     const featherInHand = state.hand.some(c => c.type === 'tactic' && c.tactic?.id === 'feather' && c.cost <= state.energy);
     const lureInHand = state.hand.filter(c => c.type === 'lure' && c.cost <= state.energy).length;
     const holdForFeather = animalCnt === 1 && featherInHand && lureInHand >= 2 && combat.tactic !== 'feather';
@@ -1832,11 +1861,11 @@ function aiTurnHandler(state, combat) {
     // to benefit (and great with a wide board).
     const whipIdx = state.hand.findIndex(c => c.effects?.summonStrength && c.cost <= state.energy);
     if (whipIdx >= 0 && animalCount() >= 1) { playHandlerCard(state, combat, whipIdx); continue; }
-    // Strays — drop fodder bodies whenever 2+ slots are open (panel: the old
-    // animalCount<2 clamp meant the sacrifice build's ammo almost never hit the
-    // board). Bodies for Memorial / Light the Mound / sacrifice-for-Block.
+    // Strays — drop fodder whenever ANY slot is open (panel: the old >=2 gate
+    // meant the sacrifice build's ammo almost never hit the board — only 131
+    // plays/63 drafts). Bodies for Memorial / Light the Mound / sacrifice.
     const straysIdx = state.hand.findIndex(c => c.effects?.spawnFodder && c.cost <= state.energy);
-    if (straysIdx >= 0 && emptyCount() >= 2) { playHandlerCard(state, combat, straysIdx); continue; }
+    if (straysIdx >= 0 && emptyCount() >= 1) { playHandlerCard(state, combat, straysIdx); continue; }
     // Pedigree — lock to the densest species. Once a monoculture power
     // (Best in Show / Well-Drilled) is installed, commit at density ≥1 so the
     // snowball actually starts (panel: dense≥2 gate kept the path unmeasurable).
@@ -1915,6 +1944,31 @@ function handlerApplyIntent(state, combat, intent) {
     if (combat.slothSkipToggle) { combat.slothSkips = (combat.slothSkips || 0) + 1; return; }
   } else {
     combat.slothSkipToggle = false;
+  }
+  // Betray resolves here — a turn after it was marked (player had a turn to
+  // spend the target). Mirrors App.jsx resolveBetray.
+  if (combat.betrayPending) {
+    combat.betrayPending = false;
+    if (!combat.companion) {
+      let best = null, bestAtk = -1;
+      for (const s of SLOTN) {
+        const sl = combat.htray[s];
+        if (sl?.kind !== 'animal') continue;
+        const a = ANIMALS[sl.animalId]; let atk = (a?.attack || 0); if (atk > 0) atk += (sl.attackBonus || 0) + (combat.summonStrength || 0);
+        if (atk > bestAtk) { bestAtk = atk; best = s; }
+      }
+      if (best) {
+        const sl = combat.htray[best];
+        if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
+        else combat.htray[best] = null;
+        const atk = Math.max(2, bestAtk);
+        // Turncoat composure halved (atk*3 → atk*2) — a quicker wall to undo.
+        const def = { id: `turncoat-${sl.animalId}`, name: `Turncoat`, comp: Math.max(8, atk * 2), tier: 'companion',
+          behaviors: [{ kind: 'attack', value: atk, pool: 'composure', weight: 3 }] };
+        combat.companion = { def, composure: def.comp, block: 0, intent: { ...def.behaviors[0] } };
+        noteEnemyProc('betray');
+      }
+    }
   }
   // Porcupine (quills, Alan 2026-06-05): each porcupine absorbs up to its
   // `thorns` value off an incoming swing (quills-first, before Block) and
@@ -2061,26 +2115,10 @@ function handlerApplyIntent(state, combat, intent) {
     combat.animalsTurned = true;
     noteEnemyProc('turnAgainst');
   } else if (intent.kind === 'betray') {
-    // Steal the strongest animal as a Turncoat companion (Spinster Matron).
-    if (!combat.companion) {
-      let best = null, bestAtk = -1;
-      for (const s of SLOTN) {
-        const sl = combat.htray[s];
-        if (sl?.kind !== 'animal') continue;
-        const a = ANIMALS[sl.animalId]; let atk = (a?.attack || 0); if (atk > 0) atk += (sl.attackBonus || 0) + (combat.summonStrength || 0);
-        if (atk > bestAtk) { bestAtk = atk; best = s; }
-      }
-      if (best) {
-        const sl = combat.htray[best];
-        if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
-        else combat.htray[best] = null;
-        const atk = Math.max(2, bestAtk);
-        const def = { id: `turncoat-${sl.animalId}`, name: `Turncoat`, comp: Math.max(10, atk * 3), tier: 'companion',
-          behaviors: [{ kind: 'attack', value: atk, pool: 'composure', weight: 3 }] };
-        combat.companion = { def, composure: def.comp, block: 0, intent: { ...def.behaviors[0] } };
-        noteEnemyProc('betray');
-      }
-    }
+    // Telegraphed a turn ahead (mirrors App.jsx grace turn): mark now; the
+    // steal resolves at the start of the enemy's NEXT turn (resolveBetraySim),
+    // so the player can sacrifice/spend the target first.
+    if (!combat.companion) combat.betrayPending = true;
   }
   if (intent.riders) {
     const r = intent.riders;
@@ -2101,7 +2139,7 @@ function handlerEndOfTurnTick(state, combat) {
   const memorialInstalled = hasHandlerPower(state, 'memorial');
   const noteExit = () => {
     if (whispererInstalled) combat.whisperPending = (combat.whisperPending || 0) + 1;
-    if (memorialInstalled) { dealComposureAllSim(state, combat, 4); notePlay('_memorialProcs'); }
+    if (memorialInstalled) { dealComposureAllSim(state, combat, 5); notePlay('_memorialProcs'); }
   };
 
   const onExit = (animal) => {
@@ -2419,6 +2457,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     summonStrength: 0,  // Summon Strength — flat +N to every animal attack
     silencedTurns: 0,   // Silence — no new summons while > 0
     animalsTurned: false, // Turn Against — animals hit the player next tick
+    betrayPending: false, // Betray — telegraphed; steal resolves next enemy turn
     sacrifices: 0,    // Light the Mound — animals deliberately sacrificed
     lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,

@@ -48,9 +48,10 @@ test('Best in Show gives a same-tick repeat buck +2; Pedigree plays', async ({ p
 
   const bucks = page.locator('[data-testid="board-animal"][data-animal-id="young-buck"]');
   await expect(bucks).toHaveCount(2);
-  // The second-summoned buck matched the set → 7 dmg; the first is base 5.
-  await expect(page.locator('[data-testid="board-animal"][data-animal-id="young-buck"]', { hasText: '7 dmg' }).first()).toBeVisible();
-  await expect(page.locator('[data-testid="board-animal"][data-animal-id="young-buck"]', { hasText: '5 dmg' }).first()).toBeVisible();
+  // Best in Show now buffs the WHOLE matched set: when the 2nd buck arrives,
+  // BOTH bucks gain +2 → both read 7 dmg (5 base + 2).
+  await expect(bucks.nth(0)).toContainText(/7 dmg/);
+  await expect(bucks.nth(1)).toContainText(/7 dmg/);
 
   // Pedigree plays cleanly with bucks on the board (locks the bloodline).
   expect(await ensurePlay(page, PEDIGREE)).toBeTruthy();

@@ -30,7 +30,7 @@ test('the sacrifice pill previews Memorial AoE; the strip surfaces it', async ({
   // tooltip names the source.
   const pill = page.getByTestId('sacrifice-animal').first();
   await expect(pill).toBeVisible();
-  await expect(pill).toContainText(/💔\s*4 all/);
+  await expect(pill).toContainText(/💔\s*5 all/);
   await expect(pill).toHaveAttribute('title', /Composure to ALL enemies.*Memorial/);
 
   // The "This turn" strip surfaces the passive Memorial exit AoE (strays are

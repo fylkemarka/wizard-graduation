@@ -244,12 +244,12 @@ const CARDS = [
   // and snowball it. Pedigree makes the commit reliable; Best in Show pays off
   // every repeat. Pairs with Well-Drilled (per-species +2) and the combines.
   { id: 'c-pedigree', name: 'Pedigree', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { lockLureSpecies: true },
-    desc: 'Lock every lure to your most-numerous animal for the rest of combat — they only summon that species. Commit to the bloodline.',
+    effects: { lockLureSpecies: true, exhaust: true },
+    desc: 'Pick the species you have the most of ON THE BOARD right now. For the rest of combat, every lure only summons that species. Commit to the bloodline. Exhaust.',
     flavor: 'You settle, at last, on a breed. The committee notes your decisiveness with suspicion.' },
-  { id: 'c-best-in-show', name: 'Best in Show', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+  { id: 'c-best-in-show', name: 'Best in Show', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'bestInShow' },
-    desc: 'Power. When you summon an animal whose species is already on the board, it arrives with +2 attack for the rest of combat.',
+    desc: 'Power. When you summon an animal whose species is already on the board, EVERY copy of that species (old and new) gains +2 attack — it snowballs as the set grows.',
     flavor: 'They match. They are, the judge concedes, a remarkably consistent set.' },
   // Summon Strength (Alan, 2026-06-08) — STS-Strength for the Handler: a flat
   // +N to EVERY animal's attack, rest of combat. The player-side push that
@@ -284,7 +284,7 @@ const CARDS = [
   // short-lived bodies (see Strays) becomes a damage engine.
   { id: 'c-memorial', name: 'Memorial', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'memorial' },
-    desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — deal 4 composure damage to all enemies.',
+    desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — deal 5 composure damage to all enemies.',
     flavor: 'A short service for each of them. The enemy is required to attend.' },
   // Fodder generator (Alan, 2026-06-08): bodies for the sacrifice loop and
   // Memorial. Two 1-turn strays arrive at once into open slots.
@@ -351,8 +351,8 @@ const CARDS = [
     desc: 'Deal composure damage equal to the number of animals you have summoned this combat.',
     flavor: 'You did not, strictly, plan for this many. They came anyway, and they remember.' },
   { id: 'c-light-the-mound', name: 'Light the Mound', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
-    effects: { damagePerSacrificeThisCombat: 3 },
-    desc: 'Deal 3 composure damage for each animal you have sacrificed this combat.',
+    effects: { damagePerSacrificeThisCombat: 5 },
+    desc: 'Deal 5 composure damage for each animal you have sacrificed this combat.',
     flavor: 'A respectful blaze. Everyone agrees they would have wanted this. No one asked them.' },
 
   // ---- COMMON ----
@@ -3953,6 +3953,12 @@ export default function App() {
   const silencedTurnsRef = useRef(0);
   const [animalsTurned, setAnimalsTurned] = useState(false);
   const animalsTurnedRef = useRef(false);
+  // Betray (Spinster Matron) — telegraphed a turn ahead (Alan 1000-run fairness,
+  // 2026-06-08): the Matron MARKS your strongest animal; the steal resolves at
+  // the START of her NEXT turn, so you can sacrifice/spend it first. Mirrors
+  // turnAgainst's grace-turn pattern. Reset per combat.
+  const [betrayPending, setBetrayPending] = useState(false);
+  const betrayPendingRef = useRef(false);
   // House Rules power — armed on install. Next click on an animal slot gives
   // that animal (and every other copy of the same species on the board) +2
   // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
@@ -5635,7 +5641,9 @@ export default function App() {
     const target = rowFrac < 0.34 ? 1 : rowFrac < 0.67 ? 2 : 3;
     const weighted = pool.map(e => {
       const dist = Math.abs((e.diff || 2) - target);
-      return { id: e.id, w: dist === 0 ? 3 : dist === 1 ? 1 : 0.05 };
+      // 2:1 (was 3:1) so the lone diff-3 act-1 elite doesn't eat ~60% of the
+      // elite slot — keeps variety while still scaling (Alan 1000-run, 2026-06-08).
+      return { id: e.id, w: dist === 0 ? 2 : dist === 1 ? 1 : 0.05 };
     });
     const total = weighted.reduce((s, x) => s + x.w, 0);
     let roll = Math.random() * total;
@@ -5823,6 +5831,7 @@ export default function App() {
     setSummonStrength(0); summonStrengthRef.current = 0;
     setSilencedTurns(0); silencedTurnsRef.current = 0;
     setAnimalsTurned(false); animalsTurnedRef.current = false;
+    setBetrayPending(false); betrayPendingRef.current = false;
     setTroughCharges(0); troughChargesRef.current = 0;
     setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
     setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0;
@@ -9395,7 +9404,7 @@ export default function App() {
     // Memorial fires on sacrifices here; natural exits fire it in the
     // end-of-turn tick (one AoE per departed animal).
     if (hasHandlerPower('memorial')) {
-      for (let i = 0; i < n; i++) dealComposureToAll(4, `⚰️ Memorial — 4 composure to all enemies (a sacrifice departs).`);
+      for (let i = 0; i < n; i++) dealComposureToAll(5, `⚰️ Memorial — 5 composure to all enemies (a sacrifice departs).`);
     }
   };
 
@@ -9946,11 +9955,21 @@ export default function App() {
     pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives now${eatTroughFed ? ' (Trough: fed)' : ''}.`);
     if (slot.card) setDiscard(d => [...d, { ...slot.card, uid: uid() }]);
     const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
-    // Best in Show — matching a species already on the board → +2 attack.
+    // Best in Show — matching a species already on the board → whole set +2.
     let eatArrivalBonus = 0;
     if (hasHandlerPower('bestInShow')) {
       const already = SLOT_ORDER.some(s => s !== slotName && tray[s]?.kind === 'animal' && tray[s].animalId === resolvedAnimalId);
-      if (already) { eatArrivalBonus = 2; pushLog(`🏆 Best in Show — ${animal?.name || resolvedAnimalId} matches the set: +2 attack.`); }
+      if (already) {
+        eatArrivalBonus = 2;
+        setTray(p => {
+          const n = { ...p };
+          for (const s of SLOT_ORDER) {
+            if (s !== slotName && n[s]?.kind === 'animal' && n[s].animalId === resolvedAnimalId) n[s] = { ...n[s], attackBonus: (n[s].attackBonus || 0) + 2 };
+          }
+          return syncTrayLegacy(n);
+        });
+        pushLog(`🏆 Best in Show — the set of ${animal?.name || resolvedAnimalId} all gain +2 attack.`);
+      }
     }
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
       kind: 'animal',
@@ -10079,6 +10098,36 @@ export default function App() {
   function buildCompanionInstance(tmpl) {
     const def = scaleEnemyTemplate(tmpl);
     return { def, composure: def.composureMax, block: 0, intent: rollCompanionIntent(def) };
+  }
+
+  // Resolve a pending Betray (a turn after it was marked): steal the strongest
+  // REMAINING animal — it leaves the board and joins the enemy as a Turncoat
+  // companion hitting your composure. Reads the full post-tick board so the
+  // player's intervening sacrifice/expend is honoured.
+  function resolveBetray(e) {
+    if (companionRef.current) { pushLog(`👹 ${e.name}: 🗡 the recruitment finds no room — it already has an ally.`); return; }
+    const board = boardFullRef.current || tray;
+    let best = null, bestAtk = -1, stolen = null;
+    for (const s of SLOT_ORDER) {
+      const sl = (board[s] !== undefined ? board[s] : tray[s]);
+      if (sl?.kind !== 'animal') continue;
+      const atk = animalAttackValue(getAnimal(sl.animalId), sl);
+      if (atk > bestAtk) { bestAtk = atk; best = s; stolen = sl; }
+    }
+    if (!best) { pushLog(`👹 ${e.name}: 🗡 the recruitment finds nothing — you spent your menagerie. Smart.`); return; }
+    const a = getAnimal(stolen.animalId);
+    const updates = Array.isArray(stolen.spans) ? Object.fromEntries(stolen.spans.map(s => [s, null])) : { [best]: null };
+    setTray(p => syncTrayLegacy({ ...p, ...updates }));
+    const atk = Math.max(2, bestAtk);
+    const def = {
+      id: `turncoat-${stolen.animalId}`, name: `Turncoat ${a?.name || stolen.animalId}`,
+      // Halved from atk*3 → atk*2 (Alan 1000-run): a quicker wall to undo.
+      composureMax: Math.max(8, atk * 2), tier: 'companion',
+      behaviors: [{ kind: 'attack', value: atk, pool: 'composure', weight: 3, telegraph: `🎭 ${atk} — turned on you` },
+                  { kind: 'attack', value: Math.max(1, Math.round(atk * 0.6)), weight: 1, telegraph: `⚔ ${Math.max(1, Math.round(atk * 0.6))}` }],
+    };
+    commitCompanion({ def, composure: def.composureMax, block: 0, intent: { ...def.behaviors[0] } });
+    pushLog(`👹 ${e.name}: 🗡 ${a?.name || 'your animal'} defects! Drain its composure to put it down.`);
   }
 
   function setSpellTarget(which) {
@@ -11149,8 +11198,10 @@ export default function App() {
               troughChargesRef.current -= 1;
               pushLog(`🪣 Trough — ${animal?.name || resolvedAnimalId} arrives already fed.`);
             }
-            // Best in Show — if this species is already on the board, the new
-            // arrival comes in with +2 attack for the rest of combat.
+            // Best in Show — if this species is already on the board, EVERY
+            // copy of it (old + new) gains +2 attack, snowballing as the set
+            // grows (Alan 1000-run rework, 2026-06-08: was +2 to the new body
+            // only — strictly worse than Well-Drilled).
             let arrivalBonus = 0;
             if (hasHandlerPower('bestInShow')) {
               const already = SLOT_ORDER.some(s => s !== slotName &&
@@ -11158,7 +11209,15 @@ export default function App() {
                 (nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])?.animalId === resolvedAnimalId);
               if (already) {
                 arrivalBonus = 2;
-                pushLog(`🏆 Best in Show — ${animal?.name || resolvedAnimalId} matches the set: +2 attack.`);
+                // Retroactively bump every existing copy of the species too.
+                for (const s of SLOT_ORDER) {
+                  if (s === slotName) continue;
+                  const ex = nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s];
+                  if (ex?.kind === 'animal' && ex.animalId === resolvedAnimalId) {
+                    nextSlots[s] = { ...ex, attackBonus: (ex.attackBonus || 0) + 2 };
+                  }
+                }
+                pushLog(`🏆 Best in Show — the set of ${animal?.name || resolvedAnimalId} all gain +2 attack.`);
               }
             }
             nextSlots[slotName] = {
@@ -11231,12 +11290,12 @@ export default function App() {
       // Folded into composureDealt and can land the KO (summonerKilledEnemy).
       if (hasHandlerPower('memorial') && hTick.exits.length > 0) {
         for (const _ex of hTick.exits) {
-          const post = applyDamageToEnemyComposure(4);
-          hTick.composureDealt += 4;
+          const post = applyDamageToEnemyComposure(5);
+          hTick.composureDealt += 5;
           if (post <= 0) summonerKilledEnemy = true;
-          if (companionRef.current) damageCompanion(4);
+          if (companionRef.current) damageCompanion(5);
         }
-        pushLog(`⚰️ Memorial — ${hTick.exits.length * 4} composure to all enemies (${hTick.exits.length} departed).`);
+        pushLog(`⚰️ Memorial — ${hTick.exits.length * 5} composure to all enemies (${hTick.exits.length} departed).`);
       }
       // Turn Against is a one-tick effect — the menagerie struck the player
       // this turn; clear it so it doesn't persist.
@@ -12041,6 +12100,13 @@ export default function App() {
     } else {
       slothSkipToggleRef.current = false;
     }
+    // Betray resolves here — at the START of the Matron's next turn, a turn
+    // after it was telegraphed (the player had a turn to spend the target).
+    if (betrayPendingRef.current) {
+      betrayPendingRef.current = false;
+      setBetrayPending(false);
+      resolveBetray(e);
+    }
     // v3.3 unified scheduled-effects tick (enemy-turn-start trigger).
     // Handles: debuff-over-time (Weak/Vuln), dormant delayed payloads,
     // and Crescendo's bankDouble. DoT damage moved to the
@@ -12697,32 +12763,15 @@ export default function App() {
       setAnimalsTurned(true);
       pushLog(`👹 ${e.name}: 🔄 ${intent.telegraph || 'turns your menagerie against you'} — next turn they strike YOU unless you spend them first.`);
     } else if (intent.kind === 'betray') {
-      // Handler-hostile: steal the strongest animal — it leaves your board and
-      // joins the enemy as a Turncoat companion that hits your composure.
-      // Only when the companion slot is open (mirrors summon).
-      const board = boardFullRef.current || tray;
-      let best = null, bestAtk = -1, stolen = null;
-      for (const s of SLOT_ORDER) {
-        const sl = (board[s] !== undefined ? board[s] : tray[s]);
-        if (sl?.kind !== 'animal') continue;
-        const atk = animalAttackValue(getAnimal(sl.animalId), sl);
-        if (atk > bestAtk) { bestAtk = atk; best = s; stolen = sl; }
-      }
-      if (best && !companionRef.current) {
-        const a = getAnimal(stolen.animalId);
-        const updates = Array.isArray(stolen.spans) ? Object.fromEntries(stolen.spans.map(s => [s, null])) : { [best]: null };
-        setTray(p => syncTrayLegacy({ ...p, ...updates }));
-        const atk = Math.max(2, bestAtk);
-        const def = {
-          id: `turncoat-${stolen.animalId}`, name: `Turncoat ${a?.name || stolen.animalId}`,
-          composureMax: Math.max(10, atk * 3), tier: 'companion',
-          behaviors: [{ kind: 'attack', value: atk, pool: 'composure', weight: 3, telegraph: `🎭 ${atk} — turned on you` },
-                      { kind: 'attack', value: Math.max(1, Math.round(atk * 0.6)), weight: 1, telegraph: `⚔ ${Math.max(1, Math.round(atk * 0.6))}` }],
-        };
-        commitCompanion({ def, composure: def.composureMax, block: 0, intent: { ...def.behaviors[0] } });
-        pushLog(`👹 ${e.name}: 🗡 ${intent.telegraph || `turns ${a?.name || 'your animal'}`} — it defects! Drain its composure to put it down.`);
+      // Handler-hostile, telegraphed a turn ahead: MARK the recruitment now; the
+      // steal resolves at the start of the Matron's next turn (resolveBetray),
+      // so the player can sacrifice/spend the target first.
+      if (companionRef.current) {
+        pushLog(`👹 ${e.name}: 🗡 ${intent.telegraph || 'eyes your menagerie'} — but already has an ally.`);
       } else {
-        pushLog(`👹 ${e.name}: 🗡 ${intent.telegraph || 'tries to turn an animal'} — ${companionRef.current ? 'already has an ally' : 'nothing to turn'}.`);
+        betrayPendingRef.current = true;
+        setBetrayPending(true);
+        pushLog(`👹 ${e.name}: 🗡 ${intent.telegraph || 'marks your strongest animal'} — it defects on her NEXT turn unless you spend it first.`);
       }
     }
     // Riders: a combo intent can attach extra side-effects that fire AFTER
@@ -13672,6 +13721,7 @@ export default function App() {
       summonStrength={summonStrength}
       silencedTurns={silencedTurns}
       animalsTurned={animalsTurned}
+      betrayPending={betrayPending}
       onCancelWellDrilled={cancelWellDrilledPrompt}
       houseRulesPromptActive={houseRulesPromptActive}
       onHouseRulesClick={houseRulesClickSlot}

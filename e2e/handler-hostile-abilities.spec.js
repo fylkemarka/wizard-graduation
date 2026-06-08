@@ -44,7 +44,7 @@ test('Freeze stops an animal attacking', async ({ page }) => {
   await expect(goose).toContainText(/frozen/i);
 });
 
-test('Betrayal steals an animal as a companion', async ({ page }) => {
+test('Betrayal marks first (grace turn), then steals an animal as a companion', async ({ page }) => {
   await gotoLab(page, 'handler', { seed: 4, forceSpecies: 'goose', forceIntentKind: 'betray' });
   for (let i = 0; i < 8; i++) await addCard(page, BIRDSEED);
   await fightEnemy(page, 'The Spinster Matron');
@@ -54,7 +54,10 @@ test('Betrayal steals an animal as a companion', async ({ page }) => {
     if ((await c.count()) > 0 && (await c.getAttribute('data-playable')) === 'true') { await c.click(); break; }
     await nextTurn(page);
   }
-  await nextTurn(page); // goose arrives + betray resolves → Turncoat companion
+  await nextTurn(page); // goose arrives + betray is MARKED (telegraphed, no steal yet)
+  await expect(page.getByTestId('betray-pending')).toBeVisible();
+  await expect(page.getByTestId('companion-panel')).toHaveCount(0); // not stolen yet
+  await nextTurn(page); // Matron's next turn → the steal resolves
   await expect(page.getByTestId('companion-panel')).toBeVisible();
   await expect(page.getByText(/Turncoat/).first()).toBeVisible();
 });

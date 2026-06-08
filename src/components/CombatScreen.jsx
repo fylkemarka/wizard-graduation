@@ -89,6 +89,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        summonStrength = 0,
                        silencedTurns = 0,
                        animalsTurned = false,
+                       betrayPending = false,
                        houseRulesPromptActive = false,
                        onHouseRulesClick = () => {},
                        onCancelHouseRules = () => {},
@@ -705,6 +706,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {isHandler && animalsTurned && (
             <span data-testid="animals-turned" title="Turned — your animals will attack YOUR composure at the end of this turn unless you sacrifice / spend them first."
                   className="font-mono text-sm text-rose-300 animate-pulse-soft">🔄 turned</span>
+          )}
+          {isHandler && betrayPending && (
+            <span data-testid="betray-pending" title="Marked for recruitment — the enemy steals your strongest animal on its NEXT turn unless you sacrifice / spend it first."
+                  className="font-mono text-sm text-rose-300 animate-pulse-soft">🗡 marked</span>
           )}
           {isWit && (
             <span title="Words Bank — Crescendo's currency. Only Crescendo-school cards add (+1 each). Cap 10. Spent at the CLIMAX cast."
@@ -1859,7 +1864,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             // Palpable Sadness fires on a sacrifice — both 4 comp to all.
             const hasMemorial = (powers || []).some(p => p.installPower?.id === 'memorial');
             const hasPalpable = (powers || []).some(p => p.installPower?.id === 'palpableSadness');
-            const sacAoE = (hasMemorial ? 4 : 0) + (hasPalpable ? 4 : 0);
+            const sacAoE = (hasMemorial ? 5 : 0) + (hasPalpable ? 4 : 0);
             const title = sacAoE > 0
               ? `Sacrifice ${animal?.name || 'this animal'}: +${sacBlock} Block AND ${sacAoE} Composure to ALL enemies (${[hasMemorial && 'Memorial', hasPalpable && 'Palpable Sadness'].filter(Boolean).join(' + ')}). No exit bonus.`
               : `Sacrifice ${animal?.name || 'this animal'} now for +${sacBlock} Block. No exit bonus.`;
@@ -2457,7 +2462,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         const hasMemorial = (powers || []).some(p => p.installPower?.id === 'memorial');
         if (hasMemorial) {
           const leaving = slots.filter(s => (s.durationRemaining || 0) === 1).length;
-          if (leaving > 0) lines.push(`⚰️ Memorial: ${leaving * 4} comp to all (${leaving} leaving)`);
+          if (leaving > 0) lines.push(`⚰️ Memorial: ${leaving * 5} comp to all (${leaving} leaving)`);
         }
         if (lines.length === 0) return null;
         return (
