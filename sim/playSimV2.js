@@ -1471,6 +1471,33 @@ function aiTurnHandler(state, combat) {
           combat.abilityActivations = (combat.abilityActivations || 0) + 1;
           break;
         }
+        // SACRIFICE-FOR-BLOCK (mirror App.jsx sacrificeAnimalForBlock, added to
+        // the sim 2026-06-07 per the 1000-run design loop — it was entirely
+        // absent, the literal answer to the 79%-HP-death wall). An HP swing
+        // that leaks >30% past Block → feed a SPARE body to the loom for Block
+        // = its attack (no exit bonus; counts toward Light the Mound). Never
+        // sacrifice the last attacker; prefer the lowest-attack spare so the
+        // composure clock keeps ticking.
+        if (!targetsComp) {
+          const atkOf = (sl) => (ANIMALS[sl.animalId]?.attack || 0) + (sl.attackBonus || 0);
+          const animalSlots = SLOTA.map(s => ({ s, sl: combat.htray[s] }))
+            .filter(x => x.sl?.kind === 'animal');
+          if (animalSlots.length >= 2) {
+            // lowest current attack = least offense lost
+            animalSlots.sort((a, b) => atkOf(a.sl) - atkOf(b.sl));
+            const give = animalSlots[0];
+            const gain = Math.max(0, atkOf(give.sl));
+            if (gain > 0) {
+              state.block += gain;
+              const sl = give.sl;
+              if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
+              else combat.htray[give.s] = null;
+              noteHandlerExit(state, combat);
+              combat.sacrifices = (combat.sacrifices || 0) + 1; // Light the Mound
+              continue;
+            }
+          }
+        }
       }
     }
     // BOOSTER cards (2026-06-01). Effective per-animal attack reflects
