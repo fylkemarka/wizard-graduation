@@ -219,7 +219,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-last-supper',   name: 'Last Supper',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { sacrificeForValue: true } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
   { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
-  { id: 'c-stampede',      name: 'Stampede',        cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
+  { id: 'c-stampede',      name: 'Stampede',        cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
   { id: 'c-gorge',         name: 'Gorge',           cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
   { id: 'c-snack',         name: 'Treat',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
   { id: 'c-narrow',        name: 'Acquired Taste',  cost: 1, type: 'handler-skill', rarity: 'common', effects: { narrowLure: true, exhaust: true } },

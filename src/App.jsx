@@ -233,7 +233,7 @@ const CARDS = [
     effects: { compDmgPerBird: 3 },
     desc: 'Deal 3 composure for each bird you have in play.',
     flavor: 'They move as one. The enemy is, briefly, outnumbered by a single idea.' },
-  { id: 'c-stampede', name: 'Stampede', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
+  { id: 'c-stampede', name: 'Stampede', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { smallLandAttackAgain: true, exhaust: true },
     desc: 'Each small-land animal you control attacks again this turn. Exhaust.',
     flavor: 'It starts with one. It is, by the third, a policy.' },
