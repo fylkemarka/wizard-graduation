@@ -414,8 +414,13 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               <Icon name="block" className="mr-0.5" />{companion.block}
             </span>
           </div>
-          <StatBar value={companion.composure} max={companion.def.composureMax} fillClass="bg-iris-400"
-                   label={`Composure ${companion.composure}/${companion.def.composureMax}`} />
+          {/* Wrap in a row so the StatBar's flex-1 grows HORIZONTALLY — the
+              companion panel is a flex-col, so a bare StatBar stretched to fill
+              the column height (Alan, 2026-06-08: "that health bar is FAT"). */}
+          <div className="flex gap-2 items-center">
+            <StatBar value={companion.composure} max={companion.def.composureMax} fillClass="bg-iris-400"
+                     label={`Composure ${companion.composure}/${companion.def.composureMax}`} />
+          </div>
           {companion.intent && (
             <div className="text-xs text-parchment-200 mt-0.5">{companion.intent.telegraph}</div>
           )}
