@@ -2774,6 +2774,21 @@ const uid = () => `u${++_uid}`;
 // a row. Falls back to the full behavior list if every option is excluded
 // (e.g. an enemy whose only behaviors share one kind).
 function rollIntent(enemy, excludeKinds = []) {
+  // Garth Maul (Alan, 2026-06-08): every attack is a maul, escalating and
+  // alternating pool — 4 HP, 4 comp, 5 HP, 5 comp, 6 HP, 6 comp, … until
+  // killed. Deterministic, not weighted. enemy.maulStep advances per roll
+  // (the enemy object is a per-combat instance, so this resets each fight).
+  if (enemy.escalatingMaul) {
+    const step = enemy.maulStep || 0;
+    enemy.maulStep = step + 1;
+    const value = 4 + Math.floor(step / 2);     // 4,4,5,5,6,6,...
+    const composurePool = (step % 2 === 1);      // HP, comp, HP, comp, ...
+    return {
+      kind: 'attack', maul: true, value,
+      pool: composurePool ? 'composure' : undefined,
+      telegraph: `🦷 ${value} ${composurePool ? '🎭' : '❤'} maul (unblocked → lose your strongest animal)`,
+    };
+  }
   // E2E hook: ?forceMaul makes the next intent roll pick this enemy's maul
   // behavior (consumed once), so the maul render path is regression-testable
   // without hunting a fragile RNG seed. No-op when absent or enemy has no maul.
@@ -5452,7 +5467,10 @@ export default function App() {
   }
 
   function pickActEnemyId(tier) {
-    const pool = ENEMIES.filter(e => e.act === currentAct.id && e.tier === tier);
+    const lane = selectedCharacter?.lane || null;
+    // summonerOnly enemies (e.g. Garth Maul) appear only for the handler.
+    const pool = ENEMIES.filter(e => e.act === currentAct.id && e.tier === tier
+      && (!e.summonerOnly || lane === 'handler'));
     if (pool.length === 0) return ENEMIES[0].id; // fallback
     return pool[Math.floor(Math.random() * pool.length)].id;
   }
@@ -6597,15 +6615,15 @@ export default function App() {
     const matchedTacticTagsCount = (tray.tags || []).filter(t => tacticTags.includes(t)).length;
     const resonanceTags = eff.resonatesWith || [];
     const matchedResonance = (tray.tags || []).filter(t => resonanceTags.includes(t)).length;
-    const softSpotMatch = enemy.softSpot === eff.tactic;
+    // softSpot removed as an enemy feature (Alan, 2026-06-08) — Sway now
+    // rolls purely off tray tactic-tags + resonance + the card's own bonus.
     const upgradeBonus = eff.successBonus || 0;
     const raw = 0.35
               + (matchedTacticTagsCount * 0.15)
-              + (softSpotMatch ? 0.20 : 0)
               + (matchedResonance * 0.10)
               + upgradeBonus;
     const prob = Math.max(0.10, Math.min(0.90, raw));
-    return { prob, matchedTacticTagsCount, matchedResonance, softSpotMatch,
+    return { prob, matchedTacticTagsCount, matchedResonance,
              target: eff.swayTarget, tactic: eff.tactic, currentEff: enemy.effectiveness?.[eff.swayTarget] ?? 1 };
   }
 
@@ -7699,7 +7717,7 @@ export default function App() {
     }
 
     // SWAY branch: no damage, instead try to shift one enemy resistance up
-    // by +0.5 (cap 1.0). Success rolled from tray-tags + enemy.softSpot.
+    // by +0.5 (cap 1.0). Success rolled from tray tactic-tags + resonance.
     if (eff.sway) {
       const pv = previewSway(card);
       const phrase = [...tray.phrases, card.phrase || ''].filter(Boolean).join(' ');
@@ -10957,26 +10975,20 @@ export default function App() {
       pushLog(`📝 Margin notes: -${annTurnEnd} comp.`);
     }
 
-    // Hollow Weaver — Weave debt resolves here, AFTER every player-side
-    // end-of-turn damage source (the Handler animal tick above, annotation
-    // ticks, casts during the turn). The rule is now lane-agnostic (Alan,
-    // 2026-06-02): if you dealt ANY damage to the enemy this turn the weave is
-    // interrupted and clears silently; if you didn't, all stacks fire as
-    // composure damage. Wit clears it by landing a cast; the Handler clears it
-    // by having an animal attack. The damagedEnemyThisTurnRef is reset below,
-    // once the new player turn's hand is drawn.
+    // Hollow Weaver — Weave is a straightforward DELAYED composure hit
+    // (Alan, 2026-06-08: the old "fires unless you damaged it this turn,
+    // clears silently" conditional was confusing). Each "weave" intent banks
+    // composure damage; at the end of your next turn it simply lands for the
+    // banked total. You see it coming a full turn ahead — the counter is to
+    // drain the Weaver's composure before the banked total adds up. Folded
+    // into applyEnemyIntent's wComp below so its absolute setComposure(wComp)
+    // doesn't overwrite this fire on attack turns.
     if (weaveStacks > 0) {
-      if (damagedEnemyThisTurnRef.current) {
-        setWeaveStacks(0);
-      } else {
-        const dmg = weaveStacks;
-        setComposure(c => Math.max(0, c - dmg));
-        // Folded into applyEnemyIntent's wComp below so its absolute
-        // setComposure(wComp) doesn't overwrite this fire on attack turns.
-        weaveFireDamageRef.current = dmg;
-        pushLog(`🪡 Weave fires: -${dmg} composure (you struck nothing this turn — the thought finishes itself).`);
-        setWeaveStacks(0);
-      }
+      const dmg = weaveStacks;
+      setComposure(c => Math.max(0, c - dmg));
+      weaveFireDamageRef.current = dmg;
+      pushLog(`🪡 Weave completes: -${dmg} composure (the half-thought finishes itself).`);
+      setWeaveStacks(0);
     }
 
     // v3.4.12 (Alan bug): DoT tick MOVED ABOVE the enemy intent. Previously
@@ -12058,9 +12070,11 @@ export default function App() {
       // point). Either pool moving downward counts as "the hit landed."
       if (wHp < hp || wComp < composure) setUnblockedThisTurn(true);
       pushLog(`👹 ${e.name}: ${intent.telegraph}`);
-      // Maul rider: a mauling attack that leaks ANY HP past Block also tears
-      // the strongest animal off the board. Fully blocked → menagerie safe.
-      if (intent.maul && wHp < hp) maulStrongestAnimal();
+      // Maul rider: a mauling attack that leaks ANY damage past your shields
+      // also tears the strongest animal off the board. Fully blocked (HP) or
+      // poised (composure) → menagerie safe. (Composure-pool mauls exist for
+      // Garth Maul's escalating alternating hits — Alan 2026-06-08.)
+      if (intent.maul && (wHp < hp || wComp < composure)) maulStrongestAnimal();
       // v2.10: reactive annotation damage on enemy attack.
       const annReactive = annoFx('damageOnEnemyAttack');
       if (annReactive > 0) {
@@ -12159,14 +12173,11 @@ export default function App() {
         pushLog(`👹 ${e.name}: 🗑 ${intent.telegraph || 'discard'} — no cards to take.`);
       }
     } else if (intent.kind === 'weave') {
-      // Hollow Weaver — stacks Weave on the player. Lane-agnostic (Alan,
-      // 2026-06-02): the end-of-turn check (in endTurn) fires ALL stacks as
-      // composure damage unless the player dealt damage to the enemy that
-      // turn, then clears. Wit neutralizes it by landing a cast; the Handler
-      // by having an animal attack. Both lanes accumulate the same way — no
-      // immediate-fire special case anymore.
+      // Hollow Weaver — banks Weave on the player; it lands as composure
+      // damage at the end of the player's NEXT turn (a telegraphed delayed
+      // hit, no longer conditional — Alan 2026-06-08). Resolved in endTurn.
       setWeaveStacks(w => w + (intent.value || 1));
-      pushLog(`👹 ${e.name}: 🪡 Weave +${intent.value || 1} (total: ${weaveStacks + (intent.value || 1)}). Strike the Weaver next turn or it fires.`);
+      pushLog(`👹 ${e.name}: 🪡 Weave +${intent.value || 1} (banked: ${weaveStacks + (intent.value || 1)} — lands end of your next turn).`);
     } else if (intent.kind === 'vulnerable') {
       // Enemy applies vulnerable to player → enemy hits harder.
       // v2.32: NOT LISTENING — first debuff (Weak/Vuln) per combat is ignored.

@@ -5,7 +5,6 @@
 export const ENEMIES = [
   // ===== ACT 3 — The Staff Path (the deep forest, final act) =====
   { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 25, hpMax: 18, tier: 'normal',
-    softSpot: 'logic', // Wants someone to explain what they're doing here.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
@@ -13,7 +12,6 @@ export const ENEMIES = [
     ] },
   { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 23, hpMax: 999, tier: 'normal',
     // v2.4: handler 0.7 → 1.0 (less hostile to handler in act 1).
-    softSpot: 'threat', // Bullies fold the moment you don't.
     behaviors: [
       { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
@@ -22,7 +20,6 @@ export const ENEMIES = [
   { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 20, hpMax: 12, tier: 'normal',
     // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
     // partly because Shrine Rat and Thicket were freebies for it.
-    softSpot: 'threat', // Bigger predator energy = scatter.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
@@ -36,7 +33,6 @@ export const ENEMIES = [
     // failure mode: mystical mishap (transformation). Handler 0.6 —
     // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
     // wound. Physical 1.0 — he is also wood, axe him.
-    softSpot: 'logic', // Point out that he is a staff. He is, technically, aware.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (the staff turns)' },
       { kind: 'block',  value: 9, weight: 1, telegraph: '🛡 9 (knots tighten)' },
@@ -44,7 +40,6 @@ export const ENEMIES = [
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
     ] },
   { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 40, hpMax: 999, tier: 'elite',
-    softSpot: 'logic', // Will argue the methodology over the outcome.
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
@@ -54,7 +49,6 @@ export const ENEMIES = [
   { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 69, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
-    softSpot: 'confusion', // It is mostly bramble. It has thoughts about that.
     behaviors: [
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
@@ -64,7 +58,6 @@ export const ENEMIES = [
     // v2.16: was killing 182/500 handler runs. First pass 0.7→0.85
     // overcorrected (handler jumped to 41%). Settled at 0.75: still
     // a handler-hostile boss, just not a trap.
-    softSpot: 'flattery', // Apex predator; flatter the apex.
     insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
       { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
@@ -75,7 +68,6 @@ export const ENEMIES = [
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
   { id: 'e2-hollow-weaver', act: 1, name: 'Hollow Weaver', composureMax: 38, hpMax: 999, tier: 'normal',
-    softSpot: 'logic', // Half-finished thoughts; finish them and it folds.
     // Duo encounter (Alan, 2026-06-06): the Weaver arrives with a Bobbin
     // Imp in tow. Companion fights alongside it — see App.jsx companion
     // system. Killing the Weaver wins the fight (the imp unravels);
@@ -90,7 +82,7 @@ export const ENEMIES = [
     // v3.4.82 (2026-06-02, "extremely easy" telemetry): composure 28→38 and
     // base swings up. Combats were ending in 3-4 turns before pressure landed.
     behaviors: [
-      { kind: 'weave', value: 3, weight: 3, telegraph: '🪡 Weave +3 — fires as 🎭 next turn unless you damage it' },
+      { kind: 'weave', value: 3, weight: 3, telegraph: '🪡 Weave +3 — banked 🎭 lands at the end of your next turn' },
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (half-thought)' },
@@ -107,8 +99,20 @@ export const ENEMIES = [
       { kind: 'bolster', value: 4, weight: 2, telegraph: '🧵 re-threads its master (+4 Block to partner)' },
       { kind: 'block', value: 3, weight: 1, telegraph: '🛡 3' },
     ] },
+  // Garth Maul (Alan, 2026-06-08): summoner-only normal. EVERY attack is a
+  // maul, escalating and alternating pool — 4 ❤, 4 🎭, 5 ❤, 5 🎭, 6 ❤, …
+  // climbing forever until you drain his composure. The escalatingMaul flag
+  // makes rollIntent generate the sequence (it ignores `behaviors`, which is
+  // kept only as a representative entry for avgAttack/report). summonerOnly
+  // gates him to the handler. Race his 40 composure down before the mauls
+  // outscale your shields, or feed him a body each turn to keep the rest.
+  { id: 'e2-garth-maul', act: 1, name: 'Garth Maul', composureMax: 40, hpMax: 999, tier: 'normal',
+    summonerOnly: true, escalatingMaul: true,
+    flavor: 'He took the staff trial sideways and came back all teeth. Asks only that you hold still.',
+    behaviors: [
+      { kind: 'attack', maul: true, value: 4, weight: 1, telegraph: '🦷 4 ❤ maul (escalates each turn)' },
+    ] },
   { id: 'e2-silk-wraith', act: 1, name: 'Silk Wraith', composureMax: 36, hpMax: 999, tier: 'normal',
-    softSpot: 'confusion', // Already half-there. Push it further.
     behaviors: [
       // v2.9.2: silk-thread cuts now hit harder + composure-pool option.
       // v3.4.82: composure 25→36, whisper 6→8 (combats too short).
@@ -124,7 +128,6 @@ export const ENEMIES = [
       { kind: 'attack', maul: true, value: 7, weight: 1, telegraph: '🦷 7 — silk-snare (unblocked → lose your strongest animal)' },
     ] },
   { id: 'e2-loom-familiar', act: 1, name: 'Loom Familiar', composureMax: 40, hpMax: 999, tier: 'normal',
-    softSpot: 'flattery', // Misses its weaver. Speak as if it still mattered.
     // v2.96: signature mechanic = Hand pressure. The Loom Familiar reaches
     // into your hand and pulls a card it "needs to weave with." Forces
     // hand-management: do you play your key spell pieces this turn or
@@ -148,7 +151,6 @@ export const ENEMIES = [
     composureMax: 38, hpMax: 999, tier: 'normal',
     // failure mode: refusal. 50 years on the same hem. Wit can't
     // out-argue him (heard every version); jnsq breaks his focus.
-    softSpot: 'confusion',
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + ⛧ Weak 1 (stitch, weakly)', riders: { weak: 1 } },
       { kind: 'attack', value: 9, pool: 'composure', weight: 2, telegraph: '🎭 9 (murmuring about the hem)' },
@@ -156,7 +158,6 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (stitch, unstitch)' },
     ] },
   { id: 'e2-pattern-maker', act: 1, name: 'The Pattern-Maker', composureMax: 64, hpMax: 999, tier: 'elite',
-    softSpot: 'confusion', // Patterns hate exceptions.
     behaviors: [
       // v3.4.53 (Alan: "Pattern-Maker hits too hard, BARELY beat it"). With
       // the global 1.25× scalar, base 15 → 19 HP burst and 4×3 → 5×3 = 15
@@ -176,7 +177,6 @@ export const ENEMIES = [
       { kind: 'attack', value: 12, weight: 1, telegraph: '⚔ 12 (BROKEN-PATTERN STRIKE)' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 64, hpMax: 999, tier: 'elite',
-    softSpot: 'threat', // The vow of silence has limits.
     // v3.4.82: composure 50→64; base swing 8→10, whisper 6→8; self-block
     // weight 2→1 so it spends more turns pressuring than warding.
     behaviors: [
@@ -188,7 +188,6 @@ export const ENEMIES = [
       { kind: 'attack', value: 14, weight: 1, telegraph: '⚔ 14 (LOUD SILENCE)' },
     ] },
   { id: 'e2-boss-tapestry', act: 1, name: 'The Tapestry Walker', composureMax: 82, hpMax: 999, tier: 'boss',
-    softSpot: 'flattery', // Vain creator. Praise the work to crack the maker.
     insultVulnerabilities: ['dismissive', 'petty', 'sarcastic'], // Vain — hates being trivialized.
     // v3.4.82: composure 63→82 (boss fell in 5 turns at full HP); base swing
     // 10→11, loom-song 7→9. Bursts/maul untouched.
@@ -212,14 +211,12 @@ export const ENEMIES = [
   { id: 'e3-geode-crab', act: 2, name: 'Geode Crab', composureMax: 40, hpMax: 12, tier: 'normal',
     // v2.4: sharpened from flat-low to handler-favored. Geodes hate
     // being loomed over; jnsq just makes them weirder.
-    softSpot: 'threat', // Hard shell, soft instinct. Loom over it.
     behaviors: [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
       { kind: 'block',  value: 8,  weight: 1, telegraph: '🛡 8' },
       { kind: 'attack', value: 7, weight: 1, telegraph: '⚔ 7 (claw-snap)' },
     ] },
   { id: 'e3-glow-mite', act: 2, name: 'Glow Mite Swarm', composureMax: 36, hpMax: 14, tier: 'normal',
-    softSpot: 'confusion', // A swarm of small minds is easily scattered.
     behaviors: [
       { kind: 'attack-multi', value: 2, count: 4, weight: 2, telegraph: '⚔ 2×4 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'attack-multi', value: 2, count: 4, weight: 1, telegraph: '⚔ 2×4' },
@@ -227,7 +224,6 @@ export const ENEMIES = [
     ] },
   { id: 'e3-crystal-beetle', act: 2, name: 'Crystal Beetle', composureMax: 40, hpMax: 12, tier: 'normal',
     // v2.4: sharpened to wit-favored (its prismatic surfaces refract logic).
-    softSpot: 'threat', // Slow, certain, intimidatable.
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
       { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
@@ -241,7 +237,6 @@ export const ENEMIES = [
     // bully someone whose identity is partly an iron ring. Jnsq 1.3
     // because absurdity disrupts the alloy. Physical 1.0 — he is, after
     // all, also metal.
-    softSpot: 'confusion',
     behaviors: [
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (alloyed strike)' },
       { kind: 'block',  value: 7, weight: 2, telegraph: '🛡 7 + ⛧ Weak 1 (the ring sets)', riders: { weak: 1 } },
@@ -250,7 +245,6 @@ export const ENEMIES = [
     ] },
   { id: 'e3-quartz-sentinel', act: 2, name: 'Quartz Sentinel', composureMax: 56, hpMax: 22, tier: 'elite',
     // v2.4: sharpened to wit-favored. Constructs answer to logic.
-    softSpot: 'logic', // Constructs respond to the logic they were built with.
     behaviors: [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'block',  value: 12, weight: 2, telegraph: '🛡 12 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -262,7 +256,6 @@ export const ENEMIES = [
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 72, hpMax: 28, tier: 'elite',
     // v2.4: handler-favored. The Devourer responds to direct threat
     // (Walter punches it, it backs off); evades wit and jnsq.
-    softSpot: 'confusion', // Doesn't think. Only confusion can confuse it.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -280,7 +273,6 @@ export const ENEMIES = [
     // v2.4: Anvil flipped from handler-resist to handler-favored. It's
     // a forging boss — it understands direct demands. Jnsq is now the
     // softer side (0.7); wit stays neutral.
-    softSpot: 'logic', // Rule-bound smithcraft; argue the specification.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
       { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
@@ -295,7 +287,6 @@ export const ENEMIES = [
   // Block without ever being in danger.
   // ===== SIDEQUEST ENEMIES — gated by sidequest combat nodes =====
   { id: 'sq-critical-apparition', act: 0, name: 'Prof. Augustus Hewn-Greaves (deceased, 1893)', composureMax: 75, hpMax: 999, tier: 'elite',
-    softSpot: 'logic',
     insultVulnerabilities: ['dismissive', 'absurd'], // Pedant; absurdity destabilizes him most.
     behaviors: [
       { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (citing 1894 paper)', riders: { vulnerable: 1 } },
@@ -305,7 +296,6 @@ export const ENEMIES = [
     ] },
 
   { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 30, hpMax: 999, tier: 'normal',
-    softSpot: 'logic',
     behaviors: [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (gentle)' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },

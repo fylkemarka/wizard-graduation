@@ -24,7 +24,7 @@ import { ANIMALS, ADJACENCY_COMBOS } from '../src/data/animals.js';
 // extracted from App.jsx 2026-06-01). App.jsx imports the same module, so enemy
 // stats + behaviors CANNOT drift between game and sim. Edit enemies there.
 //
-// The shared shape uses { composureMax, hpMax, behaviors, softSpot,
+// The shared shape uses { composureMax, hpMax, behaviors,
 // insultVulnerabilities? }. The sim historically keyed combat off comp/hp/atk
 // scalars; the adapter below maps the shared shape onto that while preserving
 // the full `behaviors` list so the intent engine can roll the same weighted,
@@ -64,14 +64,25 @@ const ENEMIES = SHARED_ENEMIES.map(e => ({
   atk: avgAttack(e.behaviors),
   behaviors: (e.behaviors || []).map(b => ({ ...b })),
   insultVulnerabilities: e.insultVulnerabilities || [],
-  softSpot: e.softSpot,
   duoPartnerId: e.duoPartnerId, // duo encounters — companion pairing
+  summonerOnly: e.summonerOnly, // handler-only enemies (Garth Maul)
+  escalatingMaul: e.escalatingMaul, // Garth Maul's alternating escalating maul
 }));
 const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
 // Weighted intent roll, mirroring App.jsx rollIntent (anti-repeat via
 // excludeKinds; falls back to the full pool if filtering empties it).
 function rollIntent(enemy, excludeKinds = []) {
+  // Garth Maul: deterministic escalating maul, alternating pool (mirrors
+  // App.jsx). 4❤,4🎭,5❤,5🎭,… maulStep advances per roll on the per-combat
+  // enemy instance.
+  if (enemy.escalatingMaul) {
+    const step = enemy.maulStep || 0;
+    enemy.maulStep = step + 1;
+    const value = 4 + Math.floor(step / 2);
+    const composurePool = (step % 2 === 1);
+    return { kind: 'attack', maul: true, value, pool: composurePool ? 'composure' : undefined };
+  }
   const behaviors = enemy.behaviors || [];
   const filtered = behaviors.filter(b => !excludeKinds.includes(b.kind));
   const pool = filtered.length > 0 ? filtered : behaviors;
@@ -171,6 +182,13 @@ const ACT_NORMALS = {
   2: ['e3-geode-crab', 'e3-glow-mite', 'e3-crystal-beetle'],
   3: ['e1-acolyte', 'e1-imp', 'e1-shrine-rat'],
 };
+// summonerOnly normals join the pool only for the handler (mirrors
+// pickActEnemyId's lane gate). Garth Maul (e2-garth-maul) is Act 1 only.
+function actNormalsFor(actId, lane) {
+  const base = ACT_NORMALS[actId].slice();
+  if (lane === 'handler' && actId === 1) base.push('e2-garth-maul');
+  return base;
+}
 const ACT_ELITES = {
   1: ['e2-pattern-maker', 'e2-silent-spinner'],
   2: ['e3-quartz-sentinel', 'e3-vein-devourer'],
@@ -1666,15 +1684,12 @@ function aiTurnHandler(state, combat) {
   handlerEndOfTurnTick(state, combat);
   if (combat.tactic) combat.tacticTurns[combat.tactic] = (combat.tacticTurns[combat.tactic] || 0) + 1;
 
-  // Hollow Weaver — Weave fires now unless the player damaged the enemy this
-  // turn (cast or animal attack). Lane-agnostic; mirrors App.jsx endTurn.
+  // Hollow Weaver — banked Weave lands unconditionally at the end of the
+  // player's turn (simplified 2026-06-08; mirrors App.jsx endTurn).
   if ((combat.weaveStacks || 0) > 0) {
-    const damaged = combat.totalDamageDealt > combat.dmgDealtAtTurnStart;
-    if (!damaged) {
-      const dmg = combat.weaveStacks;
-      state.composure = Math.max(0, state.composure - dmg);
-      combat.weaveDamage = (combat.weaveDamage || 0) + dmg;
-    }
+    const dmg = combat.weaveStacks;
+    state.composure = Math.max(0, state.composure - dmg);
+    combat.weaveDamage = (combat.weaveDamage || 0) + dmg;
     combat.weaveStacks = 0;
   }
 
@@ -1759,7 +1774,7 @@ function handlerApplyIntent(state, combat, intent) {
       const mid = animalCount >= 3 ? 5 : animalCount >= 1 ? 3 : 0;
       if (mid > 0) raw = Math.max(1, raw - mid);
     }
-    const hpBefore = state.hp;
+    const hpBefore = state.hp, compBefore = state.composure;
     let wBlock = state.block, wPoise = state.poise || 0, wHp = state.hp, wComp = state.composure;
     for (let i = 0; i < hits; i++) {
       let remaining = raw;
@@ -1782,9 +1797,10 @@ function handlerApplyIntent(state, combat, intent) {
       if (wHp <= 0 || wComp <= 0) break;
     }
     state.block = wBlock; state.poise = wPoise; state.hp = wHp; state.composure = wComp;
-    // Maul: any HP leaked past block also tears the strongest animal off the
-    // board. Mirrors App.jsx maulStrongestAnimal. No exit payoff — killed.
-    if (intent.maul && wHp < hpBefore) {
+    // Maul: any damage leaked past your shields (HP past Block OR composure
+    // past Poise — Garth Maul's composure mauls) tears the strongest animal
+    // off the board. Mirrors App.jsx maulStrongestAnimal. No exit payoff.
+    if (intent.maul && (wHp < hpBefore || wComp < compBefore)) {
       const SLOT = ['intro', 'subject', 'target'];
       const eligible = combat.maulEligibleSlots || new Set();
       // Pecking Order redirects the maul to the weakest animal. Mirrors App.jsx.
@@ -4646,17 +4662,16 @@ function runCombat(state, enemyId, telemetry) {
     // the proxy here (the AI only casts to hurt the enemy). The Handler runs
     // its own combat path with a damage-delta check. Mirrors App.jsx endTurn.
     state.castedThisTurn = castsThisTurn > 0;
+    // Weave lands unconditionally at end of player turn (simplified 2026-06-08).
     if ((state.weaveStacks || 0) > 0) {
-      if (!state.castedThisTurn) {
-        const dmg = state.weaveStacks;
-        state.composure = Math.max(0, state.composure - dmg);
-        telemetry.weaveDamage = (telemetry.weaveDamage || 0) + dmg;
-        if (state.composure <= 0) {
-          flushThreadPeak();
-          return { outcome: 'lost', turns, killedBy: 'weave', telemetry };
-        }
-      }
+      const dmg = state.weaveStacks;
+      state.composure = Math.max(0, state.composure - dmg);
+      telemetry.weaveDamage = (telemetry.weaveDamage || 0) + dmg;
       state.weaveStacks = 0;
+      if (state.composure <= 0) {
+        flushThreadPeak();
+        return { outcome: 'lost', turns, killedBy: 'weave', telemetry };
+      }
     }
 
     // Enemy turn
@@ -6060,7 +6075,7 @@ function simRun(forcedLane = null) {
     state.currentActId = act.id; // for aiPickHandlerReward's act-gated draft bias
     // 3 normals
     for (let i = 0; i < 3; i++) {
-      const r = runCombat(state, pickRandom(ACT_NORMALS[act.id]), tele);
+      const r = runCombat(state, pickRandom(actNormalsFor(act.id, state.lane)), tele);
       tele.combatCount++;
       tele.combatTurns += r.turns;
       lastResult = { ...r, where: `act${act.id}-normal-${i}` };

@@ -159,7 +159,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
     if (intent.kind === 'weave') {
       const projected = (weaveStacks || 0) + intent.value;
       return {
-        display: `🪡 Weave +${intent.value} → ${projected} 🎭 if you don't hit it`,
+        display: `🪡 Weave +${intent.value} → ${projected} 🎭 lands end of your next turn`,
         reduced: false, amplified: false,
         rawValue: intent.value, effValue: projected,
       };
@@ -196,12 +196,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
     } else if (intent.kind === 'weak') {
       lines.push(`⛧ Applies Weak ${intent.value} — your spell damage will be reduced for the next few turns.`);
     } else if (intent.kind === 'weave') {
-      // v3.4.81: Hollow Weaver's signature mechanic. Most players have
-      // never seen "Weave" anywhere else; the tooltip is their teacher.
+      // Hollow Weaver's signature: a telegraphed DELAYED composure hit.
       const projected = (weaveStacks || 0) + intent.value;
-      lines.push(`🪡 Weave debt: adds ${intent.value} (currently ${weaveStacks || 0}, becoming ${projected}).`);
-      lines.push(`At the end of your NEXT turn the whole debt fires as composure damage and resets — UNLESS you dealt damage to the Weaver that turn.`);
-      lines.push(`Hurt it at all (a wit cast that lands, or one of your animals attacking) and the Weave clears harmlessly.`);
+      lines.push(`🪡 Weave: banks ${intent.value} composure (currently ${weaveStacks || 0}, becoming ${projected}).`);
+      lines.push(`At the end of your NEXT turn the banked total lands as composure damage, then resets. You see it a turn ahead — race the Weaver's own composure down before it adds up.`);
     }
     if (intent.riders) {
       const r = intent.riders;
