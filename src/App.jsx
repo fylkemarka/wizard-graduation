@@ -3566,17 +3566,26 @@ export default function App() {
     setPlayerDmgMult(m => Math.max(0.5, Math.min(1.5, m + delta)));
     setPlayerDmgTurns(STATUS_DURATION);
   }
-  // Weak/Vuln appliers fold straight into the multiplier + its turn timer;
-  // expiry is handled centrally by the end-of-turn tick (no per-effect
-  // scheduledEffect reversal anymore).
+  // Weak/Vuln are TURN-based with a FIXED whole effect (Alan, 2026-06-08): they
+  // no longer stack into fuzzy 1.25/1.5 multipliers. Vulnerable = a clean +50%
+  // to your damage; Weak = a clean −25% to the enemy's. Applying (re)sets the
+  // status for STATUS_DURATION turns; the badge shows only the whole-number
+  // turn count, never the fraction. Expiry handled by the end-of-turn tick.
   function applyExpiringWeak(stacks) {
     if (!stacks) return;
-    adjustEnemyDmg(-0.25 * stacks);
+    setEnemyDmgMult(0.75);
+    setEnemyDmgTurns(STATUS_DURATION);
   }
   function applyExpiringVuln(stacks) {
     if (!stacks) return;
-    adjustPlayerDmg(+0.25 * stacks);
+    setPlayerDmgMult(1.5);
+    setPlayerDmgTurns(STATUS_DURATION);
   }
+  // Player-side debuffs (enemy applies to YOU) — same fixed/turn-based model:
+  // Vulnerable-on-player = enemy hits +50% (enemyDmgMult 1.5); Weak-on-player =
+  // your damage −25% (playerDmgMult 0.75). Binary, non-stacking, whole turns.
+  function applyVulnToPlayer() { setEnemyDmgMult(1.5); setEnemyDmgTurns(STATUS_DURATION); }
+  function applyWeakToPlayer() { setPlayerDmgMult(0.75); setPlayerDmgTurns(STATUS_DURATION); }
   // Attack counter for everyNthAttack relic hooks (resets each combat).
   // Count of effect cards cast this run (drives everyNthEffect relic).
   const [effectCount, setEffectCount] = useState(0);
@@ -5924,12 +5933,12 @@ export default function App() {
       pushLog(`💚 +${healOnStart} HP (start of combat).`);
     }
     if (startCombatVulnTotal > 0) {
-      adjustPlayerDmg(+0.25 * startCombatVulnTotal);
-      pushLog(`💫 +${25*startCombatVulnTotal}% potency vs ${e.name} (start of combat).`);
+      applyExpiringVuln(1);
+      pushLog(`💫 ${e.name} starts Vulnerable — your damage +50% (${STATUS_DURATION} turns).`);
     }
     if (startCombatWeakTotal > 0) {
-      adjustEnemyDmg(-0.25 * startCombatWeakTotal);
-      pushLog(`💢 ${e.name}: −${25*startCombatWeakTotal}% atk (start of combat).`);
+      applyExpiringWeak(1);
+      pushLog(`💢 ${e.name} starts Weak — its attacks −25% (${STATUS_DURATION} turns).`);
     }
     // v2.9: Rabbit's startCombatPoise — combat-start composure shield.
     const startPoiseTotal = effectSources().reduce(
@@ -6596,8 +6605,7 @@ export default function App() {
         : (enemy?.effectiveness?.[lane] ?? 1.0);
       dmg = Math.round(dmg * mult * playerDmgMult);
       pushLog(`${ge.icon || '✊'} ${card.phrase || card.name} → ${dmg} ${dmgType === 'physical' ? 'phys' : 'comp'}`);
-      if (dmgType === 'physical') applyDamageToEnemyHp(dmg);
-      else                        applyDamageToEnemyComposure(dmg);
+      applyCastDamageToTarget(dmg, dmgType); // v3.5 — follows the chosen duo target
       // Apply riders (weak/vulnerable on the enemy).
       if (ge.rider?.weak)       { applyExpiringWeak(ge.rider.weak);  pushLog(`💢 enemy −${25*ge.rider.weak}% atk (3 turns)`); }
       if (ge.rider?.vulnerable) { applyExpiringVuln(ge.rider.vulnerable); pushLog(`🩸 enemy Vulnerable +${ge.rider.vulnerable} (your spells +${25*ge.rider.vulnerable}%, 3 turns)`); }
@@ -7952,9 +7960,9 @@ export default function App() {
       pushLog(`✦ Resonance ×${matchedTags.length} (${uniq.join(', ')}) → +${resonanceBonus} damage`);
     }
 
-    let after = 0;
-    if (dmgType === 'physical') after = applyDamageToEnemyHp(dmg);
-    else                        after = applyDamageToEnemyComposure(dmg);
+    // v3.5 — honor the chosen duo target. The classic EFFECT cast used to hit
+    // the leader unconditionally; now it follows castTarget like the FFT path.
+    let after = applyCastDamageToTarget(dmg, dmgType);
     const stickyTag = eff_mult === 0 ? ' (IMMUNE)' : (eff_mult >= 1.5 ? ' (susceptible)' : eff_mult <= 0.5 ? ' (resistant)' : '');
     const dmgTag = dmgType === 'physical' ? `${dmg} phys → ${after} HP${phys_mult === 0 ? ' (IMMUNE)' : ''}` : `${dmg} comp → ${after}${stickyTag}`;
     pushLog(`🎯 ${(card.name || '').toUpperCase()} — ${dmgTag}`);
@@ -8033,7 +8041,7 @@ export default function App() {
       const dmg = Math.round((eff.landDamage || 10) * playerDmgMult);
       const witMult = enemy?.effectiveness?.wit ?? 1.0; // verbal channel
       const finalDmg = Math.round(dmg * witMult);
-      const after = applyDamageToEnemyComposure(finalDmg);
+      const after = applyCastDamageToTarget(finalDmg, 'composure'); // v3.5 duo target
       pushLog(`✓ LAND — ${finalDmg} composure → ${after}`);
       if (eff.successFlavor) pushLog(`"${eff.successFlavor}"`);
     } else if (outcome === 'unfaze') {
@@ -8147,13 +8155,11 @@ export default function App() {
     // toward 1.0. Each stack adjusts 0.25, clamped at 1.0 so it can't flip
     // into a buff. No-op if already at/past neutral.
     if (fx.removeWeak && playerDmgMult < 1.0) {
-      const target = Math.min(1.0, playerDmgMult + 0.25 * fx.removeWeak);
-      setPlayerDmgMult(target);
+      setPlayerDmgMult(1.0); setPlayerDmgTurns(0);  // clean clear (binary status)
       logBits.push(`🙉 cleansed Weak`);
     }
     if (fx.removeVulnerable && enemyDmgMult > 1.0) {
-      const target = Math.max(1.0, enemyDmgMult - 0.25 * fx.removeVulnerable);
-      setEnemyDmgMult(target);
+      setEnemyDmgMult(1.0); setEnemyDmgTurns(0);
       logBits.push(`🙉 cleansed Vulnerable`);
     }
     // v2.33: NOT LISTENING — absorbNextDebuff arms a one-shot token that
@@ -8917,8 +8923,8 @@ export default function App() {
     }
     // Player-side debuff (e.g., Cantrip Roulette failure).
     if (fx.selfWeak) {
-      adjustPlayerDmg(-0.25 * fx.selfWeak);
-      logBits.push(`💢 self −${25*fx.selfWeak}% potency`);
+      applyWeakToPlayer();
+      logBits.push(`💢 self Weak — your potency −25%`);
     }
     // Apply Vulnerable to the enemy from a side-effect path (used by
     // chance.success in some Jnsq effects).
@@ -10793,7 +10799,10 @@ export default function App() {
             const atkMult = slot.nextAttackMult || 1;
             const ampMult = adjacentAmplifyMult(slotName, workingTray);
             const baseAtk = animal.copiesLeft ? copyLeftAttack(slotName, animal, workingTray) : animalAttackValue(animal, slot);
-            let atk = Math.round(baseAtk * atkMult * ampMult);
+            // Animals respect enemy Vulnerable (playerDmgMult): the menagerie
+            // is the handler's main damage, so Vulnerable now actually matters
+            // to it (Alan, 2026-06-08). playerDmgMult is the binary 1.5/0.75.
+            let atk = Math.round(baseAtk * atkMult * ampMult * playerDmgMult);
             const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
             const ampLabel = ampMult > 1 ? ` (🐕 +${Math.round((ampMult - 1) * 100)}%)` : '';
             const copyLabel = animal.copiesLeft ? ' (🎙️ copies left)' : '';
@@ -12639,12 +12648,12 @@ export default function App() {
         setNotListeningCharges(c => Math.max(0, c - 1));
         pushLog(`🙉 ${e.name}: ${intent.telegraph} — didn't hear it.`);
       } else {
-        adjustEnemyDmg(+0.25 * intent.value);
-        pushLog(`👹 ${e.name}: 💢 +${25*intent.value}% to incoming dmg.`);
+        applyVulnToPlayer();
+        pushLog(`👹 ${e.name}: 🩸 You are Vulnerable — incoming damage +50% (${STATUS_DURATION} turns).`);
         // v2.93: O-2 (And What About THAT Time) — reflect debuff to enemy.
         if (reflectNextDebuff > 0) {
-          adjustPlayerDmg(+0.25 * intent.value);  // enemy becomes Vulnerable to your spells
-          pushLog(`🪞 ...and what about THAT time → enemy Vulnerable +${intent.value} (your spells +${25*intent.value}%).`);
+          applyExpiringVuln(1);  // enemy becomes Vulnerable to your spells
+          pushLog(`🪞 ...and what about THAT time → enemy Vulnerable (your damage +50%).`);
           setReflectNextDebuff(n => Math.max(0, n - 1));
         }
       }
@@ -12655,12 +12664,12 @@ export default function App() {
         setNotListeningCharges(c => Math.max(0, c - 1));
         pushLog(`🙉 ${e.name}: ${intent.telegraph} — didn't hear it.`);
       } else {
-        adjustPlayerDmg(-0.25 * intent.value);
-        pushLog(`👹 ${e.name}: 💢 −${25*intent.value}% to your spell potency.`);
+        applyWeakToPlayer();
+        pushLog(`👹 ${e.name}: 💢 You are Weak — your damage −25% (${STATUS_DURATION} turns).`);
         // v2.93: reflect Weak as enemy Weak (their attacks weaker).
         if (reflectNextDebuff > 0) {
-          adjustEnemyDmg(-0.25 * intent.value);
-          pushLog(`🪞 ...and what about THAT time → enemy Weak (−${25*intent.value}% atk).`);
+          applyExpiringWeak(1);
+          pushLog(`🪞 ...and what about THAT time → enemy Weak (its attacks −25%).`);
           setReflectNextDebuff(n => Math.max(0, n - 1));
         }
       }
@@ -12793,10 +12802,10 @@ export default function App() {
         return false;
       };
       if (r.weak) {
-        if (!tryNlAbsorb('Weak')) adjustPlayerDmg(-0.25 * r.weak);
+        if (!tryNlAbsorb('Weak')) applyWeakToPlayer();
       }
       if (r.vulnerable) {
-        if (!tryNlAbsorb('Vulnerable')) adjustEnemyDmg(+0.25 * r.vulnerable);
+        if (!tryNlAbsorb('Vulnerable')) applyVulnToPlayer();
       }
       if (r.block) setEnemyBlock(b => b + r.block);
     }

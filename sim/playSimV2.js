@@ -1064,7 +1064,8 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotNa
     if (base > 0) { base += (slot.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[slot.animalId] || 0) + (combat?.summonStrength || 0); }
   }
   const ampMult = (work && slotName !== undefined) ? adjacentAmplifyMultSim(work, slotName) : 1;
-  let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1) * ampMult);
+  // Animals respect enemy Vulnerable (playerDmgMult) — parity with App.jsx
+  let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1) * ampMult * (combat?.playerDmgMult || 1));
   slot.nextAttackMult = 1;
   const isShield = combat.tactic === 'shield';
   const isRabid  = combat.tactic === 'rabid';
@@ -1091,8 +1092,8 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotNa
     if (isRabid) state.composure = Math.max(0, state.composure - Math.max(1, Math.round(atk * 0.1)));
   }
   if (animal.onAttack?.draw) drawCards(state, animal.onAttack.draw);
-  if (animal.onAttackEffect?.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * animal.onAttackEffect.applyVulnerable);
-  if (animal.onAttackEffect?.applyWeak > 0)       combat.enemyDmgMult  = Math.max(0.5, combat.enemyDmgMult  - 0.25 * animal.onAttackEffect.applyWeak);
+  if (animal.onAttackEffect?.applyVulnerable > 0) combat.playerDmgMult = 1.5;
+  if (animal.onAttackEffect?.applyWeak > 0)       combat.enemyDmgMult  = 0.75;
 }
 function clearHandlerSlot(next, slot, slotName) {
   if (slot.spans && slot.spans.length) { for (const s of slot.spans) next[s] = null; }
@@ -2058,9 +2059,9 @@ function handlerApplyIntent(state, combat, intent) {
   } else if (intent.kind === 'block') {
     combat.enemyBlock += intent.value;
   } else if (intent.kind === 'vulnerable') {
-    combat.enemyDmgMult = Math.min(1.5, combat.enemyDmgMult + 0.25 * intent.value);
+    combat.enemyDmgMult = 1.5;
   } else if (intent.kind === 'weak') {
-    combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * intent.value);
+    combat.playerDmgMult = 0.75;
   } else if (intent.kind === 'weave') {
     // Hollow Weaver — accrue stacks; they fire at the end of the next player
     // turn unless the player damaged the enemy. Mirrors App.jsx.
@@ -2122,8 +2123,8 @@ function handlerApplyIntent(state, combat, intent) {
   }
   if (intent.riders) {
     const r = intent.riders;
-    if (r.weak)       combat.playerDmgMult = Math.max(0.5, combat.playerDmgMult - 0.25 * r.weak);
-    if (r.vulnerable) combat.enemyDmgMult  = Math.min(1.5, combat.enemyDmgMult  + 0.25 * r.vulnerable);
+    if (r.weak)       combat.playerDmgMult = 0.75;
+    if (r.vulnerable) combat.enemyDmgMult = 1.5;
     if (r.block)      combat.enemyBlock += r.block;
   }
 }
@@ -2150,7 +2151,7 @@ function handlerEndOfTurnTick(state, combat) {
       combat.totalDamageDealt += fx.damage;
     }
     if (fx.block > 0)     { state.block += fx.block; combat.menagerieBlock += fx.block; }
-    if (fx.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * fx.applyWeak);
+    if (fx.applyWeak > 0) combat.enemyDmgMult = 0.75;
     if (fx.healComp > 0)  state.composure = Math.min(state.maxComposure, state.composure + fx.healComp);
     if (fx.healHp > 0)    state.hp = Math.min(state.maxHp, state.hp + fx.healHp);
     // Spittle Peck (Rabid Scrubjay): arm the redirect; consumed when the enemy
@@ -2208,8 +2209,8 @@ function handlerEndOfTurnTick(state, combat) {
         combat.totalDamageDealt += onForm.damage;
         combat.combineBurst = (combat.combineBurst || 0) + onForm.damage;
       }
-      if (onForm.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * onForm.applyVulnerable);
-      if (onForm.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * onForm.applyWeak);
+      if (onForm.applyVulnerable > 0) combat.playerDmgMult = 1.5;
+      if (onForm.applyWeak > 0) combat.enemyDmgMult = 0.75;
     }
   }
   // PRE-PASS: tender-greens row bonus (×1.5 next attack + +3 block/turn, once).
@@ -2253,7 +2254,7 @@ function handlerEndOfTurnTick(state, combat) {
     if (!slot || slot.kind !== 'animal' || slot.eatenThisTurn) continue;
     const a = ANIMALS[slot.animalId];
     if (!a?.prePassVulnerable) continue;
-    combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * a.prePassVulnerable);
+    combat.playerDmgMult = 1.5;
   }
 
   // PRE-PASS: Raven Bird Theft (2026-06-02). On the turn a Raven is set to
@@ -2296,8 +2297,8 @@ function handlerEndOfTurnTick(state, combat) {
         else handlerDealHp(combat, combo.damage);
         combat.totalDamageDealt += combo.damage;
       }
-      if (combo.applyWeak > 0) combat.enemyDmgMult = Math.max(0.5, combat.enemyDmgMult - 0.25 * combo.applyWeak);
-      if (combo.applyVulnerable > 0) combat.playerDmgMult = Math.min(1.5, combat.playerDmgMult + 0.25 * combo.applyVulnerable);
+      if (combo.applyWeak > 0) combat.enemyDmgMult = 0.75;
+      if (combo.applyVulnerable > 0) combat.playerDmgMult = 1.5;
       if (combo.draw > 0) drawCards(state, combo.draw);
       if (combo.block > 0) { state.block += combo.block; combat.menagerieBlock += combo.block; }
       combat.combos = (combat.combos || 0) + 1;
@@ -2430,7 +2431,7 @@ function flushStagedLures(state, combat) {
 // { outcome, turns, telemetry, killedBy? }. Stall = 5 turns no damage dealt.
 function runHandlerCombat(state, enemy, telemetry) {
   const fb = state.familiarBonus || {};
-  if (fb.startCombatVuln) state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fb.startCombatVuln);
+  if (fb.startCombatVuln) state.playerDmgMult = 1.5;
   // Fresh hand each combat (discard whatever lingered, then aiTurnHandler draws).
   // Scrub tokens (Snack) so they never seed a fresh combat's deck. Installed
   // powers from the prior combat fold back into discard so the card is
@@ -2689,7 +2690,7 @@ function runCombat(state, enemyId, telemetry) {
   if (fb.startCombatBlock)  state.block += fb.startCombatBlock;
   if (fb.startCombatPoise)  state.poise += fb.startCombatPoise; // Rabbit
   if (fb.startCombatEnergy) state.energy += fb.startCombatEnergy; // applied alongside ENERGY_PER_TURN in loop
-  if (fb.startCombatVuln)   state.playerDmgMult = Math.min(1.5, (state.playerDmgMult || 1) + 0.25 * fb.startCombatVuln);
+  if (fb.startCombatVuln)   state.playerDmgMult = 1.5;
   // Beetle: tracks a per-combat first-hit absorber.
   state.beetleAbsorb = fb.firstHitReduction || 0;
   // Power-down: reset per-combat buffs
