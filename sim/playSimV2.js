@@ -233,6 +233,8 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
   { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
+  { id: 'c-palpable-sadness',  name: 'Palpable Sadness',  cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'palpableSadness' } },
+  { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'costOfLittering' } },
   { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 2, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
   { id: 'c-last-supper',   name: 'Last Supper',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { sacrificeForValue: true } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
@@ -268,7 +270,7 @@ const HANDLER_REWARD_POOL = [
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   'c-narrow', 'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
-  'c-light-the-mound',
+  'c-light-the-mound', 'c-palpable-sadness', 'c-cost-of-littering',
 ];
 
 // =============================================================================
@@ -864,6 +866,31 @@ function handlerDealHp(combat, amount) {
   if (combat.enemyBlock > 0) { const a = Math.min(combat.enemyBlock, remaining); combat.enemyBlock -= a; remaining -= a; }
   combat.enemyHp = Math.max(0, combat.enemyHp - remaining);
 }
+// Composure to all enemies (main + companion) — the AoE powers. Mirrors
+// App.jsx dealComposureToAll (Alan, 2026-06-08).
+function dealComposureAllSim(state, combat, dmg) {
+  if (dmg <= 0) return;
+  handlerDealComposure(combat, dmg);
+  if (combat.companion) companionTakeCastDamageSim(combat, dmg);
+  combat.totalDamageDealt += dmg;
+}
+// One funnel per sacrifice: Light the Mound counter + Palpable Sadness AoE.
+function noteSacrificeSim(state, combat, n = 1) {
+  combat.sacrifices = (combat.sacrifices || 0) + n;
+  if (hasHandlerPower(state, 'palpableSadness')) {
+    for (let i = 0; i < n; i++) dealComposureAllSim(state, combat, 3);
+  }
+}
+// One funnel per summon: Horde counter (combat.summons) + Cost of Littering
+// AoE each time the running total crosses a multiple of 5.
+function bumpSummonsSim(state, combat, n = 1) {
+  const before = combat.summons || 0;
+  combat.summons = before + n;
+  if (hasHandlerPower(state, 'costOfLittering')) {
+    const cross = Math.floor(combat.summons / 5) - Math.floor(before / 5);
+    for (let i = 0; i < cross; i++) dealComposureAllSim(state, combat, 5);
+  }
+}
 // Handler powers (2026-06-01) install onto state.powers, mirroring App.jsx.
 function hasHandlerPower(state, id) { return (state.powers || []).some(p => p.installPower?.id === id); }
 function makeAnimalSlot(animalId, youthBonus, summonSet, durBonus) {
@@ -1069,7 +1096,7 @@ function stageHandlerLure(state, combat, lure) {
     if (nurture) {
       const animalId = resolveLureSpecies(lure, combat);
       combat.htray[s] = applyTroughFeed(combat, makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet));
-      combat.summons++;
+      bumpSummonsSim(state, combat, 1);
       if (withCard) state.discard.push(lure);
     } else {
       combat.htray[s] = {
@@ -1104,7 +1131,7 @@ function applyHandlerUtil(state, combat, card) {
       const animalId = resolveLureSpecies(lure, combat);
       if (lure.card) state.discard.push({ ...lure.card });
       combat.htray[s] = applyTroughFeed(combat, makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet));
-      combat.summons++;
+      bumpSummonsSim(state, combat, 1);
     }
     return;
   }
@@ -1169,7 +1196,7 @@ function applyHandlerSkill(state, combat, card) {
       drawCards(state, 1);
       noteHandlerExit(state, combat);
       clearHandlerSlot(combat.htray, tgt.slot, tgt.s);
-      combat.sacrifices = (combat.sacrifices || 0) + 1; // Light the Mound
+      noteSacrificeSim(state, combat, 1);
     }
   }
   // Make It Count — every animal attacks for double, then leaves play.
@@ -1182,7 +1209,7 @@ function applyHandlerSkill(state, combat, card) {
       departed++;
     }
     if (departed) noteHandlerExit(state, combat, departed);
-    combat.sacrifices = (combat.sacrifices || 0) + departed; // Light the Mound
+    noteSacrificeSim(state, combat, departed);
   }
   // Trough — the next 3 summoned animals arrive already fed.
   if (fx.troughFeed) combat.troughCharges = (combat.troughCharges || 0) + fx.troughFeed;
@@ -1513,7 +1540,7 @@ function aiTurnHandler(state, combat) {
               if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
               else combat.htray[give.s] = null;
               noteHandlerExit(state, combat);
-              combat.sacrifices = (combat.sacrifices || 0) + 1; // Light the Mound
+              noteSacrificeSim(state, combat, 1);
               continue;
             }
           }
@@ -2024,7 +2051,7 @@ function handlerEndOfTurnTick(state, combat) {
       if (nt <= 0) {
         const animalId = resolveLureSpecies(slot, combat);
         if (slot.card) state.discard.push({ ...slot.card });
-        combat.summons++;
+        bumpSummonsSim(state, combat, 1);
         if (ANIMALS[animalId]?.special) combat.specialSummons = (combat.specialSummons || 0) + 1;
         const animalSlot = applyTroughFeed(combat, makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet));
         next[slotName] = animalSlot;
@@ -2067,7 +2094,7 @@ function handlerEndOfTurnTick(state, combat) {
       if (ids.length > 0) {
         const rollTargetId = ids[Math.floor(rnd() * ids.length)];
         next[slotName] = makeAnimalSlot(rollTargetId, 0, slot.summonSet);
-        combat.summons++;
+        bumpSummonsSim(state, combat, 1);
         continue;
       }
     }
@@ -2096,7 +2123,7 @@ function handlerEndOfTurnTick(state, combat) {
         if (n < 0 || n >= SLOT.length) continue;
         const ns = SLOT[n];
         const proj = (next[ns] !== undefined) ? next[ns] : work[ns];
-        if (proj == null) { const child = makeAnimalSlot(animal.adjacentSpawn.animalId, 0, slot.summonSet); child.adjacentSpawned = true; next[ns] = child; combat.summons++; }
+        if (proj == null) { const child = makeAnimalSlot(animal.adjacentSpawn.animalId, 0, slot.summonSet); child.adjacentSpawned = true; next[ns] = child; bumpSummonsSim(state, combat, 1); }
       }
       nextDur = (slot.durationRemaining - 1) + (animal.adjacentSpawn.extendSelfTurns || 0);
       if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }

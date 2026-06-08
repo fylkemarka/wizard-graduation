@@ -47,10 +47,49 @@
   100% { transform: translateX(0); }
 }
 .enemy-hit-shake { animation: enemy-hit 240ms ease-out; }
-/* Same animation, neutral name — applied to the player HUD card when an
-   enemy intent lands damage. Identical timing/curve so the two beats feel
-   symmetric in playtest. */
-.hit-shake { animation: enemy-hit 240ms ease-out; }
+/* Player HUD shake — punchier than the enemy's (it's YOUR hit). */
+@keyframes player-hit {
+  0%   { transform: translate(0,0); }
+  15%  { transform: translate(-9px, 3px); }
+  30%  { transform: translate(8px, -2px); }
+  45%  { transform: translate(-6px, 2px); }
+  60%  { transform: translate(5px, -1px); }
+  80%  { transform: translate(-3px, 1px); }
+  100% { transform: translate(0,0); }
+}
+.hit-shake { animation: player-hit 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+/* Whole-combat shake when the enemy lands damage (Alan 2026-06-08). Subtler
+   than the panel shakes — a quick global jolt so a hit is felt screen-wide. */
+@keyframes screen-hit {
+  0%   { transform: translate(0,0); }
+  20%  { transform: translate(-5px, 2px); }
+  40%  { transform: translate(4px, -2px); }
+  65%  { transform: translate(-3px, 1px); }
+  100% { transform: translate(0,0); }
+}
+.screen-hit-shake { animation: screen-hit 260ms ease-out; }
+
+/* Red edge-vignette flash on a player hit — bright then fades. */
+@keyframes screen-hit-flash {
+  0%   { opacity: 0; }
+  12%  { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+.screen-hit-flash {
+  animation: screen-hit-flash 520ms ease-out forwards;
+  background: radial-gradient(ellipse at center, transparent 52%, rgba(224, 128, 112, 0.55) 100%);
+}
+
+/* Maul toast — slams in, holds, lifts away. */
+@keyframes maul-toast {
+  0%   { transform: translate(-50%, -14px) scale(0.85); opacity: 0; }
+  10%  { transform: translate(-50%, 0) scale(1.06); opacity: 1; }
+  22%  { transform: translate(-50%, 0) scale(1); opacity: 1; }
+  82%  { transform: translate(-50%, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -22px) scale(0.96); opacity: 0; }
+}
+.maul-toast { animation: maul-toast 3200ms ease-out forwards; }
 
 /* Intent reroll — every time the enemy rolls a new intent, the intent
    box flashes briefly empty then fades back in. Re-keyed so this fires

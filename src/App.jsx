@@ -217,6 +217,14 @@ const CARDS = [
     installPower: { id: 'peckingOrder' },
     desc: 'Power. When an enemy mauls, it takes your weakest animal instead of your strongest.',
     flavor: 'Someone has to go first. The committee has determined it will not be the big one.' },
+  { id: 'c-palpable-sadness', name: 'Palpable Sadness', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'palpableSadness' },
+    desc: 'Power. Every time you sacrifice an animal, deal 3 composure damage to all enemies.',
+    flavor: 'The grief is genuine. It is also, you will note, weaponised.' },
+  { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'costOfLittering' },
+    desc: 'Power. Deal 5 composure damage to all enemies for every 5 animals you summon this combat.',
+    flavor: 'You leave them everywhere. Someone, eventually, has to be made to care.' },
   // ---- THE BUTCHER — the board is ammunition. These two cash the board in
   // for value. Pairs with The Whisperer.
   { id: 'c-last-supper', name: 'Last Supper', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
@@ -3575,6 +3583,13 @@ export default function App() {
   // intent actually lands damage on either pool. Re-keys the player card
   // so the same shake animation runs.
   const [playerHitFlash, setPlayerHitFlash] = useState(0);
+  // Screen-level feedback when the enemy lands HP/composure damage: a red
+  // edge-flash + a brief whole-combat shake (Alan, 2026-06-08 — wanted the
+  // hit to read clearly). Keyed by timestamp so each hit re-runs it.
+  const [screenHitFlash, setScreenHitFlash] = useState(0);
+  // Maul notice — names the animal torn off and WHY, as a transient toast
+  // over the board so it's obvious which body died and that it was a maul.
+  const [maulNotice, setMaulNotice] = useState(null);
   const [dmgFloaters, setDmgFloaters] = useState([]);
   // Rotating sequence so simultaneous floaters (e.g. a 3-animal menagerie
   // tick) fan out instead of stacking on the same pixel and becoming an
@@ -4035,6 +4050,13 @@ export default function App() {
     const id = setTimeout(() => setTutorFlash(null), 5000);
     return () => clearTimeout(id);
   }, [tutorFlash]);
+  // Maul notice auto-clears after a few seconds (long enough to read which
+  // animal died and why, short enough not to linger into the next turn).
+  useEffect(() => {
+    if (!maulNotice) return;
+    const id = setTimeout(() => setMaulNotice(null), 3200);
+    return () => clearTimeout(id);
+  }, [maulNotice]);
   // HIT ME AGAIN reactive-recoil power ripped 2026-05-31 with the chutzpah
   // → handler pivot. The card no longer exists in the pool.
   // v2.33: Stubborn Block was removed (Power that converted unspent energy
@@ -5723,6 +5745,8 @@ export default function App() {
     // even if some other path leaves the notice set, a fresh combat
     // should never start with a stale modal.
     setCardLossNotice(null);
+    setMaulNotice(null);
+    setScreenHitFlash(0);
 
     // Apply start-of-combat effects from equipment AND relics.
     let startBlockTotal = 0;
@@ -8249,8 +8273,7 @@ export default function App() {
         });
         if (whisperBank > 0) setWhisperDrawsPending(d => d + whisperBank);
         // Light the Mound: a mass send-off counts as `count` sacrifices.
-        animalsSacrificedRef.current += count;
-        setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
+        noteAnimalSacrificed(count);
       }
       logBits.push(count > 0 ? `💥 Make It Count — ${count} sent` : `💥 Make It Count — no animals in play.`);
     }
@@ -9165,6 +9188,39 @@ export default function App() {
     if (hasHandlerPower('whisperer')) setWhisperDrawsPending(d => d + n);
   };
 
+  // Deal composure to EVERY enemy on the field (main + companion). Used by
+  // the AoE powers (Palpable Sadness / Cost of Littering, Alan 2026-06-08).
+  const dealComposureToAll = (dmg, label) => {
+    if (dmg <= 0) return;
+    applyDamageToEnemyComposure(dmg);
+    if (companionRef.current) damageCompanion(dmg);
+    if (label) pushLog(label);
+  };
+
+  // Record a sacrifice (sacrifice-for-Block, Last Supper, Make It Count) —
+  // bumps the Light the Mound counter AND fires Palpable Sadness (3 comp to
+  // all enemies per sacrifice). One funnel so every sacrifice path agrees.
+  const noteAnimalSacrificed = (n = 1) => {
+    animalsSacrificedRef.current += n;
+    setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
+    if (hasHandlerPower('palpableSadness')) {
+      for (let i = 0; i < n; i++) dealComposureToAll(3, `😢 Palpable Sadness — 3 composure to all enemies.`);
+    }
+  };
+
+  // Record summoned animals — bumps the Horde counter AND fires Cost of
+  // Littering each time the running total crosses a multiple of 5 (5 comp to
+  // all enemies per threshold). Returns nothing; call once per arrival.
+  const noteAnimalSummoned = (n = 1) => {
+    const before = animalsSummonedRef.current;
+    animalsSummonedRef.current = before + n;
+    setAnimalsSummonedThisCombat(animalsSummonedRef.current);
+    if (hasHandlerPower('costOfLittering')) {
+      const thresholds = Math.floor(animalsSummonedRef.current / 5) - Math.floor(before / 5);
+      for (let i = 0; i < thresholds; i++) dealComposureToAll(5, `🗑 Cost of Littering — 5 composure to all enemies (every 5 summoned).`);
+    }
+  };
+
 
   // Maul — when an enemy's mauling attack leaks any damage past Block, it also
   // tears the strongest animal off the board (Alan, 2026-06-02; handler-only).
@@ -9196,6 +9252,15 @@ export default function App() {
     noteAnimalDeparted();
     logEvent('combat.maul_tear', { animalId: slot.animalId, slotName: best, redirect, enemyId: enemy?.id });
     pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is mauled off the board${redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all"}.`);
+    // Loud, transient toast naming the torn animal + WHY (Alan, 2026-06-08:
+    // "make it obvious which animal died and why"). Auto-clears.
+    setMaulNotice({
+      id: Date.now(),
+      icon: animal?.icon || '🐾',
+      name: animal?.name || slot.animalId,
+      enemy: enemy?.name || 'The enemy',
+      reason: redirect ? 'Pecking Order sent your runt forward instead' : 'damage leaked past your Block',
+    });
   };
 
   // Last Supper — send off an animal for Energy equal to its remaining turns
@@ -9229,8 +9294,7 @@ export default function App() {
     noteAnimalDeparted();
     setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
     setSacrificePromptActive(false);
-    animalsSacrificedRef.current += 1; // Light the Mound
-    setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
+    noteAnimalSacrificed(1);
     pushLog(`🍽 Last Supper — ${animal?.name || slot.animalId} departs. +${turnsLeft} Energy, draw 1.`);
   }
 
@@ -9438,8 +9502,7 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
     noteAnimalDeparted();
     if (blockGain > 0) setBlock(b => b + blockGain);
-    animalsSacrificedRef.current += 1;
-    setAnimalsSacrificedThisCombat(animalsSacrificedRef.current);
+    noteAnimalSacrificed(1);
     pushLog(`🛡 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is sacrificed — +${blockGain} Block (no exit bonus).`);
   }
 
@@ -9677,8 +9740,7 @@ export default function App() {
       }
     }
     const animal = getAnimal(resolvedAnimalId);
-    animalsSummonedRef.current += 1; // The Horde counter
-    setAnimalsSummonedThisCombat(animalsSummonedRef.current);
+    noteAnimalSummoned(1); // Horde counter + Cost of Littering
     // Trough: an instant summon also draws a charge if it's a fed type.
     const eatTroughFed = animal?.feedKey && troughChargesRef.current > 0;
     if (eatTroughFed) { troughChargesRef.current -= 1; setTroughCharges(troughChargesRef.current); }
@@ -10840,7 +10902,7 @@ export default function App() {
             }
             const animal = getAnimal(resolvedAnimalId);
             hTick.arrivals.push(resolvedAnimalId);
-            animalsSummonedRef.current += 1; // The Horde counter
+            noteAnimalSummoned(1); // Horde counter + Cost of Littering
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
             // Lure card cycles back to discard so it can be redrawn.
             if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
@@ -12063,7 +12125,10 @@ export default function App() {
       // Hit-shake the player HUD if either pool actually moved. Block-only
       // absorption (both pools unchanged) shouldn't shake — that beat is
       // "the bracing worked," visually distinct from "you got hit."
-      if (wHp < hp || wComp < composure) setPlayerHitFlash(Date.now());
+      if (wHp < hp || wComp < composure) {
+        setPlayerHitFlash(Date.now());
+        setScreenHitFlash(Date.now()); // red edge-flash + whole-screen shake
+      }
       // v2.34: LONG THREAD — record unblocked damage this turn so the
       // end-of-turn bookkeeping resets the meter. Block-absorbed-only
       // hits leave the thread intact (that's the wit defender's whole
@@ -13102,6 +13167,7 @@ export default function App() {
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyDmgTurns={enemyDmgTurns} playerDmgTurns={playerDmgTurns}
       enemyHitFlash={enemyHitFlash} playerHitFlash={playerHitFlash} dmgFloaters={dmgFloaters}
+      screenHitFlash={screenHitFlash} maulNotice={maulNotice}
       hp={hp} maxHp={maxHp}
       playerComposure={composure} playerComposureMax={composureMax}
       block={block} poise={poise} energy={energy} hand={hand}

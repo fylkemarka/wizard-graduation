@@ -39,6 +39,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        enemyDmgMult, playerDmgMult,
                        enemyDmgTurns = 0, playerDmgTurns = 0,
                        enemyHitFlash, playerHitFlash, dmgFloaters,
+                       screenHitFlash = 0, maulNotice = null,
                        hp, maxHp, playerComposure, playerComposureMax,
                        block, poise, energy, energyMax, hand, deck, discard, exiled = [], tray,
                        amplifyPlaysThisCombat, getEffectiveCost,
@@ -218,7 +219,26 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // Bottom: Hand.
   // Bottom action bar: End Turn + deck/discard/exile buttons.
   return (
-    <div className="min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto">
+    <div key={`screenshake-${screenHitFlash || 0}`}
+         className={`min-h-screen flex flex-col p-4 gap-3 max-w-6xl mx-auto ${screenHitFlash ? 'screen-hit-shake' : ''}`}>
+      {/* Red edge-flash when the enemy lands damage — re-keyed per hit. */}
+      {screenHitFlash ? (
+        <div key={`hitflash-${screenHitFlash}`} className="screen-hit-flash pointer-events-none fixed inset-0 z-40" />
+      ) : null}
+      {/* Maul toast — names the animal torn off and WHY, dead-centre, loud. */}
+      {maulNotice && (
+        <div key={maulNotice.id} className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none maul-toast">
+          <div className="parchment-card-strong px-6 py-3 border-2 border-ember-400 shadow-2xl text-center">
+            <div className="text-xs uppercase tracking-widest text-ember-300 font-display">🦷 Mauled</div>
+            <div className="text-2xl font-display text-parchment-50 mt-1">
+              {maulNotice.icon} {maulNotice.name} <span className="text-ember-300">torn off the board</span>
+            </div>
+            <div className="text-sm text-parchment-300 italic mt-0.5">
+              {maulNotice.enemy} mauled it — {maulNotice.reason}.
+            </div>
+          </div>
+        </div>
+      )}
       {tutorFlash && (
         <div key={tutorFlash.t} className="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <div className="parchment-card-strong px-6 py-3 border-2 border-gold-400 shadow-2xl animate-pulse">
