@@ -5244,6 +5244,19 @@ function aiPickHandlerReward(state) {
   const ownedTactics = new Set(owned.filter(c => c.type === 'tactic').map(c => c.id));
   const ownedCounts = {};
   for (const c of owned) ownedCounts[c.id] = (ownedCounts[c.id] || 0) + 1;
+  // 2026-06-07 (1000-run design loop): the handler dies to HP spikes (79% of
+  // deaths) and its only HP answers are Step Back / Summoned Shield / the new
+  // Animal Midnight power. The prior scorer rated those new cards ~6 vs
+  // tactics 14, so Animal Midnight was almost never drafted — leaving the
+  // exact HP-defense tool untested. GUARANTEED OFFER: if the deck is light on
+  // HP defense and doesn't yet own Animal Midnight, draft it outright most of
+  // the time so the sim actually exercises it (mirrors the wit DEFENSE_REWARDS
+  // guarantee). Tune the gate, not by re-adding it to every pool roll.
+  const hpDefenseCount = owned.filter(c =>
+    c.id === 'c-defend-handler' || c.id === 'c-tactic-shield' || c.id === 'c-animal-midnight').length;
+  if (!ownedIds.has('c-animal-midnight') && hpDefenseCount < 4 && rnd() < 0.6) {
+    return HANDLER_CARDS_BY_ID['c-animal-midnight'];
+  }
   // Exactly ONE special utility lure is always on offer after a normal combat
   // (mirrors App.jsx normal-combat handler draft). Prefer an unowned one.
   const unownedSpecial = SPECIAL_LURE_CARDS.filter(c => !ownedIds.has(c.id));
@@ -5271,6 +5284,14 @@ function aiPickHandlerReward(state) {
       else if (card.id === 'cv2-l-tender-greens' && (ownedCounts[card.id] || 0) < 3) s += 4;
     } else if (card.util === 'onThree') {
       s += ownedIds.has(card.id) ? 5 : 12;
+    } else if (card.installPower?.id === 'animalMidnight') {
+      // HP-defense power — value high when the deck lacks HP answers.
+      s += ownedIds.has(card.id) ? 4 : (hpDefenseCount < 4 ? 15 : 9);
+    } else if (card.effects?.troughFeed || card.effects?.herdConvert
+            || card.effects?.damagePerSummonThisCombat || card.effects?.damagePerSacrificeThisCombat) {
+      // New build/burst utilities — score them competitively so the sim
+      // actually exercises the 2026-06-07 batch (was a flat 6 → auto-passed).
+      s += ownedIds.has(card.id) ? 5 : 10;
     } else {
       s += 6;
     }
@@ -5998,7 +6019,7 @@ function simRun(forcedLane = null) {
       tele.combatCount++;
       tele.combatTurns += r.turns;
       lastResult = { ...r, where: `act${act.id}-normal-${i}` };
-      if (r.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
+      if (r.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length, rewardsTaken: state.rewardsTaken.slice() };
       awardReward(state);
       postCombatHeal();
       maybeReflect();
@@ -6007,7 +6028,7 @@ function simRun(forcedLane = null) {
     const eliteR = runCombat(state, pickRandom(ACT_ELITES[act.id]), tele);
     tele.combatCount++; tele.combatTurns += eliteR.turns;
     lastResult = { ...eliteR, where: `act${act.id}-elite` };
-    if (eliteR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
+    if (eliteR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length, rewardsTaken: state.rewardsTaken.slice() };
     awardReward(state);
     postCombatHeal();
     maybeReflect();
@@ -6015,7 +6036,7 @@ function simRun(forcedLane = null) {
     const bossR = runCombat(state, act.bossId, tele);
     tele.combatCount++; tele.combatTurns += bossR.turns;
     lastResult = { ...bossR, where: `act${act.id}-boss` };
-    if (bossR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length };
+    if (bossR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length, rewardsTaken: state.rewardsTaken.slice() };
     actsCleared++;
     awardReward(state);
     // Inter-act heal (in addition to post-combat heal) — bigger swing
@@ -6026,7 +6047,7 @@ function simRun(forcedLane = null) {
 
   const finalDeck = [...state.deck, ...state.discard, ...state.hand, ...state.exiled];
   return {
-    lane, familiar: state.familiar, actsCleared, outcome: 'won', ...tele,
+    lane, familiar: state.familiar, actsCleared, outcome: 'won', ...tele, rewardsTaken: state.rewardsTaken.slice(),
     finalHp: state.hp, finalComposure: state.composure, finalDeckSize: finalDeck.length,
     archetype: classifyArchetype(finalDeck),
   };
