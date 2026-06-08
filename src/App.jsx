@@ -3561,17 +3561,30 @@ export default function App() {
   // so the same shake animation runs.
   const [playerHitFlash, setPlayerHitFlash] = useState(0);
   const [dmgFloaters, setDmgFloaters] = useState([]);
+  // Rotating sequence so simultaneous floaters (e.g. a 3-animal menagerie
+  // tick) fan out instead of stacking on the same pixel and becoming an
+  // unreadable blur (Alan, 2026-06-08).
+  const floaterSeqRef = useRef(0);
 
   // Push a damage floater + trigger the enemy hit-shake. Auto-removes
-  // the floater after the animation duration.
+  // the floater after the animation duration. Each floater gets a fanned
+  // horizontal offset (dx) and a small stagger so a burst of numbers reads
+  // left-to-right instead of overlapping.
+  const FLOATER_MS = 1500;
   function showDamageFloater(amount, dmgType) {
     if (amount <= 0) return;
     const id = uid();
-    setDmgFloaters(prev => [...prev, { id, amount, dmgType }]);
+    const seq = floaterSeqRef.current++;
+    // 5-column fan centred on the card: -2..+2 columns × 58px (wide enough
+    // that the large numbers + drop-shadow don't graze each other).
+    const dx = ((seq % 5) - 2) * 58;
+    // Vertical jitter so two hits landing in the same column still separate.
+    const dy = (seq % 2) * 14;
+    setDmgFloaters(prev => [...prev, { id, amount, dmgType, dx, dy }]);
     setEnemyHitFlash(Date.now());
     setTimeout(() => {
       setDmgFloaters(prev => prev.filter(f => f.id !== id));
-    }, 900);
+    }, FLOATER_MS + 120);
   }
 
   // Spell tray — accumulates as the player plays word cards this turn.

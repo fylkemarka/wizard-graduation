@@ -240,13 +240,13 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       <div key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative lg:col-span-1 ${shakeClass}`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
         {dmgFloaters && dmgFloaters.length > 0 && (
-          <div className="pointer-events-none absolute left-1/2 top-2 z-20">
+          <div className="pointer-events-none absolute left-1/2 top-10 z-20">
             {dmgFloaters.map(f => (
               <div key={f.id}
                 className={`dmg-float absolute font-display font-bold text-3xl tabular-nums whitespace-nowrap drop-shadow-lg ${
                   f.dmgType === 'physical' ? 'text-ember-300' : 'text-iris-200'
                 }`}
-                style={{ left: 0 }}>
+                style={{ left: 0, '--dx': `${f.dx || 0}px`, '--dy': `${f.dy || 0}px` }}>
                 −{f.amount}
               </div>
             ))}

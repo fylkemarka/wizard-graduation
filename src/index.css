@@ -64,12 +64,18 @@
 }
 .intent-flash { animation: intent-flash 320ms ease-out; }
 
+/* Damage number: pop in, HOLD readable, then drift up and fade. The long
+   full-opacity hold (12%→60% of 1500ms ≈ 720ms) is the fix for "appears and
+   disappears too fast to read" (Alan, 2026-06-08). --dx/--dy fan concurrent
+   numbers apart so a multi-hit tick reads left-to-right instead of stacking;
+   -50% keeps the column centred on the card. */
 @keyframes float-up {
-  0%   { transform: translate(-50%, 0) scale(1);   opacity: 1; }
-  15%  { transform: translate(-50%, -10px) scale(1.15); opacity: 1; }
-  100% { transform: translate(-50%, -60px) scale(0.9);  opacity: 0; }
+  0%   { transform: translate(calc(-50% + var(--dx, 0px)), var(--dy, 0px))        scale(0.7); opacity: 0; }
+  12%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-6px + var(--dy, 0px)))  scale(1.25); opacity: 1; }
+  60%  { transform: translate(calc(-50% + var(--dx, 0px)), calc(-16px + var(--dy, 0px))) scale(1);    opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-70px + var(--dy, 0px))) scale(0.9);  opacity: 0; }
 }
-.dmg-float { animation: float-up 900ms ease-out forwards; }
+.dmg-float { animation: float-up 1500ms cubic-bezier(0.22, 0.9, 0.3, 1) forwards; }
 
 /* Gentler than Tailwind's animate-pulse (which dips to 50%) — used on armed
    on-board animals (e.g. click-to-activate Mime/Pigeon/Kangaroo) so the
