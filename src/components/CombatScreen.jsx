@@ -85,6 +85,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        wellDrilledPromptActive = false,
                        onWellDrilledClick = () => {},
                        onCancelWellDrilled = () => {},
+                       drilledSpecies = {},
                        houseRulesPromptActive = false,
                        onHouseRulesClick = () => {},
                        onCancelHouseRules = () => {},
@@ -271,7 +272,15 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           enemies) takes the middle, Your State is 1/5 on the right. Solo
           fights: the forecast widens into the companion's column. */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-      <div data-testid="enemy-panel" key={`enemy-${enemyHitFlash || 0}`} className={`parchment-card-strong p-1.5 relative lg:col-span-1 ${shakeClass}`}>
+      <div data-testid="enemy-panel" key={`enemy-${enemyHitFlash || 0}`}
+           data-targeted={companion ? (castTarget === 'main' ? 'true' : 'false') : undefined}
+           onClick={companion && castTarget !== 'main' ? () => onSetCastTarget('main') : undefined}
+           title={companion ? (castTarget === 'main'
+             ? 'Your casts and animals are aimed at this one.'
+             : 'Click to aim your casts and animals back at this one.') : undefined}
+           className={`parchment-card-strong p-1.5 relative lg:col-span-1 ${shakeClass} ${
+             companion ? (castTarget === 'main' ? 'ring-2 ring-gold-400' : 'cursor-pointer hover:ring-1 hover:ring-gold-600') : ''
+           }`}>
         {/* Damage floaters — composure (iris) and physical (ember). */}
         {dmgFloaters && dmgFloaters.length > 0 && (
           <div className="pointer-events-none absolute left-1/2 top-10 z-20">
@@ -656,7 +665,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
           <span data-testid="player-hp" data-hp={hp} title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
           <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
-          <span title="Energy — refills each turn." className="font-mono text-sm text-gold-300"><Icon name="energy" className="mr-0.5" />{energy}/{energyMax}</span>
+          <span data-testid="player-energy" data-energy={energy} data-energy-max={energyMax} title="Energy — refills each turn." className="font-mono text-sm text-gold-300"><Icon name="energy" className="mr-0.5" />{energy}/{energyMax}</span>
           <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-sm text-iris-300"><Icon name="block" className="mr-0.5" />{block}</span>
           <span title="Poise — absorbs composure hits. Resets each turn." className="font-mono text-sm text-moss-300"><Icon name="poise" className="mr-0.5" />{poise}</span>
           {(() => {
@@ -893,6 +902,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         sacrificePromptActive={sacrificePromptActive} onSacrificeClick={onSacrificeClick}
         gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
         wellDrilledPromptActive={wellDrilledPromptActive} onWellDrilledClick={onWellDrilledClick}
+        drilledSpecies={drilledSpecies}
         houseRulesPromptActive={houseRulesPromptActive} onHouseRulesClick={onHouseRulesClick}
         herdPromptActive={herdPromptActive} onHerdClick={onHerdClick}
         onSacrificeAnimal={onSacrificeAnimal}
@@ -1282,6 +1292,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        sacrificePromptActive = false, onSacrificeClick = () => {},
                        gorgePromptActive = false, onGorgeClick = () => {},
                        wellDrilledPromptActive = false, onWellDrilledClick = () => {},
+                       drilledSpecies = {},
                        houseRulesPromptActive = false, onHouseRulesClick = () => {},
                        herdPromptActive = false, onHerdClick = () => {},
                        onSacrificeAnimal = () => {},
@@ -1314,7 +1325,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (ls?.kind !== 'animal') return 0;
     const la = animals?.[ls.animalId];
     let lv = la?.attack || 0;
-    if (lv > 0) lv += (ls.attackBonus || 0);
+    if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (drilledSpecies[ls.animalId] || 0);
     return lv;
   };
   const effAnimalAttack = (animal, slotCard, slotName) => {
@@ -1326,6 +1337,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     let a = animal?.attack || 0;
     if (a <= 0) return a;
     a += (slotCard?.attackBonus || 0);
+    // Well-Drilled: +2 per drill stack on this species (App animalAttackValue mirror).
+    a += 2 * (drilledSpecies[slotCard?.animalId] || 0);
     return a;
   };
   const introCard = isSummonEnvelope(tray.intro) ? null : tray.intro;
@@ -2270,7 +2283,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           const animal = animals?.[slot.animalId];
           if (!animal) continue;
           const atkMult = slot.nextAttackMult || 1;
-          let atk = Math.round((animal.attack || 0) * atkMult);
+          // Include Gorge's per-slot attackBonus and Well-Drilled's per-species
+          // bonus so this strip matches the board pill (effAnimalAttack).
+          const baseWithBonus = (animal.attack || 0) > 0
+            ? (animal.attack || 0) + (slot.attackBonus || 0) + 2 * (drilledSpecies[slot.animalId] || 0)
+            : (animal.attack || 0);
+          let atk = Math.round(baseWithBonus * atkMult);
           if (isRabid) atk = Math.round(atk * 1.5);
           const parts = [];
           if (animal.attack > 0) {

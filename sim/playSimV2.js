@@ -222,6 +222,8 @@ const HANDLER_TACTIC_UTIL = [
   // c-buffet removed entirely 2026-06-07 (Alan) — see App.jsx CARDS note.
   { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
+  { id: 'c-hunker-down', name: 'Hunker Down',     cost: 1, type: 'handler-skill', rarity: 'common',   effects: { block: 9 } },
+  { id: 'c-dig-in',      name: 'Dig In Properly', cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { block: 16 } },
   { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7, removeWeak: 1 } },
   // Renamed from shared c-sharp-aside 2026-06-07 (lanes no longer share cards).
   { id: 'c-sharp-whistle', name: 'Sharp Whistle', cost: 0, type: 'handler-skill', rarity: 'common', effects: { compDmg: 4 } },
@@ -948,7 +950,7 @@ function adjacentAmplifyMultSim(work, slotName) {
 }
 // Lyrebird copy (mirrors App.jsx copyLeftAttack): effective base = the left
 // neighbour's swing (its own attack if there's nothing/no attacker there).
-function copyLeftAttackSim(work, slotName, animal) {
+function copyLeftAttackSim(work, slotName, animal, combat) {
   const SLOT = ['intro', 'subject', 'target'];
   const idx = SLOT.indexOf(slotName);
   const own = animal.attack || 0;
@@ -960,7 +962,7 @@ function copyLeftAttackSim(work, slotName, animal) {
   if (!ls || ls.kind !== 'animal') return own;
   const la = ANIMALS[ls.animalId];
   let lv = la?.attack || 0;
-  if (lv > 0) lv += (ls.attackBonus || 0);
+  if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[ls.animalId] || 0);
   return lv > 0 ? lv : own;
 }
 function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotName) {
@@ -969,10 +971,10 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotNa
   // Lyrebird copies its left neighbour; Sheepdog amplifies adjacent swings.
   let base;
   if (animal.copiesLeft && work && slotName !== undefined) {
-    base = copyLeftAttackSim(work, slotName, animal);
+    base = copyLeftAttackSim(work, slotName, animal, combat);
   } else {
     base = animal.attack;
-    if (base > 0) { base += (slot.attackBonus || 0); }
+    if (base > 0) { base += (slot.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[slot.animalId] || 0); }
   }
   const ampMult = (work && slotName !== undefined) ? adjacentAmplifyMultSim(work, slotName) : 1;
   let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1) * ampMult);
@@ -1309,16 +1311,17 @@ function playHandlerCard(state, combat, idx) {
       const treat = HANDLER_CARDS_BY_ID['c-snack'];
       if (treat) state.hand.push({ ...treat, uid: uid() });
     }
-    // Well-Drilled — pick a species on the board and stamp +2 attack onto it
-    // and every copy of it (no targeting prompt in the sim; mirror the App's
-    // per-animal slot.attackBonus stamp). Buffs current copies only.
+    // Well-Drilled — mark the most-common on-board species as drilled. +2
+    // attack per stack applies to EVERY copy on the board AND every future
+    // summon of that species (mirror of App's drilledSpecies, read in
+    // handlerAnimalAttack). No targeting prompt in the sim; pick the densest.
     if (card.installPower?.id === 'wellDrilled') {
       const wdSlots = ['intro', 'subject', 'target'];
       const counts = {};
       for (const s of wdSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
       let pick = null, pickN = 0;
       for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
-      if (pick) for (const s of wdSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal' && sl.animalId === pick) sl.attackBonus = (sl.attackBonus || 0) + 2; }
+      if (pick) combat.drilledSpecies[pick] = (combat.drilledSpecies[pick] || 0) + 1;
     }
     // House Rules — pick the most-common species on the board and stamp +2
     // duration onto it and every copy. Mirrors App.jsx pick-an-animal shape
@@ -2179,6 +2182,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     htray: { intro: null, subject: null, target: null },
     tactic: null, youthUses: 0, buffetArmed: false,
     troughCharges: 0, // Trough — auto-feed next N arrivals
+    drilledSpecies: {}, // Well-Drilled — species → +2/stack on all + future copies
     sacrifices: 0,    // Light the Mound — animals deliberately sacrificed
     lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,

@@ -111,6 +111,18 @@ const CARDS = [
     effects: { block: 6 },
     desc: 'Gain 6 Block.',
     flavor: 'You take half a step back. Let the goose handle this.' },
+  // Block answers for the reward pool (Alan, 2026-06-08): as enemies hit
+  // harder the Handler had no plain block beyond the 6-Block starter, so it
+  // leaned on Summoned Shield (which competes with landing attacks). These
+  // give a clean defensive option at each energy tier.
+  { id: 'c-hunker-down', name: 'Hunker Down', lane: 'handler', cost: 1, type: 'skill', rarity: 'common',
+    effects: { block: 9 }, upgrade: { effects: { block: 12 } },
+    desc: 'Gain 9 Block.',
+    flavor: 'A defensive posture endorsed by the committee. Knees slightly bent.' },
+  { id: 'c-dig-in', name: 'Dig In Properly', lane: 'handler', cost: 2, type: 'skill', rarity: 'uncommon',
+    effects: { block: 16 }, upgrade: { effects: { block: 20 } },
+    desc: 'Gain 16 Block.',
+    flavor: 'If you are going to stand somewhere, the manuals agree, stand there with conviction.' },
   // ---- Handler interplay cards (Animal Summoner slice 2, 2026-05-31) ----
   // Designed to add per-turn decisions to the Handler loop. Without them
   // the play loop is "stage → defend → wait → repeat" with no in-turn
@@ -3846,6 +3858,14 @@ export default function App() {
   // that animal (and every other copy of the same species on the board) a
   // permanent +2 attack for the rest of combat.
   const [wellDrilledPromptActive, setWellDrilledPromptActive] = useState(false);
+  // Well-Drilled marks a SPECIES as drilled (Alan, 2026-06-08: "any other
+  // young buck summoned during that same combat should receive the +2"). Map
+  // of animalId → drill stacks; +2 attack per stack, applied at attack time in
+  // animalAttackValue so it reaches BOTH copies already on the board AND every
+  // future summon, through every summon path. The ref mirrors state for the
+  // synchronous end-of-turn tick (stale-closure discipline). Reset per combat.
+  const [drilledSpecies, setDrilledSpecies] = useState({});
+  const drilledSpeciesRef = useRef({});
   // House Rules power — armed on install. Next click on an animal slot gives
   // that animal (and every other copy of the same species on the board) +2
   // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
@@ -4267,11 +4287,16 @@ export default function App() {
   }
 
   // Energy refill per turn — base + permanentEnergyBonus from equipment +
-  // relics + familiar bonus.
+  // relics + familiar bonus + any installed Power that grants energy at the
+  // start of every turn (e.g. The Significant Pause). Folding the power into
+  // the refill is what makes the player block read 4/4 instead of 4/3 (Alan,
+  // 2026-06-08): the per-turn energy gain IS a raised ceiling, not a transient
+  // overflow. The start-of-turn power loop must NOT also add it (double-count).
   const energyPerTurnRefill = () => {
     return ENERGY_PER_TURN
       + equipment.reduce((s, eq) => s + (eq.bonus?.permanentEnergyBonus || 0), 0)
-      + effectSources().reduce((s, x) => s + (x.effect?.permanentEnergyBonus || 0), 0);
+      + effectSources().reduce((s, x) => s + (x.effect?.permanentEnergyBonus || 0), 0)
+      + powers.reduce((s, p) => s + (p.power?.startOfTurn?.energy || 0), 0);
   };
   // v3.4.56 — extra cards drawn per turn from relics / equipment.
   // Read into the start-of-turn hand draw + initial combat draw.
@@ -5719,6 +5744,7 @@ export default function App() {
     setBuffetArmed(false);
     // New bonus-card per-combat resets (Alan, 2026-06-07).
     setHerdPromptActive(false);
+    setDrilledSpecies({}); drilledSpeciesRef.current = {};
     setTroughCharges(0); troughChargesRef.current = 0;
     setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
     setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0;
@@ -9152,6 +9178,8 @@ export default function App() {
     let a = animal?.attack || 0;
     if (a <= 0) return a; // a flopper stays a flopper
     a += (slot?.attackBonus || 0);
+    // Well-Drilled: +2 per drill stack on this species (on-board + future).
+    a += 2 * (drilledSpeciesRef.current[slot?.animalId] || 0);
     return a;
   };
 
@@ -9425,32 +9453,25 @@ export default function App() {
     }
   }
 
-  // Well-Drilled — designate an animal; it and every other copy of the same
-  // animal currently on the board gain a permanent +2 attack (rest of combat).
-  // Single-click animal target. Stacks via slot.attackBonus, the same channel
-  // Gorge's overfeed bonus uses.
+  // Well-Drilled — designate an animal; mark its SPECIES as drilled for the
+  // rest of combat. Every copy on the board AND every future summon of that
+  // species gains +2 attack (applied in animalAttackValue, so it covers all
+  // summon paths). Single-click animal target. Stacks if played twice on the
+  // same species.
   function wellDrilledClickSlot(slotName) {
     if (!wellDrilledPromptActive) return;
     const slot = tray?.[slotName];
     if (!slot || slot.kind !== 'animal') return;
     const species = slot.animalId;
     const animal = getAnimal(species);
-    let buffed = 0;
-    setTray(p => {
-      const next = { ...p };
-      for (const sn of ['intro', 'subject', 'target']) {
-        const s = next[sn];
-        if (s?.kind === 'animal' && s.animalId === species) {
-          next[sn] = { ...s, attackBonus: (s.attackBonus || 0) + 2 };
-          buffed++;
-        }
-      }
-      return syncTrayLegacy(next);
-    });
+    drilledSpeciesRef.current = {
+      ...drilledSpeciesRef.current,
+      [species]: (drilledSpeciesRef.current[species] || 0) + 1,
+    };
+    setDrilledSpecies({ ...drilledSpeciesRef.current });
     setWellDrilledPromptActive(false);
-    pushLog(buffed > 1
-      ? `🎯 Well-Drilled — all ${buffed} ${animal?.name || species} gain +2 attack for the rest of combat.`
-      : `🎯 Well-Drilled — ${animal?.name || species} gains +2 attack for the rest of combat.`);
+    const onBoard = SLOT_ORDER.filter(sn => tray?.[sn]?.kind === 'animal' && tray[sn].animalId === species).length;
+    pushLog(`🎯 Well-Drilled — every ${animal?.name || species} gains +2 attack for the rest of combat (${onBoard} on the board now; any more you summon arrive drilled).`);
   }
 
   function cancelWellDrilledPrompt() {
@@ -11358,7 +11379,9 @@ export default function App() {
       if (!trig) continue;
       const bits = [`📿 ${p.name}`];
       if (trig.block)      { wBlock += trig.block;   bits.push(`🛡 +${trig.block}`); }
-      if (trig.energy)     { wEnergy += trig.energy; bits.push(`+${trig.energy} Energy`); }
+      // Energy is NOT added here — it's folded into energyPerTurnRefill() so
+      // the player block reads N/N. wEnergy already started at that refill.
+      if (trig.energy)     { bits.push(`+${trig.energy} Energy`); }
       if (trig.vulnerable) { applyExpiringVuln(trig.vulnerable); bits.push(`💫 +${25*trig.vulnerable}% potency (3 turns)`); }
       if (trig.weak)       { applyExpiringWeak(trig.weak);       bits.push(`💢 enemy −${25*trig.weak}% atk (3 turns)`); }
       if (trig.draw) {
@@ -11584,6 +11607,51 @@ export default function App() {
   // hits YOU; stagger is surfaced separately as a "may dodge" note. Returns
   // null for non-attack intents (block / debuff / weave handle their own
   // telegraph). Kept next to applyEnemyIntent so the two can't drift.
+  // Block & Poise the Summoned Shield stance WILL generate this turn when the
+  // player ends the turn — every staged animal's attack converts to Block AND
+  // Poise (the end-of-turn tick at the shield branch). The Incoming bar must
+  // count this or it overstates damage on every turn the shield is up past the
+  // first (Alan bug, 2026-06-08: "stays on >1 turn, effect stops being
+  // incorporated"). Mirrors the per-animal terms of the "🐾 This turn" strip
+  // (CombatScreen) and the tick — base attack × on-three/amp/copies + combos +
+  // per-turn grants. Returns 0 unless the shield stance is active.
+  function projectedShieldBrace() {
+    if (tray.tactic?.tactic?.id !== 'shield') return 0;
+    let total = 0;
+    for (const sn of SLOT_ORDER) {
+      const slot = tray[sn];
+      if (slot?.kind !== 'animal' || slot.eatenThisTurn) continue;
+      const animal = getAnimal(slot.animalId);
+      if (!animal) continue;
+      const atkMult = slot.nextAttackMult || 1;
+      const ampMult = adjacentAmplifyMult(sn, tray);
+      const baseAtk = animal.copiesLeft ? copyLeftAttack(sn, animal, tray) : animalAttackValue(animal, slot);
+      if (animal.attack > 0) total += Math.round(baseAtk * atkMult * ampMult);
+      const extra = slot.extraAttacks || 0;
+      if (animal.attack > 0 && extra > 0) total += Math.round(animal.attack || 0) * extra;
+      const grant = animal.turnGrant || slot.turnGrantTemp;
+      if (grant?.block > 0) total += grant.block;
+      // Leaving-this-turn fed animal: its onExit damage also converts to block.
+      const willHaveFeed = !animal.feedKey || slot.feedReceived;
+      if (slot.durationRemaining === 1 && willHaveFeed && animal.onExit?.damage > 0) total += animal.onExit.damage;
+    }
+    // Adjacency combos — their damage converts to block too (one per pair-type).
+    const seen = new Set();
+    for (let i = 0; i < SLOT_ORDER.length - 1; i++) {
+      const sA = tray[SLOT_ORDER[i]], sB = tray[SLOT_ORDER[i + 1]];
+      if (sA?.kind !== 'animal' || sA.eatenThisTurn || sB?.kind !== 'animal' || sB.eatenThisTurn) continue;
+      const combo = ADJACENCY_COMBOS.find(c =>
+        (c.a === sA.animalId && c.b === sB.animalId) || (c.a === sB.animalId && c.b === sA.animalId));
+      if (!combo) continue;
+      const key = [combo.a, combo.b].sort().join('+');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (combo.damage > 0) total += combo.damage;
+      if (combo.block > 0) total += combo.block;
+    }
+    return total;
+  }
+
   function projectIncomingDamage(intent) {
     // Duo (Alan, 2026-06-07): ONE bar for every enemy present. The main
     // intent part is optional (the leader may be blocking while the
@@ -11630,7 +11698,10 @@ export default function App() {
     const holdOnReduce = holdOnArmed ? (holdOnValue || 0) : 0;
 
     // Simulate the swing loop deterministically (no dodge RNG, no reflects).
-    let wBlock = block, wPoise = poise, wTempHp = tempHp;
+    // Summoned Shield: fold in the Block & Poise the menagerie will brace for
+    // when this turn ends, so the bar reflects the stance every turn it's up.
+    const braceProjected = projectedShieldBrace();
+    let wBlock = block + braceProjected, wPoise = poise + braceProjected, wTempHp = tempHp;
     let wHp = hp, wComp = Math.max(0, composure - weaveFireDamageRef.current);
     let totalIncoming = 0, blockAbsorbed = 0, poiseAbsorbed = 0, tempHpAbsorbed = 0;
     for (let i = 0; i < hits; i++) {
@@ -13250,6 +13321,7 @@ export default function App() {
       onCancelGorge={cancelGorgePrompt}
       wellDrilledPromptActive={wellDrilledPromptActive}
       onWellDrilledClick={wellDrilledClickSlot}
+      drilledSpecies={drilledSpecies}
       onCancelWellDrilled={cancelWellDrilledPrompt}
       houseRulesPromptActive={houseRulesPromptActive}
       onHouseRulesClick={houseRulesClickSlot}
