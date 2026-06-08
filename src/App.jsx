@@ -9374,35 +9374,37 @@ export default function App() {
   // killed, not sent off. Reads boardForMaulRef (the post-tick snapshot)
   // because applyEnemyIntent runs after the end-of-turn tick's tray setState
   // is queued but not yet flushed to the `tray` closure.
-  const maulStrongestAnimal = () => {
+  // count > 1 = double/triple maul (Alan, 2026-06-08): tears the N strongest
+  // animals off the board (or the N weakest under Pecking Order).
+  const maulStrongestAnimal = (count = 1) => {
     const board = boardForMaulRef.current;
     if (!board) return;
-    // Pecking Order redirects the maul to the WEAKEST animal instead of the
-    // strongest — the player's insurance against losing their bomb.
     const redirect = hasHandlerPower('peckingOrder');
-    let best = null, bestAtk = redirect ? Infinity : -1;
-    for (const s of ['intro', 'subject', 'target']) {
-      const slot = board[s];
-      if (slot?.kind !== 'animal') continue;
-      const atk = animalAttackValue(getAnimal(slot.animalId), slot);
-      if (redirect ? atk < bestAtk : atk > bestAtk) { bestAtk = atk; best = s; }
-    }
-    if (!best) return;
-    const slot = board[best];
-    const animal = getAnimal(slot.animalId);
+    // Rank animal slots strongest-first (weakest-first under Pecking Order).
+    const ranked = ['intro', 'subject', 'target']
+      .map(s => ({ s, slot: board[s] }))
+      .filter(x => x.slot?.kind === 'animal')
+      .map(x => ({ ...x, atk: animalAttackValue(getAnimal(x.slot.animalId), x.slot) }))
+      .sort((a, b) => redirect ? a.atk - b.atk : b.atk - a.atk);
+    const victims = ranked.slice(0, Math.max(1, count));
+    if (victims.length === 0) return;
     const updates = {};
-    if (Array.isArray(slot.spans)) for (const s of slot.spans) updates[s] = null;
-    else updates[best] = null;
+    for (const v of victims) {
+      if (Array.isArray(v.slot.spans)) for (const s of v.slot.spans) updates[s] = null;
+      else updates[v.s] = null;
+    }
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
-    noteAnimalDeparted();
-    logEvent('combat.maul_tear', { animalId: slot.animalId, slotName: best, redirect, enemyId: enemy?.id });
-    pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is mauled off the board${redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all"}.`);
-    // Loud, transient toast naming the torn animal + WHY (Alan, 2026-06-08:
-    // "make it obvious which animal died and why"). Auto-clears.
+    for (const v of victims) {
+      noteAnimalDeparted();
+      const animal = getAnimal(v.slot.animalId);
+      logEvent('combat.maul_tear', { animalId: v.slot.animalId, slotName: v.s, redirect, enemyId: enemy?.id });
+      pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || v.slot.animalId} is mauled off the board${redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all"}.`);
+    }
+    const first = getAnimal(victims[0].slot.animalId);
     setMaulNotice({
       id: Date.now(),
-      icon: animal?.icon || '🐾',
-      name: animal?.name || slot.animalId,
+      icon: first?.icon || '🐾',
+      name: victims.length > 1 ? `${victims.length} animals` : (first?.name || victims[0].slot.animalId),
       enemy: enemy?.name || 'The enemy',
       reason: redirect ? 'Pecking Order sent your runt forward instead' : 'damage leaked past your Block',
     });
@@ -12377,7 +12379,7 @@ export default function App() {
       // also tears the strongest animal off the board. Fully blocked (HP) or
       // poised (composure) → menagerie safe. (Composure-pool mauls exist for
       // Garth Maul's escalating alternating hits — Alan 2026-06-08.)
-      if (intent.maul && (wHp < hp || wComp < composure)) maulStrongestAnimal();
+      if (intent.maul && (wHp < hp || wComp < composure)) maulStrongestAnimal(intent.maulCount || 1);
       // v2.10: reactive annotation damage on enemy attack.
       const annReactive = annoFx('damageOnEnemyAttack');
       if (annReactive > 0) {
@@ -12547,6 +12549,33 @@ export default function App() {
         const inst = buildCompanionInstance(cTmpl);
         commitCompanion(inst);
         pushLog(`👹 ${e.name}: 🕯 ${intent.telegraph || `calls in ${inst.def.name}`}. ${inst.def.name} answers.`);
+      }
+    } else if (intent.kind === 'cutShort') {
+      // Handler-hostile (Alan, 2026-06-08): snip N remaining turns off every
+      // animal on the board, hastening their departure. Forces re-summoning;
+      // a no-op for lanes without a menagerie.
+      const n = intent.value || 1;
+      let affected = 0;
+      setTray(p => {
+        const next = { ...p };
+        for (const s of SLOT_ORDER) {
+          const sl = next[s];
+          if (sl?.kind === 'animal') { next[s] = { ...sl, durationRemaining: Math.max(0, (sl.durationRemaining || 0) - n) }; affected++; }
+        }
+        return syncTrayLegacy(next);
+      });
+      pushLog(affected > 0
+        ? `👹 ${e.name}: ✂ ${intent.telegraph || `snips ${n} turn${n > 1 ? 's' : ''} off your menagerie`} (−${n} each).`
+        : `👹 ${e.name}: ✂ ${intent.telegraph || 'snips at the air'} — nothing on the board.`);
+    } else if (intent.kind === 'undermineTactic') {
+      // Handler-hostile: dispel the active Pack Tactic stance. Punishes leaning
+      // on one stance; a no-op if none is set.
+      if (tray.tactic) {
+        const tname = tray.tactic.name || 'your stance';
+        setTray(p => syncTrayLegacy({ ...p, tactic: null }));
+        pushLog(`👹 ${e.name}: 🧹 ${intent.telegraph || 'undermines your stance'} — ${tname} dispelled.`);
+      } else {
+        pushLog(`👹 ${e.name}: 🧹 ${intent.telegraph || 'looks for a stance to undo'} — you have none set.`);
       }
     }
     // Riders: a combo intent can attach extra side-effects that fire AFTER

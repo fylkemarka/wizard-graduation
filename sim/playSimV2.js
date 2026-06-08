@@ -1946,19 +1946,20 @@ function handlerApplyIntent(state, combat, intent) {
       const eligible = combat.maulEligibleSlots || new Set();
       // Pecking Order redirects the maul to the weakest animal. Mirrors App.jsx.
       const redirect = hasHandlerPower(state, 'peckingOrder');
-      let best = null, bestAtk = redirect ? Infinity : -1;
+      const cands = [];
       for (const s of SLOT) {
         if (!eligible.has(s)) continue;
         const slot = combat.htray[s];
         if (slot?.kind !== 'animal') continue;
         const a = ANIMALS[slot.animalId]; let atk = a?.attack || 0;
-        if (atk > 0) { atk += (slot.attackBonus || 0); }
-        if (redirect ? atk < bestAtk : atk > bestAtk) { bestAtk = atk; best = s; }
+        if (atk > 0) atk += (slot.attackBonus || 0);
+        cands.push({ s, slot, atk });
       }
-      if (best) {
-        const slot = combat.htray[best];
-        if (Array.isArray(slot.spans)) for (const s of slot.spans) combat.htray[s] = null;
-        else combat.htray[best] = null;
+      cands.sort((a, b) => redirect ? a.atk - b.atk : b.atk - a.atk);
+      // maulCount > 1 = double/triple maul (Warp). Mirrors App.jsx.
+      for (const v of cands.slice(0, Math.max(1, intent.maulCount || 1))) {
+        if (Array.isArray(v.slot.spans)) for (const s of v.slot.spans) combat.htray[s] = null;
+        else combat.htray[v.s] = null;
         combat.mauls = (combat.mauls || 0) + 1;
         if (typeof globalThis.__maulCount === 'number') globalThis.__maulCount++;
         if (hasHandlerPower(state, 'whisperer')) combat.whisperPending = (combat.whisperPending || 0) + 1;
@@ -1988,6 +1989,16 @@ function handlerApplyIntent(state, combat, intent) {
       const inst = buildCompanionFromIdSim(intent.companionId, 1.25);
       if (inst) combat.companion = inst;
     }
+  } else if (intent.kind === 'cutShort') {
+    // Snip N turns off every on-board animal (Gauze Revenant). Mirrors App.jsx.
+    const n = intent.value || 1;
+    for (const s of SLOTN) {
+      const sl = combat.htray[s];
+      if (sl?.kind === 'animal') sl.durationRemaining = Math.max(0, (sl.durationRemaining || 0) - n);
+    }
+  } else if (intent.kind === 'undermineTactic') {
+    // Dispel the active Pack Tactic (Spinster Matron). Mirrors App.jsx.
+    combat.tactic = null;
   }
   if (intent.riders) {
     const r = intent.riders;

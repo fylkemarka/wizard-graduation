@@ -291,8 +291,11 @@ export const ENEMIES = [
     flavor: 'Runs a tight household of one. Always has room for one more. You begin to suspect you are the one more.',
     behaviors: [
       { kind: 'summon', companionId: 'e2-thread-wisp', weight: 2, telegraph: 'calls in a Thread Wisp' },
+      // Tactic Undermine (Alan, 2026-06-08): dispels the Handler's active Pack
+      // Tactic stance — punishes leaning on one stance, no-op for other lanes.
+      { kind: 'undermineTactic', weight: 1, telegraph: 'unpicks your stance' },
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (a sharp summons)' },
-      { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (a withering remark)' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (a withering remark)' },
       { kind: 'attack-multi', value: 3, count: 2, weight: 1, telegraph: '⚔ 3×2 (busy hands)' },
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7 (folds her arms)' },
     ] },
@@ -313,6 +316,9 @@ export const ENEMIES = [
       { kind: 'attack', value: 10, weight: 2, telegraph: '⚔ 10 + ⛧ Weak 1 (drawn taut)', riders: { weak: 1 } },
       { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9 (a snapping warp)' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (the loom complains)' },
+      // Double Maul (Alan, 2026-06-08): unblocked → loses your TWO strongest
+      // animals. A board-breaking pre-boss threat; block it all.
+      { kind: 'attack', maul: true, maulCount: 2, value: 6, weight: 1, telegraph: '🦷🦷 6 — double snap (unblocked → lose your TWO strongest animals)' },
     ] },
   { id: 'e2-weft', act: 1, name: 'Weft', composureMax: 16, hpMax: 999, tier: 'companion',
     flavor: 'Goes back and forth so Warp does not have to. Tired of the metaphor.',
@@ -328,6 +334,9 @@ export const ENEMIES = [
     behaviors: [
       { kind: 'attack', value: 9, weight: 3, telegraph: '⚔ 9 (a cold wrapping)' },
       { kind: 'heal',   value: 5, weight: 2, telegraph: '🧵 draws the shroud tight +5 Composure' },
+      // Cut Short (Alan, 2026-06-08): snips a remaining turn off every animal —
+      // hastens their departure, forces re-summoning.
+      { kind: 'cutShort', value: 1, weight: 1, telegraph: 'hastens your menagerie (−1 turn each)' },
       { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (trailing gauze)' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (a grave hush)' },
       { kind: 'attack', maul: true, value: 7, weight: 1, telegraph: '🦷 7 — winding-sheet (unblocked → lose your strongest animal)' },
