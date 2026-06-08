@@ -1824,14 +1824,29 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               click. A span (not a nested <button>) with stopPropagation so it
               doesn't trigger the pill's own onClick. */}
           {!anyPromptArmed && (animal?.attack || 0) > 0 && (() => {
-            const sacBlock = (animal?.attack || 0) + (card.attackBonus || 0);
+            // Block gained = the animal's CURRENT attack (incl. Gorge + Well-
+            // Drilled), matching App.sacrificeAnimalForBlock.
+            const sacBlock = effAnimalAttack(animal, card, slotName);
+            // Sacrifice-engine payoff preview (Alan 2026-06-08: make the loop
+            // DISCOVERABLE at the point of action). Memorial fires on any exit;
+            // Palpable Sadness fires on a sacrifice — both 4 comp to all.
+            const hasMemorial = (powers || []).some(p => p.installPower?.id === 'memorial');
+            const hasPalpable = (powers || []).some(p => p.installPower?.id === 'palpableSadness');
+            const sacAoE = (hasMemorial ? 4 : 0) + (hasPalpable ? 4 : 0);
+            const title = sacAoE > 0
+              ? `Sacrifice ${animal?.name || 'this animal'}: +${sacBlock} Block AND ${sacAoE} Composure to ALL enemies (${[hasMemorial && 'Memorial', hasPalpable && 'Palpable Sadness'].filter(Boolean).join(' + ')}). No exit bonus.`
+              : `Sacrifice ${animal?.name || 'this animal'} now for +${sacBlock} Block. No exit bonus.`;
             return (
               <span role="button" tabIndex={0}
                 data-testid="sacrifice-animal"
                 onClick={(e) => { e.stopPropagation(); onSacrificeAnimal(slotName); }}
-                title={`Sacrifice ${animal?.name || 'this animal'} now for +${sacBlock} Block. No exit bonus.`}
-                className="mt-1 px-1.5 py-0.5 rounded bg-iris-900/80 text-iris-100 border border-iris-500 text-[10px] font-mono hover:bg-iris-700 cursor-pointer">
-                <Icon name="block" /> sacrifice → +{sacBlock}
+                title={title}
+                className={`mt-1 px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer border ${
+                  sacAoE > 0
+                    ? 'bg-rose-900/80 text-rose-100 border-rose-400 hover:bg-rose-700 animate-pulse-soft'
+                    : 'bg-iris-900/80 text-iris-100 border-iris-500 hover:bg-iris-700'
+                }`}>
+                <Icon name="block" /> sacrifice → +{sacBlock}{sacAoE > 0 && <span className="text-rose-200"> · 💔{sacAoE} all</span>}
               </span>
             );
           })()}
@@ -2408,6 +2423,14 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           if (combo.draw > 0) { totalDraw += combo.draw; cParts.push(`+${combo.draw} 📥`); }
           if (combo.block > 0) { totalBlock += combo.block; cParts.push(`+${combo.block} block`); }
           lines.push(`✨ COMBO ${combo.name}: ${cParts.join(' · ')}`);
+        }
+        // Memorial (sacrifice engine) — surface the passive AoE so the player
+        // SEES the engine: every animal leaving this turn deals 4 comp to all.
+        // durationRemaining === 1 ticks to 0 → departs this end-of-turn.
+        const hasMemorial = (powers || []).some(p => p.installPower?.id === 'memorial');
+        if (hasMemorial) {
+          const leaving = slots.filter(s => (s.durationRemaining || 0) === 1).length;
+          if (leaving > 0) lines.push(`⚰️ Memorial: ${leaving * 4} comp to all (${leaving} leaving)`);
         }
         if (lines.length === 0) return null;
         return (
