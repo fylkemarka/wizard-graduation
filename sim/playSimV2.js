@@ -1748,10 +1748,14 @@ function handlerApplyIntent(state, combat, intent) {
     }
     const targetsComposure = intent.pool === 'composure';
     let raw = Math.round(intent.value * combat.enemyDmgMult);
-    // Animal Midnight power: −2 per swing while ≥2 animals are on the board.
+    // Animal Midnight power (de-gated/scaled 2026-06-07): −3 per swing at ≥1
+    // animal, −4 at ≥3. Combined with other per-swing reduction the engine
+    // floors at 1; the −6 combined cap is academic for handler (no Long
+    // Thread / defense relics in the baseline), so a flat floor matches.
     if (hasHandlerPower(state, 'animalMidnight')) {
       const animalCount = SLOTN.filter(s => combat.htray[s]?.kind === 'animal').length;
-      if (animalCount >= 2) raw = Math.max(1, raw - 2);
+      const mid = animalCount >= 3 ? 4 : animalCount >= 1 ? 3 : 0;
+      if (mid > 0) raw = Math.max(1, raw - mid);
     }
     const hpBefore = state.hp;
     let wBlock = state.block, wPoise = state.poise || 0, wHp = state.hp, wComp = state.composure;

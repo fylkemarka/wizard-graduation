@@ -493,6 +493,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
               `🪲 −${p.beetle}`, `Beetle absorbs ${p.beetle} off the first hit.`));
             if (p.perSwingReduction > 0) chips.push(chip('def', 'bg-moss-900 text-moss-100',
               <><Icon name="block" />✦ −{p.perSwingReduction}/swing</>, `Defense + Long Thread shave ${p.perSwingReduction} off each swing (min 1 gets through).`));
+            if (p.midnightReduction > 0) chips.push(chip('midnight', 'bg-iris-900 text-iris-100',
+              <>🌙 −{p.midnightReduction}/swing</>, `Animal Midnight — your menagerie shaves ${p.midnightReduction} off each swing${p.hits > 1 ? ` (−${p.midnightReduction * p.hits} across ${p.hits} hits)` : ''}.`));
             if (p.swingReduction > 0) chips.push(chip('hb', 'bg-moss-900 text-moss-100',
               `−${p.swingReduction}/swing`, `Headbutt: −${p.swingReduction} off each swing (min 1).`));
             if (p.holdOn > 0) chips.push(chip('hold', 'bg-iris-900 text-iris-100',

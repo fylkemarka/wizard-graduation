@@ -261,7 +261,7 @@ const CARDS = [
     flavor: 'You set it out and step back. Dignity is for animals who had to ask.' },
   { id: 'c-animal-midnight', name: 'Animal Midnight', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'animalMidnight' },
-    desc: 'Power. While you have at least 2 animals in play, enemy attacks deal 2 less per swing.',
+    desc: 'Power. While you have an animal in play, enemy attacks deal 3 less per swing — 4 less with 3 animals out.',
     flavor: 'After a certain hour the animals outnumber the reasons. The room gets careful.' },
   { id: 'c-move-in-herds', name: 'They DO Move in Herds', cost: 3, type: 'skill', rarity: 'rare', lane: 'handler',
     effects: { herdConvert: true, exhaust: true },
@@ -11491,9 +11491,14 @@ export default function App() {
                        + equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0);
     const threadReduction = Math.min(2, longThread || 0);
     // Animal Midnight power: −2 per swing while ≥2 animals are in play.
+    // Animal Midnight (1000-run design loop, 2026-06-07): de-gated 2→1 animal
+    // and scaled −3 at ≥1 / −4 at ≥3, so it works DURING the 2-3 turn build-up
+    // and shrinks single spikes (an 11 → 8), not just multi-hits. Combined
+    // per-swing reduction is capped at 6 so swings never fully zero out.
     const projAnimalCount = SLOT_ORDER.filter(s => tray[s]?.kind === 'animal').length;
-    const midnightReduction = (powers.some(p => p.installPower?.id === 'animalMidnight') && projAnimalCount >= 2) ? 2 : 0;
-    const reduction = Math.min(2, rawReduction) + threadReduction + midnightReduction;
+    const hasMidnight = powers.some(p => p.installPower?.id === 'animalMidnight');
+    const midnightReduction = hasMidnight ? (projAnimalCount >= 3 ? 4 : projAnimalCount >= 1 ? 3 : 0) : 0;
+    const reduction = Math.min(6, Math.min(2, rawReduction) + threadReduction + midnightReduction);
     const swingReduction = nextAttackSwingReduction > 0 ? nextAttackSwingReduction : 0;
     const holdOnReduce = holdOnArmed ? (holdOnValue || 0) : 0;
 
@@ -11558,7 +11563,12 @@ export default function App() {
       amplified: mainAttacks && afterMult > intent.value,
       reduced: mainAttacks && afterMult < intent.value,
       arguing, drunken, annAtkRed, beetle,
-      perSwingReduction: reduction,
+      // Split the per-swing reduction so the Incoming bar can name Animal
+      // Midnight as its own chip (v2.79 math-bar rule). defReduction = the
+      // Defense+Long-Thread portion actually applied after the −6 cap;
+      // midnightReduction = the Animal Midnight slice within that cap.
+      perSwingReduction: Math.max(0, reduction - midnightReduction),
+      midnightReduction: Math.min(midnightReduction, reduction),
       swingReduction,
       holdOn: holdOnReduce,
       stagger: !!staggerActive,
@@ -11815,8 +11825,9 @@ export default function App() {
       // the post-tick board snapshot (same source maul/sloth use), since
       // that's what's actually on the field when the enemy swings.
       const midnightCount = SLOT_ORDER.filter(s => boardForMaulRef.current?.[s]?.kind === 'animal').length;
-      const midnightReduction = (powers.some(p => p.installPower?.id === 'animalMidnight') && midnightCount >= 2) ? 2 : 0;
-      const reduction = Math.min(2, rawReduction) + threadReduction + midnightReduction;
+      const hasMidnight = powers.some(p => p.installPower?.id === 'animalMidnight');
+      const midnightReduction = hasMidnight ? (midnightCount >= 3 ? 4 : midnightCount >= 1 ? 3 : 0) : 0;
+      const reduction = Math.min(6, Math.min(2, rawReduction) + threadReduction + midnightReduction);
       // v3.4.26 (Alan: "I'm not taking damage" investigation) — log
       // every reduction layer that touches incoming damage so we can
       // SEE exactly where it's vanishing. Fires once per enemy attack
