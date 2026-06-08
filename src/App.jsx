@@ -251,6 +251,18 @@ const CARDS = [
     installPower: { id: 'bestInShow' },
     desc: 'Power. When you summon an animal whose species is already on the board, it arrives with +2 attack for the rest of combat.',
     flavor: 'They match. They are, the judge concedes, a remarkably consistent set.' },
+  // Summon Strength (Alan, 2026-06-08) — STS-Strength for the Handler: a flat
+  // +N to EVERY animal's attack, rest of combat. The player-side push that
+  // pairs with the new enemy debuffs. Crack the Whip = burst grant; Drillmaster
+  // = ramping build-around.
+  { id: 'c-rally-the-pack', name: 'Rally the Pack', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { summonStrength: 2 }, upgrade: { effects: { summonStrength: 3 } },
+    desc: '+2 Summon Strength — every animal attacks for +2 for the rest of combat.',
+    flavor: 'Not cruelty. Standards. The menagerie understands the difference, mostly.' },
+  { id: 'c-drillmaster', name: 'Drillmaster', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+    power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
+    desc: 'Power. At the start of each turn, gain +1 Summon Strength (every animal attacks for more, building each turn).',
+    flavor: 'Drills the woods like a parade ground. The woods, to everyone\'s surprise, comply.' },
   { id: 'c-whisperer', name: 'The Whisperer', cost: 2, type: 'power', rarity: 'rare', lane: 'handler',
     installPower: { id: 'whisperer' },
     desc: 'Power. Whenever one of your animals leaves play, draw 1 next turn.',
@@ -3926,6 +3938,13 @@ export default function App() {
   // the synchronous end-of-turn transform. Reset per combat.
   const [lockedSpecies, setLockedSpecies] = useState(null);
   const lockedSpeciesRef = useRef(null);
+  // Summon Strength (Alan, 2026-06-08): STS-Strength for the Handler — a flat
+  // +N to EVERY animal's attack, rest of combat. Granted by cards/powers (Crack
+  // the Whip, Drillmaster). Read at attack time in animalAttackValue, so it
+  // reaches all animals + future summons. Ref mirrors state for the end-of-turn
+  // tick (stale-closure discipline). Reset per combat.
+  const [summonStrength, setSummonStrength] = useState(0);
+  const summonStrengthRef = useRef(0);
   // House Rules power — armed on install. Next click on an animal slot gives
   // that animal (and every other copy of the same species on the board) +2
   // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
@@ -5791,6 +5810,7 @@ export default function App() {
     setHerdPromptActive(false);
     setDrilledSpecies({}); drilledSpeciesRef.current = {};
     setLockedSpecies(null); lockedSpeciesRef.current = null;
+    setSummonStrength(0); summonStrengthRef.current = 0;
     setTroughCharges(0); troughChargesRef.current = 0;
     setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
     setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0;
@@ -8305,6 +8325,11 @@ export default function App() {
         logBits.push(`🐦 Murmuration — no birds in play.`);
       }
     }
+    // Summon Strength (Crack the Whip) — flat +N to every animal, rest of combat.
+    if (fx.summonStrength) {
+      grantSummonStrength(fx.summonStrength);
+      logBits.push(`💪 +${fx.summonStrength} Summon Strength — all your animals hit harder.`);
+    }
     // Pedigree — lock all lures to the most-numerous on-board species for the
     // rest of combat. Counts current animals; ties break to the first slot.
     if (fx.lockLureSpecies) {
@@ -9266,6 +9291,8 @@ export default function App() {
     a += (slot?.attackBonus || 0);
     // Well-Drilled: +2 per drill stack on this species (on-board + future).
     a += 2 * (drilledSpeciesRef.current[slot?.animalId] || 0);
+    // Summon Strength: flat +N to every animal (rest of combat).
+    a += summonStrengthRef.current;
     return a;
   };
 
@@ -9356,6 +9383,14 @@ export default function App() {
   // Record summoned animals — bumps the Horde counter AND fires Cost of
   // Littering each time the running total crosses a multiple of 5 (5 comp to
   // all enemies per threshold). Returns nothing; call once per arrival.
+  // Grant Summon Strength (+N to all animal attacks, rest of combat). Updates
+  // ref synchronously (end-of-turn tick reads it) + state for the display chip.
+  const grantSummonStrength = (n) => {
+    if (!n) return;
+    summonStrengthRef.current = Math.max(0, summonStrengthRef.current + n);
+    setSummonStrength(summonStrengthRef.current);
+  };
+
   const noteAnimalSummoned = (n = 1) => {
     const before = animalsSummonedRef.current;
     animalsSummonedRef.current = before + n;
@@ -11517,6 +11552,8 @@ export default function App() {
       if (!trig) continue;
       const bits = [`📿 ${p.name}`];
       if (trig.block)      { wBlock += trig.block;   bits.push(`🛡 +${trig.block}`); }
+      // Drillmaster — ramping Summon Strength: +N to all animals each turn.
+      if (trig.summonStrength) { grantSummonStrength(trig.summonStrength); bits.push(`💪 +${trig.summonStrength} Summon Strength`); }
       // Energy is NOT added here — it's folded into energyPerTurnRefill() so
       // the player block reads N/N. wEnergy already started at that refill.
       if (trig.energy)     { bits.push(`+${trig.energy} Energy`); }
@@ -13522,6 +13559,7 @@ export default function App() {
       wellDrilledPromptActive={wellDrilledPromptActive}
       onWellDrilledClick={wellDrilledClickSlot}
       drilledSpecies={drilledSpecies}
+      summonStrength={summonStrength}
       onCancelWellDrilled={cancelWellDrilledPrompt}
       houseRulesPromptActive={houseRulesPromptActive}
       onHouseRulesClick={houseRulesClickSlot}

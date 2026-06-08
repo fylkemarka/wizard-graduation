@@ -86,6 +86,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        onWellDrilledClick = () => {},
                        onCancelWellDrilled = () => {},
                        drilledSpecies = {},
+                       summonStrength = 0,
                        houseRulesPromptActive = false,
                        onHouseRulesClick = () => {},
                        onCancelHouseRules = () => {},
@@ -686,6 +687,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span title="Long Thread — wit defender. +1 per turn you cast a wit spell and take no unblocked damage. Reduces incoming damage by Math.min(2, LT) per swing."
                   className="font-mono text-sm text-iris-300">🧵{longThread}</span>
           )}
+          {isHandler && summonStrength > 0 && (
+            <span data-testid="summon-strength" title={`Summon Strength — every one of your animals attacks for +${summonStrength} (rest of combat).`}
+                  className="font-mono text-sm text-ember-300">💪{summonStrength}</span>
+          )}
           {isWit && (
             <span title="Words Bank — Crescendo's currency. Only Crescendo-school cards add (+1 each). Cap 10. Spent at the CLIMAX cast."
                   className="font-mono text-sm text-gold-300">📚{wordsBank || 0}<span className="text-[9px] text-parchment-500">/10</span></span>
@@ -905,7 +910,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         sacrificePromptActive={sacrificePromptActive} onSacrificeClick={onSacrificeClick}
         gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
         wellDrilledPromptActive={wellDrilledPromptActive} onWellDrilledClick={onWellDrilledClick}
-        drilledSpecies={drilledSpecies}
+        drilledSpecies={drilledSpecies} summonStrength={summonStrength}
         houseRulesPromptActive={houseRulesPromptActive} onHouseRulesClick={onHouseRulesClick}
         herdPromptActive={herdPromptActive} onHerdClick={onHerdClick}
         onSacrificeAnimal={onSacrificeAnimal}
@@ -1295,7 +1300,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        sacrificePromptActive = false, onSacrificeClick = () => {},
                        gorgePromptActive = false, onGorgeClick = () => {},
                        wellDrilledPromptActive = false, onWellDrilledClick = () => {},
-                       drilledSpecies = {},
+                       drilledSpecies = {}, summonStrength = 0,
                        houseRulesPromptActive = false, onHouseRulesClick = () => {},
                        herdPromptActive = false, onHerdClick = () => {},
                        onSacrificeAnimal = () => {},
@@ -1328,7 +1333,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (ls?.kind !== 'animal') return 0;
     const la = animals?.[ls.animalId];
     let lv = la?.attack || 0;
-    if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (drilledSpecies[ls.animalId] || 0);
+    if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (drilledSpecies[ls.animalId] || 0) + (summonStrength || 0);
     return lv;
   };
   const effAnimalAttack = (animal, slotCard, slotName) => {
@@ -1342,6 +1347,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     a += (slotCard?.attackBonus || 0);
     // Well-Drilled: +2 per drill stack on this species (App animalAttackValue mirror).
     a += 2 * (drilledSpecies[slotCard?.animalId] || 0);
+    // Summon Strength: flat +N to every animal (App animalAttackValue mirror).
+    a += (summonStrength || 0);
     return a;
   };
   const introCard = isSummonEnvelope(tray.intro) ? null : tray.intro;
@@ -2304,7 +2311,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           // Include Gorge's per-slot attackBonus and Well-Drilled's per-species
           // bonus so this strip matches the board pill (effAnimalAttack).
           const baseWithBonus = (animal.attack || 0) > 0
-            ? (animal.attack || 0) + (slot.attackBonus || 0) + 2 * (drilledSpecies[slot.animalId] || 0)
+            ? (animal.attack || 0) + (slot.attackBonus || 0) + 2 * (drilledSpecies[slot.animalId] || 0) + (summonStrength || 0)
             : (animal.attack || 0);
           let atk = Math.round(baseWithBonus * atkMult);
           if (isRabid) atk = Math.round(atk * 1.5);

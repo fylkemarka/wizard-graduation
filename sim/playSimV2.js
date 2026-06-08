@@ -269,6 +269,8 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
   { id: 'c-pedigree',      name: 'Pedigree',        cost: 1, type: 'handler-skill', rarity: 'common',   effects: { lockLureSpecies: true } },
   { id: 'c-best-in-show',  name: 'Best in Show',    cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'bestInShow' } },
+  { id: 'c-rally-the-pack',name: 'Rally the Pack',  cost: 1, type: 'handler-skill', rarity: 'common',   effects: { summonStrength: 2 } },
+  { id: 'c-drillmaster',   name: 'Drillmaster',     cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'drillmaster' } },
   { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
   { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
@@ -315,6 +317,7 @@ const HANDLER_REWARD_POOL = [
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
   'c-hunker-down', 'c-dig-in',
   'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show',
+  'c-rally-the-pack', 'c-drillmaster',
 ];
 
 // =============================================================================
@@ -1024,7 +1027,7 @@ function copyLeftAttackSim(work, slotName, animal, combat) {
   if (!ls || ls.kind !== 'animal') return own;
   const la = ANIMALS[ls.animalId];
   let lv = la?.attack || 0;
-  if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[ls.animalId] || 0);
+  if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[ls.animalId] || 0) + (combat?.summonStrength || 0);
   return lv > 0 ? lv : own;
 }
 function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotName) {
@@ -1036,7 +1039,7 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotNa
     base = copyLeftAttackSim(work, slotName, animal, combat);
   } else {
     base = animal.attack;
-    if (base > 0) { base += (slot.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[slot.animalId] || 0); }
+    if (base > 0) { base += (slot.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[slot.animalId] || 0) + (combat?.summonStrength || 0); }
   }
   const ampMult = (work && slotName !== undefined) ? adjacentAmplifyMultSim(work, slotName) : 1;
   let atk = Math.round(base * (baseMult || 1) * (slot.nextAttackMult || 1) * ampMult);
@@ -1279,6 +1282,8 @@ function applyHandlerSkill(state, combat, card) {
     if (departed) noteHandlerExit(state, combat, departed);
     noteSacrificeSim(state, combat, departed);
   }
+  // Rally the Pack — flat +N Summon Strength to every animal, rest of combat.
+  if (fx.summonStrength) combat.summonStrength = (combat.summonStrength || 0) + fx.summonStrength;
   // Pedigree — lock all lures to the most-numerous on-board species.
   if (fx.lockLureSpecies) {
     const counts = {};
@@ -1523,6 +1528,9 @@ function aiTurnHandler(state, combat) {
     if (combat.fb.startCombatPoise) state.poise += combat.fb.startCombatPoise;
   }
   combat.firstLureUsedThisTurn = false;
+  // Drillmaster — ramping Summon Strength: +1 every turn (mirrors App.jsx
+  // start-of-turn power tick). Installed via installPower.
+  if (hasHandlerPower(state, 'drillmaster')) combat.summonStrength = (combat.summonStrength || 0) + 1;
   const whisperDraw = combat.whisperPending || 0;
   combat.whisperPending = 0;
   drawCards(state, HAND_SIZE + whisperDraw + (combat.turn === 1 ? (combat.fb.startCombatDraw || 0) : 0));
@@ -1797,6 +1805,10 @@ function aiTurnHandler(state, combat) {
       const spare = liveAnimals().some(sl => (sl.durationRemaining || 0) >= 2);
       if (stuckLure && spare) { playHandlerCard(state, combat, lsIdx); continue; }
     }
+    // Rally the Pack — flat Summon Strength buff; worth it once a body is out
+    // to benefit (and great with a wide board).
+    const whipIdx = state.hand.findIndex(c => c.effects?.summonStrength && c.cost <= state.energy);
+    if (whipIdx >= 0 && animalCount() >= 1) { playHandlerCard(state, combat, whipIdx); continue; }
     // Strays — drop fodder bodies whenever 2+ slots are open (panel: the old
     // animalCount<2 clamp meant the sacrifice build's ammo almost never hit the
     // board). Bodies for Memorial / Light the Mound / sacrifice-for-Block.
@@ -2328,6 +2340,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     troughCharges: 0, // Trough — auto-feed next N arrivals
     drilledSpecies: {}, // Well-Drilled — species → +2/stack on all + future copies
     lockedSpecies: null, // Pedigree — lures resolve to this species
+    summonStrength: 0,  // Summon Strength — flat +N to every animal attack
     sacrifices: 0,    // Light the Mound — animals deliberately sacrificed
     lureNarrowing: {},
     turn: 0, handlerTicks: 0, tacticChanges: 0,
@@ -5537,8 +5550,8 @@ function aiPickHandlerReward(state) {
       const bpe = card.effects.block / Math.max(1, card.cost || 1);
       return s + (hpDefenseCount < 4 ? 8 : 4) + Math.round(bpe) + ((card.cost || 1) === 1 ? 3 : 0);
     } else if (card.installPower?.id === 'memorial' || card.installPower?.id === 'bestInShow'
-            || card.installPower?.id === 'wellDrilled'
-            || card.effects?.spawnFodder || card.effects?.lockLureSpecies) {
+            || card.installPower?.id === 'wellDrilled' || card.installPower?.id === 'drillmaster'
+            || card.effects?.spawnFodder || card.effects?.lockLureSpecies || card.effects?.summonStrength) {
       // 2026-06-08 synergy archetypes (Sacrifice engine / Monoculture). Score
       // competitively, AND bump a piece when its archetype partners are already
       // in the deck (panel: the sim drafted pieces independently, so the
@@ -6332,7 +6345,7 @@ function aggregate(results) {
   // 2026-06-08 new-card analysis: draft rate + acts-cleared correlation for the
   // synergy/block cards, so the design loop can tell if they're exercised and
   // whether decks that drafted them go further.
-  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show', 'c-well-drilled'];
+  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show', 'c-well-drilled', 'c-rally-the-pack', 'c-drillmaster'];
   const newCardStats = {};
   const handlerRuns = results.filter(r => r.lane === 'handler');
   for (const id of NEW_CARD_IDS) {
