@@ -9946,26 +9946,29 @@ export default function App() {
     // Reset to one MORE than the needs-food threshold so a fed animal gets a
     // healthy turn before going hungry again (feed cadence ≈ duration). Tunable.
     const cadence = (animal?.duration || 3) + 1;
-    let fed = 0;
+    // Decide targets from the CURRENT tray closure. The setTray updater must
+    // stay pure — counting `fed` inside it and reading it after for the energy
+    // side-effect is unreliable (React runs the updater deferred). [feedback:
+    // react-pure-updaters]
+    const targets = SLOT_ORDER.filter(sn => {
+      const slot = tray[sn];
+      return slot?.kind === 'animal' && slot.animalId === animalId && (slot.durationRemaining || 0) >= 2;
+    });
+    if (targets.length === 0) { pushLog(`🍴 No ${animal?.name || animalId} needs feeding right now.`); return; }
     setTray(prev => {
       const next = { ...prev };
-      for (const sn of SLOT_ORDER) {
+      for (const sn of targets) {
         const slot = next[sn];
-        if (slot?.kind !== 'animal' || slot.animalId !== animalId) continue;
-        if ((slot.durationRemaining || 0) < 2) continue; // past the deadline — unsaveable
-        next[sn] = { ...slot, durationRemaining: cadence, feedReceived: true, fedThisTurn: true };
-        fed++;
+        if (slot?.kind === 'animal' && slot.animalId === animalId) {
+          next[sn] = { ...slot, durationRemaining: cadence, feedReceived: true, fedThisTurn: true };
+        }
       }
-      return fed > 0 ? syncTrayLegacy(next) : prev;
+      return syncTrayLegacy(next);
     });
-    if (fed > 0) {
-      setEnergy(e => e - FEED_COST);
-      setLuresPlayedThisTurn(prev => [...prev, animal?.feedKey].filter(Boolean));
-      logEvent(TE.HANDLER_FEED, { animalId, feedKey: animal?.feedKey || null, fed, viaButton: true, enemyId: enemy?.id || null });
-      pushLog(`🍴 Fed the ${animal?.name || animalId}${fed > 1 ? ` ×${fed}` : ''} — topped up for ${FEED_COST} energy.`);
-    } else {
-      pushLog(`🍴 No ${animal?.name || animalId} needs feeding right now.`);
-    }
+    setEnergy(e => e - FEED_COST);
+    setLuresPlayedThisTurn(prev => [...prev, animal?.feedKey].filter(Boolean));
+    logEvent(TE.HANDLER_FEED, { animalId, feedKey: animal?.feedKey || null, fed: targets.length, viaButton: true, enemyId: enemy?.id || null });
+    pushLog(`🍴 Fed the ${animal?.name || animalId}${targets.length > 1 ? ` ×${targets.length}` : ''} — topped up for ${FEED_COST} energy.`);
   }
 
   // Whistle click — first click picks slot 1; second click swaps slot 1 and
