@@ -4,7 +4,7 @@ N = **20** runs simulated with a greedy v2 AI.
 
 ## Win rate
 - **0 wins / 20** = **0.0%**
-- Losses by acts-cleared: 0=14 · 1=4 · 2=2 · 3=0
+- Losses by acts-cleared: 0=20 · 1=0 · 2=0 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
@@ -12,15 +12,16 @@ N = **20** runs simulated with a greedy v2 AI.
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-snake**: 5 runs · 0 wins (0.0%)
-- **fam-beetle**: 1 runs · 0 wins (0.0%)
-- **fam-owl**: 2 runs · 0 wins (0.0%)
-- **fam-mouse**: 4 runs · 0 wins (0.0%)
+- **fam-snake**: 1 runs · 0 wins (0.0%)
+- **fam-cat**: 2 runs · 0 wins (0.0%)
+- **fam-rabbit**: 5 runs · 0 wins (0.0%)
+- **fam-owl**: 1 runs · 0 wins (0.0%)
+- **fam-raven**: 3 runs · 0 wins (0.0%)
+- **fam-toad**: 1 runs · 0 wins (0.0%)
+- **fam-crow**: 3 runs · 0 wins (0.0%)
 - **fam-hedgehog**: 2 runs · 0 wins (0.0%)
-- **fam-crow**: 1 runs · 0 wins (0.0%)
-- **fam-toad**: 2 runs · 0 wins (0.0%)
-- **fam-rabbit**: 2 runs · 0 wins (0.0%)
-- **fam-raven**: 1 runs · 0 wins (0.0%)
+- **fam-beetle**: 1 runs · 0 wins (0.0%)
+- **fam-mouse**: 1 runs · 0 wins (0.0%)
 
 ## Cast distribution
 - Total casts: 0
@@ -31,31 +32,31 @@ N = **20** runs simulated with a greedy v2 AI.
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
 - Handler runs: 20 · 0 wins (0.0%)
-- Combats fought: 126
-- Summons: 467 · feeds: 733 · short-stays (unfed left early): 49 · combines: 0
+- Combats fought: 82
+- Summons: 288 · feeds: 475 · short-stays (unfed left early): 31 · combines: 0
 - Combine payoff: burst 0 (avg 0/combine) · lifetime attacks 0 (avg 0/combine) · combine = 0.0% of all menagerie composure
-- Menagerie composure dealt: 8013 · block generated: 3275
-- Avg summons/combat: 3.71 · avg feeds/combat: 5.82
-- Tactic changes: 69 · avg distinct tactics/combat: 0.36
-- Special-lure animals: summons 32 · porcupine thorns dealt 0 · sloth enemy-turns skipped 7
-- Activated abilities (Mime/Pigeon/Kangaroo): 3 activations
-- Tactic engagement: shield 27 · rabid 2 · youth 22 · nurture 16 · feather 2
+- Menagerie composure dealt: 4673 · block generated: 3171
+- Avg summons/combat: 3.51 · avg feeds/combat: 5.79
+- Tactic changes: 21 · avg distinct tactics/combat: 0.24
+- Special-lure animals: summons 20 · porcupine thorns dealt 24 · sloth enemy-turns skipped 2
+- Activated abilities (Mime/Pigeon/Kangaroo): 2 activations
+- Tactic engagement: shield 14 · rabid 6 · youth 0 · nurture 1 · feather 0
 
 ## NEW CARDS (2026-06-08 — block + synergy archetypes)
 Draft rate among handler runs, total PLAYS this batch (drafted-but-low-plays = dead in hand), and avg acts-cleared with vs without (survivorship-confounded — relative reads only).
-- **c-hunker-down**: drafted 1 (5.0%) · played 4× · 0 wins · avg acts 0.00 with / 0.42 without
-- **c-dig-in**: drafted 3 (15.0%) · played 14× · 0 wins · avg acts 1.00 with / 0.29 without
-- **c-memorial**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.40 without
-- **c-strays**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.40 without
-- **c-pedigree**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.40 without
-- **c-best-in-show**: drafted 2 (10.0%) · played 3× · 0 wins · avg acts 0.00 with / 0.44 without
-- **c-well-drilled**: drafted 2 (10.0%) · played 11× · 0 wins · avg acts 0.50 with / 0.39 without
-- **c-rally-the-pack**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.40 without
-- **c-drillmaster**: drafted 3 (15.0%) · played 19× · 0 wins · avg acts 1.33 with / 0.24 without
-- Memorial AoE procs (every exit/sacrifice while installed): 0
+- **c-hunker-down**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-dig-in**: drafted 1 (5.0%) · played 6× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-memorial**: drafted 2 (10.0%) · played 3× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-strays**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-pedigree**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-best-in-show**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-well-drilled**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-rally-the-pack**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.00 without
+- **c-drillmaster**: drafted 0 (0.0%) · played 0× · 0 wins · avg acts 0.00 with / 0.00 without
+- Memorial AoE procs (every exit/sacrifice while installed): 4
 
 ## NEW ENEMY MECHANICS — fire counts (this batch)
-- heal 4 · charge 17 · summon 9 · cutShort 0 · undermineTactic 1 · doubleMaul 0 · freeze 10 · silence 20 · turnAgainst 25 · betray 6 · maul 8
+- heal 8 · charge 5 · summon 4 · cutShort 0 · undermineTactic 0 · doubleMaul 0 · freeze 7 · silence 22 · turnAgainst 19 · betray 2 · maul 6
 
 ## Wit LONG THREAD (v2.34)
 - Combats reaching LT ≥ 1: 0 (runs: 0 / 20, 0.0%)
@@ -68,7 +69,7 @@ Draft rate among handler runs, total PLAYS this batch (drafted-but-low-plays = d
 - v2.43 thread-preservation skip-casts: 0
 - v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 19 granted, 0 played
+- v2.92 Passing Thoughts: 15 granted, 0 played
 - v2.93 Find the Seam (bypass-effectiveness) fires: 0
 - v2.93 Precedent (echo-last-damage) fires: 0
 - v2.93 Insult-to-Injury (×N mult) fires: 0
@@ -187,20 +188,17 @@ Draft rate among handler runs, total PLAYS this batch (drafted-but-low-plays = d
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 8.24
-- Avg damage / run: 410
-- Mean final deck size: 11.6
+- Avg turns / combat: 7.42
+- Avg damage / run: 236
+- Mean final deck size: 12.3
 
 ## Archetype of winning decks
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 5
-- e2-spinster-matron (The Spinster Matron): 4
-- e1-boss-thornlord (The Thornlord): 2
-- e3-boss-anvil (The Anvil-Forged): 2
-- e2-silent-spinner (The Silent Spinner): 2
-- e-rogue-smelterson (Smelterson, J.C. (alloyed)): 1
-- e2-silk-wraith (Silk Wraith): 1
-- e2-moth-choir (The Moth Choir): 1
-- e3-vein-devourer (Vein Devourer): 1
-- e2-pattern-maker (The Pattern-Maker): 1
+- e2-boss-tapestry (The Tapestry Walker): 9
+- e2-pattern-maker (The Pattern-Maker): 4
+- e2-silk-wraith (Silk Wraith): 2
+- e2-spinster-matron (The Spinster Matron): 2
+- e2-loom-familiar (Loom Familiar): 1
+- e-rogue-linenfast (Bartholomew Linenfast (still adjusting the hem)): 1
+- e2-silent-spinner (The Silent Spinner): 1

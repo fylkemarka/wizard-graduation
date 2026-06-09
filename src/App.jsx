@@ -154,10 +154,10 @@ const CARDS = [
     effects: { whistleSwap: true },
     desc: 'Pick two stage slots and swap their contents. (Lures, animals, or empty.)',
     flavor: 'A short, important note. The animals re-arrange themselves accordingly.' },
-  { id: 'c-treat', name: 'Treat', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { treatExtend: 1 },
-    desc: 'Pick a summoned animal. It stays one more turn.',
-    flavor: 'You produce it from a pocket. Frankly, it has been there for some time.' },
+  // c-treat / c-snack / Full Pockets removed (Alan, 2026-06-09): Treat extends an
+  // animal's duration +1, which is meaningless under v3 persist (animals stay as
+  // long as you feed them). The treatExtend / fullPockets machinery is now dead
+  // code (safe to prune later). Gorge still has value (its attack bonus).
   { id: 'c-pack-tactics', name: 'On Three!', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { packTactics: true, exhaust: true },
     desc: 'Each of your animals attacks again this turn. Exhaust.',
@@ -268,9 +268,9 @@ const CARDS = [
   // WITHOUT hoarding copies (exhaust would have pushed the opposite). A couple
   // of copies is worth it; five never is.
   { id: 'c-whet-claws', name: 'Whet the Claws', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { strengthenAnimal: { attack: 2 }, costEscalates: true },
-    upgrade: { effects: { strengthenAnimal: { attack: 3 }, costEscalates: true } },
-    desc: 'Pick an animal on the board. It permanently gains +2 attack — for as long as it stays. Lose the animal, lose the edge. Costs 1 more each time you play it this combat.',
+    effects: { strengthenAnimal: { attack: 1 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { attack: 2 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently gains +1 attack — for as long as it stays. Lose the animal, lose the edge. Costs 1 more each time you play it this combat.',
     flavor: 'A little honing. The animal seems pleased; the enemy, less so.' },
   { id: 'c-thicken-hide', name: 'Thicken the Hide', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { strengthenAnimal: { block: 2 }, costEscalates: true },
@@ -363,19 +363,8 @@ const CARDS = [
     effects: { smallLandAttackAgain: true, exhaust: true },
     desc: 'Each small-land animal you control attacks again this turn. Exhaust.',
     flavor: 'It starts with one. It is, by the third, a policy.' },
-  // ---- THE GLUTTON — feeding stops being a tax and becomes the build.
-  // Full Pockets keeps food in hand (playtest note #1); Gorge overfeeds.
-  { id: 'c-full-pockets', name: 'Full Pockets', cost: 2, type: 'power', rarity: 'common', lane: 'handler',
-    installPower: { id: 'fullPockets' },
-    desc: 'Add a Treat to your hand.',
-    flavor: 'You are never not carrying something edible. It is, frankly, a condition.' },
-  // Token Treat handed out by Full Pockets. Functionally identical to the
-  // real Treat card (treatExtend), but `token: true` scrubs it at the next
-  // combat's deck reconstitution so it never persists into the run deck.
-  { id: 'c-snack', name: 'Treat', cost: 1, type: 'skill', rarity: 'basic', lane: 'handler', token: true,
-    effects: { treatExtend: 1 },
-    desc: 'Pick an animal. It stays one more turn.',
-    flavor: 'Produced from a pocket. Warm, somehow. Best not to ask.' },
+  // Full Pockets + its Treat token removed (Alan, 2026-06-09) — Treat is
+  // meaningless under v3 persist (see c-treat note above). Gorge stays.
   { id: 'c-gorge', name: 'Gorge', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { gorge: true },
     desc: 'Pick an animal: it stays +3 turns. If it was already fed this turn, it also gains +3 attack for the rest of combat.',

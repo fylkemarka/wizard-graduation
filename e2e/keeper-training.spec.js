@@ -39,18 +39,18 @@ test('a Drystone Ox keeper braces for Block; split training grows the wall and t
   await expect(ox).toContainText(/2 dmg \/ turn/);
   await expect(ox).toContainText(/🛡 4\/turn/);
 
-  // Whet the Claws → offense only: 2 → 5 dmg, block unchanged.
+  // Whet the Claws → offense only: 2 → 3 dmg, block unchanged.
   expect(await ensurePlay(page, WHET)).toBeTruthy();
   await expect(page.getByText(/💪 Training:/)).toBeVisible();
   await ox.click();
-  await expect(ox).toContainText(/4 dmg \/ turn/);   // 2 + 2
+  await expect(ox).toContainText(/3 dmg \/ turn/);   // 2 + 1
   await expect(ox).toContainText(/🛡 4\/turn/);       // block untouched
   await expect(ox).toContainText(/💪 trained/);
 
   // Thicken the Hide → defense only: block 6 → 9, attack unchanged.
   expect(await ensurePlay(page, HIDE)).toBeTruthy();
   await ox.click();
-  await expect(ox).toContainText(/4 dmg \/ turn/);   // attack untouched
+  await expect(ox).toContainText(/3 dmg \/ turn/);   // attack untouched
   await expect(ox).toContainText(/🛡 6\/turn/);       // 4 + 2
 
   // The pending menagerie Block now shows on the Player block stat (6 from

@@ -7,8 +7,6 @@ import { gotoLab, addCard, fightEnemy, handCardById, playCardById, endTurn } fro
 // of render-time crash these new prompts/pills could introduce.
 
 const WELL_DRILLED = 'c-well-drilled';
-const FULL_POCKETS = 'c-full-pockets';
-const SNACK = 'c-snack';
 const BIRDSEED = 'cv2-l-birdseed';
 const ON_THREE = 'c-pack-tactics';
 const HOUSE_RULES = 'c-house-rules';
@@ -108,35 +106,8 @@ test('Dismissing Well-Drilled refunds the card to hand', async ({ page }) => {
   expect(await handCardById(page, WELL_DRILLED).count()).toBe(before);
 });
 
-test('Full Pockets adds a single Treat to hand on play (one-time), and the Treat extends an animal', async ({ page }) => {
-  await gotoLab(page, 'handler', { seed: 11 });
-  for (let i = 0; i < 4; i++) await addCard(page, FULL_POCKETS);
-  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
-  await fightEnemy(page, 'Loom Familiar');
-
-  // Put a body on the board first so the Treat has something to extend.
-  expect(await ensureAnimalStaged(page)).toBeTruthy();
-
-  // No Treat token yet — Full Pockets no longer mints one every turn.
-  expect(await handCardById(page, SNACK).count()).toBe(0);
-
-  // Play Full Pockets: it installs as a power AND drops exactly one Treat into
-  // hand THIS turn (the one-time payoff), without exhausting.
-  expect(await ensureInHand(page, FULL_POCKETS)).toBeTruthy();
-  await playCardById(page, FULL_POCKETS);
-  await expect(page.getByText('Full Pockets').first()).toBeVisible();
-
-  expect(await handCardById(page, SNACK).count()).toBe(1);
-  const treat = handCardById(page, SNACK).first();
-  await expect(treat).toHaveAttribute('data-eff-cost', '1');
-
-  await playCardById(page, SNACK);
-  // Treat prompt arms — click an animal to extend it.
-  await page.getByText(/click to treat/).first().click();
-
-  // Combat survives the Treat play (no render crash).
-  await expect(page.getByTestId('hand')).toBeVisible();
-});
+// Full Pockets / Treat removed (Alan, 2026-06-09) — Treat is meaningless under
+// v3 persist, so its test is gone too.
 
 test('On Three! surfaces the extra projected damage in the menagerie math bar', async ({ page }) => {
   await gotoLab(page, 'handler', { seed: 11 });

@@ -255,7 +255,6 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-pack-tactics',name: 'On Three!', cost: 2, type: 'handler-util', rarity: 'uncommon', util: 'onThree', exhaust: true },
   { id: 'c-just-eat-it', name: 'Just Eat It',cost: 0, type: 'handler-util', rarity: 'common',  util: 'eatNow', exhaust: true },
   // c-buffet removed entirely 2026-06-07 (Alan) — see App.jsx CARDS note.
-  { id: 'c-treat',       name: 'Treat',     cost: 1, type: 'handler-util', rarity: 'common',   util: 'treat' },
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
   { id: 'c-hunker-down', name: 'Hunker Down',     cost: 1, type: 'handler-skill', rarity: 'common',   effects: { block: 9 } },
   { id: 'c-dig-in',      name: 'Dig In Properly', cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { block: 16 } },
@@ -284,12 +283,10 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-memorial',          name: 'Memorial',          cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'memorial' } },
   { id: 'c-strays',            name: 'Strays',            cost: 1, type: 'handler-skill', rarity: 'common', effects: { spawnFodder: 2 } },
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'costOfLittering' } },
-  { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 2, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
   { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
   { id: 'c-stampede',      name: 'Stampede',        cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
   { id: 'c-gorge',         name: 'Gorge',           cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { gorge: true } },
-  { id: 'c-snack',         name: 'Treat',           cost: 1, type: 'handler-skill', rarity: 'basic', token: true, effects: { treatExtend: 1 } },
   { id: 'c-narrow',        name: 'Acquired Taste',  cost: 1, type: 'handler-skill', rarity: 'common', effects: { narrowLure: true, exhaust: true } },
   // New bonus cards (Alan, 2026-06-07) — mirror src/App.jsx CARDS.
   { id: 'c-trough',         name: 'Trough',                cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { troughFeed: 3, exhaust: true } },
@@ -299,7 +296,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 5 } },
   // Team retool (Alan, 2026-06-08) — invest in a specific animal. Split
   // offense/defense + exhaust (spam audit): one card can't stack both stats.
-  { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 2 }, costEscalates: true } },
+  { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 1 }, costEscalates: true } },
   { id: 'c-thicken-hide',  name: 'Thicken the Hide',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { block: 2 }, costEscalates: true } },
   { id: 'c-steel-nerves',   name: 'Steel the Nerves',       cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { poise: 2 }, costEscalates: true } },
   { id: 'c-stiff-upper-lip',name: 'Stiff Upper Lip',        cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { strengthenAnimal: { poise: 5 }, costEscalates: true } },
@@ -321,8 +318,8 @@ const HANDLER_STARTER = [
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
   'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
-  'c-pack-tactics', 'c-just-eat-it', 'c-treat', 'c-sharp-whistle',
-  'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
+  'c-pack-tactics', 'c-just-eat-it', 'c-sharp-whistle',
+  'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door',
   'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   // c-narrow (Acquired Taste) benched 2026-06-08 — slice-5 pools narrowed to
   // 2 species, nothing left to narrow. Card kept in HANDLER_CARDS, off the draft.
