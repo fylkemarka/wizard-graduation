@@ -4153,6 +4153,11 @@ export default function App() {
   // So the steal records the taken cards here, and endTurn exiles them out of
   // the recycle pipeline before committing piles. Cleared each endTurn.
   const stolenCardsRef = useRef([]);
+  // v3 single-use lures: departures during applyEnemyIntent (maul / betray) run
+  // BEFORE the end-of-turn refill's plain setHand(wHand), so a direct setHand
+  // would be clobbered. Push the returned lure cards here; the refill folds them
+  // into the new hand and clears it (mirrors stolenCardsRef's timing).
+  const pendingLureReturnsRef = useRef([]);
   // Loom Familiar hard cap: exactly one card-steal per combat. A ref (not
   // state) so it reads current synchronously inside applyEnemyIntent and the
   // end-of-turn re-roll, immune to the batched-setState staleness that let
@@ -5703,19 +5708,23 @@ export default function App() {
   // (Alan, 2026-05-31 telemetry).
   function extractTrayCardsForReturn(t) {
     if (!t) return [];
-    const slotCard = (slot) => {
-      if (!slot) return null;
-      if (slot.kind === 'lure') return slot.card || null;
-      if (slot.kind === 'animal' || slot.kind === 'occupied') return null;
-      return slot;
+    const out = [];
+    const push = (slot) => {
+      if (!slot) return;
+      if (slot.kind === 'lure') { if (slot.card) out.push(slot.card); return; }
+      // v3 single-use lures: an on-board animal still holds its source lure(s).
+      // Fold them back so an animal alive at combat end doesn't strand its lure
+      // (a "can't summon next combat" unwinnable-state bug). 'occupied' cells
+      // are stand-ins for a spanning animal anchored elsewhere — skip them; the
+      // anchor returns the lures once.
+      if (slot.kind === 'animal') { for (const c of (slot.sourceLures || [])) out.push(c); return; }
+      if (slot.kind === 'occupied') return;
+      out.push(slot); // wit/jnsq word card sits directly in the slot
     };
-    return [
-      slotCard(t.intro),
-      slotCard(t.subject),
-      slotCard(t.target),
-      ...((t.modifiers || []).filter(Boolean)),
-      t.tactic || null,
-    ].filter(Boolean);
+    push(t.intro); push(t.subject); push(t.target);
+    for (const m of (t.modifiers || []).filter(Boolean)) out.push(m);
+    if (t.tactic) out.push(t.tactic);
+    return out;
   }
 
   // v3.4.11 — pile telemetry. Snapshot card-id contents of every pile
@@ -8494,6 +8503,7 @@ export default function App() {
       const whisp = hasHandlerPower('whisperer');
       let count = 0;
       let whisperBank = 0;
+      const burstLures = []; // v3 single-use lures from the sacrificed animals
       for (const slotName of ['intro', 'subject', 'target']) {
         const slot = tray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
@@ -8505,9 +8515,11 @@ export default function App() {
           pushLog(`${animal.icon} ${animal.name} gives everything: ${atk} ${animal.attackPool === 'composure' ? 'composure' : 'HP'}.`);
         }
         applyAnimalExitEffects(animal);
+        burstLures.push(...mintSourceLures(slot));
         if (whisp) whisperBank++;
         count++;
       }
+      if (burstLures.length > 0) setHand(h => [...h, ...burstLures]);
       if (count > 0) {
         setTray(p => {
           const n = { ...p };
@@ -9435,6 +9447,26 @@ export default function App() {
     if (hasHandlerPower('whisperer')) setWhisperDrawsPending(d => d + n);
   };
 
+  // v3 single-use lures: mint fresh copies of an animal-slot's source lure(s)
+  // so they return to the player. Used at every departure site — a lure that
+  // doesn't merge back is a "can't summon next combat" unwinnable-state bug.
+  const mintSourceLures = (slot) => (slot?.sourceLures || []).map(c => ({ ...c, uid: uid() }));
+  // Player-turn departures (sacrifice) return the lure straight to hand.
+  const returnSourceLuresToHand = (slot) => {
+    const cards = mintSourceLures(slot);
+    if (cards.length > 0) {
+      setHand(h => [...h, ...cards]);
+      pushLog(`🪱 ${cards.length === 1 ? 'Lure returns' : `${cards.length} lures return`} to hand.`);
+    }
+  };
+  // Enemy-turn departures (maul / betray, inside applyEnemyIntent) queue into a
+  // ref the end-of-turn refill folds into the new hand — a direct setHand here
+  // would be overwritten by the refill's setHand(wHand).
+  const queueSourceLureReturn = (slot) => {
+    const cards = mintSourceLures(slot);
+    if (cards.length > 0) pendingLureReturnsRef.current.push(...cards);
+  };
+
   // Deal composure to EVERY enemy on the field (main + companion). Used by
   // the AoE powers (Palpable Sadness / Cost of Littering, Alan 2026-06-08).
   const dealComposureToAll = (dmg, label) => {
@@ -9511,6 +9543,7 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
     for (const v of victims) {
       noteAnimalDeparted();
+      queueSourceLureReturn(v.slot); // v3 single-use lure → back to hand at refill
       const animal = getAnimal(v.slot.animalId);
       logEvent('combat.maul_tear', { animalId: v.slot.animalId, slotName: v.s, redirect, enemyId: enemy?.id });
       pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || v.slot.animalId} is mauled off the board${redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all"}.`);
@@ -9555,6 +9588,7 @@ export default function App() {
     drawCards(1);
     noteAnimalDeparted();
     setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
+    returnSourceLuresToHand(slot); // v3 single-use lure → back to hand
     setSacrificePromptActive(false);
     noteAnimalSacrificed(1);
     pushLog(`🍽 Last Supper — ${animal?.name || slot.animalId} departs. +${turnsLeft} Energy, draw 1.`);
@@ -9759,6 +9793,7 @@ export default function App() {
     else updates[slotName] = null;
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
     noteAnimalDeparted();
+    returnSourceLuresToHand(slot); // v3 single-use lure → back to hand
     if (blockGain > 0) setBlock(b => b + blockGain);
     noteAnimalSacrificed(1);
     pushLog(`🛡 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is sacrificed — +${blockGain} Block (no exit bonus).`);
@@ -10197,6 +10232,7 @@ export default function App() {
     const a = getAnimal(stolen.animalId);
     const updates = Array.isArray(stolen.spans) ? Object.fromEntries(stolen.spans.map(s => [s, null])) : { [best]: null };
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
+    queueSourceLureReturn(stolen); // v3: stolen animal's lure returns (re-summon a replacement)
     const atk = Math.max(2, bestAtk);
     const def = {
       id: `turncoat-${stolen.animalId}`, name: `Turncoat ${a?.name || stolen.animalId}`,
@@ -10475,6 +10511,13 @@ export default function App() {
     // recycle cards into the new discard without losing them to the
     // subsequent setDiscard(wDiscard) overwrite).
     const recycleToDiscard = [];
+    // v3 single-use lures (Alan, 2026-06-08): a lure leaves the deck when it
+    // summons its animal and comes BACK to hand only when that animal departs.
+    // Tick-scoped buffer of lure cards to return to hand at the refill block
+    // (mirrors recycleToDiscard's deferral to dodge the setHand/setDiscard
+    // closure-batching race). Imperative departures (sacrifice/maul/betray)
+    // setHand directly. A combat-end sweep catches any animal still on board.
+    const lureReturns = [];
     // The Whisperer power — count animals that leave during this end-of-turn
     // tick. Folded (with whisperDrawsPending from instant-play exits this
     // turn) into the new hand at the refill block. endTurn-scoped so the
@@ -10610,6 +10653,7 @@ export default function App() {
           adjacentSpawnProgress: 0,
           summonSet: slot.summonSet || null,
           eatenThisTurn: true, // raptor took the action this turn — wait until next.
+          sourceLures: slot.sourceLures || [], // v3: lineage keeps the lure
         };
       };
       for (const slotName of SLOT_ORDER) {
@@ -10654,6 +10698,9 @@ export default function App() {
         const combineId = COMBINE_BY_SPECIES[matchedSpecies];
         const combineAnim = getAnimal(combineId);
         pushLog(`✨ Three ${getAnimal(matchedSpecies)?.name || matchedSpecies}s combine into ${combineAnim?.icon || ''} ${combineAnim?.name || combineId} — it spans two slots.`);
+        // v3 single-use lures: the combined animal inherits ALL three source
+        // lures, so all three return to hand when the combine departs.
+        const combinedLures = SLOT_ORDER.flatMap(s => workingTray[s]?.sourceLures || []);
         workingTray.intro = {
           kind: 'animal',
           animalId: combineId,
@@ -10663,6 +10710,7 @@ export default function App() {
           summonSet: matchedSpecies === 'field-mouse' ? 'tender-greens' : null,
           spans: ['intro', 'subject'],
           justCombined: true, // formation turn: attack but don't burn a duration tick
+          sourceLures: combinedLures,
         };
         workingTray.subject = { kind: 'occupied', occupiedBy: 'intro' };
         workingTray.target = null;
@@ -10739,6 +10787,7 @@ export default function App() {
           const neighbor = workingTray[ns];
           if (neighbor && neighbor.kind === 'animal' && prey.includes(neighbor.animalId)) {
             const preyName = getAnimal(neighbor.animalId)?.name || neighbor.animalId;
+            lureReturns.push(...mintSourceLures(neighbor)); // v3: eaten prey's lure returns
             workingTray[ns] = {
               ...raptorSlot,
               durationRemaining: 2, // attacks this turn + one more, then exits
@@ -11074,6 +11123,7 @@ export default function App() {
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
+              sourceLures: slot.sourceLures || [], // v3: lineage keeps the lure
             };
           } else if (chainReady && !chainTargetCapped) {
             const newAnimalId = chainTargetId;
@@ -11086,6 +11136,7 @@ export default function App() {
               predatorProgress: 0,
               adjacentSpawnProgress: 0,
               summonSet: slot.summonSet || null,
+              sourceLures: slot.sourceLures || [], // v3: lineage keeps the lure
             };
           } else if (animal.adjacentSpawn && !slot.adjacentSpawned
                      && nextAdjSpawn >= animal.adjacentSpawn.turnsToTrigger
@@ -11137,6 +11188,7 @@ export default function App() {
             if (nextDuration <= 0) {
               if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
               hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
+              lureReturns.push(...mintSourceLures(slot)); // v3 single-use lure back to hand
               if (whispererInstalled) whisperFromTick++;
               pushLog(isUnfed(slot, animal)
                 ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
@@ -11165,6 +11217,7 @@ export default function App() {
           } else if (nextDuration <= 0) {
             if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
             hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
+            lureReturns.push(...mintSourceLures(slot)); // v3 single-use lure back to hand
             if (whispererInstalled) whisperFromTick++;
             pushLog(isUnfed(slot, animal)
               ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
@@ -11182,6 +11235,7 @@ export default function App() {
             // the last turn AND the exit bonus.")
             hTick.shortStays++;
             hTick.exits.push({ animalId: slot.animalId, fed: false });
+            lureReturns.push(...mintSourceLures(slot)); // v3 single-use lure back to hand
             if (whispererInstalled) whisperFromTick++;
             pushLog(`${animal.icon} ${animal.name} slips away unfed — no exit bonus.`);
             if (slot.spans && slot.spans.length > 0) {
@@ -11272,8 +11326,10 @@ export default function App() {
             hTick.arrivals.push(resolvedAnimalId);
             noteAnimalSummoned(1); // Horde counter + Cost of Littering
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
-            // Lure card cycles back to discard so it can be redrawn.
-            if (slot.card) luresToRecycle.push({ ...slot.card, uid: uid() });
+            // v3 single-use lure: the lure card is NOT recycled to discard — it
+            // rides on the summoned animal (`sourceLure`) and returns to hand
+            // only when that animal departs (handled at every removal site +
+            // the combat-end sweep). Carried through chains/combines below.
             // Fountain of Youth tactic: +1 duration to fresh summons.
             const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
             // Trough: a charge auto-feeds this fed-type arrival.
@@ -11313,6 +11369,8 @@ export default function App() {
               summonSet: slot.summonSet || null,
               feedReceived: troughFed || undefined,
               attackBonus: arrivalBonus || undefined,
+              // v3 single-use lure provenance (array — combines merge several).
+              sourceLures: slot.card ? [slot.card] : [],
             };
           } else {
             nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };
@@ -11440,6 +11498,12 @@ export default function App() {
         // overwrite lives past this return.
         if (recycleToDiscard.length > 0) {
           setDiscard(d => [...d, ...recycleToDiscard]);
+        }
+        // v3 single-use lures: lures from animals that departed on this killing
+        // tick go to discard too (combat's over — they fold into next combat's
+        // deck rebuild). Animals STILL on the board are swept at combat end.
+        if (lureReturns.length > 0) {
+          setDiscard(d => [...d, ...lureReturns]);
         }
         return;
       }
@@ -11781,6 +11845,18 @@ export default function App() {
       }
       pushLog(`🐾 The Whisperer — +${whisperTotal} card${whisperTotal === 1 ? '' : 's'} from departed animals.`);
       setWhisperDrawsPending(0);
+    }
+
+    // v3 single-use lures — animals that departed THIS endTurn return their lure
+    // card to hand. Tick departures (natural/short-stay/eaten) are in the local
+    // lureReturns buffer; enemy-turn departures (maul/betray, which ran in
+    // applyEnemyIntent above) are in pendingLureReturnsRef. Both fold into the
+    // freshly-drawn hand here, AFTER which the plain setHand(wHand) commits.
+    const allLureReturns = [...lureReturns, ...pendingLureReturnsRef.current];
+    pendingLureReturnsRef.current = [];
+    if (allLureReturns.length > 0) {
+      wHand.push(...allLureReturns);
+      pushLog(`🪱 ${allLureReturns.length === 1 ? 'A lure returns' : `${allLureReturns.length} lures return`} to hand — the animal departed.`);
     }
 
     // v2.38: SAYING SOMETHING WRONG — decrement pending Misstep timers and
