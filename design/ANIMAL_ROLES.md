@@ -12,25 +12,26 @@ but almost every animal's verb is "deal N composure/turn." The board is wide on
 
 ## 1. Current roster, by de-facto role
 
+Updated 2026-06-09 after Alan's roster pass (commit e9daa81).
+
 | Role | Animals | The verb |
 |---|---|---|
-| **Heavy hitter** (raw dmg) | Goose 6/3t, Bear 9/3t, Young Buck 5/2t (burst) | just hits, big |
-| **Amplifier** | Sheepdog (+50% adjacent, 0 atk) | makes neighbours hit harder |
-| **Mimic** | Lyrebird (copies left neighbour) | scales off your best |
+| **Heavy hitter** (raw dmg) | Goose 6/2t, Bear 9/3t, Young Buck 5/2t (burst) | just hits, big |
+| **Amplifier** | Sheepdog (+30% adjacent → +50% trained, 0 atk) | makes neighbours hit harder |
+| **Mimic** | Lyrebird (copies HIGHEST attacker ×0.75 → ×1.0 trained) | scales off your best |
 | **Wall / keeper** | Drystone Ox (keeper, +4 Block/turn) | persistent block engine |
-| **Reflect** | Porcupine (absorb 5 + jab back, 0 atk) | converts incoming to outgoing |
-| **Poise battery** | The Long Hare (+5 Poise/turn, combine) | composure-side wall |
-| **Block battery** | McCloven (+5 Block/turn, combine) | HP-side wall |
-| **Armor-strip** | Raven (strip 6 Block on exit), Hawk (Weak on exit) | opens the enemy up |
+| **Reflect / tank** | Porcupine (absorb 5 + jab back, both pools, scales w/ Thicken) | converts incoming to outgoing |
+| **Armor-strip** | Raven (3 atk, strips 6 Block EVERY turn), Hawk (Weak on exit) | opens the enemy up |
 | **Value / cycle** | Field Mouse (Block+heal on exit), Rabbit (draw) | tempo / sustain |
 | **Swarm / breeder** | Rabbit → Rabbit, Bonzai Bunaroo | goes wide |
 | **Tempo control** | Sloth (enemy half-speed), Pigeon (scramble intent), Kangaroo (pouch dodge) | rewrites the enemy turn |
 | **Predator chain** | Salmon → Bear (Fish Food line) | invest now, spike later |
-| **Fodder** | Stray (2 atk, 1 turn) | sacrifice fuel |
-| **Exit utility** | Rabid Scrubjay (redirect next enemy attack), Mouse House (heal 5) | parting gift |
+| **Exit utility** | Rabid Scrubjay (redirect next enemy attack) | parting gift |
 
-Tier-2 / combine forms (not lure-summoned): Mecha-Mouse, Bonzai Bunaroo, James
-Deer (Inn upgrades); Mouse House, Long Hare, McCloven (three-of-a-kind combines).
+Tier-2 upgrades (Inn): Mecha-Mouse, Bonzai Bunaroo, James Deer.
+**Removed 2026-06-09:** Mouse House / Long Hare / McCloven (combine results —
+three-of-a-kind combines are now OFF, no targets) and the Stray fodder body.
+The Poise-battery and Block-battery (combine) roles are now VACANT.
 
 ---
 
