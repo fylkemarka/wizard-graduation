@@ -4199,8 +4199,8 @@ export default function App() {
   // dispatcher. Block a replay of the SAME card uid within a short window: a
   // card leaves the hand the instant it's played, so its uid never legitimately
   // re-plays — only a double-fire does. Distinct copies have distinct uids and
-  // are unaffected; deliberate spam of a 0-cost card is fine (no human re-clicks
-  // the same uid in <500ms, and it's gone after the first play anyway).
+  // are unaffected; deliberate spam of a 0-cost card is fine (each copy has its
+  // own uid, and a played card is gone after the first play anyway).
   const lastCardPlayRef = useRef({ uid: null, t: 0 });
   // Re-entrancy guard for onEnemyDefeated. The kill is detected from ~12 sites
   // (every composure/HP-to-0 path), each scheduling setTimeout(onEnemyDefeated,
@@ -6179,11 +6179,14 @@ export default function App() {
     if (stage !== 'combat') return;
     const card = hand[handIdx];
     if (!card) return;
-    // Swallow a double-fired click: the same card uid re-entering within 500ms
+    // Swallow a double-fired click: the same card uid re-entering within 200ms
     // is a duplicate dispatch, not a real second play (the card is already
-    // leaving the hand). See lastCardPlayRef note.
+    // leaving the hand). A double-fire lands within a few dozen ms; a legitimate
+    // replay of the same uid (prompt-dismiss refund, staging-replacement) is
+    // always seconds away, so 200ms is comfortably between the two. See
+    // lastCardPlayRef note.
     const nowT = Date.now();
-    if (lastCardPlayRef.current.uid === card.uid && nowT - lastCardPlayRef.current.t < 500) return;
+    if (lastCardPlayRef.current.uid === card.uid && nowT - lastCardPlayRef.current.t < 200) return;
     lastCardPlayRef.current = { uid: card.uid, t: nowT };
     const cost = effectiveCardCost(card);
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
