@@ -2267,7 +2267,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         {/* v3: feeding is now a per-species BUTTON on the hungry animal's
             pill (🍴 feed [species]), not a drag-to-slot. The old feed drop
             slots are removed. */}
-        })()}
         <div className="flex-1" />
         {ready && predicted && (
           <div className="text-right flex flex-col items-end gap-1">
