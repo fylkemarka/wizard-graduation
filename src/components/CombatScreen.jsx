@@ -1022,6 +1022,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
         isHandler={isHandler}
         playerHp={hp} playerMaxHp={maxHp}
+        block={block}
         tempHp={tempHp}
         isJnsq={isJnsq} rollOptIn={rollOptIn} setRollOptIn={setRollOptIn}
         lastRoll={lastRoll} combatRolls={combatRolls}
@@ -1414,6 +1415,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        companion = null, castTarget = 'main', enemyBlock = 0,
                        isHandler = false,
                        playerHp = 70, playerMaxHp = 70,
+                       block = 0,
                        tempHp = 0,
                        isJnsq = false, rollOptIn = false, setRollOptIn = () => {},
                        lastRoll = null, combatRolls = [],
