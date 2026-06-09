@@ -4192,6 +4192,16 @@ export default function App() {
   // the old enemyDiscardCount guard miss and re-roll a second steal. Reset
   // in enterFight.
   const loomStoleThisCombatRef = useRef(false);
+  // Double-fire guard for playCard (Alan, 2026-06-09). A single physical click
+  // was registering as TWO playCard calls in the wild — a 4-dmg Sharp Whistle
+  // hit for 8, a +1 Drillmaster granted +2. A clean programmatic click deals 4
+  // (see sharp-whistle-single.spec), so the double is input-side, not in the
+  // dispatcher. Block a replay of the SAME card uid within a short window: a
+  // card leaves the hand the instant it's played, so its uid never legitimately
+  // re-plays — only a double-fire does. Distinct copies have distinct uids and
+  // are unaffected; deliberate spam of a 0-cost card is fine (no human re-clicks
+  // the same uid in <500ms, and it's gone after the first play anyway).
+  const lastCardPlayRef = useRef({ uid: null, t: 0 });
   // Re-entrancy guard for onEnemyDefeated. The kill is detected from ~12 sites
   // (every composure/HP-to-0 path), each scheduling setTimeout(onEnemyDefeated,
   // 200). A single killing turn — especially a handler end-of-turn where
@@ -6169,6 +6179,12 @@ export default function App() {
     if (stage !== 'combat') return;
     const card = hand[handIdx];
     if (!card) return;
+    // Swallow a double-fired click: the same card uid re-entering within 500ms
+    // is a duplicate dispatch, not a real second play (the card is already
+    // leaving the hand). See lastCardPlayRef note.
+    const nowT = Date.now();
+    if (lastCardPlayRef.current.uid === card.uid && nowT - lastCardPlayRef.current.t < 500) return;
+    lastCardPlayRef.current = { uid: card.uid, t: nowT };
     const cost = effectiveCardCost(card);
     if (cost > energy) { pushLog(`Not enough energy for ${card.name}.`); return; }
     setEnergy(e => e - cost);

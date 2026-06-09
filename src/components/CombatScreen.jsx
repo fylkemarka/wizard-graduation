@@ -393,7 +393,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         {/* Numeric readouts — own full-width row, can't collide with the name. */}
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mb-1 font-mono">
           {showComposure && (
-            <span className="text-base text-iris-300" title="Composure — drain to 0 to make them back down.">
+            <span className="text-base text-iris-300" data-testid="enemy-composure" data-value={enemyComposure} title="Composure — drain to 0 to make them back down.">
               <Icon name="composure" className="mr-0.5" />{enemyComposure}<span className="text-[11px] text-parchment-300">/{composureMax}</span>
             </span>
           )}
