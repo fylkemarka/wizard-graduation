@@ -9,7 +9,6 @@ import { gotoLab, addCard, fightEnemy, handCardById, playCardById, endTurn } fro
 const WELL_DRILLED = 'c-well-drilled';
 const BIRDSEED = 'cv2-l-birdseed';
 const ON_THREE = 'c-pack-tactics';
-const HOUSE_RULES = 'c-house-rules';
 const NARROW = 'c-narrow';
 const TENDER_GREENS = 'cv2-l-tender-greens';
 
@@ -130,26 +129,7 @@ test('On Three! surfaces the extra projected damage in the menagerie math bar', 
   await expect(page.getByTestId('hand')).toBeVisible();
 });
 
-test('House Rules arms a pick-an-animal prompt; keeping an animal does not crash', async ({ page }) => {
-  await gotoLab(page, 'handler', { seed: 11 });
-  for (let i = 0; i < 4; i++) await addCard(page, HOUSE_RULES);
-  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
-  await fightEnemy(page, 'Loom Familiar');
-
-  expect(await ensureAnimalStaged(page)).toBeTruthy();
-  expect(await ensureInHand(page, HOUSE_RULES)).toBeTruthy();
-
-  await playCardById(page, HOUSE_RULES);
-
-  // The pick banner arms (no longer a passive board-wide buff).
-  await expect(page.getByText(/House Rules:/)).toBeVisible();
-
-  // Click an armed animal pill to stamp the +2 duration.
-  await page.getByText(/click to keep/).first().click();
-
-  // Prompt dismisses and combat is still alive.
-  await expect(page.getByTestId('hand')).toBeVisible();
-});
+// House Rules removed (Alan, 2026-06-09) — test deleted.
 
 test('Acquired Taste safely no-ops when no ≥3-species lure is narrowable', async ({ page }) => {
   // Slice 5 (2026-06-08): the foundational pools narrowed 3→2, so Tender Greens

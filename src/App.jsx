@@ -232,10 +232,6 @@ const CARDS = [
   // ====================================================================
   // ---- THE TRAINER — powers that shape every future summon. The lane had
   // no persistent powers of its own; this is the install-and-snowball axis.
-  { id: 'c-house-rules', name: 'House Rules', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
-    installPower: { id: 'houseRules' },
-    desc: 'Pick a summoned animal. It — and every other copy of it on the board — stays 2 more turns.',
-    flavor: 'You explain the arrangement. They settle in, slightly longer than invited.' },
   { id: 'c-well-drilled', name: 'Well-Drilled', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'wellDrilled' },
     desc: 'Pick a summoned animal. It — and every other copy of it on the board — gains +2 attack for the rest of combat.',
@@ -355,7 +351,7 @@ const CARDS = [
   // birds; Stampede is a small-land Pack Tactics.
   { id: 'c-murmuration', name: 'Murmuration', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { compDmgPerBird: 3 },
-    desc: 'Deal 3 composure for each bird you have in play.',
+    desc: 'Deal 3 composure for each bird you have SACRIFICED this combat.',
     flavor: 'They move as one. The enemy is, briefly, outnumbered by a single idea.' },
   { id: 'c-stampede', name: 'Stampede', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { smallLandAttackAgain: true, exhaust: true },
@@ -4034,10 +4030,6 @@ export default function App() {
   // turnAgainst's grace-turn pattern. Reset per combat.
   const [betrayPending, setBetrayPending] = useState(false);
   const betrayPendingRef = useRef(false);
-  // House Rules power — armed on install. Next click on an animal slot gives
-  // that animal (and every other copy of the same species on the board) +2
-  // duration. Mirrors Well-Drilled's pick-an-animal shape (Alan, 2026-06-02).
-  const [houseRulesPromptActive, setHouseRulesPromptActive] = useState(false);
   // They DO Move in Herds — armed on play. Next click on an animal slot
   // converts every OTHER single-slot animal into that species (turns
   // remaining kept). Multi-slot (combine) animals are untouched.
@@ -4058,6 +4050,9 @@ export default function App() {
   // (duration ran out) do NOT count. Reset per combat; ref for same-pass reads.
   const [animalsSacrificedThisCombat, setAnimalsSacrificedThisCombat] = useState(0);
   const animalsSacrificedRef = useRef(0);
+  // Birds (feedKey 'bird') sacrificed this combat — Murmuration scales off this
+  // (Alan, 2026-06-09: "3 damage per bird you've sacrificed"). Reset per combat.
+  const birdsSacrificedRef = useRef(0);
   // The Whisperer power — animal departures bank a draw delivered into the
   // next turn's hand. Instant-play exits (Last Supper / Make It Count)
   // bump this during the turn; the end-of-turn tick adds its own departures
@@ -5015,6 +5010,13 @@ export default function App() {
     setSkills({ whittling: 0, weaving: 0, smithing: 0, felting: 0 });
     setMaterialChoices(null);
     setActiveSkillEvent(null);
+    // v3 run-scoped state that DOESN'T reset per-combat (training persists
+    // across a run by design) must reset here, or it bleeds into the next
+    // game when the player starts over without a hard refresh: trained
+    // animals would still summon at T2, and a stranded single-use lure from
+    // the prior run would inject itself into the new deck (Alan, 2026-06-09).
+    setUpgradedAnimals(() => new Set());
+    pendingLureReturnsRef.current = [];
     setClearedNodes([]);
     setLog([]);
     setCurrentActIdx(0);
@@ -5924,7 +5926,7 @@ export default function App() {
     setBetrayPending(false); betrayPendingRef.current = false;
     setTroughCharges(0); troughChargesRef.current = 0;
     setAnimalsSummonedThisCombat(0); animalsSummonedRef.current = 0;
-    setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0;
+    setAnimalsSacrificedThisCombat(0); animalsSacrificedRef.current = 0; birdsSacrificedRef.current = 0;
     setLuresPlayedThisTurn([]);
     setLureNarrowing({});
     setNarrowChooserOpen(false);
@@ -6177,7 +6179,6 @@ export default function App() {
     // discard/exiled/powers under this same uid, so cancel pulls it from there.
     const armsCancelablePrompt =
       card.installPower?.id === 'wellDrilled' ||
-      card.installPower?.id === 'houseRules' ||
       !!(card.effects && (card.effects.whistleSwap
         || card.effects.treatExtend || card.effects.eatLureNow
         || card.effects.sacrificeForValue || card.effects.gorge
@@ -6256,16 +6257,6 @@ export default function App() {
         setHouseRulesPromptActive(false);
         setWellDrilledPromptActive(true);
         pushLog(`🎯 Well-Drilled armed — pick an animal; every copy of it gains +2 attack.`);
-      }
-      if (card.installPower?.id === 'houseRules') {
-        setWhistlePromptActive(false); setWhistlePick1Slot(null);
-        setTreatPromptActive(false);
-        setEatItPromptActive(false);
-        setSacrificePromptActive(false);
-        setGorgePromptActive(false);
-        setWellDrilledPromptActive(false);
-        setHouseRulesPromptActive(true);
-        pushLog(`🏠 House Rules armed — pick an animal; every copy of it stays +2 turns.`);
       }
       // Hit Me Again install hook removed 2026-05-31 (power ripped).
       // v2.47: DRUNKEN CONFIDENCE — telemetry-only install count. The read
@@ -8385,7 +8376,6 @@ export default function App() {
       setSacrificePromptActive(which === 'sacrifice');
       setGorgePromptActive(which === 'gorge');
       setWellDrilledPromptActive(which === 'wellDrilled');
-      setHouseRulesPromptActive(which === 'houseRules');
       setHerdPromptActive(which === 'herd');
     };
     // Whistle — arm a 2-click swap. First click sets one slot; second click
@@ -8436,19 +8426,17 @@ export default function App() {
       armTargetingPrompt('herd');
       logBits.push(`🦖 They DO Move in Herds armed — pick the animal the others become.`);
     }
-    // Murmuration — deal composure for each bird currently in play. Birds are
-    // animals with feedKey 'bird' (rabid-scrubjay / goose / raven / owl).
+    // Murmuration — deal composure for each bird you've SACRIFICED this combat
+    // (Alan, 2026-06-09). Ties it into the sacrifice archetype: feed the loop
+    // birds, then cash them all at once. Birds = feedKey 'bird'.
     if (fx.compDmgPerBird) {
-      const birds = ['intro', 'subject', 'target'].filter(s => {
-        const slot = tray[s];
-        return slot?.kind === 'animal' && getAnimal(slot.animalId)?.feedKey === 'bird';
-      }).length;
+      const birds = birdsSacrificedRef.current;
       const dmg = fx.compDmgPerBird * birds;
       if (dmg > 0) {
         applyDamageToEnemyComposure(dmg);
-        logBits.push(`🐦 Murmuration: ${dmg} composure (${birds} bird${birds === 1 ? '' : 's'})`);
+        logBits.push(`🐦 Murmuration: ${dmg} composure (${birds} bird${birds === 1 ? '' : 's'} sacrificed)`);
       } else {
-        logBits.push(`🐦 Murmuration — no birds in play.`);
+        logBits.push(`🐦 Murmuration — no birds sacrificed yet this combat.`);
       }
     }
     // Summon Strength (Crack the Whip) — flat +N to every animal, rest of combat.
@@ -8552,6 +8540,7 @@ export default function App() {
           pushLog(`${animal.icon} ${animal.name} gives everything: ${atk} ${animal.attackPool === 'composure' ? 'composure' : 'HP'}.`);
         }
         applyAnimalExitEffects(animal);
+        if (animal.feedKey === 'bird') birdsSacrificedRef.current += 1; // Murmuration fuel
         burstLures.push(...mintSourceLures(slot));
         if (whisp) whisperBank++;
         count++;
@@ -9406,8 +9395,8 @@ export default function App() {
   }
 
   // Handler power read — installed powers live on the `powers` array; the
-  // Trainer/Glutton powers (wellDrilled, houseRules, whisperer, openDoor,
-  // fullPockets) are all read via their installPower id.
+  // Trainer/Glutton powers (wellDrilled, whisperer, openDoor) are all read
+  // via their installPower id.
   const hasHandlerPower = (id) => powers.some(p => p.installPower?.id === id);
 
   // Effective per-hit attack for an animal in a given slot. Folds in the
@@ -9835,43 +9824,9 @@ export default function App() {
     returnSourceLuresToHand(slot); // v3 single-use lure → back to hand
     applyAnimalExitEffects(animal); // v3 slice 3 — sacrifice cashes the exit bonus
     if (blockGain > 0) setBlock(b => b + blockGain);
+    if (animal?.feedKey === 'bird') birdsSacrificedRef.current += 1; // Murmuration fuel
     noteAnimalSacrificed(1);
     pushLog(`🛡 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is sacrificed — +${blockGain} Block (also fires its exit bonus).`);
-  }
-
-  // House Rules — designate an animal; it and every other copy of the same
-  // species currently on the board stay +2 turns. Single-click animal target,
-  // mirroring Well-Drilled. Stacks onto durationRemaining.
-  function houseRulesClickSlot(slotName) {
-    if (!houseRulesPromptActive) return;
-    const slot = tray?.[slotName];
-    if (!slot || slot.kind !== 'animal') return;
-    const species = slot.animalId;
-    const animal = getAnimal(species);
-    let buffed = 0;
-    setTray(p => {
-      const next = { ...p };
-      for (const sn of ['intro', 'subject', 'target']) {
-        const s = next[sn];
-        if (s?.kind === 'animal' && s.animalId === species) {
-          next[sn] = { ...s, durationRemaining: (s.durationRemaining || 0) + 2 };
-          buffed++;
-        }
-      }
-      return syncTrayLegacy(next);
-    });
-    setHouseRulesPromptActive(false);
-    setArmedRefund(null);
-    pushLog(buffed > 1
-      ? `🏠 House Rules — all ${buffed} ${animal?.name || species} stay +2 turns.`
-      : `🏠 House Rules — ${animal?.name || species} stays +2 turns.`);
-  }
-
-  function cancelHouseRulesPrompt() {
-    if (!houseRulesPromptActive) return;
-    setHouseRulesPromptActive(false);
-    const refunded = refundArmedCard();
-    pushLog(`🏠 House Rules dismissed without picking an animal.${refunded}`);
   }
 
   // Acquired Taste — scan every pile (and staged lures) for variable lures
@@ -10168,7 +10123,7 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, [slotName]: {
       kind: 'animal',
       animalId: resolvedAnimalId,
-      durationRemaining: (animal?.duration || 3) + youthBonus + (hasHandlerPower('houseRules') ? 1 : 0),
+      durationRemaining: (animal?.duration || 3) + youthBonus,
       predatorProgress: 0,
       adjacentSpawnProgress: 0,
       summonSet: slot.summonSet || null,
@@ -12731,7 +12686,10 @@ export default function App() {
       const porcupineThorns = SLOT_ORDER.reduce((sum, s) => {
         const v = boardForMaulRef.current?.[s];
         const a = v?.kind === 'animal' ? getAnimal(v.animalId) : null;
-        return sum + (a?.thorns > 0 ? a.thorns : 0);
+        // Thicken the Hide on a porcupine boosts its REFLECTION — its defensive
+        // identity is thorns, so blockBonus adds to the absorb/reflect cap
+        // (Alan, 2026-06-09).
+        return sum + (a?.thorns > 0 ? a.thorns + (v.blockBonus || 0) : 0);
       }, 0);
       for (let i = 0; i < hits; i++) {
         // v2.37: HOLD ON applies ONLY to the first swing of an attack/
@@ -13177,6 +13135,20 @@ export default function App() {
     // duplicates the entire deck. Reset in enterFight.
     if (enemyDefeatedHandledRef.current) return;
     enemyDefeatedHandledRef.current = true;
+    // v3 single-use lures — any lure queued by an animal that DEPARTED on the
+    // killing turn (eaten/mauled/missed-feed → pendingLureReturnsRef) never got
+    // flushed: that flush lives in endTurn's refill, which the kill pre-empts.
+    // Fold it into the discard pile NOW so the win/reward deck-merges below (and
+    // in pickReward, which reads the freshly-committed discard) pick it up.
+    // Without this the lure is stranded → lost from the run → missing from the
+    // next combat's deck and the Train screen (Alan, 2026-06-09). Boss path
+    // resets discard, so it also appends `strandedLures` explicitly.
+    const strandedLures = pendingLureReturnsRef.current;
+    pendingLureReturnsRef.current = [];
+    if (strandedLures.length > 0) {
+      setDiscard(d => [...d, ...strandedLures]);
+      pushLog(`🪱 ${strandedLures.length === 1 ? 'A lure returns' : `${strandedLures.length} lures return`} to your deck — the animal departed.`);
+    }
     // Duo encounters: the companion doesn't outlive its leader.
     if (companionRef.current) {
       pushLog(`💨 ${companionRef.current.def.name} unravels without its master and flees.`);
@@ -13270,7 +13242,10 @@ export default function App() {
       // 2026-05-31 follow-up: extractor now unwraps lure envelopes and
       // skips animal envelopes so handler combats don't leak blanks.
       const trayCards = extractTrayCardsForReturn(tray);
-      setDeck(d => [...d, ...hand, ...discard, ...exiled, ...trayCards]);
+      // strandedLures appended explicitly — the setDiscard above hasn't
+      // committed yet (the `discard` closure here is stale) and the reset
+      // below would clobber it regardless.
+      setDeck(d => [...d, ...hand, ...discard, ...strandedLures, ...exiled, ...trayCards]);
       setHand([]); setDiscard([]); setExiled([]);
       setTray(initialV2Tray());
       pushLog(`👑 ${enemy.name} falls.`);
@@ -14084,9 +14059,6 @@ export default function App() {
       animalsTurned={animalsTurned}
       betrayPending={betrayPending}
       onCancelWellDrilled={cancelWellDrilledPrompt}
-      houseRulesPromptActive={houseRulesPromptActive}
-      onHouseRulesClick={houseRulesClickSlot}
-      onCancelHouseRules={cancelHouseRulesPrompt}
       herdPromptActive={herdPromptActive}
       onHerdClick={herdClickSlot}
       onCancelHerd={cancelHerdPrompt}
@@ -17137,6 +17109,12 @@ function TrainAnimalScreen({ animals, upgradedAnimals, summonable, onPick }) {
   const eligible = Object.entries(animals)
     .filter(([id, def]) => def.upgrade && !upgradedAnimals.has(id) && !def.name?.includes('elite-only') && canField(id))
     .map(([id, def]) => ({ id, def }));
+  // Species you CAN field that are already trained — shown greyed with a ✓ so
+  // the absence is explained (Alan, 2026-06-09: "weird I can't level my buck" —
+  // it was already trained, just silently missing from the list).
+  const alreadyTrained = Object.entries(animals)
+    .filter(([id, def]) => def.upgrade && upgradedAnimals.has(id) && canField(id))
+    .map(([id, def]) => ({ id, def }));
   return (
     <div className="min-h-screen flex flex-col p-6 gap-4 max-w-3xl mx-auto">
       <div className="text-center">
@@ -17168,6 +17146,19 @@ function TrainAnimalScreen({ animals, upgradedAnimals, summonable, onPick }) {
                 </button>
               );
             })}
+          </div>
+        )}
+        {alreadyTrained.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-ink-500">
+            <div className="text-[11px] uppercase tracking-widest text-parchment-400 mb-1">Already trained</div>
+            <div className="flex flex-wrap gap-2">
+              {alreadyTrained.map(({ id, def }) => (
+                <span key={id} title={`${def.name} is already trained to T2 — each species can only be trained once.`}
+                      className="text-[12px] text-parchment-400 italic rounded border border-ink-500 px-2 py-1">
+                  ✓ {def.icon} {def.name}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>

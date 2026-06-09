@@ -273,7 +273,6 @@ const HANDLER_TACTIC_UTIL = [
   // ---- BOOSTER / BUFF cards (2026-06-01). Mirror src/App.jsx CARDS. Powers
   // install onto state.powers; the engine reads them via hasHandlerPower().
   // The new effect-key skills are routed in playHandlerCard / applyHandlerSkill.
-  { id: 'c-house-rules',   name: 'House Rules',     cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'houseRules' } },
   { id: 'c-well-drilled',  name: 'Well-Drilled',    cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'wellDrilled' } },
   { id: 'c-pedigree',      name: 'Pedigree',        cost: 1, type: 'handler-skill', rarity: 'common',   effects: { lockLureSpecies: true, exhaust: true } },
   { id: 'c-best-in-show',  name: 'Best in Show',    cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'bestInShow' } },
@@ -327,7 +326,7 @@ const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
   'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
   'c-pack-tactics', 'c-just-eat-it', 'c-sharp-whistle',
-  'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door',
+  'c-well-drilled', 'c-whisperer', 'c-open-door',
   'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   // c-narrow (Acquired Taste) benched 2026-06-08 — slice-5 pools narrowed to
   // 2 species, nothing left to narrow. Card kept in HANDLER_CARDS, off the draft.
@@ -1305,10 +1304,9 @@ function applyHandlerSkill(state, combat, card) {
     }
     combat.totalDamageDealt += fx.compDmg;
   }
-  // Murmuration — 3 composure per bird in play.
+  // Murmuration — 3 composure per bird SACRIFICED this combat (Alan 2026-06-09).
   if (fx.compDmgPerBird) {
-    const birds = animals().filter(x => ANIMALS[x.slot.animalId]?.feedKey === 'bird').length;
-    const dmg = fx.compDmgPerBird * birds;
+    const dmg = fx.compDmgPerBird * (combat.birdsSacrificed || 0);
     if (dmg > 0) { handlerDealComposure(combat, dmg); combat.totalDamageDealt += dmg; }
   }
   // Stampede — arm an extra attack on every small-land animal; resolves on
@@ -1346,6 +1344,7 @@ function applyHandlerSkill(state, combat, card) {
       const a = ANIMALS[slot.animalId];
       if (a?.attack > 0) handlerAnimalAttack(state, combat, slot, a, 2);
       applyAnimalOnExitSim(state, combat, a); // v3 slice 3 — Make It Count cashes each exit bonus
+      if (a?.feedKey === 'bird') combat.birdsSacrificed = (combat.birdsSacrificed || 0) + 1; // Murmuration fuel
       clearHandlerSlot(state, combat.htray, slot, s);
       departed++;
     }
@@ -1509,17 +1508,6 @@ function playHandlerCard(state, combat, idx) {
       let pick = null, pickN = 0;
       for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
       if (pick) combat.drilledSpecies[pick] = (combat.drilledSpecies[pick] || 0) + 1;
-    }
-    // House Rules — pick the most-common species on the board and stamp +2
-    // duration onto it and every copy. Mirrors App.jsx pick-an-animal shape
-    // (Alan, 2026-06-02). No targeting prompt in the sim.
-    if (card.installPower?.id === 'houseRules') {
-      const hrSlots = ['intro', 'subject', 'target'];
-      const counts = {};
-      for (const s of hrSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal') counts[sl.animalId] = (counts[sl.animalId] || 0) + 1; }
-      let pick = null, pickN = 0;
-      for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
-      if (pick) for (const s of hrSlots) { const sl = combat.htray[s]; if (sl?.kind === 'animal' && sl.animalId === pick) sl.durationRemaining = (sl.durationRemaining || 0) + 2; }
     }
     return;
   }
@@ -1829,9 +1817,8 @@ function aiTurnHandler(state, combat) {
     // Snack (token, costs 1) — extend the lowest-duration animal when one exists.
     const snackIdx = state.hand.findIndex(c => c.token && c.effects?.treatExtend && c.cost <= state.energy);
     if (snackIdx >= 0 && liveAnimals().length > 0) { playHandlerCard(state, combat, snackIdx); continue; }
-    // Murmuration — worth it with 2+ birds in play.
-    const birds = liveAnimals().filter(sl => ANIMALS[sl.animalId]?.feedKey === 'bird').length;
-    if (birds >= 2) {
+    // Murmuration — worth it once you've sacrificed 2+ birds this combat.
+    if ((combat.birdsSacrificed || 0) >= 2) {
       const mi = state.hand.findIndex(c => c.effects?.compDmgPerBird && c.cost <= state.energy);
       if (mi >= 0) { playHandlerCard(state, combat, mi); continue; }
     }
@@ -2126,7 +2113,8 @@ function handlerApplyIntent(state, combat, intent) {
     if (!combat.maulEligibleSlots?.has(s)) return sum;
     const sl = combat.htray[s];
     const a = sl?.kind === 'animal' ? ANIMALS[sl.animalId] : null;
-    return sum + (a?.thorns > 0 ? a.thorns : 0);
+    // Thicken the Hide boosts a porcupine's reflection (blockBonus → thorns).
+    return sum + (a?.thorns > 0 ? a.thorns + (sl.blockBonus || 0) : 0);
   }, 0);
   if (intent.kind === 'attack' || intent.kind === 'attack-multi') {
     const hits = intent.kind === 'attack-multi' ? (intent.count || 1) : 1;

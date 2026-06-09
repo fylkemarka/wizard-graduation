@@ -95,9 +95,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        silencedTurns = 0,
                        animalsTurned = false,
                        betrayPending = false,
-                       houseRulesPromptActive = false,
-                       onHouseRulesClick = () => {},
-                       onCancelHouseRules = () => {},
                        herdPromptActive = false,
                        onHerdClick = () => {},
                        onCancelHerd = () => {},
@@ -993,7 +990,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         gorgePromptActive={gorgePromptActive} onGorgeClick={onGorgeClick}
         wellDrilledPromptActive={wellDrilledPromptActive} onWellDrilledClick={onWellDrilledClick}
         drilledSpecies={drilledSpecies} summonStrength={summonStrength}
-        houseRulesPromptActive={houseRulesPromptActive} onHouseRulesClick={onHouseRulesClick}
         herdPromptActive={herdPromptActive} onHerdClick={onHerdClick}
         onSacrificeAnimal={onSacrificeAnimal}
         onActivateAnimal={onActivateAnimal} abilitiesUsedThisTurn={abilitiesUsedThisTurn}
@@ -1095,17 +1091,6 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <span className="font-bold">🎯 Well-Drilled:</span> click a summoned animal — it and every other copy of it on the board gains +2 attack for the rest of combat.
           </div>
           <button onClick={onCancelWellDrilled}
-            className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
-            Dismiss
-          </button>
-        </div>
-      )}
-      {houseRulesPromptActive && (
-        <div className="mb-2 p-3 rounded border-2 border-rust-400 bg-rust-900/40 flex items-center justify-between gap-3">
-          <div className="text-sm text-rust-100">
-            <span className="font-bold">🏠 House Rules:</span> click a summoned animal — it and every other copy of it on the board stays 2 more turns.
-          </div>
-          <button onClick={onCancelHouseRules}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">
             Dismiss
           </button>
@@ -1396,7 +1381,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        gorgePromptActive = false, onGorgeClick = () => {},
                        wellDrilledPromptActive = false, onWellDrilledClick = () => {},
                        drilledSpecies = {}, summonStrength = 0,
-                       houseRulesPromptActive = false, onHouseRulesClick = () => {},
                        herdPromptActive = false, onHerdClick = () => {},
                        onSacrificeAnimal = () => {},
                        onActivateAnimal = () => {}, abilitiesUsedThisTurn = [],
@@ -1847,13 +1831,12 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       const sacrificeArmed = sacrificePromptActive;
       const gorgeArmed = gorgePromptActive;
       const wellDrilledArmed = wellDrilledPromptActive;
-      const houseRulesArmed = houseRulesPromptActive;
       const herdArmed = herdPromptActive;
       const isWhistlePick1 = whistleArmed && whistlePick1Slot === slotName;
       // Player-activated ability (Mime / Pigeon / Kangaroo): when NO targeting
       // prompt is armed, an animal carrying an activatedAbility is its own
       // click target. Per-turn verbs grey out once spent this turn.
-      const anyPromptArmed = treatArmed || strengthenArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || houseRulesArmed || herdArmed;
+      const anyPromptArmed = treatArmed || strengthenArmed || whistleArmed || sacrificeArmed || gorgeArmed || wellDrilledArmed || herdArmed;
       const ability = animal?.activatedAbility;
       const abilitySpent = ability?.cadence === 'per-turn' && abilitiesUsedThisTurn.includes(slotName);
       const activatable = !anyPromptArmed && !!ability && !abilitySpent;
@@ -1863,7 +1846,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                           : sacrificeArmed ? () => onSacrificeClick(slotName)
                           : gorgeArmed ? () => onGorgeClick(slotName)
                           : wellDrilledArmed ? () => onWellDrilledClick(slotName)
-                          : houseRulesArmed ? () => onHouseRulesClick(slotName)
                           : herdArmed ? () => onHerdClick(slotName)
                           : activatable ? () => onActivateAnimal(slotName)
                           : undefined;
@@ -1880,8 +1862,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         ? `🍖 Click to gorge ${animal?.name || 'animal'} (+3 turns).`
         : wellDrilledArmed
         ? `🎯 Click to drill every ${animal?.name || 'animal'} (+2 attack for the rest of combat).`
-        : houseRulesArmed
-        ? `🏠 Click to keep every ${animal?.name || 'animal'} +2 turns.`
         : herdArmed
         ? `🦖 Click — every other single-slot animal becomes ${animal?.name || 'this'}.`
         : activatable
@@ -1896,7 +1876,6 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        : sacrificeArmed ? ' · 🔪 click to cash in'
                        : gorgeArmed ? ' · 🍖 click to gorge'
                        : wellDrilledArmed ? ' · 🎯 click to drill'
-                       : houseRulesArmed ? ' · 🏠 click to keep'
                        : herdArmed ? ' · 🦖 click: all become this'
                        : activatable ? ' · ⚡ click to activate'
                        : '';
