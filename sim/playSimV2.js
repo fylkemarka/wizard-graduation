@@ -271,6 +271,12 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-best-in-show',  name: 'Best in Show',    cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'bestInShow' } },
   { id: 'c-rally-the-pack',name: 'Rally the Pack',  cost: 2, type: 'handler-skill', rarity: 'common',   effects: { summonStrength: 2, exhaust: true } },
   { id: 'c-drillmaster',   name: 'Drillmaster',     cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'drillmaster' } },
+  // Handler v3 slice 2 training-engine powers — each turn ONE animal gains a
+  // PERMANENT +1 (attack / block-per-turn), riding the slot like Whet the
+  // Claws. Mirrors src/App.jsx start-of-turn power tick (trainAnimalAttack /
+  // trainAnimalBlock). Auto-targets, lost when the animal leaves.
+  { id: 'c-sergeant-at-arms',      name: 'Sergeant-at-Arms',       cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'sergeantAtArms' } },
+  { id: 'c-quartermaster-regimen', name: "Quartermaster's Regimen", cost: 2, type: 'power', rarity: 'uncommon', installPower: { id: 'quartermasterRegimen' } },
   { id: 'c-whisperer',     name: 'The Whisperer',   cost: 2, type: 'power', rarity: 'rare',     installPower: { id: 'whisperer' } },
   { id: 'c-open-door',     name: 'Open Door Policy', cost: 2, type: 'power', rarity: 'rare',    installPower: { id: 'openDoor' } },
   { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
@@ -325,6 +331,7 @@ const HANDLER_REWARD_POOL = [
   'c-hunker-down', 'c-dig-in',
   'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show',
   'c-rally-the-pack', 'c-drillmaster', 'c-whet-claws', 'c-thicken-hide',
+  'c-sergeant-at-arms', 'c-quartermaster-regimen',
 ];
 
 // =============================================================================
@@ -1610,6 +1617,41 @@ function aiTurnHandler(state, combat) {
   // Drillmaster — ramping Summon Strength: +1 every turn (mirrors App.jsx
   // start-of-turn power tick). Installed via installPower.
   if (hasHandlerPower(state, 'drillmaster')) combat.summonStrength = (combat.summonStrength || 0) + 1;
+  // Training-engine powers (Handler v3 slice 2) — mirror App.jsx start-of-turn
+  // tick. Sergeant-at-Arms trains the hardest hitter (+1 perm attack);
+  // Quartermaster's Regimen trains a keeper / sturdiest animal (+1 perm
+  // block/turn). Buff rides combat.htray slot, lost when the animal leaves.
+  {
+    const TSLOT = ['intro', 'subject', 'target'];
+    const slotAtk = (s) => {
+      const sl = combat.htray[s];
+      if (sl?.kind !== 'animal') return -Infinity;
+      const a = ANIMALS[sl.animalId]?.attack || 0;
+      return a > 0 ? a + (sl.attackBonus || 0) + (combat.summonStrength || 0) : a;
+    };
+    if (hasHandlerPower(state, 'sergeantAtArms')) {
+      let best = null, bestVal = -Infinity;
+      for (const s of TSLOT) { const v = slotAtk(s); if (combat.htray[s]?.kind === 'animal' && v > bestVal) { bestVal = v; best = s; } }
+      if (best) combat.htray[best].attackBonus = (combat.htray[best].attackBonus || 0) + 1;
+    }
+    if (hasHandlerPower(state, 'quartermasterRegimen')) {
+      let best = TSLOT.find(s => combat.htray[s]?.kind === 'animal' && ANIMALS[combat.htray[s].animalId]?.keeper);
+      if (!best) {
+        let bestVal = -Infinity;
+        for (const s of TSLOT) {
+          const sl = combat.htray[s];
+          if (sl?.kind !== 'animal') continue;
+          const blk = (ANIMALS[sl.animalId]?.turnGrant?.block || 0) + (sl.blockBonus || 0);
+          if (blk > bestVal) { bestVal = blk; best = (bestVal > 0 ? s : best); }
+        }
+      }
+      if (!best) { // fall back to highest attack
+        let bestVal = -Infinity;
+        for (const s of TSLOT) { const v = slotAtk(s); if (combat.htray[s]?.kind === 'animal' && v > bestVal) { bestVal = v; best = s; } }
+      }
+      if (best) combat.htray[best].blockBonus = (combat.htray[best].blockBonus || 0) + 1;
+    }
+  }
   // Silence ticks down once per player turn (mirrors App.jsx endTurn).
   if (combat.silencedTurns > 0) combat.silencedTurns -= 1;
   const whisperDraw = combat.whisperPending || 0;
@@ -1735,9 +1777,12 @@ function aiTurnHandler(state, combat) {
     // prefer dropping a lure first so a body is on its way. Well-Drilled stamps
     // +2 onto an animal already on the board, so it's worthless until a body
     // exists — hold it until there's something to drill.
+    // Training-engine powers (sergeantAtArms / quartermasterRegimen) need a
+    // body to train each turn — like Well-Drilled, hold them until one exists.
+    const needsBody = new Set(['wellDrilled', 'sergeantAtArms', 'quartermasterRegimen']);
     const pi = state.hand.findIndex(c => c.type === 'power' && c.installPower
       && !hasHandlerPower(state, c.installPower.id) && c.cost <= state.energy
-      && !(c.installPower.id === 'wellDrilled' && animalCount() === 0));
+      && !(needsBody.has(c.installPower.id) && animalCount() === 0));
     if (pi >= 0) {
       const wantLureFirst = combat.turn === 1 && animalCount() === 0
         && state.hand.some(c => c.type === 'lure' && c.cost <= state.energy)

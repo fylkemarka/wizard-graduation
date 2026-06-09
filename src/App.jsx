@@ -281,6 +281,21 @@ const CARDS = [
     power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
     desc: 'Power. At the start of each turn, gain +1 Summon Strength (every animal attacks for more, building each turn).',
     flavor: 'Drills the woods like a parade ground. The woods, to everyone\'s surprise, comply.' },
+  // Training-engine POWERS (Handler v3 slice 2, Alan 2026-06-08) — the
+  // powerhouse-you-build-over-time lever. Each turn, ONE animal gets a
+  // PERMANENT +1 (rides slot.attackBonus / slot.blockBonus, same model as
+  // Whet the Claws / Thicken the Hide). The buff is lost the moment that
+  // animal leaves — so a trained standout becomes a juicy target the enemy
+  // can later snipe (slice 4). Auto-targets, so the player never clicks; the
+  // value is in CHOOSING when to install and protecting what it builds.
+  { id: 'c-sergeant-at-arms', name: 'Sergeant-at-Arms', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+    power: { startOfTurn: { trainAnimalAttack: 1 } }, upgrade: { power: { startOfTurn: { trainAnimalAttack: 2 } } },
+    desc: 'Power. At the start of each turn, your hardest-hitting animal permanently gains +1 attack — for as long as it stays. Lose that animal, lose the edge.',
+    flavor: 'Picks the keenest of the menagerie and has words. The others pretend not to notice the favouritism.' },
+  { id: 'c-quartermaster-regimen', name: 'Quartermaster\'s Regimen', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
+    power: { startOfTurn: { trainAnimalBlock: 1 } }, upgrade: { power: { startOfTurn: { trainAnimalBlock: 2 } } },
+    desc: 'Power. At the start of each turn, your sturdiest animal permanently braces for +1 more Block each turn — for as long as it stays. Lose that animal, lose the wall.',
+    flavor: 'Issues kit, drills posture, files the paperwork in triplicate. The wall gets thicker; the paperwork, taller.' },
   { id: 'c-whisperer', name: 'The Whisperer', cost: 2, type: 'power', rarity: 'rare', lane: 'handler',
     installPower: { id: 'whisperer' },
     desc: 'Power. Whenever one of your animals leaves play, draw 1 next turn.',
@@ -11790,6 +11805,46 @@ export default function App() {
     }
     // Apply start-of-turn power triggers in working locals. Multiplier
     // shifts dispatch live via adjustEnemyDmg/adjustPlayerDmg.
+    // Training-engine powers (Sergeant-at-Arms / Quartermaster's Regimen) read
+    // the POST-TICK board snapshot — boardFullRef holds the just-committed
+    // menagerie (animal slots keyed by slotName, null elsewhere), set at the
+    // end of the handler tick above. Picks one animal per the role rules and
+    // stamps a PERMANENT per-slot bonus (lost when the animal leaves), same
+    // model as Whet the Claws. Mutations are batched into trainUpdates and
+    // committed in one setTray after the loop (keeps the updater pure).
+    const trainBoard = boardFullRef.current || {};
+    const trainUpdates = {};
+    // Highest current ATTACK on board, ties → slot order. Reads pending
+    // trainUpdates so two attack-trainers in the same loop don't both pile on
+    // the same animal off a stale snapshot.
+    const pickHighestAttack = () => {
+      let best = null, bestVal = -Infinity;
+      for (const s of SLOT_ORDER) {
+        const slot = trainUpdates[s] || trainBoard[s];
+        if (slot?.kind !== 'animal') continue;
+        const a = animalAttackValue(getAnimal(slot.animalId), slot);
+        if (a > bestVal) { bestVal = a; best = s; }
+      }
+      return best;
+    };
+    // Defense pick: a keeper first; else the highest per-turn block grant
+    // (turnGrant.block + accrued blockBonus); else fall back to highest attack.
+    const pickDefenseTarget = () => {
+      const keeper = SLOT_ORDER.find(s => {
+        const slot = trainUpdates[s] || trainBoard[s];
+        return slot?.kind === 'animal' && getAnimal(slot.animalId)?.keeper;
+      });
+      if (keeper) return keeper;
+      let best = null, bestVal = -Infinity;
+      for (const s of SLOT_ORDER) {
+        const slot = trainUpdates[s] || trainBoard[s];
+        if (slot?.kind !== 'animal') continue;
+        const blk = (getAnimal(slot.animalId)?.turnGrant?.block || 0) + (slot.blockBonus || 0);
+        if (blk > bestVal) { bestVal = blk; best = s; }
+      }
+      if (best !== null && bestVal > 0) return best;
+      return pickHighestAttack();
+    };
     for (const p of powers) {
       const trig = p.power?.startOfTurn;
       if (!trig) continue;
@@ -11797,6 +11852,30 @@ export default function App() {
       if (trig.block)      { wBlock += trig.block;   bits.push(`🛡 +${trig.block}`); }
       // Drillmaster — ramping Summon Strength: +N to all animals each turn.
       if (trig.summonStrength) { grantSummonStrength(trig.summonStrength); bits.push(`💪 +${trig.summonStrength} Summon Strength`); }
+      // Sergeant-at-Arms — train the hardest hitter: +N PERMANENT attack.
+      if (trig.trainAnimalAttack) {
+        const s = pickHighestAttack();
+        if (s) {
+          const slot = trainUpdates[s] || trainBoard[s];
+          trainUpdates[s] = { ...slot, attackBonus: (slot.attackBonus || 0) + trig.trainAnimalAttack };
+          const nm = getAnimal(slot.animalId)?.name || slot.animalId;
+          bits.push(`💪 ${nm} +${trig.trainAnimalAttack} attack (permanent)`);
+        } else {
+          bits.push(`💪 no animal to train`);
+        }
+      }
+      // Quartermaster's Regimen — train the sturdiest: +N PERMANENT Block/turn.
+      if (trig.trainAnimalBlock) {
+        const s = pickDefenseTarget();
+        if (s) {
+          const slot = trainUpdates[s] || trainBoard[s];
+          trainUpdates[s] = { ...slot, blockBonus: (slot.blockBonus || 0) + trig.trainAnimalBlock };
+          const nm = getAnimal(slot.animalId)?.name || slot.animalId;
+          bits.push(`🛡 ${nm} +${trig.trainAnimalBlock} Block/turn (permanent)`);
+        } else {
+          bits.push(`🛡 no animal to train`);
+        }
+      }
       // Energy is NOT added here — it's folded into energyPerTurnRefill() so
       // the player block reads N/N. wEnergy already started at that refill.
       if (trig.energy)     { bits.push(`+${trig.energy} Energy`); }
@@ -11815,6 +11894,14 @@ export default function App() {
         bits.push(`+${trig.draw} draw`);
       }
       pushLog(bits.join(' · '));
+    }
+    // Commit the training-engine bonuses in one pure setTray. The post-tick
+    // tray was already committed above; merge the trained slots onto it.
+    // Mirror into boardFullRef so any later same-turn reads see the new
+    // attack/block (the pill reads tray, which this updates).
+    if (Object.keys(trainUpdates).length > 0) {
+      setTray(prev => syncTrayLegacy({ ...prev, ...trainUpdates }));
+      boardFullRef.current = { ...boardFullRef.current, ...trainUpdates };
     }
 
     // The Whisperer — deliver the banked draws (instant-play exits earlier
