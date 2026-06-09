@@ -1520,23 +1520,27 @@ function playHandlerCard(state, combat, idx) {
   }
   state.discard.push(card);
 }
+// v3 feed-as-button (Alan, 2026-06-08): feeding is a 1-energy SPECIES action
+// (no card) that RESETS the timer so fed animals persist. Mirrors App.feedSpecies.
 function tryHandlerFeed(state, combat) {
   const SLOT = ['intro', 'subject', 'target'];
+  const FEED_COST = 1;
+  if (state.energy < FEED_COST) return false;
   for (const s of SLOT) {
     const slot = combat.htray[s];
     if (slot?.kind !== 'animal') continue;
     const a = ANIMALS[slot.animalId];
     if (!a?.feedKey || slot.feedReceived || slot.durationRemaining !== 2) continue;
-    const li = state.hand.findIndex(c => c.type === 'lure' && c.feedKey === a.feedKey && c.cost <= state.energy);
-    if (li < 0) continue;
-    const lure = state.hand[li];
-    state.hand.splice(li, 1);
-    state.energy -= (lure.cost || 0);
-    slot.feedReceived = true;
-    slot.fedThisTurn = true;
-    combat.feeds++;
-    state.discard.push(lure);
-    return true;
+    // Top up EVERY on-board copy of this species (>=2, i.e. not past deadline).
+    const cadence = (a.duration || 3) + 1;
+    let fed = 0;
+    for (const s2 of SLOT) {
+      const sl = combat.htray[s2];
+      if (sl?.kind === 'animal' && sl.animalId === slot.animalId && (sl.durationRemaining || 0) >= 2) {
+        sl.durationRemaining = cadence; sl.feedReceived = true; sl.fedThisTurn = true; fed++;
+      }
+    }
+    if (fed > 0) { state.energy -= FEED_COST; combat.feeds++; return true; }
   }
   return false;
 }
@@ -2393,7 +2397,8 @@ function handlerEndOfTurnTick(state, combat) {
     if (grantBlock > 0) { state.block += grantBlock; combat.menagerieBlock += grantBlock; }
     if (grant?.poise > 0) state.poise += grant.poise;
 
-    let nextDur = slot.justCombined ? slot.durationRemaining : slot.durationRemaining - 1;
+    // v3: keepers (Ox) persist — never tick toward exit. Mirrors App.jsx.
+    let nextDur = (animal.keeper || slot.justCombined) ? slot.durationRemaining : slot.durationRemaining - 1;
     const nextPred = (slot.predatorProgress || 0) + 1;
     const nextAdj = (slot.adjacentSpawnProgress || 0) + 1;
 

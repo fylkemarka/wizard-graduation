@@ -109,6 +109,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        onCancelNarrow = () => {},
                        buffetArmed = false,
                        onFeedAnimal = () => {},
+                       onFeedSpecies = () => {},
+                       feedCost = 1,
                        onDiscardTactic = () => {},
                        onOpenCompendium, onOpenDeckView }) {
   // Drag state — which empty stage slot is the dragged hand card currently
@@ -946,6 +948,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         powers={powers}
         onPlayCard={onPlayCard}
         onFeedAnimal={onFeedAnimal}
+        onFeedSpecies={onFeedSpecies} feedCost={feedCost} playerEnergy={energy}
         onDiscardTactic={onDiscardTactic}
         draggingFeedKey={draggingHandIdx != null ? hand?.[draggingHandIdx]?.feedKey : null}
         dragOverSlot={dragOverSlot} setDragOverSlot={setDragOverSlot} />
@@ -1348,6 +1351,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        powers = [],
                        onPlayCard = () => {},
                        onFeedAnimal = () => {},
+                       onFeedSpecies = () => {}, feedCost = 1, playerEnergy = 0,
                        onDiscardTactic = () => {},
                        draggingFeedKey = null,
                        dragOverSlot = null, setDragOverSlot = () => {} }) {
@@ -1963,25 +1967,39 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             // bumping dur 1→2) used to flip the badge back to "fed" green
             // every turn — confusing. Now no badge once fed; the player
             // knows from their action + log that the feed happened.
-            let label = null;
-            let tone = null;
-            let title = null;
+            // v3 FEED BUTTON (Alan, 2026-06-08): when an animal is hungry
+            // (its needs-food turn, dur===2 unfed), the player clicks to feed
+            // its whole SPECIES for `feedCost` energy — resetting the timer so
+            // it persists. No card needed. Past the deadline (dur===1) it's
+            // committed to leave: feeding can't save it, just a notice.
             if (dur === 2 && !feedReceived) {
-              label = `⚠ feed now or no exit bonus`;
-              tone = 'bg-ember-900 text-ember-200 border border-ember-500';
-              title = `Drop a ${feedLabel} card on the Feed slot this turn, or ${animal.name} leaves end of turn with no exit bonus.`;
-            } else if (dur === 1) {
-              label = `📅 leaves end of turn`;
-              tone = 'bg-gold-900 text-gold-200 border border-gold-500';
-              title = `${animal.name} attacks once more and ${feedReceived ? 'fires its exit action' : 'slips away with no bonus'} at end of turn.`;
+              const canAfford = playerEnergy >= feedCost;
+              return (
+                <span role="button" tabIndex={0}
+                  data-testid="feed-species"
+                  data-animal-id={card.animalId}
+                  onClick={(e) => { e.stopPropagation(); if (canAfford) onFeedSpecies(card.animalId); }}
+                  title={canAfford
+                    ? `Feed every ${animal.name} on the board for ${feedCost} energy — tops up its timer so it stays. Skip it and ${animal.name} leaves next turn, unfeedable.`
+                    : `Not enough energy to feed (${feedCost} needed).`}
+                  className={`font-mono text-[10px] mt-0.5 px-1.5 py-0.5 rounded text-center leading-tight border ${
+                    canAfford
+                      ? 'bg-amber-700 text-amber-50 border-amber-300 cursor-pointer hover:bg-amber-600 animate-pulse-soft'
+                      : 'bg-ember-950 text-ember-300 border-ember-700 opacity-70 cursor-not-allowed'
+                  }`}>
+                  🍴 feed {animal.name} ({feedCost}⚡)
+                </span>
+              );
             }
-            if (!label) return null;
-            return (
-              <span className={`font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded text-center leading-tight ${tone}`}
-                    title={title}>
-                {label}
-              </span>
-            );
+            if (dur === 1) {
+              return (
+                <span className="font-mono text-[10px] mt-0.5 px-1 py-0.5 rounded text-center leading-tight bg-gold-900 text-gold-200 border border-gold-500"
+                      title={`${animal.name} missed its feed — it leaves end of turn no matter what (feeding can't save it now).${feedReceived ? ' Fires its exit action.' : ''}`}>
+                  📅 leaves end of turn
+                </span>
+              );
+            }
+            return null;
           })()}
           {animal?.onExit && (() => {
             // Only surface the exit bonus on the ACTUAL exit turn (Alan,
@@ -2213,61 +2231,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           {modifiers.map(m => slotPill(m, 'modifier', { empty: '', filled: 'bg-gold-700 hover:bg-gold-600 border border-gold-400' }))}
           {modifiers.length < 2 && slotPill(null, modifiers.length === 0 ? 'modifier (optional)' : 'modifier 2 (optional)', { empty: 'border-gold-600 text-gold-500', filled: '' })}
         </>)}
-        {/* Feed slots — one per hungry feedKey on the board. Drag a
-            matching lure from hand to satisfy this turn's feed without
-            summoning. Card pays cost, lands in discard, and the feedKey
-            is recorded for the end-of-turn starvation check. */}
-        {isHandler && (() => {
-          const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
-          const neededKeys = new Set();
-          // Surface a feed slot only when an unfed animal is on its
-          // make-or-break turn — durationRemaining === 2 (its D-1 turn).
-          // Earlier in the stay nothing appears; once fed (feedReceived=true),
-          // nothing reappears (Alan, 2026-05-31).
-          for (const sn of ['intro', 'subject', 'target']) {
-            const slot = tray?.[sn];
-            if (slot?.kind !== 'animal') continue;
-            const animal = animals?.[slot.animalId];
-            if (!animal?.feedKey) continue;
-            if (slot.feedReceived) continue;
-            if (slot.durationRemaining !== 2) continue;
-            neededKeys.add(animal.feedKey);
-          }
-          if (neededKeys.size === 0) return null;
-          return [...neededKeys].map(fk => {
-            const feedName = FEED_NAMES[fk] || fk;
-            const isOver = dragOverSlot === `feed:${fk}`;
-            const isMatchingDrag = draggingFeedKey === fk;
-            return (
-              <div key={`feed-${fk}`}
-                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                onDragEnter={() => setDragOverSlot(`feed:${fk}`)}
-                onDragLeave={() => setDragOverSlot(s => s === `feed:${fk}` ? null : s)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOverSlot(null);
-                  const handIdxRaw = e.dataTransfer.getData('text/plain');
-                  const handIdx = parseInt(handIdxRaw, 10);
-                  if (!Number.isNaN(handIdx) && onFeedAnimal) onFeedAnimal(handIdx, fk);
-                }}
-                className={`rounded text-xs italic text-center min-w-[180px] min-h-[150px] flex flex-col items-center justify-center transition-all duration-150 p-5 ${
-                  isOver
-                    ? 'bg-moss-700/80 border-4 border-moss-300 ring-4 ring-moss-400 text-parchment-50 scale-110 shadow-2xl not-italic'
-                    : isMatchingDrag
-                      ? 'bg-moss-900/40 border-4 border-moss-400 text-moss-100 ring-2 ring-moss-500/60 animate-pulse not-italic'
-                      : 'border-2 border-dashed border-amber-500 text-amber-300 opacity-80'
-                }`}
-                title={`Drag a ${feedName} card here to feed this turn — consumes the card and unlocks the exit bonus.`}>
-                <span className="font-bold uppercase tracking-widest text-xs opacity-90">🍴 Feed</span>
-                <span className="text-[12px] mt-1 not-italic font-mono">{feedName}</span>
-                {isOver
-                  ? <span className="text-[11px] mt-1 not-italic font-mono">↓ drop to feed</span>
-                  : isMatchingDrag
-                    ? <span className="text-[11px] mt-1 not-italic font-mono">drop here →</span>
-                    : null}
-              </div>
-            );
-          });
+        {/* v3: feeding is now a per-species BUTTON on the hungry animal's
+            pill (🍴 feed [species]), not a drag-to-slot. The old feed drop
+            slots are removed. */}
         })()}
         <div className="flex-1" />
         {ready && predicted && (

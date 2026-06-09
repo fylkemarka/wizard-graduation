@@ -9916,6 +9916,41 @@ export default function App() {
     pushLog(`🍴 ${card.name} consumed as feed — ${feedKey} animals satisfied.`);
   }
 
+  // v3 (Alan, 2026-06-08): FEED-AS-BUTTON. Feeding is no longer a card you drop
+  // on a slot — it's a 1-energy action that feeds EVERY on-board copy of a
+  // chosen species, RESETTING their feed timer so they persist. The recurring
+  // energy cost is the maintenance tension (it competes with summoning/buffing).
+  // HARD DEADLINE (Alan): an animal that already missed its needs-food turn
+  // (durationRemaining < 2, committed to leave) can't be saved — skipped here.
+  const FEED_COST = 1;
+  function feedSpecies(animalId) {
+    if (energy < FEED_COST) { pushLog(`Not enough energy to feed.`); return; }
+    const animal = getAnimal(animalId);
+    // Reset to one MORE than the needs-food threshold so a fed animal gets a
+    // healthy turn before going hungry again (feed cadence ≈ duration). Tunable.
+    const cadence = (animal?.duration || 3) + 1;
+    let fed = 0;
+    setTray(prev => {
+      const next = { ...prev };
+      for (const sn of SLOT_ORDER) {
+        const slot = next[sn];
+        if (slot?.kind !== 'animal' || slot.animalId !== animalId) continue;
+        if ((slot.durationRemaining || 0) < 2) continue; // past the deadline — unsaveable
+        next[sn] = { ...slot, durationRemaining: cadence, feedReceived: true, fedThisTurn: true };
+        fed++;
+      }
+      return fed > 0 ? syncTrayLegacy(next) : prev;
+    });
+    if (fed > 0) {
+      setEnergy(e => e - FEED_COST);
+      setLuresPlayedThisTurn(prev => [...prev, animal?.feedKey].filter(Boolean));
+      logEvent(TE.HANDLER_FEED, { animalId, feedKey: animal?.feedKey || null, fed, viaButton: true, enemyId: enemy?.id || null });
+      pushLog(`🍴 Fed the ${animal?.name || animalId}${fed > 1 ? ` ×${fed}` : ''} — topped up for ${FEED_COST} energy.`);
+    } else {
+      pushLog(`🍴 No ${animal?.name || animalId} needs feeding right now.`);
+    }
+  }
+
   // Whistle click — first click picks slot 1; second click swaps slot 1 and
   // slot 2. Clicking the same slot twice cancels the prompt.
   function whistleClickSlot(slotName) {
@@ -11044,7 +11079,10 @@ export default function App() {
           // tick — otherwise a duration-2 combine that forms and ticks in
           // the same pass only survives one more turn. It mirrors a fresh
           // summon waiting a turn, except the combine also gets to swing.
-          let nextDuration = slot.justCombined ? slot.durationRemaining : slot.durationRemaining - 1;
+          // v3: KEEPERS (Ox) are low-maintenance anchors — they persist with no
+          // feeding and never tick toward exit. Feedable animals tick normally;
+          // feeding (feedSpecies) resets their timer so they persist while fed.
+          let nextDuration = (animal.keeper || slot.justCombined) ? slot.durationRemaining : slot.durationRemaining - 1;
           const nextPredator = (slot.predatorProgress || 0) + 1;
           const nextAdjSpawn = (slot.adjacentSpawnProgress || 0) + 1;
 
@@ -13911,6 +13949,8 @@ export default function App() {
       onCancelNarrow={cancelNarrowChooser}
       buffetArmed={buffetArmed}
       onFeedAnimal={feedAnimalsWithLure}
+      onFeedSpecies={feedSpecies}
+      feedCost={FEED_COST}
       onDiscardTactic={discardActiveTactic}
       enemyAnnotation={enemy?.annotation || null}
       isWit={selectedCharacter?.lane === 'wit'}
