@@ -299,9 +299,9 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 5 } },
   // Team retool (Alan, 2026-06-08) — invest in a specific animal. Split
   // offense/defense + exhaust (spam audit): one card can't stack both stats.
-  { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 3 }, costEscalates: true } },
-  { id: 'c-thicken-hide',  name: 'Thicken the Hide',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { block: 3 }, costEscalates: true } },
-  { id: 'c-steel-nerves',   name: 'Steel the Nerves',       cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { poise: 3 }, costEscalates: true } },
+  { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 2 }, costEscalates: true } },
+  { id: 'c-thicken-hide',  name: 'Thicken the Hide',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { block: 2 }, costEscalates: true } },
+  { id: 'c-steel-nerves',   name: 'Steel the Nerves',       cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { poise: 2 }, costEscalates: true } },
   { id: 'c-stiff-upper-lip',name: 'Stiff Upper Lip',        cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { strengthenAnimal: { poise: 5 }, costEscalates: true } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
@@ -312,13 +312,10 @@ const COMBINE_BY_SPECIES = { 'field-mouse': 'mouse-house', 'rabbit': 'long-hare'
 const COMBINE_RESULT_IDS = new Set(Object.values(COMBINE_BY_SPECIES));
 const HANDLER_STARTER = [
   'c-defend-handler', 'c-defend-handler', 'c-compose',
-  'cv2-l-tender-greens', 'cv2-l-tender-greens',
-  // c-buffet pulled from the starter 2026-06-07 (Alan: too strong for
-  // turn 1) — stays in HANDLER_REWARD_POOL below.
+  // v3 starter (Alan, 2026-06-09): one of each foundational lure + the Ox.
+  // Training cards moved to the reward pool. Mirrors buildStarterDeckForLane.
+  'cv2-l-tender-greens', 'cv2-l-birdseed', 'cv2-l-bag-of-oats',
   'c-pack-tactics', 'c-tactic-shield',
-  // Team-retool slice 1 (Alan, 2026-06-08) — keeper loop seeded into the
-  // opening for playtest reach. Mirrors src/App.jsx buildStarterDeckForLane.
-  'cv2-l-bag-of-oats', 'c-whet-claws', 'c-thicken-hide',
 ];
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
@@ -5762,13 +5759,18 @@ function aiPickHandlerReward(state) {
     const unowned = burstIds.filter(id => !ownedIds.has(id));
     if (unowned.length) return HANDLER_CARDS_BY_ID[pickRandom(unowned)];
   }
-  // Exactly ONE special utility lure is always on offer after a normal combat
-  // (mirrors App.jsx normal-combat handler draft). Prefer an unowned one.
+  // v3 (Alan, 2026-06-09): the deck is CAPPED at 5 lures. (Live also gates lures
+  // to elite/boss rewards only; the sim doesn't thread the tier here, so this
+  // approximates with the cap — the dominant balance effect. Revisit in the next
+  // balance sync.) At the cap, offer no lures; otherwise one special lure.
+  const totalLures = owned.filter(c => c.type === 'lure').length;
+  const atLureCap = totalLures >= 5;
   const unownedSpecial = SPECIAL_LURE_CARDS.filter(c => !ownedIds.has(c.id));
   const specialPool = unownedSpecial.length ? unownedSpecial : SPECIAL_LURE_CARDS;
-  const special = pickRandom(specialPool);
-  const pool = shuffle(HANDLER_REWARD_POOL.slice());
-  const candidates = [special];
+  const special = atLureCap ? null : pickRandom(specialPool);
+  const pool = shuffle(HANDLER_REWARD_POOL.slice())
+    .filter(id => !atLureCap || HANDLER_CARDS_BY_ID[id]?.type !== 'lure');
+  const candidates = special ? [special] : [];
   for (const id of pool) {
     if (candidates.length >= 3) break;
     candidates.push(HANDLER_CARDS_BY_ID[id]);

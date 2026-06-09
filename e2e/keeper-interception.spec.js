@@ -110,7 +110,7 @@ test('a fully-blocked maul tears nobody — not even the keeper', async ({ page 
 test("a keeper self-tanks: its OWN per-turn Block absorbs a modest maul (no player Block)", async ({ page }) => {
   // Alan, 2026-06-08: animals resolve and brace BEFORE the enemy attacks, so a
   // keeper's own per-turn Block should absorb the maul. The Ox braces 4/turn;
-  // trained once with Thicken the Hide it braces 7 — comfortably over The Moth
+  // trained once with Thicken the Hide it braces 6 — comfortably over The Moth
   // Choir's 5 HP maul. With NO player Block card, the Ox's own wall covers it
   // and nothing is torn. (Proves the self-tank — the brace is threaded through
   // shieldBraceRef so the same-tick maul sees it. An HP maul also targets the
@@ -124,10 +124,10 @@ test("a keeper self-tanks: its OWN per-turn Block absorbs a modest maul (no play
   await endTurn(page); await ack(page);
   await expect(oxPill(page).first()).toBeVisible();
 
-  // Train the Ox's wall: Thicken the Hide → +3 Block/turn (4 → 7).
+  // Train the Ox's wall: Thicken the Hide → +3 Block/turn (4 → 6).
   expect(await ensurePlay(page, HIDE)).toBeTruthy();
   await oxPill(page).first().click();
-  await expect(oxPill(page).first()).toContainText(/🛡 7\/turn/);
+  await expect(oxPill(page).first()).toContainText(/🛡 6\/turn/);
 
   // Arm the maul, resolve it with NO player Block — the 7 brace covers the 5 maul.
   await page.evaluate(() => { window.__forceMaul = true; });

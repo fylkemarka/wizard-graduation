@@ -43,19 +43,19 @@ test('a Drystone Ox keeper braces for Block; split training grows the wall and t
   expect(await ensurePlay(page, WHET)).toBeTruthy();
   await expect(page.getByText(/💪 Training:/)).toBeVisible();
   await ox.click();
-  await expect(ox).toContainText(/5 dmg \/ turn/);   // 2 + 3
+  await expect(ox).toContainText(/4 dmg \/ turn/);   // 2 + 2
   await expect(ox).toContainText(/🛡 4\/turn/);       // block untouched
   await expect(ox).toContainText(/💪 trained/);
 
   // Thicken the Hide → defense only: block 6 → 9, attack unchanged.
   expect(await ensurePlay(page, HIDE)).toBeTruthy();
   await ox.click();
-  await expect(ox).toContainText(/5 dmg \/ turn/);   // attack untouched
-  await expect(ox).toContainText(/🛡 7\/turn/);       // 6 + 3
+  await expect(ox).toContainText(/4 dmg \/ turn/);   // attack untouched
+  await expect(ox).toContainText(/🛡 6\/turn/);       // 4 + 2
 
-  // The pending menagerie Block now shows on the Player block stat (7 from
-  // the Ox: 4 base + 3 Thicken, surfaced so it nets against the intent bar).
-  await expect(page.getByTestId('pending-menagerie-block')).toContainText(/\+7/);
+  // The pending menagerie Block now shows on the Player block stat (6 from
+  // the Ox: 4 base + 2 Thicken, surfaced so it nets against the intent bar).
+  await expect(page.getByTestId('pending-menagerie-block')).toContainText(/\+6/);
 
   // Escalating cost (anti-spam): a SECOND Whet the Claws this combat costs 1
   // more (base 1 → 2). Draw one and check its effective cost on the pill. (Run

@@ -268,23 +268,23 @@ const CARDS = [
   // WITHOUT hoarding copies (exhaust would have pushed the opposite). A couple
   // of copies is worth it; five never is.
   { id: 'c-whet-claws', name: 'Whet the Claws', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { strengthenAnimal: { attack: 3 }, costEscalates: true },
-    upgrade: { effects: { strengthenAnimal: { attack: 4 }, costEscalates: true } },
-    desc: 'Pick an animal on the board. It permanently gains +3 attack — for as long as it stays. Lose the animal, lose the edge. Costs 1 more each time you play it this combat.',
+    effects: { strengthenAnimal: { attack: 2 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { attack: 3 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently gains +2 attack — for as long as it stays. Lose the animal, lose the edge. Costs 1 more each time you play it this combat.',
     flavor: 'A little honing. The animal seems pleased; the enemy, less so.' },
   { id: 'c-thicken-hide', name: 'Thicken the Hide', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { strengthenAnimal: { block: 3 }, costEscalates: true },
-    upgrade: { effects: { strengthenAnimal: { block: 4 }, costEscalates: true } },
-    desc: 'Pick an animal on the board. It permanently braces for +3 Block each turn — for as long as it stays. Lose the animal, lose the hide. Costs 1 more each time you play it this combat.',
+    effects: { strengthenAnimal: { block: 2 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { block: 3 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently braces for +2 Block each turn — for as long as it stays. Lose the animal, lose the hide. Costs 1 more each time you play it this combat.',
     flavor: 'Weeks of conditioning, compressed into an afternoon. The animal files a mild complaint.' },
   // Composure-block (Poise) training (Alan, 2026-06-08) — the Poise twin of
   // Thicken the Hide. Poise absorbs COMPOSURE damage (and composure mauls), so
   // an animal trained this way guards your nerve, not your hide. Reward pool
   // only (common/uncommon auto-pool); NOT in the handler starter.
   { id: 'c-steel-nerves', name: 'Steel the Nerves', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { strengthenAnimal: { poise: 3 }, costEscalates: true },
-    upgrade: { effects: { strengthenAnimal: { poise: 4 }, costEscalates: true } },
-    desc: 'Pick an animal on the board. It permanently braces for +3 Poise each turn — composure-block, for as long as it stays. Costs 1 more each time you play it this combat.',
+    effects: { strengthenAnimal: { poise: 2 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { poise: 3 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently braces for +2 Poise each turn — composure-block, for as long as it stays. Costs 1 more each time you play it this combat.',
     flavor: 'A short pep talk about the fundamental indifference of the universe. Oddly, it helps.' },
   { id: 'c-stiff-upper-lip', name: 'Stiff Upper Lip', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { strengthenAnimal: { poise: 5 }, costEscalates: true },
@@ -1183,19 +1183,15 @@ function buildStarterDeckForLane(lane, startingRow = null) {
   // Handler Animal Summoner starter — Tender Greens lures only. Fish Food
   // and Birdseed are reward-pool lures, not in the opening deck.
   if (lane === 'handler') {
-    ids.push('cv2-l-tender-greens');    // 1-turn → random of Mouse/Rabbit/Buck
-    ids.push('cv2-l-tender-greens');    // second copy — chance at Mouse House row / Tender Greens bonus
-    ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
-    // c-buffet removed from the game entirely 2026-06-07 (see CARDS note).
-    ids.push('c-tactic-shield');        // Summoned Shield — play to route animal attacks into Block
-    // Team-retool slice 1 (Alan, 2026-06-08): seed the keeper loop into the
-    // opening so it's playtest-reachable without the special-lure RNG. The Ox
-    // (A Bag of Oats) + Basic Training let the player feel the wall-building
-    // immediately. NB engine cards normally belong in reward pools, not
-    // starters (see Buffet-removal) — revisit placement once v3 lands.
+    // v3 starter (Alan, 2026-06-09): a tight 3-lure roster — one of each
+    // foundational lure + the Ox keeper. The training cards (Whet/Thicken) live
+    // in the reward pool now, not the opener (a cluttered starter buried the
+    // animals the player actually cared about).
+    ids.push('cv2-l-tender-greens');    // → mouse / buck
+    ids.push('cv2-l-birdseed');         // → goose / raven
     ids.push('cv2-l-bag-of-oats');      // keeper: Drystone Ox
-    ids.push('c-whet-claws');           // train: +attack (exhaust)
-    ids.push('c-thicken-hide');         // train: +block/turn (exhaust)
+    ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
+    ids.push('c-tactic-shield');        // Summoned Shield — route animal attacks into Block
   }
   return ids;
 }
@@ -3311,7 +3307,9 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   // no spell-piece staging to manipulate. Tagged via fftOnly: true on the
   // card data; new FFT-only cards just need the same flag to inherit this.
   const notFFTOnlyForNonFFTLanes = (c) => !c.fftOnly || lane === 'wit';
-  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !BENCHED_REWARD_IDS.has(c.id) && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c) && supportOnly(c) && notFFTOnlyForNonFFTLanes(c));
+  // v3 (Alan, 2026-06-09): lures NEVER appear in the normal reward pool — they
+  // come only from elite/boss lure rewards (capped at 5). This is the guard.
+  const pool = CARDS.filter(c => c.type !== 'lure' && rarityWeights[c.rarity] && !BENCHED_REWARD_IDS.has(c.id) && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c) && supportOnly(c) && notFFTOnlyForNonFFTLanes(c));
   if (pool.length === 0) return null;
   // Weight by rarity AND slot together.
   const weightOf = (c) => (rarityWeights[c.rarity] || 0) * (REWARD_SLOT_WEIGHTS[c.slot] || 10);
@@ -13354,15 +13352,24 @@ export default function App() {
     // Elite enemies grant a choice of 3 T1 FFT rows; bosses grant 3 T2
     // rows. Each row is a bundle — picking adds all 3 cards at once.
     const isEliteOrBoss = enemy.tier === 'elite' || enemy.tier === 'boss';
-    // Handler — lure reward on elite/boss kill. Three random lures from the
-    // pool; player picks one (or skips). Standalone lure-pool flavor that
-    // doesn't bias against drafting interplay cards in normal rewards.
-    if (lane === 'handler' && isEliteOrBoss) {
-      // Fish Food is a high-risk gamble reserved for ELITE rewards — never
-      // offered after a boss (Alan, 2026-06-02). Only one copy is granted,
-      // which the pick-one-of-three flow already enforces.
-      const lurePool = (HANDLER_V2_BY_SLOT.lure || []).filter(c =>
-        c.id !== 'cv2-l-fish-food' || enemy.tier === 'elite');
+    // v3 (Alan, 2026-06-09): lures are offered ONLY after an elite or boss, and
+    // the deck is CAPPED at 5 lures — any more clutters the board and stops the
+    // player homing in on a team. Count lures across every pile (incl. those
+    // riding on summoned animals via sourceLures). At the cap, skip the lure
+    // reward and fall through to the normal card pool.
+    const lureCount = [...hand, ...deck, ...discard, ...exiled, ...extractTrayCardsForReturn(tray)]
+      .filter(c => c.type === 'lure').length;
+    const LURE_CAP = 5;
+    if (lane === 'handler' && isEliteOrBoss && lureCount < LURE_CAP) {
+      // The lure pool is now ALL lures (foundational + special utility +
+      // single-species), since normal combats no longer hand them out. Prefer
+      // ones the player doesn't already own. Fish Food stays an ELITE-only
+      // gamble — never after a boss (Alan, 2026-06-02).
+      const owned = new Set([...hand, ...deck, ...discard, ...exiled].map(c => c.id));
+      const allLures = [...(HANDLER_V2_BY_SLOT.lure || []), ...SPECIAL_LURE_CARDS]
+        .filter(c => c.id !== 'cv2-l-fish-food' || enemy.tier === 'elite');
+      const unowned = allLures.filter(c => !owned.has(c.id));
+      const lurePool = unowned.length >= 3 ? unowned : allLures;
       const lureChoices = shuffle([...lurePool]).slice(0, 3).map(c => ({ ...c }));
       logEvent('combat.reward_offer', {
         playerLane: lane,
@@ -13416,24 +13423,14 @@ export default function App() {
 
     // Normal-enemy + non-wit reward path: 3 individual cards, no spell
     // pieces. The pickCardByRarity opts gate spell pieces out entirely.
-    // Handler (Alan, 2026-06-03): exactly ONE of the three normal-combat
-    // cards is a special utility lure (single named animal carrying a verb).
-    // Prefer one the player doesn't already own; fall back to any if all
-    // owned. The other two fill from the normal support pool below.
-    if (lane === 'handler') {
-      const owned = new Set([...hand, ...deck, ...discard, ...exiled].map(c => c.id));
-      const unowned = SPECIAL_LURE_CARDS.filter(c => !owned.has(c.id));
-      const pool = unowned.length > 0 ? unowned : SPECIAL_LURE_CARDS;
-      const special = { ...shuffle([...pool])[0] };
-      choices.push(special); used.push(special.id);
-    }
+    // v3 (Alan, 2026-06-09): handler normal combats NO LONGER hand out a lure —
+    // lures come only from elites/bosses (above). Normal rewards are pure
+    // support/interplay cards, so the player builds AROUND a tight lure roster.
     while (choices.length < 3) {
       const pick = pickCardByRarity(weights, used, lane, { excludeSpellPieces: true });
       if (!pick) break;
       choices.push(pick); used.push(pick.id);
     }
-    // Keep the special lure from always landing in the same slot.
-    if (lane === 'handler') { const s = shuffle(choices); choices.length = 0; choices.push(...s); }
     // v2.99.3: telemetry — record offered card lanes alongside player's
     // lane. Lets us detect bleed in real time (any offered.lane that
     // doesn't match player.lane and isn't undefined is a bug).
