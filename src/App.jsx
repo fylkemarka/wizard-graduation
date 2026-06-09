@@ -11104,11 +11104,18 @@ export default function App() {
           const grantBlock = (grant?.block || 0) + (slot.blockBonus || 0);
           if (grantBlock > 0) {
             setBlock(b => b + grantBlock);
+            // Mirror into shieldBraceRef so the SAME-tick enemy attack / maul
+            // sees it (the `block` closure applyEnemyIntent reads is stale —
+            // shieldBraceRef discipline). This is what lets a keeper's own wall
+            // self-tank the maul: animals resolve and brace, THEN the enemy
+            // hits, so its Block absorbs (Alan, 2026-06-08).
+            shieldBraceRef.current.block += grantBlock;
             hTick.blockGained += grantBlock;
             pushLog(`${animal.icon} ${animal.name} braces: +${grantBlock} Block.`);
           }
           if (grant?.poise > 0) {
             setPoise(p => p + grant.poise);
+            shieldBraceRef.current.poise += grant.poise;
             pushLog(`${animal.icon} ${animal.name} steadies you: +${grant.poise} Poise.`);
           }
           // Decrement duration and tick chain counters. A combine on its
