@@ -141,6 +141,14 @@ const CARDS = [
     effects: { block: 9 }, upgrade: { effects: { block: 12 } },
     desc: 'Gain 9 Block.',
     flavor: 'A defensive posture endorsed by the committee. Knees slightly bent.' },
+  // 1000-run cycle 1 (2026-06-09): the WARD archetype opener — the handler's
+  // Artifact-style answer to enemy meddling (silence/freeze/turn-against/
+  // cut-short/undermine/betray fired 246× in the baseline batch with zero
+  // player counterplay). Telegraphed intents make TIMING it the skill.
+  { id: 'c-firm-hand', name: 'A Firm Hand', lane: 'handler', cost: 1, type: 'skill', rarity: 'uncommon',
+    effects: { menagerieWard: 1 }, upgrade: { effects: { menagerieWard: 2 } },
+    desc: "Ward your menagerie: the next enemy trick that meddles with your animals (silence, freeze, turn-against, cut-short, betrayal) fizzles.",
+    flavor: 'You raise one hand, palm out. The universe, to its own surprise, waits.' },
   { id: 'c-dig-in', name: 'Dig In Properly', lane: 'handler', cost: 2, type: 'skill', rarity: 'uncommon',
     effects: { block: 16 }, upgrade: { effects: { block: 20 } },
     desc: 'Gain 16 Block.',
@@ -329,6 +337,14 @@ const CARDS = [
     installPower: { id: 'memorial' },
     desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — deal 5 composure damage to all enemies.',
     flavor: 'A short service for each of them. The enemy is required to attend.' },
+  // 1000-run cycle 4 (2026-06-09): the CYCLER-SUSTAIN archetype. Composure
+  // attrition is the handler's #1 death cause (carryover pool, no refill);
+  // this converts the revolving door of cheap bodies into the defense.
+  // Partners: Field Mouse exits, sacrifice verbs, Memorial.
+  { id: 'c-fond-farewell', name: 'Fond Farewell', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
+    installPower: { id: 'fondFarewell' },
+    desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — regain 2 Composure.',
+    flavor: 'They wave you off at the gate. You feel, on balance, slightly more equal to things.' },
   // Strays removed (Alan, 2026-06-09) — the breeding Rabbit will become the
   // sacrifice archetype's renewable fodder engine (see roster-pass notes), so a
   // separate fodder-spawner is redundant. The spawnFodder machinery + 'stray'
@@ -2961,6 +2977,12 @@ function buildStartingDeck(lane = 'wit', opts = {}) {
       if (!rowIds.has(card.id)) continue;
       // T1 stat override for the chosen row's cards. Deep-clones stats /
       // effect via spread so the source CARDS_BY_ID entries aren't mutated.
+      // Cycle-6 (2026-06-09): also override `tier` to 1 — the row-select
+      // screen promises "enter your deck at Tier 1" but only stats were
+      // downgraded, so thorns-1/crescendo-1 starters (uncommon, tier 2)
+      // opened at spell-tier T2 — and T3 once the On Message same-school
+      // bump landed — from turn 1. Starter rows now genuinely start at T1.
+      card.tier = 1;
       if (card.slot === 'intro' || card.slot === 'subject') {
         card.stats = { ...(card.stats || {}), wit: 1 };
       } else if (card.slot === 'target' && card.effect) {
@@ -4022,6 +4044,14 @@ export default function App() {
   // Both ref-mirrored for the synchronous endTurn pass. Reset per combat.
   const [silencedTurns, setSilencedTurns] = useState(0);
   const silencedTurnsRef = useRef(0);
+  // 1000-run cycle 1 (2026-06-09): A FIRM HAND — menagerie ward charges.
+  // Each charge absorbs ONE enemy meddling intent (silence / freeze /
+  // turnAgainst / cutShort / undermineTactic / betray) — the handler's
+  // Artifact-style answer to the disruption wall. Ref mirrors state for
+  // synchronous reads inside applyEnemyIntent (same discipline as
+  // silencedTurnsRef). Reset per combat.
+  const [menagerieWard, setMenagerieWard] = useState(0);
+  const menagerieWardRef = useRef(0);
   const [animalsTurned, setAnimalsTurned] = useState(false);
   const animalsTurnedRef = useRef(false);
   // Betray (Spinster Matron) — telegraphed a turn ahead (Alan 1000-run fairness,
@@ -5932,6 +5962,7 @@ export default function App() {
     setLockedSpecies(null); lockedSpeciesRef.current = null;
     setSummonStrength(0); summonStrengthRef.current = 0;
     setSilencedTurns(0); silencedTurnsRef.current = 0;
+    setMenagerieWard(0); menagerieWardRef.current = 0;
     setAnimalsTurned(false); animalsTurnedRef.current = false;
     setBetrayPending(false); betrayPendingRef.current = false;
     setTroughCharges(0); troughChargesRef.current = 0;
@@ -8282,6 +8313,13 @@ export default function App() {
       setNotListeningCharges(c => c + fx.absorbNextDebuff);
       logBits.push(`🙉 +${fx.absorbNextDebuff} Sorry — what?`);
     }
+    // A FIRM HAND — menagerie ward charge(s). Consumed in applyEnemyIntent
+    // when a disruption kind fires.
+    if (fx.menagerieWard) {
+      menagerieWardRef.current += fx.menagerieWard;
+      setMenagerieWard(menagerieWardRef.current);
+      logBits.push(`🖐 ward ×${fx.menagerieWard} — next animal-meddling fizzles`);
+    }
     // v2.47: DRUNKEN CONFIDENCE removal — uninstallPower: <id>. Walks the
     // powers array, removes the first match. No-op if nothing's installed.
     // Currently used only by the "sober second thought," skill, but the
@@ -9533,6 +9571,11 @@ export default function App() {
     // end-of-turn tick (one AoE per departed animal).
     if (hasHandlerPower('memorial')) {
       for (let i = 0; i < n; i++) dealComposureToAll(5, `⚰️ Memorial — 5 composure to all enemies (a sacrifice departs).`);
+    }
+    // Fond Farewell — sacrifices regain composure here; natural exits in the tick.
+    if (hasHandlerPower('fondFarewell')) {
+      setComposure(c => clamp(c + 2 * n, 0, composureMax));
+      pushLog(`👋 Fond Farewell — +${2 * n} Composure.`);
     }
   };
 
@@ -11507,6 +11550,12 @@ export default function App() {
         }
         pushLog(`⚰️ Memorial — ${hTick.exits.length * 5} composure to all enemies (${hTick.exits.length} departed).`);
       }
+      // Fond Farewell — natural exits regain composure (sacrifices fire in
+      // noteAnimalSacrificed; the two paths never double-count).
+      if (hasHandlerPower('fondFarewell') && hTick.exits.length > 0) {
+        setComposure(c => clamp(c + 2 * hTick.exits.length, 0, composureMax));
+        pushLog(`👋 Fond Farewell — +${2 * hTick.exits.length} Composure (${hTick.exits.length} waved off).`);
+      }
       // Turn Against is a one-tick effect — the menagerie struck the player
       // this turn; clear it so it doesn't persist.
       if (animalsTurnedRef.current) { animalsTurnedRef.current = false; setAnimalsTurned(false); }
@@ -13064,6 +13113,14 @@ export default function App() {
         commitCompanion(inst);
         pushLog(`👹 ${e.name}: 🕯 ${intent.telegraph || `calls in ${inst.def.name}`}. ${inst.def.name} answers.`);
       }
+    } else if (['cutShort', 'undermineTactic', 'freeze', 'silence', 'turnAgainst', 'betray'].includes(intent.kind)
+               && menagerieWardRef.current > 0) {
+      // A FIRM HAND — a ward charge absorbs the meddling outright. Checked
+      // before the six disruption branches so one guard covers them all.
+      menagerieWardRef.current -= 1;
+      setMenagerieWard(menagerieWardRef.current);
+      pushLog(`🖐 A Firm Hand — ${e.name}'s ${intent.telegraph || intent.kind} fizzles against the ward.`);
+      logEvent('handler.ward.fizzle', { kind: intent.kind, enemyId: e.id, enemyTier: e.tier });
     } else if (intent.kind === 'cutShort') {
       // Handler-hostile (Alan, 2026-06-08): snip N remaining turns off every
       // animal on the board, hastening their departure. Forces re-summoning;
@@ -14102,7 +14159,7 @@ export default function App() {
       drilledSpecies={drilledSpecies}
       summonStrength={summonStrength}
       redirectArmed={redirectArmed}
-      silencedTurns={silencedTurns}
+      silencedTurns={silencedTurns} menagerieWard={menagerieWard}
       animalsTurned={animalsTurned}
       menagerieAttackTotal={projectedMenagerieAttack()}
       betrayPending={betrayPending}

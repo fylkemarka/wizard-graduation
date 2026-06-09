@@ -113,7 +113,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-truly\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"Truly,\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Said with the gravity of someone who knows they've said it before.\"}"
+    "raw_json": "{\"id\":\"wv2-i-truly\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"Truly,\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Said with the gravity of someone who knows they've said it before.\"}"
   },
   {
     "id": "wv2-i-curiously",
@@ -171,7 +171,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-strikes-me\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"It strikes me that\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"The strike is yours. The me is not.\"}"
+    "raw_json": "{\"id\":\"wv2-i-strikes-me\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"It strikes me that\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"The strike is yours. The me is not.\"}"
   },
   {
     "id": "wv2-i-i-should-think",
@@ -316,7 +316,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-by-any-measure\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"By any measure,\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Most measures, anyway. Certainly the kind one.\"}"
+    "raw_json": "{\"id\":\"wv2-i-by-any-measure\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"By any measure,\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Most measures, anyway. Certainly the kind one.\"}"
   },
   {
     "id": "wv2-i-speaking-plainly",
@@ -403,7 +403,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-it-would-appear\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"It would appear that\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Appearances, in matters like this, are the entire substance.\"}"
+    "raw_json": "{\"id\":\"wv2-i-it-would-appear\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"It would appear that\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Appearances, in matters like this, are the entire substance.\"}"
   },
   {
     "id": "wv2-i-being-honest",
@@ -432,7 +432,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-being-honest\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"If we're being honest,\",\"tags\":[\"cutting\"],\"stats\":{\"wit\":1},\"effects\":{\"draw\":1,\"loseHp\":1},\"flavor\":\"The we is presumptuous. It always is.\"}"
+    "raw_json": "{\"id\":\"wv2-i-being-honest\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"If we're being honest,\",\"tags\":[\"cutting\"],\"stats\":{\"wit\":1},\"effects\":{\"draw\":1,\"loseHp\":1},\"flavor\":\"The we is presumptuous. It always is.\"}"
   },
   {
     "id": "wv2-i-one-could-argue",
@@ -461,7 +461,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-one-could-argue\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"One could argue that\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"One could. One won't have to.\"}"
+    "raw_json": "{\"id\":\"wv2-i-one-could-argue\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"One could argue that\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"One could. One won't have to.\"}"
   },
   {
     "id": "wv2-i-let-the-record",
@@ -490,7 +490,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-let-the-record\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"Let the record show that\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"There is no record. The phrasing is the record.\"}"
+    "raw_json": "{\"id\":\"wv2-i-let-the-record\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"Let the record show that\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"There is no record. The phrasing is the record.\"}"
   },
   {
     "id": "wv2-i-as-i-was-saying",
@@ -519,7 +519,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-as-i-was-saying\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"as I was saying,\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"The thread, after all, was never broken — only set aside briefly.\"}"
+    "raw_json": "{\"id\":\"wv2-i-as-i-was-saying\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":0,\"type\":\"word\",\"phrase\":\"as I was saying,\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"The thread, after all, was never broken — only set aside briefly.\"}"
   },
   {
     "id": "wv2-i-permit-me-observe",
@@ -577,7 +577,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-charitable\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"Were I being charitable,\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Charity is a discipline. You may not be ready for it.\"}"
+    "raw_json": "{\"id\":\"wv2-i-charitable\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"Were I being charitable,\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Charity is a discipline. You may not be ready for it.\"}"
   },
   {
     "id": "wv2-i-setting-aside",
@@ -635,7 +635,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-if-records-trusted\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"If the records can be trusted,\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"They can. That is, in fact, the worst part.\"}"
+    "raw_json": "{\"id\":\"wv2-i-if-records-trusted\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"If the records can be trusted,\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"They can. That is, in fact, the worst part.\"}"
   },
   {
     "id": "wv2-i-put-generously",
@@ -664,7 +664,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-put-generously\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"To put it generously,\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Generosity, here, is an act of restraint. Witnessed.\"}"
+    "raw_json": "{\"id\":\"wv2-i-put-generously\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"To put it generously,\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Generosity, here, is an act of restraint. Witnessed.\"}"
   },
   {
     "id": "wv2-i-purely-analytical",
@@ -693,7 +693,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-purely-analytical\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"From a purely analytical perspective,\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"The analysis is purely a courtesy. The conclusion arrived earlier.\"}"
+    "raw_json": "{\"id\":\"wv2-i-purely-analytical\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"From a purely analytical perspective,\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"The analysis is purely a courtesy. The conclusion arrived earlier.\"}"
   },
   {
     "id": "wv2-i-reasonable-observer",
@@ -722,7 +722,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-reasonable-observer\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"By the standards of any reasonable observer,\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":3},\"flavor\":\"Reasonable observers are a small population. You are, suddenly, one.\"}"
+    "raw_json": "{\"id\":\"wv2-i-reasonable-observer\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"By the standards of any reasonable observer,\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":3},\"flavor\":\"Reasonable observers are a small population. You are, suddenly, one.\"}"
   },
   {
     "id": "wv2-i-full-possession",
@@ -751,7 +751,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-full-possession\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"And I say this with full possession of the facts,\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":3},\"flavor\":\"The facts have been alphabetized. Indexed. Cross-referenced. Their footnotes have footnotes.\"}"
+    "raw_json": "{\"id\":\"wv2-i-full-possession\",\"schoolId\":\"thorns\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"And I say this with full possession of the facts,\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":3},\"flavor\":\"The facts have been alphabetized. Indexed. Cross-referenced. Their footnotes have footnotes.\"}"
   },
   {
     "id": "wv2-i-fabric-merchant",
@@ -867,7 +867,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-reasoning\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your reasoning\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"Reasoning, in this case, having done its part by trying.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-reasoning\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your reasoning\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"Reasoning, in this case, having done its part by trying.\"}"
   },
   {
     "id": "wv2-s-this-argument",
@@ -896,7 +896,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-this-argument\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"this argument\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"The argument, taken on its own terms, having arrived too sure of itself.\"}"
+    "raw_json": "{\"id\":\"wv2-s-this-argument\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"this argument\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"The argument, taken on its own terms, having arrived too sure of itself.\"}"
   },
   {
     "id": "wv2-s-your-conclusion",
@@ -925,7 +925,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-conclusion\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your conclusion\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"The conclusion is the part that didn't survive the road.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-conclusion\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your conclusion\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"The conclusion is the part that didn't survive the road.\"}"
   },
   {
     "id": "wv2-s-your-sources",
@@ -954,7 +954,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-sources\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":2,\"type\":\"word\",\"phrase\":\"your sources\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"effects\":{\"weak\":1},\"flavor\":\"Where they go is not, strictly, anyone's concern. But they go somewhere.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-sources\",\"schoolId\":\"slowburn\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":2,\"type\":\"word\",\"phrase\":\"your sources\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"effects\":{\"weak\":1},\"flavor\":\"Where they go is not, strictly, anyone's concern. But they go somewhere.\"}"
   },
   {
     "id": "wv2-s-the-matter",
@@ -983,7 +983,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-the-matter\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the matter at hand\",\"tags\":[\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"The matter has been at hand for some time. It is patient.\"}"
+    "raw_json": "{\"id\":\"wv2-s-the-matter\",\"schoolId\":\"slowburn\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the matter at hand\",\"tags\":[\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"The matter has been at hand for some time. It is patient.\"}"
   },
   {
     "id": "wv2-s-your-dissertation",
@@ -1012,7 +1012,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-dissertation\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your dissertation\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Bound, defended, and from this distance — undamaged.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-dissertation\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your dissertation\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Bound, defended, and from this distance — undamaged.\"}"
   },
   {
     "id": "wv2-s-this-entire-enterprise",
@@ -1041,7 +1041,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-this-entire-enterprise\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"this entire enterprise\",\"tags\":[\"cutting\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"The word entire being asked to do unusual lifting today.\"}"
+    "raw_json": "{\"id\":\"wv2-s-this-entire-enterprise\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"this entire enterprise\",\"tags\":[\"cutting\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"The word entire being asked to do unusual lifting today.\"}"
   },
   {
     "id": "wv2-s-the-very-premise",
@@ -1070,7 +1070,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-the-very-premise\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the very premise\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Very is the most generous adverb in the philosophical lexicon.\"}"
+    "raw_json": "{\"id\":\"wv2-s-the-very-premise\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the very premise\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Very is the most generous adverb in the philosophical lexicon.\"}"
   },
   {
     "id": "wv2-s-your-standards",
@@ -1099,7 +1099,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-standards\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your standards\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"They are, at the very least, your own.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-standards\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your standards\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"They are, at the very least, your own.\"}"
   },
   {
     "id": "wv2-s-your-taste",
@@ -1157,7 +1157,7 @@
     "feed_key": "",
     "mechanics": "tagAmpMult",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-sheer-academic\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the sheer academic of the thing\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"tagAmpMult\":2,\"flavor\":\"Academic, here, being a verb. Spoken academically.\"}"
+    "raw_json": "{\"id\":\"wv2-s-sheer-academic\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the sheer academic of the thing\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"tagAmpMult\":2,\"flavor\":\"Academic, here, being a verb. Spoken academically.\"}"
   },
   {
     "id": "wv2-s-your-hidden-defenses",
@@ -1186,7 +1186,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-hidden-defenses\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your hidden defenses\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"effects\":{\"stealBlock\":{\"strip\":5,\"gain\":3}},\"flavor\":\"The defenses, on inspection, were ornamental. Useful to neither party.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-hidden-defenses\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your hidden defenses\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"effects\":{\"stealBlock\":{\"strip\":5,\"gain\":3}},\"flavor\":\"The defenses, on inspection, were ornamental. Useful to neither party.\"}"
   },
   {
     "id": "wv2-s-the-syllabus",
@@ -1215,7 +1215,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-the-syllabus\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the syllabus\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"effects\":{\"draw\":1},\"flavor\":\"A reading list, in the older and more honest sense.\"}"
+    "raw_json": "{\"id\":\"wv2-s-the-syllabus\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the syllabus\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"effects\":{\"draw\":1},\"flavor\":\"A reading list, in the older and more honest sense.\"}"
   },
   {
     "id": "wv2-s-the-bibliography",
@@ -1244,7 +1244,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-the-bibliography\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the bibliography you've assembled\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"Assembled, here, being a polite word for collected and shrugged at.\"}"
+    "raw_json": "{\"id\":\"wv2-s-the-bibliography\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the bibliography you've assembled\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"Assembled, here, being a polite word for collected and shrugged at.\"}"
   },
   {
     "id": "wv2-s-your-central-thesis",
@@ -1273,7 +1273,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-central-thesis\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your central thesis\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Centrality is a function of geometry. Theses, of bone structure.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-central-thesis\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your central thesis\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":1},\"flavor\":\"Centrality is a function of geometry. Theses, of bone structure.\"}"
   },
   {
     "id": "wv2-s-foundation",
@@ -1302,7 +1302,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-foundation\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the very foundation of your argument\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"Foundations being load-bearing is, again, a generous reading.\"}"
+    "raw_json": "{\"id\":\"wv2-s-foundation\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the very foundation of your argument\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"Foundations being load-bearing is, again, a generous reading.\"}"
   },
   {
     "id": "wv2-s-your-methodology",
@@ -1331,7 +1331,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-methodology\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your methodology\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"Method, ology, and the silence between them.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-methodology\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your methodology\",\"tags\":[\"academic\"],\"stats\":{\"wit\":1},\"flavor\":\"Method, ology, and the silence between them.\"}"
   },
   {
     "id": "wv2-s-so-called-proof",
@@ -1360,7 +1360,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-so-called-proof\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"this so-called proof\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"So-called by the kindest among us. The rest have other words.\"}"
+    "raw_json": "{\"id\":\"wv2-s-so-called-proof\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"this so-called proof\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"So-called by the kindest among us. The rest have other words.\"}"
   },
   {
     "id": "wv2-s-conclusions-drawn",
@@ -1389,7 +1389,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-conclusions-drawn\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the conclusions you've drawn\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"Drawn the way water is — that is, with effort, and not for long.\"}"
+    "raw_json": "{\"id\":\"wv2-s-conclusions-drawn\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the conclusions you've drawn\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":1},\"flavor\":\"Drawn the way water is — that is, with effort, and not for long.\"}"
   },
   {
     "id": "wv2-s-elaborate-edifice",
@@ -1418,7 +1418,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-elaborate-edifice\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the elaborate edifice of your reasoning\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"Elaborate, in architecture, often signals load-bearing fashion.\"}"
+    "raw_json": "{\"id\":\"wv2-s-elaborate-edifice\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the elaborate edifice of your reasoning\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"Elaborate, in architecture, often signals load-bearing fashion.\"}"
   },
   {
     "id": "wv2-s-studied-opacity",
@@ -1447,7 +1447,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-studied-opacity\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the studied opacity of your prose\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Opacity, when studied, becomes a style. A bad one.\"}"
+    "raw_json": "{\"id\":\"wv2-s-studied-opacity\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the studied opacity of your prose\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Opacity, when studied, becomes a style. A bad one.\"}"
   },
   {
     "id": "wv2-s-quietly-imported",
@@ -1476,7 +1476,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-quietly-imported\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"every assumption you've quietly imported\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Quietness is, on inspection, the most audible thing here.\"}"
+    "raw_json": "{\"id\":\"wv2-s-quietly-imported\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"every assumption you've quietly imported\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Quietness is, on inspection, the most audible thing here.\"}"
   },
   {
     "id": "wv2-s-passes-for-rigor",
@@ -1505,7 +1505,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-passes-for-rigor\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"what passes for rigor here\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Passes, in this context, being a verb of movement, not validation.\"}"
+    "raw_json": "{\"id\":\"wv2-s-passes-for-rigor\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"what passes for rigor here\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Passes, in this context, being a verb of movement, not validation.\"}"
   },
   {
     "id": "wv2-s-breathtaking-confidence",
@@ -1534,7 +1534,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-breathtaking-confidence\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the breathtaking confidence of your claim\",\"tags\":[\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"Breath is being lost, certainly. The reason is unclear.\"}"
+    "raw_json": "{\"id\":\"wv2-s-breathtaking-confidence\",\"schoolId\":\"slowburn\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the breathtaking confidence of your claim\",\"tags\":[\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"Breath is being lost, certainly. The reason is unclear.\"}"
   },
   {
     "id": "wv2-s-unexamined-certainty",
@@ -1563,7 +1563,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-unexamined-certainty\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your impressively unexamined certainty\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Impressively because it has lasted this long. Unexamined for the same reason.\"}"
+    "raw_json": "{\"id\":\"wv2-s-unexamined-certainty\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your impressively unexamined certainty\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Impressively because it has lasted this long. Unexamined for the same reason.\"}"
   },
   {
     "id": "wv2-s-slow-architecture",
@@ -1592,7 +1592,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-slow-architecture\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the slow architecture of your self-deception\",\"tags\":[\"academic\",\"cutting\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Slow because it had time. Architecture because someone clearly drew plans.\"}"
+    "raw_json": "{\"id\":\"wv2-s-slow-architecture\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the slow architecture of your self-deception\",\"tags\":[\"academic\",\"cutting\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Slow because it had time. Architecture because someone clearly drew plans.\"}"
   },
   {
     "id": "wv2-s-not-thought-through",
@@ -1621,7 +1621,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-not-thought-through\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"everything you have not thought through carefully\",\"tags\":[\"academic\",\"cutting\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Everything is a strong word. It is, here, the precisely correct one.\"}"
+    "raw_json": "{\"id\":\"wv2-s-not-thought-through\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"everything you have not thought through carefully\",\"tags\":[\"academic\",\"cutting\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Everything is a strong word. It is, here, the precisely correct one.\"}"
   },
   {
     "id": "wv2-s-boucle-starter",
@@ -1766,7 +1766,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-your-cuff\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your cuff\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"It has a posture. It is, regrettably, the wrong one.\"}"
+    "raw_json": "{\"id\":\"wv2-s-your-cuff\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your cuff\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"It has a posture. It is, regrettably, the wrong one.\"}"
   },
   {
     "id": "wv2-s-dry-shaving",
@@ -1969,7 +1969,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-standards-of-upkeep\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your standards of upkeep\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Standards being, broadly, what one calls the absence of them.\"}"
+    "raw_json": "{\"id\":\"wv2-s-standards-of-upkeep\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your standards of upkeep\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Standards being, broadly, what one calls the absence of them.\"}"
   },
   {
     "id": "wv2-s-towel-rotation",
@@ -2085,7 +2085,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-wool-spring\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your wool, in spring,\",\"tags\":[\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"Wool, in spring, being a sartorial cry for help.\"}"
+    "raw_json": "{\"id\":\"wv2-s-wool-spring\",\"schoolId\":\"slowburn\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your wool, in spring,\",\"tags\":[\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"Wool, in spring, being a sartorial cry for help.\"}"
   },
   {
     "id": "wv2-s-hem-garment",
@@ -2114,7 +2114,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-hem-garment\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the hem of that garment\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"The hem is, in tailoring, where the honesty lives.\"}"
+    "raw_json": "{\"id\":\"wv2-s-hem-garment\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"the hem of that garment\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"The hem is, in tailoring, where the honesty lives.\"}"
   },
   {
     "id": "wv2-s-silk-before-8",
@@ -2201,7 +2201,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-evening-regimen\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your evening regimen\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"A regimen, generously. A pattern, charitably. A habit, factually.\"}"
+    "raw_json": "{\"id\":\"wv2-s-evening-regimen\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your evening regimen\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"A regimen, generously. A pattern, charitably. A habit, factually.\"}"
   },
   {
     "id": "wv2-s-post-meal-ritual",
@@ -2230,7 +2230,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-post-meal-ritual\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your post-meal ritual\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Ritual being, in any civilised house, the entire compact.\"}"
+    "raw_json": "{\"id\":\"wv2-s-post-meal-ritual\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your post-meal ritual\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"Ritual being, in any civilised house, the entire compact.\"}"
   },
   {
     "id": "wv2-s-roundabout",
@@ -2259,7 +2259,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-roundabout\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your relationship to the roundabout\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"A roundabout requires a thesis. You arrived with a question.\"}"
+    "raw_json": "{\"id\":\"wv2-s-roundabout\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your relationship to the roundabout\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"A roundabout requires a thesis. You arrived with a question.\"}"
   },
   {
     "id": "wv2-s-speed-limit",
@@ -2288,7 +2288,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-speed-limit\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your relationship to the speed limit\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"A limit being, in fact, an upper bound. Not a target.\"}"
+    "raw_json": "{\"id\":\"wv2-s-speed-limit\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your relationship to the speed limit\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":2},\"flavor\":\"A limit being, in fact, an upper bound. Not a target.\"}"
   },
   {
     "id": "wv2-s-four-way-stop",
@@ -2317,7 +2317,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-four-way-stop\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your relationship to the four-way stop\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"A choreography. You have, somehow, not been taught the steps.\"}"
+    "raw_json": "{\"id\":\"wv2-s-four-way-stop\",\"schoolId\":\"thorns\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your relationship to the four-way stop\",\"tags\":[\"academic\",\"cutting\"],\"stats\":{\"wit\":2},\"flavor\":\"A choreography. You have, somehow, not been taught the steps.\"}"
   },
   {
     "id": "wv2-t-thats-not-it",
@@ -2346,7 +2346,7 @@
     "feed_key": "",
     "mechanics": "threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-thats-not-it\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"that's not it.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":1},\"desc\":\"Cast: 4 + Wit×3 + Long Thread × 1 composure.\",\"flavor\":\"Said gently. Heard sharply.\"}"
+    "raw_json": "{\"id\":\"wv2-t-thats-not-it\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"that's not it.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":1},\"desc\":\"Cast: 4 + Wit×3 + Long Thread × 1 composure.\",\"flavor\":\"Said gently. Heard sharply.\"}"
   },
   {
     "id": "wv2-t-what-i-expected",
@@ -2375,7 +2375,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-what-i-expected\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"is exactly what I expected.\",\"tags\":[\"cutting\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"weak\":1}},\"flavor\":\"Expectations, in this case, were a kindness.\"}"
+    "raw_json": "{\"id\":\"wv2-t-what-i-expected\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"is exactly what I expected.\",\"tags\":[\"cutting\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"weak\":1}},\"flavor\":\"Expectations, in this case, were a kindness.\"}"
   },
   {
     "id": "wv2-t-not-survive-scrutiny",
@@ -2404,7 +2404,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-not-survive-scrutiny\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"will not survive this scrutiny.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"vulnerable\":1}},\"flavor\":\"Survival being a matter of one careful look.\"}"
+    "raw_json": "{\"id\":\"wv2-t-not-survive-scrutiny\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"will not survive this scrutiny.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"vulnerable\":1}},\"flavor\":\"Survival being a matter of one careful look.\"}"
   },
   {
     "id": "wv2-t-politely-overlooked",
@@ -2433,7 +2433,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-politely-overlooked\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"has been politely overlooked, until now.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\",\"drawAfterCast\":1},\"flavor\":\"Politeness is a renewable resource. Today it ran out.\"}"
+    "raw_json": "{\"id\":\"wv2-t-politely-overlooked\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"has been politely overlooked, until now.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\",\"drawAfterCast\":1},\"flavor\":\"Politeness is a renewable resource. Today it ran out.\"}"
   },
   {
     "id": "wv2-t-lacks-seriousness",
@@ -2462,7 +2462,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-lacks-seriousness\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lacks the seriousness it pretends to.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\",\"rider\":{\"weak\":1}},\"flavor\":\"The pretense was the only weight it carried.\"}"
+    "raw_json": "{\"id\":\"wv2-t-lacks-seriousness\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lacks the seriousness it pretends to.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\",\"rider\":{\"weak\":1}},\"flavor\":\"The pretense was the only weight it carried.\"}"
   },
   {
     "id": "wv2-t-mistakes-vehemence",
@@ -2491,7 +2491,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-mistakes-vehemence\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"mistakes vehemence for vigor.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"vulnerable\":1}},\"flavor\":\"The two have, at this point, never even been introduced.\"}"
+    "raw_json": "{\"id\":\"wv2-t-mistakes-vehemence\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"mistakes vehemence for vigor.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"vulnerable\":1}},\"flavor\":\"The two have, at this point, never even been introduced.\"}"
   },
   {
     "id": "wv2-t-natural-conclusion",
@@ -2520,7 +2520,7 @@
     "feed_key": "",
     "mechanics": "threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-natural-conclusion\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, perhaps, the natural conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":4,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":3},\"desc\":\"Cast: 6 + Wit×3 + Long Thread × 3 composure.\",\"flavor\":\"Natural is doing some work here, but it gets to.\"}"
+    "raw_json": "{\"id\":\"wv2-t-natural-conclusion\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, perhaps, the natural conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":4,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":3},\"desc\":\"Cast: 6 + Wit×3 + Long Thread × 3 composure.\",\"flavor\":\"Natural is doing some work here, but it gets to.\"}"
   },
   {
     "id": "wv2-t-generous-error",
@@ -2549,7 +2549,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-generous-error\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in the most generous reading, an error.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"weak\":2}},\"flavor\":\"Less generous readings have been collected and indexed.\"}"
+    "raw_json": "{\"id\":\"wv2-t-generous-error\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in the most generous reading, an error.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"weak\":2}},\"flavor\":\"Less generous readings have been collected and indexed.\"}"
   },
   {
     "id": "wv2-t-future-studies",
@@ -2578,7 +2578,7 @@
     "feed_key": "",
     "mechanics": "tier3Double",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-future-studies\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will be cited in future studies of what to avoid.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":10,\"multiplier\":3,\"damageType\":\"composure\",\"tier3Double\":true},\"flavor\":\"The citation is the gift. The avoidance is the lesson.\"}"
+    "raw_json": "{\"id\":\"wv2-t-future-studies\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will be cited in future studies of what to avoid.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":10,\"multiplier\":3,\"damageType\":\"composure\",\"tier3Double\":true},\"flavor\":\"The citation is the gift. The avoidance is the lesson.\"}"
   },
   {
     "id": "wv2-t-own-punctuation",
@@ -2607,7 +2607,7 @@
     "feed_key": "",
     "mechanics": "requiresTier3",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-own-punctuation\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"effect\",\"phrase\":\"collapses under the weight of its own punctuation.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":12,\"multiplier\":3,\"damageType\":\"composure\",\"requiresTier3\":{\"failureDamageMult\":0.5,\"exhaustOnFail\":true}},\"flavor\":\"Em dashes can carry a great deal. Not, however, this.\"}"
+    "raw_json": "{\"id\":\"wv2-t-own-punctuation\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"effect\",\"phrase\":\"collapses under the weight of its own punctuation.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":12,\"multiplier\":3,\"damageType\":\"composure\",\"requiresTier3\":{\"failureDamageMult\":0.5,\"exhaustOnFail\":true}},\"flavor\":\"Em dashes can carry a great deal. Not, however, this.\"}"
   },
   {
     "id": "wv2-t-saying-something-wrong",
@@ -2636,7 +2636,7 @@
     "feed_key": "",
     "mechanics": "delayedMisstep",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-saying-something-wrong\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, I am afraid, where you said something rather wrong.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":11,\"multiplier\":3,\"damageType\":\"composure\",\"delayedMisstep\":{\"delay\":2,\"selfDamage\":3}},\"desc\":\"Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.\",\"flavor\":\"You said it with conviction. The conviction is, on reflection, the problem.\"}"
+    "raw_json": "{\"id\":\"wv2-t-saying-something-wrong\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, I am afraid, where you said something rather wrong.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":11,\"multiplier\":3,\"damageType\":\"composure\",\"delayedMisstep\":{\"delay\":2,\"selfDamage\":3}},\"desc\":\"Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.\",\"flavor\":\"You said it with conviction. The conviction is, on reflection, the problem.\"}"
   },
   {
     "id": "wv2-t-collected-works",
@@ -3013,7 +3013,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-soft-start\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"are what the rest of us call a soft start.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Softness, here, is a clinical observation. Not a kindness.\"}"
+    "raw_json": "{\"id\":\"wv2-t-soft-start\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"are what the rest of us call a soft start.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Softness, here, is a clinical observation. Not a kindness.\"}"
   },
   {
     "id": "wv2-t-did-not-ask-to-know",
@@ -3129,7 +3129,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-its-own-opinions\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"has its own opinions.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Wool develops opinions. Linen, in spring, simply behaves.\"}"
+    "raw_json": "{\"id\":\"wv2-t-its-own-opinions\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"has its own opinions.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Wool develops opinions. Linen, in spring, simply behaves.\"}"
   },
   {
     "id": "wv2-t-still-be-unkind",
@@ -3158,7 +3158,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-still-be-unkind\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"would still be unkind.\",\"tags\":[\"cutting\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Charity has its limits. The hem has, regretfully, exposed them.\"}"
+    "raw_json": "{\"id\":\"wv2-t-still-be-unkind\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"would still be unkind.\",\"tags\":[\"cutting\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Charity has its limits. The hem has, regretfully, exposed them.\"}"
   },
   {
     "id": "wv2-t-not-what-one-wears-after",
@@ -3245,7 +3245,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-in-fact-ongoing\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in fact, ongoing.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Ongoing being a verb-form, here, with weight.\"}"
+    "raw_json": "{\"id\":\"wv2-t-in-fact-ongoing\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in fact, ongoing.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Ongoing being a verb-form, here, with weight.\"}"
   },
   {
     "id": "wv2-t-optional-in-your-house",
@@ -3274,7 +3274,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-optional-in-your-house\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, regrettably, optional in your house.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Optional being, in this case, a synonym for \\\"absent altogether.\\\"\"}"
+    "raw_json": "{\"id\":\"wv2-t-optional-in-your-house\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, regrettably, optional in your house.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Optional being, in this case, a synonym for \\\"absent altogether.\\\"\"}"
   },
   {
     "id": "wv2-t-insurance-forms",
@@ -3303,7 +3303,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-insurance-forms\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is what insurance forms are for.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"The forms have been pre-filled. By the underwriter. With a sigh.\"}"
+    "raw_json": "{\"id\":\"wv2-t-insurance-forms\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is what insurance forms are for.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"The forms have been pre-filled. By the underwriter. With a sigh.\"}"
   },
   {
     "id": "wv2-t-generously-aspirational",
@@ -3332,7 +3332,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-generously-aspirational\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, generously, aspirational.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Aspiration, here, being a polite name for \\\"regularly exceeded.\\\"\"}"
+    "raw_json": "{\"id\":\"wv2-t-generously-aspirational\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, generously, aspirational.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Aspiration, here, being a polite name for \\\"regularly exceeded.\\\"\"}"
   },
   {
     "id": "wv2-t-category-of-confusion",
@@ -3361,7 +3361,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-category-of-confusion\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, on its own, a category of confusion.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"The category is small. You are, somehow, its sole member.\"}"
+    "raw_json": "{\"id\":\"wv2-t-category-of-confusion\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, on its own, a category of confusion.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"The category is small. You are, somehow, its sole member.\"}"
   },
   {
     "id": "wv2-m-due-respect",
@@ -3883,7 +3883,7 @@
     "feed_key": "",
     "mechanics": "perDiscardCard",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-footnote-bears-out\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"…as the long footnote bears out.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":2,\"damageType\":\"composure\",\"perDiscardCard\":1},\"flavor\":\"The footnote is on page 814. The page is, technically, also a footnote.\"}"
+    "raw_json": "{\"id\":\"wv2-t-footnote-bears-out\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"…as the long footnote bears out.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":2,\"damageType\":\"composure\",\"perDiscardCard\":1},\"flavor\":\"The footnote is on page 814. The page is, technically, also a footnote.\"}"
   },
   {
     "id": "wv2-t-finally-answered",
@@ -3912,7 +3912,7 @@
     "feed_key": "",
     "mechanics": "cashInAnnotation|requiresAnnotation",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-finally-answered\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is finally answered, in full.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":2,\"damageType\":\"composure\",\"requiresAnnotation\":true,\"cashInAnnotation\":{\"damagePerTurn\":5}},\"desc\":\"REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.\",\"flavor\":\"Every footnote has, eventually, a reckoning.\"}"
+    "raw_json": "{\"id\":\"wv2-t-finally-answered\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is finally answered, in full.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":2,\"damageType\":\"composure\",\"requiresAnnotation\":true,\"cashInAnnotation\":{\"damagePerTurn\":5}},\"desc\":\"REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.\",\"flavor\":\"Every footnote has, eventually, a reckoning.\"}"
   },
   {
     "id": "wv2-ann-footnote-credibility",
@@ -4289,7 +4289,7 @@
     "feed_key": "",
     "mechanics": "delayedMisstep|threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-in-summary\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in summary, the inescapable conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":4,\"delayedMisstep\":true},\"desc\":\"Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.\",\"flavor\":\"Summary being a polite word for verdict.\"}"
+    "raw_json": "{\"id\":\"wv2-t-in-summary\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in summary, the inescapable conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":4,\"delayedMisstep\":true},\"desc\":\"Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.\",\"flavor\":\"Summary being a polite word for verdict.\"}"
   },
   {
     "id": "wv2-m-as-previously-stated",
@@ -4347,7 +4347,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-manner-of-speaking\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your manner of speaking,\",\"tags\":[\"cutting\",\"observational\"],\"stats\":{\"wit\":2},\"effects\":{\"vulnerable\":1},\"flavor\":\"A subject one returns to with the certainty of an honest critic.\"}"
+    "raw_json": "{\"id\":\"wv2-s-manner-of-speaking\",\"schoolId\":\"slowburn\",\"slot\":\"subject\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"phrase\":\"your manner of speaking,\",\"tags\":[\"cutting\",\"observational\"],\"stats\":{\"wit\":2},\"effects\":{\"vulnerable\":1},\"flavor\":\"A subject one returns to with the certainty of an honest critic.\"}"
   },
   {
     "id": "wv2-t-cannot-bear",
@@ -4376,7 +4376,7 @@
     "feed_key": "",
     "mechanics": "pierceVulnerableInsult",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-cannot-bear\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"that being, of course, the very thing you cannot bear to hear.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":4,\"multiplier\":3,\"damageType\":\"composure\",\"pierceVulnerableInsult\":4},\"desc\":\"Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).\",\"flavor\":\"A flaw named is a flaw amplified.\"}"
+    "raw_json": "{\"id\":\"wv2-t-cannot-bear\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"that being, of course, the very thing you cannot bear to hear.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":4,\"multiplier\":3,\"damageType\":\"composure\",\"pierceVulnerableInsult\":4},\"desc\":\"Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).\",\"flavor\":\"A flaw named is a flaw amplified.\"}"
   },
   {
     "id": "wv2-k-page-mark",

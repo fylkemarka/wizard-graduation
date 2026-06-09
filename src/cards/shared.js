@@ -63,7 +63,18 @@ export function computeSpellTier(intro, subject, target) {
   const it = intro.tierWildcard ? Math.max(subject.tier || 1, target.tier || 1) : (intro.tier || 1);
   const st = subject.tierWildcard ? Math.max(intro.tier || 1, target.tier || 1) : (subject.tier || 1);
   const tt = target.tierWildcard ? Math.max(intro.tier || 1, subject.tier || 1) : (target.tier || 1);
-  const sum = it + st + tt;
+  let sum = it + st + tt;
+  // 1000-run cycle 1 (2026-06-09): ON MESSAGE — school-monogamy tier bump.
+  // All three primary slots sharing a schoolId adds +1 to the tier sum.
+  // This is the paced pick-a-direction reward: a same-school COMMON trio
+  // (1+1+1=3 → 4) stays T1, an UNCOMMON trio (2+2+2=6 → 7) reaches T3 —
+  // the archetype "comes online" through commitment, not just rare-hunting.
+  // Baseline batch had ZERO T3 casts in 1317; this opens the top tier to
+  // committed decks. Single implementation point: App, the tray preview,
+  // and the sim all import this function.
+  if (intro.schoolId && intro.schoolId === subject.schoolId && subject.schoolId === target.schoolId) {
+    sum += 1;
+  }
   if (sum <= 4) return 1;
   if (sum <= 6) return 2;
   return 3;

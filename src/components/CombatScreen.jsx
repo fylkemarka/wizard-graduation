@@ -92,7 +92,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        drilledSpecies = {},
                        summonStrength = 0,
                        redirectArmed = false,
-                       silencedTurns = 0,
+                       silencedTurns = 0, menagerieWard = 0,
                        animalsTurned = false,
                        menagerieAttackTotal = 0,
                        betrayPending = false,
@@ -806,6 +806,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {isHandler && redirectArmed && (
             <span data-testid="redirect-armed" title="Spittle Peck — the enemy's NEXT attack turns on itself. You take no damage from it; the enemy eats it."
                   className="font-mono text-sm text-moss-300 animate-pulse-soft">↩ reflect</span>
+          )}
+          {isHandler && menagerieWard > 0 && (
+            <span data-testid="menagerie-ward" title={`A Firm Hand — the next ${menagerieWard > 1 ? menagerieWard + ' enemy tricks' : 'enemy trick'} that meddles with your menagerie (silence / freeze / turn-against / cut-short / betrayal) fizzles.`}
+                  className="font-mono text-sm text-gold-300">🖐{menagerieWard}</span>
           )}
           {isHandler && silencedTurns > 0 && (
             <span data-testid="silenced" title={`Silenced — you can't play lures (no new summons) for ${silencedTurns} more turn${silencedTurns > 1 ? 's' : ''}.`}

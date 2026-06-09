@@ -266,6 +266,8 @@ const HANDLER_TACTIC_UTIL = [
   // c-buffet removed entirely 2026-06-07 (Alan) — see App.jsx CARDS note.
   { id: 'c-defend-handler', name: 'Step Back', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { block: 6 } },
   { id: 'c-hunker-down', name: 'Hunker Down',     cost: 1, type: 'handler-skill', rarity: 'common',   effects: { block: 9 } },
+  // 1000-run cycle 1 (2026-06-09): WARD archetype — mirrors App.jsx c-firm-hand.
+  { id: 'c-firm-hand',   name: 'A Firm Hand',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { menagerieWard: 1 } },
   { id: 'c-dig-in',      name: 'Dig In Properly', cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { block: 16 } },
   { id: 'c-compose',     name: 'Compose Yourself', cost: 1, type: 'handler-skill', rarity: 'basic', effects: { poise: 7, removeWeak: 1 } },
   // Renamed from shared c-sharp-aside 2026-06-07 (lanes no longer share cards).
@@ -289,6 +291,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
   { id: 'c-palpable-sadness',  name: 'Palpable Sadness',  cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'palpableSadness' } },
   { id: 'c-memorial',          name: 'Memorial',          cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'memorial' } },
+  { id: 'c-fond-farewell',     name: 'Fond Farewell',     cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'fondFarewell' } },
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'costOfLittering' } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
   { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
@@ -334,8 +337,8 @@ const HANDLER_REWARD_POOL = [
   'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
   'c-light-the-mound', 'c-palpable-sadness', 'c-cost-of-littering',
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
-  'c-hunker-down', 'c-dig-in',
-  'c-memorial', 'c-pedigree', 'c-best-in-show',
+  'c-hunker-down', 'c-dig-in', 'c-firm-hand',
+  'c-memorial', 'c-fond-farewell', 'c-pedigree', 'c-best-in-show',
   'c-rally-the-pack', 'c-drillmaster', 'c-whet-claws', 'c-thicken-hide', 'c-steel-nerves', 'c-stiff-upper-lip',
   'c-sergeant-at-arms', 'c-quartermaster-regimen',
 ];
@@ -398,10 +401,26 @@ function buildStarterDeck(lane) {
   // Fully Formed Thought in their first combat. Mirrors App.jsx.
   let introIds, subjectId, targetId;
   if (lane === 'wit') {
-    // v3.4.10 (Alan): dropped the cross-row second intro. Sim mirror.
-    introIds = ['wv2-i-frankly'];
-    subjectId = 'wv2-s-boucle-starter';
-    targetId  = 'wv2-t-fabric-starter';
+    // Cycle-5 (2026-06-09): rotate the starter row per run — the live game
+    // offers a pick of slowburn-4 / thorns-1 / crescendo-1 (Starting Picks),
+    // but the sim hardcoded slowburn-4, so Crescendo/Thorns archetypes were
+    // structurally unmeasured (0 bank cash-ins through 4 batches). Uniform
+    // rotation gives each school a third of the runs. STARTER_ROW env pins it.
+    const WIT_STARTER_ROWS = {
+      'slowburn-4':  { intro: 'wv2-i-frankly',             subject: 'wv2-s-boucle-starter',  target: 'wv2-t-fabric-starter' },
+      'thorns-1':    { intro: 'wv2-i-specifically-speaking', subject: 'wv2-s-gentleman-bidet', target: 'wv2-t-not-a-gentleman' },
+      'crescendo-1': { intro: 'wv2-i-civically-speaking',  subject: 'wv2-s-turn-signal',     target: 'wv2-t-entire-drive' },
+    };
+    const pick = (typeof process !== 'undefined' && process.env.STARTER_ROW && WIT_STARTER_ROWS[process.env.STARTER_ROW])
+      ? process.env.STARTER_ROW
+      : pickRandom(Object.keys(WIT_STARTER_ROWS));
+    globalThis.__starterRowCounts = globalThis.__starterRowCounts || {};
+    globalThis.__starterRowCounts[pick] = (globalThis.__starterRowCounts[pick] || 0) + 1;
+    const row = WIT_STARTER_ROWS[pick];
+    introIds = [row.intro];
+    subjectId = row.subject;
+    targetId  = row.target;
+    globalThis.__witStarterT1Override = new Set([row.intro, row.subject, row.target]);
   } else {
     introIds = [basics(pool.intro)[0]?.id, basics(pool.intro)[1]?.id];
     subjectId = basics(pool.subject)[0]?.id;
@@ -416,7 +435,21 @@ function buildStarterDeck(lane) {
   ].filter(Boolean);
   const cards = ids.map(id => {
     const tmpl = LANE_POOL[lane].find(c => c.id === id);
-    return tmpl ? { ...tmpl, uid: uid() } : null;
+    if (!tmpl) return null;
+    const card = { ...tmpl, uid: uid() };
+    // Cycle-6: mirror App.jsx buildStartingDeck's T1 starter-row override —
+    // tier 1 + wit:1 stats + 2×2 target. Without this the sim's rotated
+    // thorns-1/crescendo-1 starters (uncommon trios) opened at spell-tier
+    // T3 with the On Message bump (the cycle-5 52% T3 anomaly).
+    if (lane === 'wit' && globalThis.__witStarterT1Override?.has(id)) {
+      card.tier = 1;
+      if (card.slot === 'intro' || card.slot === 'subject') {
+        card.stats = { ...(card.stats || {}), wit: 1 };
+      } else if (card.slot === 'target' && card.effect) {
+        card.effect = { ...card.effect, base: 2, multiplier: 2 };
+      }
+    }
+    return card;
   }).filter(Boolean);
   cards.push({ id: 'c-defend', type: 'skill', cost: 1, effects: { block: 5 }, name: 'Defend', uid: uid() });
   cards.push({ id: 'c-compose', type: 'skill', cost: 1, effects: { poise: 5 }, name: 'Compose Yourself', uid: uid() });
@@ -1288,6 +1321,13 @@ function applyHandlerUtil(state, combat, card) {
 // (Last Supper / Make It Count). Banks a draw for next turn.
 function noteHandlerExit(state, combat, n = 1) {
   if (hasHandlerPower(state, 'whisperer')) combat.whisperPending = (combat.whisperPending || 0) + n;
+  // Cycle-4 (2026-06-09): FOND FAREWELL — every departure (exit or sacrifice;
+  // sacrifices route through here too) regains 2 composure. The cycler-sustain
+  // archetype: the revolving door becomes the defense. Mirrors App.jsx.
+  if (hasHandlerPower(state, 'fondFarewell')) {
+    state.composure = Math.min(state.composureMax || 30, state.composure + 2 * n);
+    combat.fondFarewellHeals = (combat.fondFarewellHeals || 0) + 2 * n;
+  }
 }
 // Booster skill effect resolution (2026-06-01). Mirrors App.jsx applySideEffects
 // handlers + the click-target prompt resolvers (sacrifice/gorge auto-target here
@@ -1358,6 +1398,8 @@ function applyHandlerSkill(state, combat, card) {
   }
   // Rally the Pack — flat +N Summon Strength to every animal, rest of combat.
   if (fx.summonStrength) combat.summonStrength = (combat.summonStrength || 0) + fx.summonStrength;
+  // A Firm Hand — ward charge(s); consumed in the enemy-intent disruption guard.
+  if (fx.menagerieWard) combat.menagerieWard = (combat.menagerieWard || 0) + fx.menagerieWard;
   // Pedigree — lock all lures to the most-numerous on-board species.
   if (fx.lockLureSpecies) {
     const counts = {};
@@ -1688,6 +1730,15 @@ function aiTurnHandler(state, combat) {
   let safety = 30;
   while (safety-- > 0) {
     const intent = combat.enemyIntent;
+    // A FIRM HAND — the telegraphed-disruption read. Play the ward when the
+    // intent is an animal-meddler, we have no charge up, and there's a
+    // menagerie worth protecting. Mirrors a human reading the telegraph.
+    const DISRUPT_KINDS = ['cutShort', 'undermineTactic', 'freeze', 'silence', 'turnAgainst', 'betray'];
+    if (DISRUPT_KINDS.includes(intent?.kind) && (combat.menagerieWard || 0) === 0) {
+      const hasBoard = ['intro', 'subject', 'target'].some(s => combat.htray[s]?.kind === 'animal');
+      const wi = state.hand.findIndex(c => c.effects?.menagerieWard && c.cost <= state.energy);
+      if (hasBoard && wi >= 0) { playHandlerCard(state, combat, wi); continue; }
+    }
     const incoming = (intent?.kind === 'attack' || intent?.kind === 'attack-multi') ? intent.value * (intent.count || 1) : 0;
     if (incoming > 0) {
       const targetsComp = intent.pool === 'composure';
@@ -2194,6 +2245,11 @@ function handlerApplyIntent(state, combat, intent) {
       const inst = buildCompanionFromIdSim(intent.companionId, 1.25);
       if (inst) { combat.companion = inst; noteEnemyProc('summon'); }
     }
+  } else if (['cutShort', 'undermineTactic', 'freeze', 'silence', 'turnAgainst', 'betray'].includes(intent.kind)
+             && (combat.menagerieWard || 0) > 0) {
+    // A FIRM HAND — ward charge absorbs the meddling. Mirrors App.jsx guard.
+    combat.menagerieWard -= 1;
+    combat.wardFires = (combat.wardFires || 0) + 1;
   } else if (intent.kind === 'cutShort') {
     // Snip N turns off every on-board animal (Gauze Revenant). Mirrors App.jsx.
     const n = intent.value || 1;
@@ -2607,6 +2663,8 @@ function runHandlerCombat(state, enemy, telemetry) {
     telemetry.handlerCombats = (telemetry.handlerCombats || 0) + 1;
     telemetry.handlerTicks += combat.handlerTicks;
     telemetry.handlerSummons += combat.summons;
+    telemetry.handlerWardFires = (telemetry.handlerWardFires || 0) + (combat.wardFires || 0);
+    telemetry.handlerFarewellHeals = (telemetry.handlerFarewellHeals || 0) + (combat.fondFarewellHeals || 0);
     telemetry.handlerFeeds += combat.feeds;
     telemetry.handlerShortStays += combat.shortStays;
     telemetry.handlerCombines += combat.combines;
@@ -5816,7 +5874,12 @@ function aiPickHandlerReward(state) {
       if (ownedIds.has(card.id)) return s + 6;
       const bpe = card.effects.block / Math.max(1, card.cost || 1);
       return s + (hpDefenseCount < 4 ? 8 : 4) + Math.round(bpe) + ((card.cost || 1) === 1 ? 3 : 0);
-    } else if (card.installPower?.id === 'memorial' || card.installPower?.id === 'bestInShow'
+    } else if (card.effects?.menagerieWard) {
+      // A Firm Hand — the answer card vs disruption-heavy elites/bosses.
+      // High fresh value (the baseline batch had 246 unanswered disruptions);
+      // a second copy is cheap insurance, not core.
+      s += ownedIds.has(card.id) ? 5 : 12;
+    } else if (card.installPower?.id === 'memorial' || card.installPower?.id === 'fondFarewell' || card.installPower?.id === 'bestInShow'
             || card.installPower?.id === 'wellDrilled' || card.installPower?.id === 'drillmaster'
             || card.effects?.spawnFodder || card.effects?.lockLureSpecies || card.effects?.summonStrength) {
       // 2026-06-08 synergy archetypes (Sacrifice engine / Monoculture). Score
@@ -5843,6 +5906,23 @@ function awardReward(state) {
   // Handler (Animal Summoner) drafts from its own pool, biased to tactic
   // variety + boss-burst tools. No verbal word-pool draft applies.
   if (state.lane === 'handler') {
+    // Cycle-3 (2026-06-09): A Firm Hand measurability bias — same pattern as
+    // the wit skill biases (v2.33–2.41). ~22% per reward when unowned, so the
+    // ward reaches decks reliably enough to measure its effect on the
+    // disruption wall. Sim-side only; the live draft stays unbiased.
+    {
+      const allCards = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+      for (const bid of ['c-firm-hand', 'c-fond-farewell']) {
+        if (!allCards.some(c => c.id === bid) && rnd() < 0.22) {
+          const bc = HANDLER_CARDS_BY_ID[bid];
+          if (bc) {
+            state.discard.push({ ...bc, uid: uid() });
+            state.rewardsTaken.push(bc.id);
+            return;
+          }
+        }
+      }
+    }
     const card = aiPickHandlerReward(state);
     if (card) {
       // Mirror App.jsx: the foundational variety lures (Birdseed, Tender
@@ -6612,7 +6692,7 @@ function aggregate(results) {
   // 2026-06-08 new-card analysis: draft rate + acts-cleared correlation for the
   // synergy/block cards, so the design loop can tell if they're exercised and
   // whether decks that drafted them go further.
-  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-pedigree', 'c-best-in-show', 'c-well-drilled', 'c-rally-the-pack', 'c-drillmaster'];
+  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-firm-hand', 'c-memorial', 'c-fond-farewell', 'c-pedigree', 'c-best-in-show', 'c-well-drilled', 'c-rally-the-pack', 'c-drillmaster'];
   const newCardStats = {};
   const handlerRuns = results.filter(r => r.lane === 'handler');
   for (const id of NEW_CARD_IDS) {
@@ -6655,6 +6735,17 @@ function aggregate(results) {
     totalCasts: results.reduce((s, r) => s + (r.castsAttempted || 0), 0),
     totalFizzles: results.reduce((s, r) => s + (r.fizzles || 0), 0),
     totalHolds: results.reduce((s, r) => s + (r.holds || 0), 0),
+    // 1000-run cycle telemetry (2026-06-09): wit school engagement — the
+    // school-differentiation loop needs these surfaced per batch.
+    fftCasts: results.reduce((s, r) => s + (r.fftCasts || 0), 0),
+    fftDamage: results.reduce((s, r) => s + (r.fftDamage || 0), 0),
+    fftPartialCasts: results.reduce((s, r) => s + (r.fftPartialCasts || 0), 0),
+    fftSameSchoolCasts: results.reduce((s, r) => s + (r.fftSameSchoolCasts || 0), 0),
+    fftDotDepositDamage: results.reduce((s, r) => s + (r.fftDotDepositDamage || 0), 0),
+    crescendoFlatDamage: results.reduce((s, r) => s + (r.crescendoFlatDamage || 0), 0),
+    thornsCastBlockGranted: results.reduce((s, r) => s + (r.thornsCastBlockGranted || 0), 0),
+    thornsBodySlamCasts: results.reduce((s, r) => s + (r.thornsBodySlamCasts || 0), 0),
+    thornsBodySlamDamage: results.reduce((s, r) => s + (r.thornsBodySlamDamage || 0), 0),
     tier1Casts: results.reduce((s, r) => s + (r.tier1Casts || 0), 0),
     tier2Casts: results.reduce((s, r) => s + (r.tier2Casts || 0), 0),
     tier3Casts: results.reduce((s, r) => s + (r.tier3Casts || 0), 0),
@@ -6680,6 +6771,8 @@ function aggregate(results) {
     handlerPorcupineThorns: results.reduce((s, r) => s + (r.handlerPorcupineThorns || 0), 0),
     handlerSlothSkips: results.reduce((s, r) => s + (r.handlerSlothSkips || 0), 0),
     handlerAbilityActivations: results.reduce((s, r) => s + (r.handlerAbilityActivations || 0), 0),
+    handlerWardFires: results.reduce((s, r) => s + (r.handlerWardFires || 0), 0),
+    handlerFarewellHeals: results.reduce((s, r) => s + (r.handlerFarewellHeals || 0), 0),
     // v2.24: tunnel-vision / rage metrics.
     rageTriggers: results.reduce((s, r) => s + (r.rageTriggers || 0), 0),
     rageTriggerRuns: results.filter(r => (r.rageTriggers || 0) > 0).length,
@@ -6912,6 +7005,8 @@ function buildReport(agg) {
   lines.push(`- Tactic changes: ${agg.handlerTacticChanges} · avg distinct tactics/combat: ${agg.handlerCombats ? (agg.handlerTacticVarietySum / agg.handlerCombats).toFixed(2) : '0.00'}`);
   lines.push(`- Special-lure animals: summons ${agg.handlerSpecialSummons} · porcupine thorns dealt ${agg.handlerPorcupineThorns} · sloth enemy-turns skipped ${agg.handlerSlothSkips}`);
   lines.push(`- Activated abilities (Mime/Pigeon/Kangaroo): ${agg.handlerAbilityActivations} activations`);
+  lines.push(`- A Firm Hand ward fizzles (disruption absorbed): ${agg.handlerWardFires}`);
+  lines.push(`- Fond Farewell composure regained: ${agg.handlerFarewellHeals}`);
   {
     const te = agg.handlerTacticEngaged || {};
     const order = ['shield', 'rabid', 'youth', 'nurture', 'feather'];
@@ -6933,6 +7028,13 @@ function buildReport(agg) {
     lines.push('- ' + procOrder.map(k => `${k} ${ENEMY_PROCS[k] || 0}`).join(' · '));
     lines.push('');
   }
+  lines.push(`## Wit SCHOOLS (1000-run cycle telemetry)`);
+  lines.push(`- Full FFT casts: ${agg.fftCasts} (total FFT damage ${agg.fftDamage}) · partial-row: ${agg.fftPartialCasts} · same-school (non-row): ${agg.fftSameSchoolCasts}`);
+  lines.push(`- Slow Burn DoT deposited: ${agg.fftDotDepositDamage}`);
+  lines.push(`- Crescendo bank cash-ins (flat damage): ${agg.crescendoFlatDamage}`);
+  lines.push(`- Thorns block granted by casts: ${agg.thornsCastBlockGranted}`);
+  lines.push(`- Thorns BODY SLAM: ${agg.thornsBodySlamCasts} casts · ${agg.thornsBodySlamDamage} damage`);
+  lines.push('');
   lines.push(`## Wit LONG THREAD (v2.34)`);
   lines.push(`- Combats reaching LT ≥ 1: ${agg.combatsWithThread} (runs: ${agg.threadRuns} / ${agg.N}, ${pct(agg.threadRuns / agg.N)})`);
   lines.push(`- Avg peak LT per run (across all combats): ${(agg.longThreadPeakSum / agg.N).toFixed(2)}`);
