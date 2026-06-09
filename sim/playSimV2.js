@@ -294,8 +294,8 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 5 } },
   // Team retool (Alan, 2026-06-08) — invest in a specific animal. Split
   // offense/defense + exhaust (spam audit): one card can't stack both stats.
-  { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 3 }, exhaust: true } },
-  { id: 'c-thicken-hide',  name: 'Thicken the Hide',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { block: 3 }, exhaust: true } },
+  { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 3 }, costEscalates: true } },
+  { id: 'c-thicken-hide',  name: 'Thicken the Hide',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { block: 3 }, costEscalates: true } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -1427,6 +1427,14 @@ function applyHandlerSkill(state, combat, card) {
     }
   }
 }
+// Effective energy cost incl. generic per-card escalation (costEscalates).
+// Mirrors App.jsx effectiveCardCost. (Open Door's lure discount is handled
+// inline in playHandlerCard.)
+function handlerEffectiveCost(combat, card) {
+  let c = card.cost || 0;
+  if (card.effects?.costEscalates) c += (combat.escalatingPlays?.[card.id] || 0);
+  return c;
+}
 function playHandlerCard(state, combat, idx) {
   const card = state.hand[idx];
   state.hand.splice(idx, 1);
@@ -1435,7 +1443,12 @@ function playHandlerCard(state, combat, idx) {
   // effectiveCardCost + firstLureUsedThisTurn.
   const isLure = card.type === 'lure';
   const openDoorFree = isLure && hasHandlerPower(state, 'openDoor') && !combat.firstLureUsedThisTurn;
-  state.energy -= openDoorFree ? 0 : (card.cost || 0);
+  state.energy -= openDoorFree ? 0 : handlerEffectiveCost(combat, card);
+  // Escalating cost — +1 per prior play of THIS card this combat (training).
+  if (card.effects?.costEscalates) {
+    combat.escalatingPlays = combat.escalatingPlays || {};
+    combat.escalatingPlays[card.id] = (combat.escalatingPlays[card.id] || 0) + 1;
+  }
   if (isLure) combat.firstLureUsedThisTurn = true;
   if (card.type === 'power') {
     // Powers install onto state.powers (once per combat — can't re-install
@@ -1902,7 +1915,7 @@ function aiTurnHandler(state, combat) {
     // Basic Training — invest in an animal that will stick around. Worth it
     // on a keeper (long stay) or any animal with ≥3 turns left; pointless on a
     // body that's about to leave.
-    const trainIdx = state.hand.findIndex(c => c.effects?.strengthenAnimal && c.cost <= state.energy);
+    const trainIdx = state.hand.findIndex(c => c.effects?.strengthenAnimal && handlerEffectiveCost(combat, c) <= state.energy);
     if (trainIdx >= 0) {
       const worth = SLOT.some(s => {
         const sl = combat.htray[s];

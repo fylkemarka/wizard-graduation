@@ -24,7 +24,7 @@ async function ensurePlay(page, cardId, maxTurns = 8) {
 test('a Drystone Ox keeper braces for Block; split training grows the wall and the swing', async ({ page }) => {
   await gotoLab(page, 'handler', { seed: 1 });
   await addCard(page, OATS);
-  await addCard(page, WHET);
+  for (let i = 0; i < 4; i++) await addCard(page, WHET);   // copies for the escalation check
   await addCard(page, HIDE);
   await fightEnemy(page, 'Silk Wraith');
 
@@ -56,4 +56,15 @@ test('a Drystone Ox keeper braces for Block; split training grows the wall and t
   // The pending menagerie Block now shows on the Player block stat (9 from
   // the Ox, surfaced so it nets against the enemy intent bar).
   await expect(page.getByTestId('pending-menagerie-block')).toContainText(/\+9/);
+
+  // Escalating cost (anti-spam): a SECOND Whet the Claws this combat costs 1
+  // more (base 1 → 2). Draw one and check its effective cost on the pill. (Run
+  // last — it may end turns; the Ox is a keeper so it sticks around.)
+  let nextWhet = handCardById(page, WHET).first();
+  for (let t = 0; t < 4 && (await nextWhet.count()) === 0; t++) {
+    await endTurn(page);
+    const a = page.getByRole('button', { name: 'Acknowledged' }); if ((await a.count()) > 0) await a.click();
+    nextWhet = handCardById(page, WHET).first();
+  }
+  await expect(nextWhet).toHaveAttribute('data-eff-cost', '2');
 });

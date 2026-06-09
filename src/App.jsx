@@ -262,18 +262,20 @@ const CARDS = [
   // Training cards (Alan, 2026-06-08) — the TEAM-building lever: invest in a
   // SPECIFIC animal on the board. The buff is permanent for that summon
   // (slot.attackBonus / slot.blockBonus), so losing the animal loses it.
-  // SPLIT into offense/defense + EXHAUST (Alan's spam audit): one card can't
-  // stack BOTH stats, and exhaust caps total trainings per combat at the
-  // copies you drafted — so a wall is a committed build, not a free spam loop.
+  // SPLIT into offense/defense + ESCALATING COST (Alan's spam audit): one card
+  // can't stack both stats, and each replay this combat costs +1 more — so
+  // stacking a wall gets expensive fast (1+2+3…) and players stay choosy
+  // WITHOUT hoarding copies (exhaust would have pushed the opposite). A couple
+  // of copies is worth it; five never is.
   { id: 'c-whet-claws', name: 'Whet the Claws', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { strengthenAnimal: { attack: 3 }, exhaust: true },
-    upgrade: { effects: { strengthenAnimal: { attack: 4 }, exhaust: true } },
-    desc: 'Pick an animal on the board. It permanently gains +3 attack — for as long as it stays. Lose the animal, lose the edge. Exhaust.',
+    effects: { strengthenAnimal: { attack: 3 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { attack: 4 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently gains +3 attack — for as long as it stays. Lose the animal, lose the edge. Costs 1 more each time you play it this combat.',
     flavor: 'A little honing. The animal seems pleased; the enemy, less so.' },
   { id: 'c-thicken-hide', name: 'Thicken the Hide', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { strengthenAnimal: { block: 3 }, exhaust: true },
-    upgrade: { effects: { strengthenAnimal: { block: 4 }, exhaust: true } },
-    desc: 'Pick an animal on the board. It permanently braces for +3 Block each turn — for as long as it stays. Lose the animal, lose the hide. Exhaust.',
+    effects: { strengthenAnimal: { block: 3 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { block: 4 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently braces for +3 Block each turn — for as long as it stays. Lose the animal, lose the hide. Costs 1 more each time you play it this combat.',
     flavor: 'Weeks of conditioning, compressed into an afternoon. The animal files a mild complaint.' },
   { id: 'c-drillmaster', name: 'Drillmaster', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
@@ -3747,6 +3749,13 @@ export default function App() {
   // Sap escalates the same way as Amplify: each play this combat adds +1 to
   // its energy cost, so you can't cheaply spam toward the −50% floor.
   const [sapPlaysThisCombat, setSapPlaysThisCombat] = useState(0);
+  // Generic per-card escalating cost (Alan, 2026-06-08): a card with
+  // effects.costEscalates costs +1 more for each prior play of THAT card this
+  // combat. Used by the training cards (Whet the Claws / Thicken the Hide) so
+  // stacking a buff onto one animal gets expensive fast — players stay choosy
+  // WITHOUT hoarding copies (which exhaust would have encouraged). Same shape
+  // as Amplify/Sap, generalized. Keyed by card id; reset each combat.
+  const [escalatingPlays, setEscalatingPlays] = useState({});
   // v2.9: hard cap on spell casts per turn. Was previously unbounded —
   // a 3-energy turn could comfortably stage+cast twice. Caps player
   // tempo so elites and bosses can actually pressure across multiple
@@ -5804,6 +5813,7 @@ export default function App() {
     setTray(initialV2Tray());
     setAmplifyPlaysThisCombat(0);
     setSapPlaysThisCombat(0);
+    setEscalatingPlays({});
     setCastsThisTurn(0);
     setCastsThisCombat(0);
     setRollOptIn(false);
@@ -6080,6 +6090,8 @@ export default function App() {
     if (card?.id === 'c-amplify') return (card.cost || 0) + amplifyPlaysThisCombat;
     if (card?.id === 'c-sap') return (card.cost || 0) + sapPlaysThisCombat;
     let c = card?.cost || 0;
+    // Generic escalating cost — +1 per prior play of THIS card this combat.
+    if (card?.effects?.costEscalates) c += (escalatingPlays[card.id] || 0);
     // v3.4.59 — slot-cost-reduction powers.
     const hasPower = (id) => powers.some(p => p.installPower?.id === id);
     if (card?.slot === 'intro' && hasPower('introCheaper')) c = Math.max(0, c - 1);
@@ -6165,6 +6177,7 @@ export default function App() {
     }
     if (card.id === 'c-amplify') setAmplifyPlaysThisCombat(n => n + 1);
     if (card.id === 'c-sap') setSapPlaysThisCombat(n => n + 1);
+    if (card.effects?.costEscalates) setEscalatingPlays(m => ({ ...m, [card.id]: (m[card.id] || 0) + 1 }));
     logEvent(TE.CARD_PLAY, { cardId: card.id, cardName: card.name, type: card.type, cost, energyBefore: energy, handSize: hand.length, enemyId: enemy?.id });
     const logBits = [card.name];
 
