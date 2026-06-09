@@ -14316,7 +14316,7 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       body: (<>
         <p>The Bursar has offered to spar with you. <i>Verbally</i>, of course — wizards prefer it that way. He's pulling his punches; you can't actually lose this match.</p>
         <p className="mt-2">Three card types: <b>Words</b> (intros / subjects / modifiers — stage into the Spell Tray) · <b>Effects</b> (targets — seal and cast the spell) · <b>Skills</b> (like Defend — do their thing immediately).</p>
-        <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), <b>Poise</b> (🪞), and <b>Energy</b> (⚡) at the bottom. Energy refills every turn — spend it on cards.</p>
+        <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), <b>Poise</b> (🪞), and <b>Energy</b> (⚡) in the <b>Player</b> panel. Energy refills every turn — spend it on cards.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -14372,9 +14372,9 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       waitsForAction: false,
     },
     {
-      title: 'Step 6 — Resistances, defense, and pre-staging.',
+      title: 'Step 6 — Defense and pre-staging.',
       body: (<>
-        <p><b>Effectiveness badges</b> next to the Intent show how the enemy reacts to each stat: <b>×1</b> baseline · <span className="text-moss-300">×1.5–2 susceptible</span> · <span className="text-ember-300">×0.5 resistant</span> · <span className="text-parchment-400">×0 immune</span>. Read it before you cast.</p>
+        <p>The Bursar attacks two ways: <b>⚔ physical</b> chips your <b>HP</b>, <b>🎭 composure</b> chips your <b>Composure</b>. Read the <b>Intent</b> by the enemy to see which is coming, and defend the right pool.</p>
         <p className="mt-2"><b>Defend</b> grants Block (🛡) — absorbs HP damage. <b>Compose Yourself</b> grants Poise (🪞) — absorbs composure damage. Both reset at start of YOUR next turn — spend them this turn or lose them.</p>
         <p className="mt-2"><b>Pre-staging cost:</b> staged cards <i>persist</i> across turns until you cast, but each one held over costs <b>1 Composure</b> per turn. Hold one card to set up cheap; hold three and bleed.</p>
       </>),
@@ -14431,7 +14431,7 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       body: (<>
         <p>The Bursar has offered to spar with you. <i>Verbally</i>, of course — wizards prefer it that way. He's pulling his punches; you can't actually lose this match.</p>
         <p className="mt-2">Three things you'll need to know: <b>Words build spells</b>. <b>Effects (targets) cast them</b>. <b>Skills</b> (like Defend) do their thing immediately.</p>
-        <p className="mt-2">Watch the <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), <b>Poise</b> (🪞), and <b>Energy</b> (⚡) at the bottom of the screen. Energy refills every turn — spend it on cards.</p>
+        <p className="mt-2">Watch the <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), <b>Poise</b> (🪞), and <b>Energy</b> (⚡) in the <b>Player</b> panel. Energy refills every turn — spend it on cards.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -14465,10 +14465,10 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       waitsForAction: true,
     },
     {
-      title: 'Step 4 — Resistances, defense, and fizzling.',
+      title: 'Step 4 — Composure, defense, and pre-staging.',
       body: (<>
         <p>You drained some of the Bursar's <b>Composure</b> (the ✨ bar). Drain it to 0 and he concedes.</p>
-        <p className="mt-2"><b>Effectiveness badges</b> next to the Intent show how the enemy reacts to each stat: <b>×1</b> baseline · <span className="text-moss-300">×1.5–2 susceptible</span> · <span className="text-ember-300">×0.5 resistant</span> · <span className="text-parchment-400">×0 immune</span>. Pick a wizard whose lane the enemy fears.</p>
+        <p className="mt-2">Watch the <b>Intent</b> next to the enemy — it shows what's coming and whether it hits your <b>HP</b> (⚔ physical) or <b>Composure</b> (🎭). Defend the pool that's threatened.</p>
         <p className="mt-2"><b>Defend</b> grants Block (🛡) — absorbs physical damage. <b>Compose Yourself</b> grants Poise (🪞) — absorbs composure damage. Block and Poise reset at start of YOUR next turn — spend them this turn or lose them.</p>
         <p className="mt-2"><b>Pre-staging cost:</b> staged cards <i>persist</i> into your next turn until you cast — but each card carried over costs <b>1 Composure</b> per turn. You're focusing on what you'll say next instead of paying attention to the enemy. Hold one card to set up next turn cheaply; hold three and bleed.</p>
       </>),
@@ -14508,7 +14508,7 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
         <p>The Bursar has offered to spar with you. He's pulling his punches; you can't actually lose this match.</p>
         <p className="mt-2"><b>You don't cast spells — you bait the woods.</b> You play <b>🪱 Lure</b> cards into the <b>Summoning Pitch</b> (the 3 slots above your hand). Each lure ticks down, then transforms into an <b>🐾 Animal</b> that fights for you. Animals <b>stay as long as you keep them fed</b> — your job is to assemble a TEAM and maintain it.</p>
         <p className="mt-2"><b>How you win:</b> your animals attack the enemy's <b>Composure</b> (the ✨ bar). Drain it to 0 and they back down. <b>How you lose:</b> the enemy whittles your <b>HP</b> (❤) to 0 — or your own Composure to 0. The game is a race: get the woods online and maintained before the enemy grinds you down.</p>
-        <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), and <b>Energy</b> (⚡) at the bottom. Energy refills every turn — and it's the currency for feeding, summoning, and buffing, so you're always choosing.</p>
+        <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), and <b>Energy</b> (⚡) in the <b>Player</b> panel. Energy refills every turn — and it's the currency for feeding, summoning, and buffing, so you're always choosing.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
