@@ -24,18 +24,18 @@ test('Rally the Pack gives every animal +2 attack (Summon Strength)', async ({ p
   await addCard(page, WHIP);
   await fightEnemy(page, 'Silk Wraith');
 
-  // Land a Young Buck (base 5 attack).
+  // Install Rally the Pack FIRST (+2 Summon Strength, combat-wide). Drawing it
+  // can burn turns, so we do it before any duration-2 buck exists — robust to
+  // starter/deck-composition shifts.
+  expect(await ensurePlay(page, WHIP)).toBeTruthy();
+  await expect(page.getByTestId('summon-strength')).toBeVisible();
+
+  // Summon a Young Buck — base 5 + 2 Summon Strength = 7, and never 5.
   expect(await ensurePlay(page, GREENS)).toBeTruthy();
   await endTurn(page);
   const ack = page.getByRole('button', { name: 'Acknowledged' }); if ((await ack.count()) > 0) await ack.click();
   const buck = page.locator('[data-testid="board-animal"][data-animal-id="young-buck"]').first();
   await expect(buck).toBeVisible();
-  await expect(buck).toContainText(/5 dmg/);
-
-  // Play Rally the Pack → +2 Summon Strength → the buck now reads 7, and the
-  // 💪 chip appears.
-  expect(await ensurePlay(page, WHIP)).toBeTruthy();
-  await expect(page.getByTestId('summon-strength')).toBeVisible();
   await expect(buck).toContainText(/7 dmg/);
   await expect(buck).not.toContainText(/5 dmg/);
 });

@@ -259,15 +259,22 @@ const CARDS = [
     effects: { summonStrength: 2, exhaust: true }, upgrade: { effects: { summonStrength: 3, exhaust: true } },
     desc: '+2 Summon Strength — every animal attacks for +2 for the rest of combat. Exhaust.',
     flavor: 'Not cruelty. Standards. The menagerie understands the difference, mostly.' },
-  // Basic Training (Alan, 2026-06-08) — the TEAM-building lever: invest in a
+  // Training cards (Alan, 2026-06-08) — the TEAM-building lever: invest in a
   // SPECIFIC animal on the board. The buff is permanent for that summon
-  // (slot.attackBonus / slot.blockBonus), so losing the animal loses the
-  // investment. Pairs with keepers (the Ox) — train the wall up over a fight.
-  { id: 'c-basic-training', name: 'Basic Training', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { strengthenAnimal: { attack: 3, block: 3 } },
-    upgrade: { effects: { strengthenAnimal: { attack: 4, block: 4 } } },
-    desc: 'Pick an animal on the board. It permanently gains +3 attack and +3 Block per turn — for as long as it stays. Lose the animal, lose the training.',
-    flavor: 'Sit. Stay. Hold the line against the existential dread. Good boy.' },
+  // (slot.attackBonus / slot.blockBonus), so losing the animal loses it.
+  // SPLIT into offense/defense + EXHAUST (Alan's spam audit): one card can't
+  // stack BOTH stats, and exhaust caps total trainings per combat at the
+  // copies you drafted — so a wall is a committed build, not a free spam loop.
+  { id: 'c-whet-claws', name: 'Whet the Claws', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { strengthenAnimal: { attack: 3 }, exhaust: true },
+    upgrade: { effects: { strengthenAnimal: { attack: 4 }, exhaust: true } },
+    desc: 'Pick an animal on the board. It permanently gains +3 attack — for as long as it stays. Lose the animal, lose the edge. Exhaust.',
+    flavor: 'A little honing. The animal seems pleased; the enemy, less so.' },
+  { id: 'c-thicken-hide', name: 'Thicken the Hide', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { strengthenAnimal: { block: 3 }, exhaust: true },
+    upgrade: { effects: { strengthenAnimal: { block: 4 }, exhaust: true } },
+    desc: 'Pick an animal on the board. It permanently braces for +3 Block each turn — for as long as it stays. Lose the animal, lose the hide. Exhaust.',
+    flavor: 'Weeks of conditioning, compressed into an afternoon. The animal files a mild complaint.' },
   { id: 'c-drillmaster', name: 'Drillmaster', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
     desc: 'Power. At the start of each turn, gain +1 Summon Strength (every animal attacks for more, building each turn).',
@@ -1156,7 +1163,8 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // immediately. NB engine cards normally belong in reward pools, not
     // starters (see Buffet-removal) — revisit placement once v3 lands.
     ids.push('cv2-l-bag-of-oats');      // keeper: Drystone Ox
-    ids.push('c-basic-training');       // invest in an animal (perm +atk/+block)
+    ids.push('c-whet-claws');           // train: +attack (exhaust)
+    ids.push('c-thicken-hide');         // train: +block/turn (exhaust)
   }
   return ids;
 }
@@ -11975,8 +11983,9 @@ export default function App() {
       if (animal.attack > 0) total += Math.round(baseAtk * atkMult * ampMult);
       const extra = slot.extraAttacks || 0;
       if (animal.attack > 0 && extra > 0) total += Math.round(animal.attack || 0) * extra;
-      const grant = animal.turnGrant || slot.turnGrantTemp;
-      if (grant?.block > 0) total += grant.block;
+      // NOTE: innate turnGrant.block is NOT counted here — it grants EVERY turn,
+      // shield or not, so it's projected by projectedMenagerieGrant() instead
+      // (avoids both the shield-only blind spot and a double-count).
       // Leaving-this-turn fed animal: its onExit damage also converts to block.
       const willHaveFeed = !animal.feedKey || slot.feedReceived;
       if (slot.durationRemaining === 1 && willHaveFeed && animal.onExit?.damage > 0) total += animal.onExit.damage;
@@ -11996,6 +12005,26 @@ export default function App() {
       if (combo.block > 0) total += combo.block;
     }
     return total;
+  }
+
+  // Block / Poise the menagerie will brace for at end of turn REGARDLESS of
+  // tactic — innate turnGrant (Ox, McCloven, Long Hare) plus Basic Training
+  // (blockBonus). Folded into the incoming-damage projection AND shown on the
+  // player's Block stat so the player isn't blind to defense their animals
+  // already provide (Alan, 2026-06-08: "made me play defensive cards when I
+  // don't need to").
+  function projectedMenagerieGrant() {
+    let block = 0, poise = 0;
+    for (const sn of SLOT_ORDER) {
+      const slot = tray[sn];
+      if (slot?.kind !== 'animal' || slot.eatenThisTurn) continue;
+      const animal = getAnimal(slot.animalId);
+      if (!animal) continue;
+      const grant = animal.turnGrant || slot.turnGrantTemp;
+      block += (grant?.block || 0) + (slot.blockBonus || 0);
+      poise += (grant?.poise || 0);
+    }
+    return { block, poise };
   }
 
   function projectIncomingDamage(intent) {
@@ -12047,7 +12076,8 @@ export default function App() {
     // Summoned Shield: fold in the Block & Poise the menagerie will brace for
     // when this turn ends, so the bar reflects the stance every turn it's up.
     const braceProjected = projectedShieldBrace();
-    let wBlock = block + braceProjected, wPoise = poise + braceProjected, wTempHp = tempHp;
+    const menagerieGrant = projectedMenagerieGrant();
+    let wBlock = block + braceProjected + menagerieGrant.block, wPoise = poise + braceProjected + menagerieGrant.poise, wTempHp = tempHp;
     let wHp = hp, wComp = Math.max(0, composure - weaveFireDamageRef.current);
     let totalIncoming = 0, blockAbsorbed = 0, poiseAbsorbed = 0, tempHpAbsorbed = 0;
     for (let i = 0; i < hits; i++) {
@@ -13724,6 +13754,7 @@ export default function App() {
       }
       enemyBlock={enemyBlock} enemyIntent={enemyIntent} intentTick={intentTick}
       incomingProjection={projectIncomingDamage(enemyIntent)}
+      pendingMenagerieBlock={projectedMenagerieGrant().block}
       peekedNextIntent={peekedNextIntent}
       enemyDmgMult={enemyDmgMult} playerDmgMult={playerDmgMult}
       enemyDmgTurns={enemyDmgTurns} playerDmgTurns={playerDmgTurns}

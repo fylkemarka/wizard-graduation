@@ -26,7 +26,12 @@ test('a buck summoned AFTER Well-Drilled still gets the +2', async ({ page }) =>
   await addCard(page, WELL_DRILLED);
   await fightEnemy(page, 'Silk Wraith');
 
-  // Stage a lure and let the first Young Buck arrive.
+  // Install Well-Drilled FIRST (drawing it can burn turns; doing so before any
+  // buck exists dodges a duration race and the prompt simply waits). It arms
+  // the drill prompt — the next board-animal click drills that species.
+  expect(await playWhenPlayable(page, WELL_DRILLED)).toBeTruthy();
+
+  // Stage a lure and let a Young Buck arrive — not yet drilled, so base 5.
   expect(await playWhenPlayable(page, GREENS)).toBeTruthy();
   await endTurn(page);
   let ack = page.getByRole('button', { name: 'Acknowledged' }); if ((await ack.count()) > 0) await ack.click();
@@ -34,10 +39,9 @@ test('a buck summoned AFTER Well-Drilled still gets the +2', async ({ page }) =>
   await expect(buck).toBeVisible();
   await expect(buck).toContainText(/5 dmg/); // base before drilling
 
-  // Install Well-Drilled, then click the buck to drill the species.
-  expect(await playWhenPlayable(page, WELL_DRILLED)).toBeTruthy();
+  // Click the buck to drill the species → the on-board copy reads 7.
   await buck.click();
-  await expect(buck).toContainText(/7 dmg/); // on-board copy now +2
+  await expect(buck).toContainText(/7 dmg/);
 
   // Summon a SECOND buck on a later turn — it must arrive drilled (7), not 5.
   expect(await playWhenPlayable(page, GREENS)).toBeTruthy();

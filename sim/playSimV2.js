@@ -292,8 +292,10 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-move-in-herds',  name: 'They DO Move in Herds', cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { herdConvert: true, exhaust: true } },
   { id: 'c-the-horde',      name: 'The Horde',             cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { damagePerSummonThisCombat: 1 } },
   { id: 'c-light-the-mound',name: 'Light the Mound',       cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { damagePerSacrificeThisCombat: 5 } },
-  // Team retool (Alan, 2026-06-08) — invest in a specific animal.
-  { id: 'c-basic-training', name: 'Basic Training',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 3, block: 3 } } },
+  // Team retool (Alan, 2026-06-08) — invest in a specific animal. Split
+  // offense/defense + exhaust (spam audit): one card can't stack both stats.
+  { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 3 }, exhaust: true } },
+  { id: 'c-thicken-hide',  name: 'Thicken the Hide',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { block: 3 }, exhaust: true } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -309,7 +311,7 @@ const HANDLER_STARTER = [
   'c-pack-tactics', 'c-tactic-shield',
   // Team-retool slice 1 (Alan, 2026-06-08) — keeper loop seeded into the
   // opening for playtest reach. Mirrors src/App.jsx buildStarterDeckForLane.
-  'cv2-l-bag-of-oats', 'c-basic-training',
+  'cv2-l-bag-of-oats', 'c-whet-claws', 'c-thicken-hide',
 ];
 const HANDLER_REWARD_POOL = [
   'cv2-l-fish-food', 'cv2-l-birdseed', 'cv2-l-tender-greens',
@@ -322,7 +324,7 @@ const HANDLER_REWARD_POOL = [
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
   'c-hunker-down', 'c-dig-in',
   'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show',
-  'c-rally-the-pack', 'c-drillmaster', 'c-basic-training',
+  'c-rally-the-pack', 'c-drillmaster', 'c-whet-claws', 'c-thicken-hide',
 ];
 
 // =============================================================================

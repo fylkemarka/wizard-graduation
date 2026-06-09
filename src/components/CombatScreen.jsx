@@ -54,6 +54,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        mirrorReflectCharges = null,
                        tempHp = 0, tempHpTurns = 0,
                        playerIncomingMult = 1.0, enemyPressure = 0,
+                       pendingMenagerieBlock = 0,
                        enemySkipNextAttack = false, enemyAnnotation = null,
                        footnotePromptActive = false, onApplyFootnote, onCancelFootnote,
                        lastCastSnapshot = null, arguingBackThisTurn = 0,
@@ -670,7 +671,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           the bottom-right so it's always in the same place. */}
       <div key={`player-vitals-${playerHitFlash || 0}`}
            className={`parchment-card-strong p-1.5 flex flex-col gap-0.5 ${playerHitFlash ? 'hit-shake' : ''}`}>
-        <div className="text-[10px] uppercase tracking-widest text-moss-300 leading-none">Your State</div>
+        <div className="text-[10px] uppercase tracking-widest text-moss-300 leading-none">Player</div>
         {/* v3.5 art pass — player vitals bars mirror the enemy's. */}
         <div className="flex gap-2 items-center">
           <StatBar value={hp} max={maxHp} fillClass="bg-moss-400" label={`HP ${hp}/${maxHp}`} />
@@ -681,7 +682,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           <span data-testid="player-hp" data-hp={hp} title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
           <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
           <span data-testid="player-energy" data-energy={energy} data-energy-max={energyMax} title="Energy — refills each turn." className="font-mono text-sm text-gold-300"><Icon name="energy" className="mr-0.5" />{energy}/{energyMax}</span>
-          <span title="Block — absorbs physical hits. Resets each turn." className="font-mono text-sm text-iris-300"><Icon name="block" className="mr-0.5" />{block}</span>
+          <span title={pendingMenagerieBlock > 0
+                  ? `Block — absorbs physical hits, resets each turn. ${block} now + ${pendingMenagerieBlock} your menagerie braces at end of turn = ${block + pendingMenagerieBlock} against the next attack.`
+                  : "Block — absorbs physical hits. Resets each turn."}
+                className="font-mono text-sm text-iris-300"><Icon name="block" className="mr-0.5" />{block}{pendingMenagerieBlock > 0 && <span className="text-moss-300" data-testid="pending-menagerie-block"> +{pendingMenagerieBlock}🐾</span>}</span>
           <span title="Poise — absorbs composure hits. Resets each turn." className="font-mono text-sm text-moss-300"><Icon name="poise" className="mr-0.5" />{poise}</span>
           {(() => {
             const rawDef = equipment.reduce((s, eq) => s + (eq.bonus?.damageReduction || 0), 0)
@@ -989,7 +993,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       {strengthenPromptActive && (
         <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
           <div className="text-sm text-gold-100">
-            <span className="font-bold">💪 Basic Training:</span> click an animal to strengthen it — permanent +attack and +Block/turn for as long as it stays.
+            <span className="font-bold">💪 Training:</span> click an animal to strengthen it — permanent buff for as long as it stays.
           </div>
           <button onClick={onCancelStrengthen}
             className="px-3 py-1 bg-ink-700 text-parchment-200 rounded border border-ink-500 hover:bg-ink-600 text-sm">

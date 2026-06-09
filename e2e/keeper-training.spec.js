@@ -8,7 +8,8 @@ import { test, expect } from '@playwright/test';
 import { gotoLab, addCard, fightEnemy, handCardById, endTurn } from './helpers/lab.js';
 
 const OATS = 'cv2-l-bag-of-oats';
-const TRAIN = 'c-basic-training';
+const WHET = 'c-whet-claws';      // +attack, exhaust
+const HIDE = 'c-thicken-hide';    // +block/turn, exhaust
 
 async function ensurePlay(page, cardId, maxTurns = 8) {
   for (let t = 0; t < maxTurns; t++) {
@@ -20,10 +21,11 @@ async function ensurePlay(page, cardId, maxTurns = 8) {
   return false;
 }
 
-test('a Drystone Ox keeper braces for Block; Basic Training grows the wall and the swing', async ({ page }) => {
+test('a Drystone Ox keeper braces for Block; split training grows the wall and the swing', async ({ page }) => {
   await gotoLab(page, 'handler', { seed: 1 });
   await addCard(page, OATS);
-  for (let i = 0; i < 3; i++) await addCard(page, TRAIN);
+  await addCard(page, WHET);
+  await addCard(page, HIDE);
   await fightEnemy(page, 'Silk Wraith');
 
   // Stage the oats lure, end the turn so the Ox arrives.
@@ -37,13 +39,21 @@ test('a Drystone Ox keeper braces for Block; Basic Training grows the wall and t
   await expect(ox).toContainText(/2 dmg \/ turn/);
   await expect(ox).toContainText(/🛡 6\/turn/);
 
-  // Play Basic Training → strengthen prompt arms → click the Ox.
-  expect(await ensurePlay(page, TRAIN)).toBeTruthy();
-  await expect(page.getByText(/Basic Training:/)).toBeVisible();
+  // Whet the Claws → offense only: 2 → 5 dmg, block unchanged.
+  expect(await ensurePlay(page, WHET)).toBeTruthy();
+  await expect(page.getByText(/💪 Training:/)).toBeVisible();
   await ox.click();
-
-  // The wall and the swing both grow, and the trained badge appears.
   await expect(ox).toContainText(/5 dmg \/ turn/);   // 2 + 3
-  await expect(ox).toContainText(/🛡 9\/turn/);       // 6 + 3
+  await expect(ox).toContainText(/🛡 6\/turn/);       // block untouched
   await expect(ox).toContainText(/💪 trained/);
+
+  // Thicken the Hide → defense only: block 6 → 9, attack unchanged.
+  expect(await ensurePlay(page, HIDE)).toBeTruthy();
+  await ox.click();
+  await expect(ox).toContainText(/5 dmg \/ turn/);   // attack untouched
+  await expect(ox).toContainText(/🛡 9\/turn/);       // 6 + 3
+
+  // The pending menagerie Block now shows on the Player block stat (9 from
+  // the Ox, surfaced so it nets against the enemy intent bar).
+  await expect(page.getByTestId('pending-menagerie-block')).toContainText(/\+9/);
 });
