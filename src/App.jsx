@@ -9589,6 +9589,7 @@ export default function App() {
     noteAnimalDeparted();
     setTray(p => syncTrayLegacy({ ...p, [slotName]: null }));
     returnSourceLuresToHand(slot); // v3 single-use lure → back to hand
+    applyAnimalExitEffects(animal); // v3 slice 3 — sacrifice cashes the exit bonus
     setSacrificePromptActive(false);
     noteAnimalSacrificed(1);
     pushLog(`🍽 Last Supper — ${animal?.name || slot.animalId} departs. +${turnsLeft} Energy, draw 1.`);
@@ -9781,9 +9782,10 @@ export default function App() {
     setTray(p => syncTrayLegacy({ ...p, ...updates }));
     noteAnimalDeparted();
     returnSourceLuresToHand(slot); // v3 single-use lure → back to hand
+    applyAnimalExitEffects(animal); // v3 slice 3 — sacrifice cashes the exit bonus
     if (blockGain > 0) setBlock(b => b + blockGain);
     noteAnimalSacrificed(1);
-    pushLog(`🛡 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is sacrificed — +${blockGain} Block (no exit bonus).`);
+    pushLog(`🛡 ${animal?.icon || '🐾'} ${animal?.name || slot.animalId} is sacrificed — +${blockGain} Block (also fires its exit bonus).`);
   }
 
   // House Rules — designate an animal; it and every other copy of the same
