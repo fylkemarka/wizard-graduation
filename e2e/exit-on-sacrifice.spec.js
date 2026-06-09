@@ -2,9 +2,10 @@
 // animal now ALSO fires its own onExit bonus, on top of the existing
 // sacrifice-for-Block reward. Sacrifice becomes the way a player deliberately
 // CASHES an animal's exit payoff. This pins the additive stacking: a Field
-// Mouse (attack 2, onExit { block: 3, healComp: 2 }) sacrificed via the pill
-// grants +2 Block (its attack, the always-available sacrifice) PLUS +3 Block
-// from its onExit, and heals composure by the onExit's +2.
+// Mouse (attack 2, onExit { block: 5, healComp: 3 } after the slice-5 cycler
+// bump) sacrificed via the pill grants +2 Block (its attack, the always-
+// available sacrifice) PLUS +5 Block from its onExit, and heals composure by
+// the onExit's +3.
 
 import { test, expect } from '@playwright/test';
 import { gotoLab, addCard, fightEnemy, handCardById, endTurn } from './helpers/lab.js';
@@ -31,12 +32,12 @@ test('sacrificing a Field Mouse fires its onExit (block + composure heal) on top
   const mouse = page.locator('[data-testid="board-animal"][data-animal-id="field-mouse"]').first();
   await expect(mouse).toBeVisible();
 
-  // The sacrifice pill must preview the exit payoff it will cash (block 3,
-  // composure 2) — discoverability for the new stacking.
+  // The sacrifice pill must preview the exit payoff it will cash (block 5,
+  // composure 3) — discoverability for the new stacking.
   const sac = mouse.getByTestId('sacrifice-animal').first();
   await expect(sac).toBeVisible();
-  await expect(sac).toHaveAttribute('title', /exit bonus.*🛡3.*💟2/);
-  await expect(sac).toContainText(/exit .*🛡3/);
+  await expect(sac).toHaveAttribute('title', /exit bonus.*🛡5.*💟3/);
+  await expect(sac).toContainText(/exit .*🛡5/);
 
   // Read Block + Composure before sacrifice, live (robust to brace / wraith
   // chip). The Silk Wraith whispers at the player's composure, so it sits below
@@ -48,10 +49,10 @@ test('sacrificing a Field Mouse fires its onExit (block + composure heal) on top
 
   await sac.click();
 
-  // Block gained = attack (2, the always-available sacrifice) + onExit block (3).
-  // The +3 is the proof the exit bonus fired on sacrifice (was absent pre-slice-3).
-  await expect.poll(async () => Number(await blockEl.getAttribute('data-block'))).toBe(blockBefore + 5);
+  // Block gained = attack (2, the always-available sacrifice) + onExit block (5).
+  // The +5 is the proof the exit bonus fired on sacrifice (was absent pre-slice-3).
+  await expect.poll(async () => Number(await blockEl.getAttribute('data-block'))).toBe(blockBefore + 7);
 
-  // The onExit composure heal (+2) also fired — additive, on top of the Block.
-  await expect.poll(async () => Number(await compEl.getAttribute('data-composure'))).toBe(compBefore + 2);
+  // The onExit composure heal (+3) also fired — additive, on top of the Block.
+  await expect.poll(async () => Number(await compEl.getAttribute('data-composure'))).toBe(compBefore + 3);
 });

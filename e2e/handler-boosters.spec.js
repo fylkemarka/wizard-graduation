@@ -181,7 +181,11 @@ test('House Rules arms a pick-an-animal prompt; keeping an animal does not crash
   await expect(page.getByTestId('hand')).toBeVisible();
 });
 
-test('Acquired Taste opens the narrow chooser and excluding a species does not crash', async ({ page }) => {
+test('Acquired Taste safely no-ops when no ≥3-species lure is narrowable', async ({ page }) => {
+  // Slice 5 (2026-06-08): the foundational pools narrowed 3→2, so Tender Greens
+  // can no longer be narrowed (removing one species would breach the 2-floor).
+  // With no narrowable lure in the deck, Acquired Taste must NOT open the
+  // chooser and must NOT crash — it exhausts and logs "no variable lure".
   await gotoLab(page, 'handler', { seed: 11 });
   for (let i = 0; i < 4; i++) await addCard(page, NARROW);
   for (let i = 0; i < 8; i++) await addCard(page, TENDER_GREENS);
@@ -190,18 +194,11 @@ test('Acquired Taste opens the narrow chooser and excluding a species does not c
   expect(await ensureInHand(page, NARROW)).toBeTruthy();
   await playCardById(page, NARROW);
 
-  // The chooser opens listing the narrowable lure (Tender Greens, 3 species).
-  await expect(page.getByText(/Acquired Taste:/)).toBeVisible();
-  await expect(page.getByText(/Tender Greens:/)).toBeVisible();
-
-  // Click a species button to drop it from the pool; the chooser closes.
-  await page.getByRole('button', { name: /Young Buck/ }).first().click();
+  // No chooser opens (nothing to narrow), combat is still alive.
   await expect(page.getByText(/Acquired Taste:/)).toHaveCount(0);
   await expect(page.getByTestId('hand')).toBeVisible();
 
-  // Acquired Taste EXHAUSTS on use — it must not land in the discard pile.
-  // (Tender Greens stay in hand; nothing else cycles, so a discard count of
-  // 0 proves the card went to exile, not discard.)
+  // Acquired Taste still EXHAUSTS on play — it must not land in the discard pile.
   await expect(page.getByTestId('discard-pile-btn')).toContainText('Discard 0');
   expect(await handCardById(page, NARROW).count()).toBe(0);
 });

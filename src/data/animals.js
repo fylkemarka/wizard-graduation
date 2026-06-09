@@ -44,7 +44,7 @@ export const ANIMALS = {
       ],
     },
     flavor: 'Flops with surprising authority. Something is always watching.',
-    desc: 'Flops for 2 turns. Each turn, 65% chance to attract a predator — usually a bird, sometimes a bear. If nothing comes, it just leaves.',
+    desc: 'THE GAMBLE. Flops for 2 turns doing nothing itself. Each turn, 65% chance to attract a predator — usually a bird, sometimes a bear (the only way to roll a Bear). If nothing comes, it just leaves.',
   },
   'rabid-scrubjay': {
     name: 'Rabid Scrubjay',
@@ -53,10 +53,11 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     feedKey: 'bird',
-    // Spittle Peck: on exit, the enemy's next attack is turned back on them.
+    // ROLE: THE DISRUPTOR. Spittle Peck: on exit, the enemy's next attack is
+    // turned back on them.
     onExit: { redirectEnemyAttack: true, healComp: 1 },
     flavor: 'Foams a little. Means well. Aims worse — at everyone but you.',
-    desc: 'Attacks for 4 composure each turn for 3 turns. Spittle Peck: on exit, the enemy turns their next attack on themselves. +1 composure on exit.',
+    desc: 'THE DISRUPTOR. Attacks for 4 composure each turn for 3 turns. On exit, turns the enemy\'s next attack back on themselves — the only animal that hands you a free swing of theirs. +1 composure on exit.',
     upgrade: { attack: 6, onExit: { redirectEnemyAttack: true, healComp: 3, healHp: 1 } },
   },
   'field-mouse': {
@@ -67,13 +68,16 @@ export const ANIMALS = {
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
-    onExit: { block: 3, healComp: 2 },
+    // ROLE: THE CYCLER / SACRIFICE-FODDER. Cheapest body, draws cards, and the
+    // standout send-off — sacrifice it to cash the exit, redeploy the lure
+    // (exit bumped 3/2 → 5/3, Alan slice-5 2026-06-08).
+    onExit: { block: 5, healComp: 3 },
     flavor: 'A small contribution. Steady.',
-    desc: 'Attacks for 2 composure AND draws 1 card each turn for 3 turns. +3 Block and +2 Composure on exit.',
-    upgrade: { attack: 3, onExit: { block: 5, healComp: 3 } },
+    desc: 'THE CYCLER. A cheap body that draws 1 card and chips 2 composure each turn for 3 turns — built to be spent. Standout send-off: +5 Block and +3 Composure on exit.',
+    upgrade: { attack: 3, onExit: { block: 7, healComp: 4 } },
     elite: 'mecha-mouse', // 3.5% chance at summon
   },
-  // Elite (3.5% summon chance) — 50% better numbers on every effect.
+  // Elite (3.5% summon chance) — proportional exit bump (5/3 → 7/4).
   'mecha-mouse': {
     name: 'Mecha-Mouse',
     icon: '🦾',
@@ -82,9 +86,9 @@ export const ANIMALS = {
     duration: 3,
     feedKey: 'small-land',
     onAttack: { draw: 1 },
-    onExit: { block: 5, healComp: 3 },
+    onExit: { block: 7, healComp: 4 },
     flavor: 'The field mouse has been upgraded. Considerably.',
-    desc: 'Elite Field Mouse. 3 composure + draw per turn for 3 turns. +5 Block and +3 Composure on exit.',
+    desc: 'Elite Field Mouse — THE CYCLER. 3 composure + draw per turn for 3 turns. +7 Block and +4 Composure on exit.',
   },
   rabbit: {
     name: 'Rabbit',
@@ -97,7 +101,7 @@ export const ANIMALS = {
     onExit: { healComp: 2 },
     adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 2 },
     flavor: 'There were always going to be more of them.',
-    desc: 'Attacks for 3 composure AND draws 1 card each turn for 3 turns. After 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +2 Composure on exit.',
+    desc: 'THE SWARM. Attacks for 3 composure AND draws 1 card each turn for 3 turns. Goes wide: after 2 turns, spawns a Rabbit in each adjacent empty slot and stays 2 more turns. +2 Composure on exit.',
     upgrade: { attack: 4, onExit: { healComp: 3 }, adjacentSpawn: { animalId: 'rabbit', turnsToTrigger: 2, extendSelfTurns: 3 } },
     elite: 'bonzai-bunaroo',
   },
@@ -113,7 +117,7 @@ export const ANIMALS = {
     // 50% more spawn extension: 2 → 3.
     adjacentSpawn: { animalId: 'bonzai-bunaroo', turnsToTrigger: 2, extendSelfTurns: 3 },
     flavor: 'Disciplined. Smaller. Hits harder than it has any right to.',
-    desc: 'Elite Rabbit. 5 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +3 Composure on exit.',
+    desc: 'Elite Rabbit — THE SWARM. 5 composure + draw per turn for 3 turns. Spawns more Bonzai Bunaroos after 2 turns; stays 3 more turns. +3 Composure on exit.',
   },
   'young-buck': {
     name: 'Young Buck',
@@ -125,7 +129,7 @@ export const ANIMALS = {
     // exit damage 6 → 3 (Alan, 2026-06-07).
     onExit: { damage: 3, damageType: 'composure', healHp: 1 },
     flavor: 'Bold. Brief. Largely correct.',
-    desc: 'Attacks for 5 composure each turn for 2 turns. Kicks for 3 composure and heals 1 HP on exit.',
+    desc: 'THE BURST. Hits hard and burns out fast: 5 composure each turn for just 2 turns. Kicks for 3 composure and heals 1 HP on exit.',
     upgrade: { attack: 6, duration: 3, onExit: { damage: 8, damageType: 'composure', healHp: 2 } },
     elite: 'james-deer',
   },
@@ -139,7 +143,7 @@ export const ANIMALS = {
     // exit damage 9 → 4 (Alan, 2026-06-07).
     onExit: { damage: 4, damageType: 'composure', healHp: 2 },
     flavor: 'Looks the room over slowly. The room looks worse for it.',
-    desc: 'Elite Young Buck. 8 composure / turn for 2 turns. 4 composure kick and 2 HP heal on exit.',
+    desc: 'Elite Young Buck — THE BURST. 8 composure / turn for just 2 turns, then gone. 4 composure kick and 2 HP heal on exit.',
   },
   hawk: {
     name: 'Hawk',
@@ -167,7 +171,7 @@ export const ANIMALS = {
     // exit damage 4 → 3 (Alan, 2026-06-07).
     onExit: { damage: 3, damageType: 'composure' },
     flavor: 'It has strong opinions about your personal space.',
-    desc: 'Attacks for 6 composure each turn for 3 turns. Parting hiss: 3 composure on exit.',
+    desc: 'THE HEAVY HITTER. The biggest raw bird damage: 6 composure each turn for 3 turns. Parting hiss: 3 composure on exit.',
     upgrade: { attack: 8, duration: 3, onExit: { damage: 5, damageType: 'composure', healHp: 2 } },
   },
   // Birdseed variety (2026-06-01, Flock pass — addresses playtest note #2:
@@ -186,7 +190,7 @@ export const ANIMALS = {
     birdTheft: 6,
     onExit: { healHp: 1 },
     flavor: 'It has counted you. It will remember the number. It will also take your things.',
-    desc: 'Attacks for 6 composure each turn for 2 turns. Bird Theft: strips 6 Block from the enemy on the turn it exits. +1 HP on exit.',
+    desc: 'THE ARMOR-STRIP. Attacks for 6 composure each turn for 2 turns. Bird Theft: strips 6 Block from the enemy the turn it exits, so the rest of the flock lands clean. +1 HP on exit.',
     upgrade: { attack: 8, birdTheft: 9, onExit: { healHp: 2, healComp: 2 } },
   },
   owl: {
@@ -294,7 +298,7 @@ export const ANIMALS = {
     special: true,
     amplifyAdjacent: 0.5,
     flavor: 'Not interested in fighting. Interested in everyone being where they should be.',
-    desc: 'Does not attack. Animals in adjacent slots deal +50% (the middle slot reaches both). Stays 3 turns; replay its lure to extend.',
+    desc: 'THE AMPLIFIER. Does not attack. Animals in adjacent slots deal +50% (the middle slot reaches both). Stays 3 turns; replay its lure to extend.',
   },
   // GROUP C — Lyrebird: directional mimic. Each turn it copies the attack of
   // the animal immediately to its LEFT (earlier tray slot). With nothing to
@@ -308,7 +312,7 @@ export const ANIMALS = {
     special: true,
     copiesLeft: true,
     flavor: 'An uncanny impression of whatever just happened. Including the parts you would rather it did not.',
-    desc: "Each turn, copies the attack of the animal to its left (its own 2 composure if there's nothing there). Stays 3 turns; replay its lure to extend.",
+    desc: "THE MIMIC. Each turn, copies the attack of the animal to its left (its own 2 composure if there's nothing there). Stays 3 turns; replay its lure to extend.",
   },
   // GROUP B — DEFENSE. Porcupine: a reflecting shield. `thorns` is the per-
   // swing ABSORB cap — that much of an incoming attack never reaches the
@@ -323,7 +327,7 @@ export const ANIMALS = {
     special: true,
     thorns: 5,
     flavor: 'Best admired from a conversational distance.',
-    desc: 'Does not attack. Absorbs up to 5 damage from each enemy attack (you take that much less) and deals the absorbed amount back as composure. Stays 3 turns; replay its lure to extend.',
+    desc: 'THE REFLECT-WALL. Does not attack. Absorbs up to 5 damage from each enemy attack (you take that much less) and deals the absorbed amount back as composure. Stays 3 turns; replay its lure to extend.',
   },
   // GROUP A — TEMPO. Sloth: slowest arrival in the game (4 turns), 0 attack.
   // Time dilation — while it hangs around, the enemy acts at HALF SPEED,
@@ -339,7 +343,7 @@ export const ANIMALS = {
     special: true,
     slowsEnemy: true,
     flavor: 'It will get here. It has every intention of getting here.',
-    desc: 'Slow to arrive, and does not attack. While it hangs around, time dilates: the enemy acts at half speed, skipping every other turn. Stays 4 turns; replay its lure to extend.',
+    desc: 'THE TEMPO-LOCK. Slow to arrive, and does not attack. While it hangs around, time dilates: the enemy acts at half speed, skipping every other turn. Stays 4 turns; replay its lure to extend.',
   },
   // ─────────────────────────────────────────────────────────────────────
   // BATCH 2 — PLAYER-ACTIVATED abilities (Alan, 2026-06-05). These don't act
@@ -365,7 +369,7 @@ export const ANIMALS = {
     special: true,
     activatedAbility: { id: 'pigeon-scramble', label: "🐦 scramble the enemy's intent", cadence: 'per-turn' },
     flavor: 'It has no plan either, but at least it commits.',
-    desc: "Click once a turn to scramble the enemy's next move into a different one (a gamble — it might get worse). Stays 3 turns; replay its lure to extend.",
+    desc: "THE INTENT-SCRAMBLER. Click once a turn to scramble the enemy's next move into a different one (a gamble — it might get worse). Stays 3 turns; replay its lure to extend.",
   },
   // GROUP B — DEFENSE. Kangaroo: activate to DUCK INTO THE POUCH — you give up
   // the rest of your turn, and in return take NO damage on the next enemy turn.
@@ -380,7 +384,7 @@ export const ANIMALS = {
     special: true,
     activatedAbility: { id: 'kangaroo-pouch', label: '🦘 duck into the pouch (2 energy) — end your turn, take no damage next turn', cadence: 'per-turn', endsTurn: true, energyCost: 2 },
     flavor: 'Roomy, surprisingly clean, smells faintly of eucalyptus. You have had worse hiding places.',
-    desc: 'Click and spend 2 energy to duck into the pouch: your turn ends and you take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
+    desc: 'THE DODGE. Click and spend 2 energy to duck into the pouch: your turn ends and you take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
   },
   // Fodder body (Alan, 2026-06-08) — summoned in pairs by the Strays card.
   // 1-turn life, small swing; exists to be sacrificed or to leave and feed
@@ -393,7 +397,7 @@ export const ANIMALS = {
     duration: 1,
     special: true,
     flavor: 'It has decided you are family now. The arrangement is, at best, provisional.',
-    desc: 'A 1-turn body. Swings for 2, then wanders off — fodder for sacrifice or Memorial.',
+    desc: 'THE FODDER. A 1-turn body. Swings for 2, then wanders off — pure fuel for sacrifice or Memorial.',
   },
 
   // ─────────────────────────────────────────────────────────────────────
