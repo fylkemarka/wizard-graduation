@@ -209,6 +209,22 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
     cands.sort((a, b) => b.stat - a.stat);
     return cands[0];
   };
+  // v3 (Alan, 2026-06-09): freeze + betray both grab the highest-ATTACK animal
+  // (mirrors App.resolveBetray / the freeze branch). Name it so the intent bar
+  // never says the ambiguous "your strongest animal" — it says WHICH one.
+  const projectedStrongestByAttack = () => {
+    const cands = ['intro', 'subject', 'target']
+      .map(s => tray?.[s])
+      .filter(sl => sl?.kind === 'animal')
+      .map(sl => {
+        const a = animals?.[sl.animalId];
+        const stat = (a?.attack || 0) + (sl.attackBonus || 0) + (summonStrength || 0);
+        return { name: a?.name || sl.animalId, icon: a?.icon || '🐾', stat };
+      });
+    if (cands.length === 0) return null;
+    cands.sort((a, b) => b.stat - a.stat);
+    return cands[0];
+  };
   const intentTooltip = (intent) => {
     if (!intent) return '';
     const lines = [];
@@ -242,6 +258,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       const projected = (weaveStacks || 0) + intent.value;
       lines.push(`🪡 Weave: banks ${intent.value} composure (currently ${weaveStacks || 0}, becoming ${projected}).`);
       lines.push(`At the end of your NEXT turn the banked total lands as composure damage, then resets. You see it a turn ahead — race the Weaver's own composure down before it adds up.`);
+    } else if (intent.kind === 'betray') {
+      const v = projectedStrongestByAttack();
+      lines.push(`🗡 Recruits the animal with the highest Attack${v ? ` — right now ${v.name}` : ''} as a Turncoat that hits your Composure. It defects on the enemy's NEXT turn unless you sacrifice / spend it first.`);
+    } else if (intent.kind === 'freeze') {
+      const v = projectedStrongestByAttack();
+      lines.push(`❄ Freezes the animal with the highest Attack${v ? ` — right now ${v.name}` : ''} for ${intent.value || 1} turn${(intent.value || 1) > 1 ? 's' : ''}. It can't attack while frozen.`);
     }
     if (intent.riders) {
       const r = intent.riders;
@@ -510,6 +532,25 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 <div className="text-xs font-mono text-ember-200 mt-0.5"
                      title={`A maul grabs the animal with the highest ${enemyIntent.pool === 'composure' ? 'Attack' : 'Block'}. ${enemyIntent.pool === 'composure' ? 'Poise' : 'Block'} it all to keep your menagerie.`}>
                   {v ? <>🦷 will maul {v.icon} {v.name}</> : '🦷 maul — no animals to grab'}
+                </div>
+              );
+            })()}
+            {/* v3 (Alan): name the specific animal a betray/freeze will take. */}
+            {enemyIntent?.kind === 'betray' && !enemyTurnSkipped && !enemyWillSloth && (() => {
+              const v = projectedStrongestByAttack();
+              return (
+                <div className="text-xs font-mono text-ember-200 mt-0.5"
+                     title="The recruitment takes the animal with the highest Attack. Sacrifice or spend it before her next turn to deny her.">
+                  {v ? <>🗡 will recruit {v.icon} {v.name}</> : '🗡 recruit — no animals to take'}
+                </div>
+              );
+            })()}
+            {enemyIntent?.kind === 'freeze' && !enemyTurnSkipped && !enemyWillSloth && (() => {
+              const v = projectedStrongestByAttack();
+              return (
+                <div className="text-xs font-mono text-ember-200 mt-0.5"
+                     title="The freeze pins the animal with the highest Attack — it can't attack while frozen.">
+                  {v ? <>❄ will freeze {v.icon} {v.name}</> : '❄ freeze — no animals'}
                 </div>
               );
             })()}

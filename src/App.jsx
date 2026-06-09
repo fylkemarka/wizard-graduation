@@ -12233,7 +12233,11 @@ export default function App() {
       if (!animal) continue;
       const grant = animal.turnGrant || slot.turnGrantTemp;
       block += (grant?.block || 0) + (slot.blockBonus || 0);
-      poise += (grant?.poise || 0);
+      // Steel the Nerves training lives in slot.poiseBonus — mirror the block
+      // line. The real tick (grantPoise = grant.poise + slot.poiseBonus) already
+      // applies it; without it here the intent math bar under-counted Poise
+      // (Alan, 2026-06-09).
+      poise += (grant?.poise || 0) + (slot.poiseBonus || 0);
     }
     return { block, poise };
   }
