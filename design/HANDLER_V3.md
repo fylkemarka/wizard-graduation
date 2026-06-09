@@ -103,6 +103,24 @@ Enemy target-selection AI; a targeted hit is absorbed by the animal's Block/
 thorns first, removes it only if it breaks through. Keeper = the answer.
 Guardrail: PRESSURE not ERASE — always an affordable line to keep some board.
 
+### Slice 5 — roles-not-tiers rebalance  ✅ FIRST PASS DONE (2026-06-08)
+Every feedable animal a distinct job (mouse=cycler/fodder w/ bumped exit, buck=
+burst, rabbit=swarm, goose=hitter, raven=armor-strip, scrubjay=disruptor). Pools
+3→2 (Tender Greens={mouse,buck}, Birdseed={goose,raven}); dropped rabbit/scrubjay
+→ new single-species lures (A Clover Patch / A Shiny Bauble). 60 e2e green.
+
+OPEN ITEMS after slice 5:
+- **Lure ceiling** (cap distinct lure TYPES) — deferred, not built.
+- **Acquired Taste went inert** — narrowing needs a 3+ species pool; both are now
+  2, so it no-ops+exhausts. Pull/repurpose, or revive when a 3+ pool is added.
+- **Farm loop watch** — mouse exit + exit-on-sacrifice + lure-return; intended
+  Sacrifice archetype, gated by tempo. Tune mouse exit if degenerate.
+- **Keeper intercepts EVERY maul** unconditionally (slice 4) — dial to first-per-
+  turn / sometimes if desired.
+- **Tune the whole world** now that all slices are in (Alan: 'both feet in, then tune').
+
+Original scope below.
+
 ### Slice 5 — animal role rebalance (ongoing)
 Every animal a distinct job; narrow pools 3→2; lure ceiling; maybe a starting
 animal-school (a lean, not a lock — ties to the character-select opening).
