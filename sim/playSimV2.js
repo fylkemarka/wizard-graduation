@@ -457,6 +457,10 @@ function buildStarterDeck(lane) {
   // Mirrors App.jsx; replaces the cross-row second intro.
   if (lane === 'wit') {
     cards.push({ id: 'c-rebut', type: 'skill', cost: 1, effects: { compDmg: 4 }, name: 'Rebut', uid: uid() });
+    // Cycle-8: one FLEX word in the starter (mirrors App.jsx) — fills intro
+    // OR subject, schoolWildcard. The missing-slot hold answer.
+    const flex = LANE_POOL[lane].find(c => c.id === 'wv2-x-by-which-i-mean');
+    if (flex) cards.push({ ...flex, uid: uid() });
   }
   // NOTE: Wit's starter annotation is NOT modeled in the sim. The sim's
   // greedy AI doesn't use annotations effectively (it can't reason about
@@ -584,7 +588,11 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
   const pierceVal = pierceTarget?.effect?.pierceVulnerableInsult || 0;
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
-    if (c.slot !== slot) continue;
+    // Cycle-8: FLEX words qualify for intro OR subject picks (mirrors App's
+    // play-time slot resolution). Their schoolWildcard rides through the
+    // On Message check in shared.js computeSpellTier.
+    const slotMatches = c.slot === slot || (c.slot === 'flex' && (slot === 'intro' || slot === 'subject'));
+    if (!slotMatches) continue;
     if ((c.cost || 0) > energyLeft) continue;
     // v2.24: prefer handler-lane cards when the rage meter is climbing.
     // Skip cards that require rage when rage isn't active (gates Bare Knuckles).
@@ -3185,6 +3193,52 @@ function runCombat(state, enemyId, telemetry) {
     // on a single cast, and the card keeps scaling on every cast that
     // re-uses it).
     const isWitLane = state.lane === 'wit';
+    // Cycle-7 (2026-06-09): SLOT TUTORS — wv2-k-where-was-i / threading-needle /
+    // to-the-point pull the named slot's best card from deck/discard to hand.
+    // These existed in live wit since v3.4.x but were UNMODELED here (the
+    // drift class from CLAUDE.md §3): the bot drafted them, played nothing,
+    // and held 70%+ of turns for want of one slot card. Play one when the
+    // hand+tray lack that slot and energy allows (leaving 2 for staging).
+    if (isWitLane) {
+      const SLOT_TUTORS = { 'wv2-k-where-was-i': 'intro', 'wv2-k-threading-needle': 'subject', 'wv2-k-to-the-point': 'target' };
+      for (let i = 0; i < state.hand.length; i++) {
+        const c = state.hand[i];
+        const slotWanted = SLOT_TUTORS[c.id]
+          ? [SLOT_TUTORS[c.id]]
+          : (c.effects?.tutorSlots || (c.effects?.tutorSlot ? [c.effects.tutorSlot] : null));
+        if (!slotWanted) continue;
+        if ((c.cost || 0) > state.energy - 2) continue; // keep staging energy
+        // Need: every wanted slot missing from BOTH tray and hand.
+        const needed = slotWanted.filter(sl =>
+          !tray[sl] && !state.hand.some((h, k) => k !== i && h.slot === sl));
+        if (needed.length !== slotWanted.length) continue;
+        let pulled = 0;
+        for (const sl of needed) {
+          const pickBest = (pile) => {
+            let bi = -1, bs = -1;
+            for (let k = 0; k < pile.length; k++) {
+              const d = pile[k];
+              if (d.slot !== sl) continue;
+              const s = (d.tier || 1) * 2 + (d.stats?.wit || 0) + (d.effect?.base || 0) * 0.3;
+              if (s > bs) { bs = s; bi = k; }
+            }
+            return bi;
+          };
+          let idx = pickBest(state.deck);
+          if (idx >= 0) { state.hand.push(state.deck.splice(idx, 1)[0]); pulled++; continue; }
+          idx = pickBest(state.discard);
+          if (idx >= 0) { state.hand.push(state.discard.splice(idx, 1)[0]); pulled++; }
+        }
+        if (pulled > 0) {
+          state.energy -= (c.cost || 0);
+          const [played] = state.hand.splice(i, 1);
+          if (played.effects?.exhaust) state.exiled.push(played); else state.discard.push(played);
+          telemetry.tutorSkillPlays = (telemetry.tutorSkillPlays || 0) + 1;
+          telemetry.tutorSkillPulls = (telemetry.tutorSkillPulls || 0) + pulled;
+          break; // one tutor per turn-pass; staging loop follows
+        }
+      }
+    }
     if (isWitLane) {
       for (let i = 0; i < state.hand.length; i++) {
         const c = state.hand[i];
@@ -3936,8 +3990,10 @@ function runCombat(state, enemyId, telemetry) {
       //   - energy >= cost
       //   - tray can't form a spell this turn (missing slot in hand)
       //   - OR the gesture has exhaust:true AND we won't form a spell
+      // Cycle-8: flex words satisfy either word slot in the can-form check.
+      const wordOk = (sl) => state.hand.some(c => c.slot === sl || c.slot === 'flex');
       const canFormSpell = tray.intro && tray.subject ||
-        (state.hand.some(c => c.slot === 'intro') && state.hand.some(c => c.slot === 'subject') && state.hand.some(c => c.slot === 'target' && (c.cost || 0) <= state.energy));
+        (wordOk('intro') && wordOk('subject') && state.hand.some(c => c.slot === 'target' && (c.cost || 0) <= state.energy));
       if (!canFormSpell || (state.energy >= 2 && enemy.currentComp <= 12)) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
@@ -4801,6 +4857,24 @@ function runCombat(state, enemyId, telemetry) {
       // No cast this turn — partial stage remains in the tray. Count it
       // as a "hold" rather than a fizzle (no card discard penalty).
       telemetry.holds++;
+      // Cycle-7 diagnostics: WHY did we hold? Attribute to the first
+      // missing tray slot (counting hand availability), or energy.
+      const missing = ['intro', 'subject', 'target'].filter(sl => !tray[sl]);
+      if (missing.length === 0) {
+        telemetry.holdFullTray = (telemetry.holdFullTray || 0) + 1; // deliberate / energy-at-cast
+      } else {
+        const inHand = missing.filter(sl => state.hand.some(h => h.slot === sl));
+        if (inHand.length === missing.length) telemetry.holdEnergyShort = (telemetry.holdEnergyShort || 0) + 1;
+        else {
+          telemetry.holdMissingSlot = (telemetry.holdMissingSlot || 0) + 1;
+          for (const sl of missing) {
+            if (!state.hand.some(h => h.slot === sl)) {
+              const key = 'holdMissing_' + sl;
+              telemetry[key] = (telemetry[key] || 0) + 1;
+            }
+          }
+        }
+      }
     }
 
     // v2.49: BABBLING 2nd-cast restage. If babbling is installed AND the
@@ -5975,6 +6049,53 @@ function awardReward(state) {
       return;
     }
   }
+  // Cycle-7 (2026-06-09): slot-tutor bias — wit lane only. The tutors are the
+  // hold-rate answer (bot held 74-77% of turns for want of one slot card) but
+  // the natural skill-slot roll never landed them (1 play / 100 runs). ~25%
+  // per reward while owning < 2, granting the tutor for the deck's SCARCEST
+  // primary slot — mirrors a human drafting toward consistency.
+  if (state.lane === 'wit') {
+    const tutorIds = { intro: 'wv2-k-where-was-i', subject: 'wv2-k-threading-needle', target: 'wv2-k-to-the-point' };
+    const ownedTutors = allCards.filter(c => Object.values(tutorIds).includes(c.id)).length;
+    if (ownedTutors < 2 && rnd() < 0.25) {
+      const slotCounts = { intro: 0, subject: 0, target: 0 };
+      for (const c of allCards) if (slotCounts[c.slot] !== undefined) slotCounts[c.slot]++;
+      const scarcest = Object.entries(slotCounts).sort((a, b) => a[1] - b[1])[0][0];
+      const tut = pool.find(c => c.id === tutorIds[scarcest]) || pool.find(c => Object.values(tutorIds).includes(c.id));
+      if (tut) {
+        state.discard.push({ ...tut, uid: uid() });
+        state.rewardsTaken.push(tut.id);
+        return;
+      }
+    }
+  }
+  // Cycle-8 (2026-06-09): WORD-DENSITY GATE on all wit skill biases below.
+  // Hold-cause telemetry: 87% of no-cast turns were missing-slot — the bias
+  // stack was filling decks with skills while the sentence engine starved.
+  // Until the deck holds ≥ 10 primary-slot words, skip every skill-bias roll
+  // and draft words instead (mirrors a human drafting toward consistency).
+  if (state.lane === 'wit') {
+    const wordCount = allCards.filter(c => ['intro', 'subject', 'target', 'flex'].includes(c.slot)).length;
+    if (wordCount < 10) {
+      const wordPool = LANE_POOL[state.lane].filter(c =>
+        ['intro', 'subject', 'target', 'flex'].includes(c.slot)
+        && (c.rarity === 'common' || c.rarity === 'uncommon'));
+      // Draft toward the scarcest primary slot (flex counts for intro+subject).
+      const sc = { intro: 0, subject: 0, target: 0 };
+      for (const c of allCards) {
+        if (sc[c.slot] !== undefined) sc[c.slot]++;
+        if (c.slot === 'flex') { sc.intro += 0.5; sc.subject += 0.5; }
+      }
+      const scarcest = Object.entries(sc).sort((a, b) => a[1] - b[1])[0][0];
+      const slotPool = wordPool.filter(c => c.slot === scarcest || c.slot === 'flex');
+      const card = pickRandom(slotPool.length ? slotPool : wordPool);
+      if (card) {
+        state.discard.push({ ...card, uid: uid() });
+        state.rewardsTaken.push(card.id);
+        return;
+      }
+    }
+  }
   // v2.35: Hewn-Greaves footnote skill bias — wit lane only. The skill is
   // uncommon (would naturally appear ~60% of rewards × ~10% slot weight
   // for skills); the bias punches it up so sim engagement is reliably
@@ -6737,6 +6858,14 @@ function aggregate(results) {
     totalHolds: results.reduce((s, r) => s + (r.holds || 0), 0),
     // 1000-run cycle telemetry (2026-06-09): wit school engagement — the
     // school-differentiation loop needs these surfaced per batch.
+    holdFullTray: results.reduce((s, r) => s + (r.holdFullTray || 0), 0),
+    holdEnergyShort: results.reduce((s, r) => s + (r.holdEnergyShort || 0), 0),
+    holdMissingSlot: results.reduce((s, r) => s + (r.holdMissingSlot || 0), 0),
+    holdMissing_intro: results.reduce((s, r) => s + (r.holdMissing_intro || 0), 0),
+    holdMissing_subject: results.reduce((s, r) => s + (r.holdMissing_subject || 0), 0),
+    holdMissing_target: results.reduce((s, r) => s + (r.holdMissing_target || 0), 0),
+    tutorSkillPlays: results.reduce((s, r) => s + (r.tutorSkillPlays || 0), 0),
+    tutorSkillPulls: results.reduce((s, r) => s + (r.tutorSkillPulls || 0), 0),
     fftCasts: results.reduce((s, r) => s + (r.fftCasts || 0), 0),
     fftDamage: results.reduce((s, r) => s + (r.fftDamage || 0), 0),
     fftPartialCasts: results.reduce((s, r) => s + (r.fftPartialCasts || 0), 0),
@@ -7034,6 +7163,8 @@ function buildReport(agg) {
   lines.push(`- Crescendo bank cash-ins (flat damage): ${agg.crescendoFlatDamage}`);
   lines.push(`- Thorns block granted by casts: ${agg.thornsCastBlockGranted}`);
   lines.push(`- Thorns BODY SLAM: ${agg.thornsBodySlamCasts} casts · ${agg.thornsBodySlamDamage} damage`);
+  lines.push(`- Slot-tutor skills: ${agg.tutorSkillPlays} plays · ${agg.tutorSkillPulls} cards pulled`);
+  lines.push(`- Hold causes: full-tray(deliberate/energy-at-cast) ${agg.holdFullTray} · energy-short ${agg.holdEnergyShort} · missing-slot ${agg.holdMissingSlot} (intro ${agg.holdMissing_intro} / subject ${agg.holdMissing_subject} / target ${agg.holdMissing_target})`);
   lines.push('');
   lines.push(`## Wit LONG THREAD (v2.34)`);
   lines.push(`- Combats reaching LT ≥ 1: ${agg.combatsWithThread} (runs: ${agg.threadRuns} / ${agg.N}, ${pct(agg.threadRuns / agg.N)})`);

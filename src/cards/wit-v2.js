@@ -1036,13 +1036,36 @@ const BUFF_CARDS = [
 ];
 
 // =============================================================================
+// FLEX WORDS (1000-run cycle 8, 2026-06-09) — the consistency archetype.
+// A FLEX word fills WHICHEVER primary word slot (intro/subject) the tray
+// lacks, and counts as the school the rest of the tray speaks
+// (schoolWildcard — see computeSpellTier's On Message check). Born from
+// hold-cause telemetry: 89% of bot holds were missing-slot. STS2 lens:
+// every character gets consistency tools; these are wit's.
+// =============================================================================
+const FLEX_CARDS = [
+  { id: 'wv2-x-by-which-i-mean', slot: 'flex', tier: 1, rarity: 'common', lane: LANE, cost: 0, type: 'word',
+    phrase: 'by which I mean,', tags: ['connective'], stats: { wit: 1 }, schoolWildcard: true,
+    desc: 'FLEX — stages as intro OR subject, whichever the tray lacks. Counts as any school.',
+    flavor: 'A phrase that holds the door for the rest of the sentence.' },
+  { id: 'wv2-x-and-furthermore', slot: 'flex', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
+    phrase: 'and furthermore,', tags: ['connective'], stats: { wit: 2 }, schoolWildcard: true,
+    desc: 'FLEX — stages as intro OR subject, whichever the tray lacks. Counts as any school.',
+    flavor: 'There is always a furthermore. The committee has minuted it.' },
+  { id: 'wv2-x-in-every-sense', slot: 'flex', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+    phrase: 'in every sense that matters,', tags: ['connective'], stats: { wit: 3 }, schoolWildcard: true,
+    desc: 'FLEX — stages as intro OR subject, whichever the tray lacks. Counts as any school.',
+    flavor: 'Which senses matter is, of course, decided afterwards. By you.' },
+];
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
-export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS, ...TUTOR_CARDS, ...BUFF_CARDS];
+export const WIT_V2 = [...INTROS, ...SUBJECTS, ...TARGETS, ...MODIFIERS, ...NEW_MODIFIERS_V26, ...GESTURES, ...UNIQUE_TARGETS, ...ANNOTATIONS, ...SKILLS, ...SYNERGY_CAPSTONE_CARDS, ...INSULT_VULN_CARDS, ...STARTER_CARDS, ...TUTOR_CARDS, ...BUFF_CARDS, ...FLEX_CARDS];
 export const WIT_V2_BY_SLOT = {
-  intro: INTROS,
-  subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS],
+  intro: [...INTROS, ...FLEX_CARDS],
+  subject: [...SUBJECTS, ...INSULT_VULN_SUBJECTS, ...FLEX_CARDS],
   target: [...TARGETS, ...UNIQUE_TARGETS, ...SYNERGY_CAPSTONE_TARGETS, ...INSULT_VULN_TARGETS],
   gesture: [...GESTURES, ...STARTER_CARDS.filter(c => c.slot === 'gesture')],
   modifier: [...MODIFIERS, ...NEW_MODIFIERS_V26, ...SYNERGY_CAPSTONE_MODIFIERS],

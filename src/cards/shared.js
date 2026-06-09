@@ -72,7 +72,14 @@ export function computeSpellTier(intro, subject, target) {
   // Baseline batch had ZERO T3 casts in 1317; this opens the top tier to
   // committed decks. Single implementation point: App, the tray preview,
   // and the sim all import this function.
-  if (intro.schoolId && intro.schoolId === subject.schoolId && subject.schoolId === target.schoolId) {
+  // Cycle-8: schoolWildcard (FLEX words) — a wildcard counts as whatever
+  // school the OTHER staged cards speak. The bump applies when every
+  // non-wildcard card shares one school and at least one real school is
+  // present (an all-wildcard tray earns nothing).
+  const schools = [intro, subject, target]
+    .filter(c => !c.schoolWildcard)
+    .map(c => c.schoolId);
+  if (schools.length > 0 && schools.every(s => s && s === schools[0])) {
     sum += 1;
   }
   if (sum <= 4) return 1;

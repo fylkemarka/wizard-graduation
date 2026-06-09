@@ -1172,6 +1172,12 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // v3.4.10 (Alan): one-shot, non-exhausting damage card replaces the
     // cross-row second intro that used to live in the wit starter.
     ids.push('c-rebut');
+    // Cycle-8 (2026-06-09): one FLEX word in the starter. Hold-cause
+    // telemetry: 89% of no-cast turns were missing-slot with 1 intro +
+    // 1 subject in the deck. A flex word fills EITHER slot and counts as
+    // the row's school (schoolWildcard) — so unlike the v3.4.10 cross-row
+    // intro it can't pollute the chosen row's plan; it adapts to it.
+    ids.push('wv2-x-by-which-i-mean');
   }
   // Handler Animal Summoner starter — Tender Greens lures only. Fish Food
   // and Birdseed are reward-pool lures, not in the opening deck.
@@ -6556,9 +6562,19 @@ export default function App() {
       return;
     }
 
+    // Cycle-8 (2026-06-09): FLEX words resolve to whichever primary word slot
+    // the tray lacks — intro first, then subject; both full → replace intro.
+    // Stage a clone with the resolved slot; unstageCard restores 'flex'.
+    if (card.slot === 'flex') {
+      const resolved = !tray.intro ? 'intro' : !tray.subject ? 'subject' : 'intro';
+      card = { ...card, slot: resolved, flexResolved: true };
+      pushLog(`🔀 ${card.phrase} flexes into the ${resolved} slot.`);
+    }
     // v2 sentence engine routing by slot.
     if (card.slot === 'intro' || card.slot === 'subject') {
-      const prev = tray[card.slot];
+      const prev = tray[card.slot] && tray[card.slot].flexResolved
+        ? { ...tray[card.slot], slot: 'flex', flexResolved: false }
+        : tray[card.slot];
       if (prev) {
         setHand(h => [...h, prev]);
         setEnergy(e => e + (prev.cost || 0));
@@ -6838,9 +6854,12 @@ export default function App() {
     if (stage !== 'combat') return;
     logEvent('combat.unstage', { cardUid, enemyId: enemy?.id });
 
+    // Cycle-8: a FLEX word returning to hand reverts to its flexible slot.
+    const unflex = (c) => (c?.flexResolved ? { ...c, slot: 'flex', flexResolved: false } : c);
+
     // v2 slot-aware unstage: check intro, subject, target, then modifiers.
     if (tray.intro?.uid === cardUid) {
-      const c = tray.intro;
+      const c = unflex(tray.intro);
       setTray(p => syncTrayLegacy({ ...p, intro: null }));
       setHand(h => [...h, c]);
       setEnergy(e => e + (c.cost || 0));
@@ -6848,7 +6867,7 @@ export default function App() {
       return;
     }
     if (tray.subject?.uid === cardUid) {
-      const c = tray.subject;
+      const c = unflex(tray.subject);
       setTray(p => syncTrayLegacy({ ...p, subject: null }));
       setHand(h => [...h, c]);
       setEnergy(e => e + (c.cost || 0));
