@@ -14486,9 +14486,9 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       title: `Welcome — ${laneName} practice match.`,
       body: (<>
         <p>The Bursar has offered to spar with you. He's pulling his punches; you can't actually lose this match.</p>
-        <p className="mt-2"><b>You don't cast spells — you bait the woods.</b> You play <b>🪱 Lure</b> cards into the <b>Summoning Pitch</b> (the 3 slots above your hand). Each lure ticks down, then transforms into an <b>🐾 Animal</b> that fights for you every turn until it leaves.</p>
-        <p className="mt-2"><b>How you win:</b> your animals attack the enemy's <b>Composure</b> (the ✨ bar). Drain it to 0 and they back down. <b>How you lose:</b> the enemy whittles your <b>HP</b> (❤) to 0. So the whole game is a race — get the woods online before the enemy grinds you down.</p>
-        <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), and <b>Energy</b> (⚡) at the bottom. Energy refills every turn.</p>
+        <p className="mt-2"><b>You don't cast spells — you bait the woods.</b> You play <b>🪱 Lure</b> cards into the <b>Summoning Pitch</b> (the 3 slots above your hand). Each lure ticks down, then transforms into an <b>🐾 Animal</b> that fights for you. Animals <b>stay as long as you keep them fed</b> — your job is to assemble a TEAM and maintain it.</p>
+        <p className="mt-2"><b>How you win:</b> your animals attack the enemy's <b>Composure</b> (the ✨ bar). Drain it to 0 and they back down. <b>How you lose:</b> the enemy whittles your <b>HP</b> (❤) to 0 — or your own Composure to 0. The game is a race: get the woods online and maintained before the enemy grinds you down.</p>
+        <p className="mt-2">Watch <b>HP</b> (❤), <b>Composure</b> (✨), <b>Block</b> (🛡), and <b>Energy</b> (⚡) at the bottom. Energy refills every turn — and it's the currency for feeding, summoning, and buffing, so you're always choosing.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -14496,18 +14496,19 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
     {
       title: 'Step 1 — Stage a lure in the Summoning Pitch.',
       body: (<>
-        <p>Look at your hand for a <b>🪱 Lure</b> card — <b>Fish Food</b>, <b>Birdseed</b>, or <b>Tender Greens</b>. Each summons a different family of animal.</p>
-        <p className="mt-2"><b>Play one now</b> — click it, or drag it onto an <i>available</i> slot in the Summoning Pitch. It won't do anything this turn; it's a countdown. That's the point: <b>waiting is the move.</b></p>
+        <p>Look at your hand for a <b>🪱 Lure</b> card — <b>Tender Greens</b> (a mouse or buck), <b>Birdseed</b> (a goose or raven), or <b>🐂 A Bag of Oats</b> (the Drystone Ox, a defensive keeper). Each summons a different kind of animal.</p>
+        <p className="mt-2"><b>Play one now</b> — click it, or drag it onto an <i>available</i> slot. It won't do anything this turn; it's a countdown. <b>Waiting is the move.</b></p>
+        <p className="mt-2"><b>Lures are single-use:</b> once a lure summons its animal, the card <i>leaves your deck</i> and only returns to your hand when that animal is gone. So a lure in hand is a slot you're choosing to fill — and your deck stays clean. You can hold at most <b>5 lures</b>, and you'll mostly earn new ones from <b>elites and bosses</b>, so commit to the team you want.</p>
       </>),
       cta: '(stage a Lure card)',
       waitsForAction: true,
     },
     {
-      title: 'Step 2 — Arrival, attacks, and the duration clock.',
+      title: 'Step 2 — Arrival, attacks, and staying power.',
       body: (<>
-        <p>The lure now sits in its slot showing a <b>turns-to-arrive</b> countdown. End your turn (bottom-right) and it ticks down; at zero it <b>transforms in place</b> into its animal.</p>
-        <p className="mt-2">Once an animal arrives it shows a <b>turns-left</b> counter and <b>auto-attacks the enemy's Composure at the end of each of your turns</b>. The <b>🐾 This Turn</b> readout above your hand totals the damage your menagerie will deal — your whole offense, building itself while you do other things.</p>
-        <p className="mt-2">Stage more lures into the other two slots in parallel — a full pitch is three threats ticking at once. <b>🐻 Predator chains:</b> some animals are themselves bait. Leave a <b>🐟 Salmon</b> in its slot and a <b>🐻 Bear</b> turns up. The "useless flopping fish" is a tier-2 setup move.</p>
+        <p>The lure sits in its slot showing a <b>turns-to-arrive</b> countdown. End your turn (bottom-right) and it ticks down; at zero it <b>transforms in place</b> into its animal.</p>
+        <p className="mt-2">Once an animal arrives it <b>auto-attacks the enemy's Composure at the end of each of your turns</b>. The <b>🐾 This Turn</b> readout above your hand totals the damage your menagerie will deal — your whole offense, building itself while you do other things.</p>
+        <p className="mt-2">Crucially, animals <b>don't expire on a clock</b> — they stay as long as you <b>feed</b> them (next step). An unfed animal eventually wanders off. So a standing menagerie is something you <i>maintain</i>, not a one-shot. <b>🐻 Predator chains:</b> some animals are bait — leave a <b>🐟 Salmon</b> out and a <b>🐻 Bear</b> may turn up.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -14527,21 +14528,20 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       waitsForAction: false,
     },
     {
-      title: 'Step 4 — Feeding & the exit bonus.',
+      title: 'Step 4 — Feeding keeps the team alive.',
       body: (<>
-        <p>An animal on its <b>make-or-break turn</b> (one turn left before it leaves) shows a red <b>"feed now or no exit bonus"</b> badge and a feed slot.</p>
-        <p className="mt-2"><b>Drag a matching food lure onto that feed slot</b> to feed it. Feeding does <i>not</i> extend its stay — it stamps the animal so that when it leaves, it pays out a powerful <b>exit bonus</b> (heal, Block, a parting strike). Fed animals leave proud; unfed animals just wander off.</p>
-        <p className="mt-2">Each animal eats its own food family: 🐭🐰🦌 small-land eat <b>Greens</b>, 🐦🦅 birds eat <b>Seed</b>, 🐟🐻 fish/bears eat <b>Fish Food</b>. You can only feed the animal that's actually about to leave — not the others.</p>
+        <p>When an animal gets hungry it shows a <b>🍴 feed</b> button. <b>Click it (1 energy)</b> to feed its whole <b>species</b> at once — every copy on the board tops up and <b>stays</b>. Feeding is your wizard's job, not a card.</p>
+        <p className="mt-2"><b>It's a hard deadline.</b> If you let an animal's needs-food turn pass unfed, it commits to leaving the <i>next</i> turn — and feeding it then can't save it. So feeding is a recurring choice: every energy you spend keeping the team alive is energy you're not spending summoning or buffing. That squeeze is the heart of the lane.</p>
+        <p className="mt-2">The <b>🐂 Drystone Ox</b> is the exception — a <b>keeper</b> that never needs feeding. It's your low-maintenance anchor (more on it next step).</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
     },
     {
-      title: 'Step 5 — Click an animal: sacrifice it for Block.',
+      title: 'Step 5 — Invest in the team: train & sacrifice.',
       body: (<>
-        <p>Every animal on the board is also an emergency button. <b>Click any animal and choose 🔪 Sacrifice</b> to send it off the board <i>right now</i> — you gain <b>Block (🛡) equal to its attack</b>, but it pays <b>no exit bonus.</b></p>
-        <p className="mt-2">This is your panic defense when a big enemy swing is telegraphed and you can't out-block it any other way. The trade is real: you're spending a body you'd built up. Use it when the alternative is worse.</p>
-        <p className="mt-2">Some drafted Powers reward this — <i>Palpable Sadness</i> deals composure to all enemies every time you sacrifice; <i>Light the Mound</i> cashes in every sacrifice at once. Sacrifice can become an engine, not just a bail-out.</p>
+        <p><b>Train an animal</b> to make it <i>yours</i>: <b>Whet the Claws</b> (+attack), <b>Thicken the Hide</b> (+Block/turn), <b>Steel the Nerves</b> (+Poise/turn). Play one, click an animal — the buff is <b>permanent for as long as that animal stays</b> (lose the animal, lose the investment). Each costs 1 more every time you replay it, so spread your bets. The <b>🐂 Ox</b> is the natural target: train its Block and it becomes a real wall — and an HP <b>maul</b> goes for your highest-Block animal, so the Ox <i>intercepts</i> and takes the hit for the team.</p>
+        <p className="mt-2"><b>Sacrifice</b> cashes a built-up animal on your terms. <b>Click an animal → 🔪 Sacrifice:</b> you gain <b>Block = its attack</b>, fire its <b>exit bonus</b> (heal / parting strike / etc.), and its <b>lure returns to your hand</b> to redeploy later. With <i>Memorial</i> / <i>Palpable Sadness</i> / <i>Light the Mound</i> installed, every sacrifice also blasts <b>composure to all enemies</b> — a real engine, not just a panic button.</p>
       </>),
       cta: 'Continue',
       waitsForAction: false,
@@ -14575,11 +14575,11 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       waitsForAction: false,
     },
     {
-      title: 'Step 8 — Defense, and finish the match.',
+      title: 'Step 8 — Defense, the maul, and finishing.',
       body: (<>
-        <p>While the animals do the hurting, you stay standing. <b>Defend</b> grants Block (🛡) to absorb HP damage; other skills clear pressure or fetch lures (<i>Rummage the Satchel</i> digs a lure out of your draw pile). Block resets at the start of your next turn — spend it the turn you make it.</p>
-        <p className="mt-2">Read the enemy's telegraphed <b>Intent</b> each turn and the <b>Incoming</b> bar — block, sacrifice, Mime, or Kangaroo accordingly. Cards drift back via the discard pile; when your draw pile empties, the discard reshuffles in.</p>
-        <p className="mt-2">Bait early, place for adjacency, feed the leavers, and let the woods win it. Finish the Bursar at your leisure — then pick your wizard for real.</p>
+        <p>While the animals do the hurting, you stay standing. <b>Defend</b> grants Block (🛡) to absorb HP damage; your animals' per-turn Block (the Ox, trained walls) folds in too. Block resets each turn — spend it the turn you make it.</p>
+        <p className="mt-2"><b>🦷 Maul:</b> some enemy attacks <i>tear an animal off the board</i> if any of the hit leaks past your shields — the intent bar names exactly which animal it'll grab (HP mauls take your highest <b>Block</b>, composure mauls your highest <b>Attack</b>). Block/Poise it all to keep your menagerie. (Mauls never fire when you have no animals out.)</p>
+        <p className="mt-2">Read the telegraphed <b>Intent</b> and the <b>Incoming</b> bar each turn and answer with Block, a sacrifice, or the 🦘 Kangaroo's pouch. Bait early, feed the team, train your wall, and let the woods win it — then pick your wizard for real.</p>
       </>),
       cta: 'Got it — finish him',
       waitsForAction: false,
