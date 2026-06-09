@@ -199,8 +199,12 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       .filter(x => x.slot?.kind === 'animal')
       .map(x => {
         const a = animals?.[x.slot.animalId];
+        // NOTE: effAnimalAttack lives in the V2SpellTray sub-component, NOT this
+        // scope — referencing it here crashed the intent bar (Alan, 2026-06-09).
+        // A self-contained estimate (base + permanent atkBonus + Summon Strength)
+        // is plenty for ranking the composure-maul victim.
         const stat = composureMaul
-          ? effAnimalAttack(a, x.slot, x.s)
+          ? (a?.attack || 0) + (x.slot.attackBonus || 0) + (summonStrength || 0)
           : (a?.turnGrant?.block || x.slot.turnGrantTemp?.block || 0) + (x.slot.blockBonus || 0);
         return { name: a?.name || x.slot.animalId, icon: a?.icon || '🐾', stat };
       });
