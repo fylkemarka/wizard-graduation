@@ -2469,8 +2469,11 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           + active tactic, computes what each animal will inflict this turn
           and the total composure / block / recoil. */}
       {isHandler && (() => {
-        const slots = ['intro', 'subject', 'target'].map(s => tray?.[s]).filter(v => v?.kind === 'animal');
-        if (slots.length === 0) return null;
+        const slotEntries = ['intro', 'subject', 'target']
+          .map(s => ({ slotName: s, slot: tray?.[s] }))
+          .filter(v => v.slot?.kind === 'animal');
+        const slots = slotEntries.map(e => e.slot);
+        if (slotEntries.length === 0) return null;
         const tacticId = tray?.tactic?.tactic?.id;
         const isShield = tacticId === 'shield';
         const isRabid  = tacticId === 'rabid';
@@ -2479,17 +2482,19 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
         let totalBlock = 0;
         let totalRecoil = 0;
         let totalDraw = 0;
-        for (const slot of slots) {
+        for (const { slotName, slot } of slotEntries) {
           if (slot.eatenThisTurn) continue;
           const animal = animals?.[slot.animalId];
           if (!animal) continue;
           const atkMult = slot.nextAttackMult || 1;
-          // Include Gorge's per-slot attackBonus and Well-Drilled's per-species
-          // bonus so this strip matches the board pill (effAnimalAttack).
+          // Include Gorge's per-slot attackBonus, Well-Drilled's per-species
+          // bonus, Summon Strength AND the Sheepdog adjacency amplify so this
+          // strip matches the board pill (effAnimalAttack) and the real tick.
+          const amp = adjAmpMult(slotName);
           const baseWithBonus = (animal.attack || 0) > 0
             ? (animal.attack || 0) + (slot.attackBonus || 0) + 2 * (drilledSpecies[slot.animalId] || 0) + (summonStrength || 0)
             : (animal.attack || 0);
-          let atk = Math.round(baseWithBonus * atkMult);
+          let atk = Math.round(baseWithBonus * atkMult * amp);
           if (isRabid) atk = Math.round(atk * 1.5);
           const parts = [];
           if (animal.attack > 0) {
@@ -2501,14 +2506,13 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               parts.push(`${atk} dmg`);
             }
           }
-          // On Three! (Alan, 2026-06-02): each armed extra attack resolves on
-          // the animals' turn using the animal's BASE attack — the one-shot
-          // nextAttackMult is spent by the natural swing above (mirrors the
-          // end-of-turn loop in App.jsx). Surface it as its own chip so the
-          // projected total reflects the rally.
+          // On Three! (Alan, 2026-06-02 / amplified 2026-06-09): each armed
+          // extra attack resolves on the animals' turn as a FULL amplified swing
+          // — base+bonuses × Sheepdog amp (the real tick uses baseAtk × ampMult).
+          // Only the one-shot nextAttackMult is spent by the natural swing above.
           const extraAttacks = slot.extraAttacks || 0;
           if (animal.attack > 0 && extraAttacks > 0) {
-            let xatk = Math.round(animal.attack || 0);
+            let xatk = Math.round(baseWithBonus * amp);
             if (isRabid) xatk = Math.round(xatk * 1.5);
             const xTotal = xatk * extraAttacks;
             if (isShield) {

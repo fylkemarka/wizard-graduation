@@ -12212,7 +12212,9 @@ export default function App() {
       const baseAtk = animal.copiesLeft ? copyLeftAttack(sn, animal, tray) : animalAttackValue(animal, slot);
       if (animal.attack > 0) total += Math.round(baseAtk * atkMult * ampMult);
       const extra = slot.extraAttacks || 0;
-      if (animal.attack > 0 && extra > 0) total += Math.round(animal.attack || 0) * extra;
+      // On Three! extra swings are FULL amplified swings (baseAtk × amp), matching
+      // the real tick — not the bare base attack.
+      if (animal.attack > 0 && extra > 0) total += Math.round(baseAtk * ampMult) * extra;
       // NOTE: innate turnGrant.block is NOT counted here — it grants EVERY turn,
       // shield or not, so it's projected by projectedMenagerieGrant() instead
       // (avoids both the shield-only blind spot and a double-count).
@@ -12254,7 +12256,8 @@ export default function App() {
       const baseAtk = animal.copiesLeft ? copyLeftAttack(sn, animal, tray) : animalAttackValue(animal, slot);
       total += Math.round(baseAtk * atkMult * ampMult);
       const extra = slot.extraAttacks || 0;
-      if (extra > 0) total += Math.round(animal.attack || 0) * extra;
+      // Extra On Three! swings are full amplified swings, matching the real tick.
+      if (extra > 0) total += Math.round(baseAtk * ampMult) * extra;
     }
     return total;
   }
