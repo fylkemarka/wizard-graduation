@@ -73,7 +73,12 @@ const ENEMIES_BY_ID = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
 // Weighted intent roll, mirroring App.jsx rollIntent (anti-repeat via
 // excludeKinds; falls back to the full pool if filtering empties it).
-function rollIntent(enemy, excludeKinds = []) {
+// Animal-targeting intents are gated on hasAnimals (mirrors App.jsx, Alan
+// 2026-06-09): maul / freeze / betray / turnAgainst never fire on an empty board.
+function isAnimalTargetingBehavior(b) {
+  return !!b.maul || b.kind === 'freeze' || b.kind === 'betray' || b.kind === 'turnAgainst';
+}
+function rollIntent(enemy, excludeKinds = [], hasAnimals = true) {
   // Charge release (Spindlewight): the turn after a `charge` wind-up, the
   // parked value returns as a single big attack. Mirrors App.jsx rollIntent.
   if (enemy.pendingChargeValue > 0) {
@@ -89,10 +94,14 @@ function rollIntent(enemy, excludeKinds = []) {
     enemy.maulStep = step + 1;
     const value = 4 + Math.floor(step / 2);
     const composurePool = (step % 2 === 1);
-    return { kind: 'attack', maul: true, value, pool: composurePool ? 'composure' : undefined };
+    return { kind: 'attack', maul: hasAnimals || undefined, value, pool: composurePool ? 'composure' : undefined };
   }
   const behaviors = enemy.behaviors || [];
-  const filtered = behaviors.filter(b => !excludeKinds.includes(b.kind));
+  let filtered = behaviors.filter(b => !excludeKinds.includes(b.kind));
+  if (!hasAnimals) {
+    const noAnimalTargeting = filtered.filter(b => !isAnimalTargetingBehavior(b));
+    if (noAnimalTargeting.length > 0) filtered = noAnimalTargeting;
+  }
   const pool = filtered.length > 0 ? filtered : behaviors;
   if (pool.length === 0) return null;
   const total = pool.reduce((s, b) => s + (b.weight || 1), 0);
@@ -269,7 +278,7 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-pedigree',      name: 'Pedigree',        cost: 1, type: 'handler-skill', rarity: 'common',   effects: { lockLureSpecies: true, exhaust: true } },
   { id: 'c-best-in-show',  name: 'Best in Show',    cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'bestInShow' } },
   { id: 'c-rally-the-pack',name: 'Rally the Pack',  cost: 2, type: 'handler-skill', rarity: 'common',   effects: { summonStrength: 2, exhaust: true } },
-  { id: 'c-drillmaster',   name: 'Drillmaster',     cost: 2, type: 'power',         rarity: 'uncommon', installPower: { id: 'drillmaster' } },
+  { id: 'c-drillmaster',   name: 'Drillmaster',     cost: 1, type: 'handler-skill', rarity: 'common',   effects: { summonStrength: 1 } },
   // Handler v3 slice 2 training-engine powers — each turn ONE animal gains a
   // PERMANENT +1 (attack / block-per-turn), riding the slot like Whet the
   // Claws. Mirrors src/App.jsx start-of-turn power tick (trainAnimalAttack /
@@ -281,7 +290,6 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-pecking-order', name: 'Pecking Order',    cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'peckingOrder' } },
   { id: 'c-palpable-sadness',  name: 'Palpable Sadness',  cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'palpableSadness' } },
   { id: 'c-memorial',          name: 'Memorial',          cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'memorial' } },
-  { id: 'c-strays',            name: 'Strays',            cost: 1, type: 'handler-skill', rarity: 'common', effects: { spawnFodder: 2 } },
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'costOfLittering' } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
   { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
@@ -327,7 +335,7 @@ const HANDLER_REWARD_POOL = [
   'c-light-the-mound', 'c-palpable-sadness', 'c-cost-of-littering',
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
   'c-hunker-down', 'c-dig-in',
-  'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show',
+  'c-memorial', 'c-pedigree', 'c-best-in-show',
   'c-rally-the-pack', 'c-drillmaster', 'c-whet-claws', 'c-thicken-hide', 'c-steel-nerves', 'c-stiff-upper-lip',
   'c-sergeant-at-arms', 'c-quartermaster-regimen',
 ];
@@ -1636,7 +1644,8 @@ function aiTurnHandler(state, combat) {
   combat.firstLureUsedThisTurn = false;
   // Drillmaster — ramping Summon Strength: +1 every turn (mirrors App.jsx
   // start-of-turn power tick). Installed via installPower.
-  if (hasHandlerPower(state, 'drillmaster')) combat.summonStrength = (combat.summonStrength || 0) + 1;
+  // Drillmaster is a one-time +1 Summon Strength skill now (Alan, 2026-06-09) —
+  // applied on play via fx.summonStrength, not a per-turn power tick.
   // Training-engine powers (Handler v3 slice 2) — mirror App.jsx start-of-turn
   // tick. Sergeant-at-Arms trains the hardest hitter (+1 perm attack);
   // Quartermaster's Regimen trains a keeper / sturdiest animal (+1 perm
@@ -1742,7 +1751,7 @@ function aiTurnHandler(state, combat) {
           if (combat.enemy.id === 'e2-loom-familiar' && state.loomStole && !pigExclude.includes('discard-hand')) {
             pigExclude.push('discard-hand');
           }
-          combat.enemyIntent = rollIntent(combat.enemy, pigExclude);
+          combat.enemyIntent = rollIntent(combat.enemy, pigExclude, ['intro','subject','target'].some(s => combat.htray[s]?.kind === 'animal'));
           combat.pigeonUsedThisTurn = true;
           combat.abilityActivations = (combat.abilityActivations || 0) + 1;
           continue;
@@ -2026,7 +2035,7 @@ function aiTurnHandler(state, combat) {
     combat.lastIntentKinds.push(combat.enemyIntent?.kind);
     if (combat.lastIntentKinds.length > 2) combat.lastIntentKinds.shift();
     const exclude = (combat.lastIntentKinds.length >= 2 && combat.lastIntentKinds[0] === combat.lastIntentKinds[1]) ? [combat.lastIntentKinds[0]] : [];
-    combat.enemyIntent = rollIntent(combat.enemy, exclude);
+    combat.enemyIntent = rollIntent(combat.enemy, exclude, ['intro','subject','target'].some(s => combat.htray[s]?.kind === 'animal'));
   }
 }
 // v3 (Alan, 2026-06-08): maul victim selection by DAMAGE TYPE — HP maul tears
@@ -2580,7 +2589,7 @@ function runHandlerCombat(state, enemy, telemetry) {
     enemy, fb,
     enemyComposure: enemy.currentComp, enemyHp: enemy.currentHp, enemyBlock: 0,
     enemyDmgMult: 1.0, playerDmgMult: 1.0,
-    enemyIntent: rollIntent(enemy), lastIntentKinds: [],
+    enemyIntent: rollIntent(enemy, [], false), lastIntentKinds: [],
     // Duo encounters — companion fights beside the leader (animals always
     // hit the leader; only compDmg skills follow the target policy).
     companion: initCompanionSim(enemy, 1.25),
@@ -2674,7 +2683,7 @@ function runCombat(state, enemyId, telemetry) {
   if (state.lane === 'handler') return runHandlerCombat(state, enemy, telemetry);
   // Roll the opening intent (the player "sees" it before their first turn,
   // exactly as App.jsx does via setEnemyIntent(rollIntent(e)) in enterFight).
-  state.enemyIntent = rollIntent(enemy);
+  state.enemyIntent = rollIntent(enemy, [], false);
   state.lastIntentKinds = [];
   // Duo encounters — the leader brings its companion (same scaling).
   state.companion = initCompanionSim(tmpl, DIFFICULTY_MULT);
@@ -5817,7 +5826,7 @@ function aiPickHandlerReward(state) {
       const ownsSacPayoff = ['c-memorial', 'c-palpable-sadness', 'c-light-the-mound'].some(x => ownedIds.has(x));
       const ownsMonoPayoff = ['c-pedigree', 'c-best-in-show', 'c-well-drilled'].some(x => ownedIds.has(x));
       if ((card.effects?.spawnFodder) && ownsSacPayoff) s += 5;            // Strays ← sacrifice payoff present
-      if ((card.installPower?.id === 'memorial') && ownedIds.has('c-strays')) s += 3;
+      if ((card.installPower?.id === 'memorial')) s += 3;
       if ((card.effects?.lockLureSpecies || card.installPower?.id === 'bestInShow' || card.installPower?.id === 'wellDrilled') && ownsMonoPayoff) s += 4;
     } else {
       s += 6;
@@ -6602,7 +6611,7 @@ function aggregate(results) {
   // 2026-06-08 new-card analysis: draft rate + acts-cleared correlation for the
   // synergy/block cards, so the design loop can tell if they're exercised and
   // whether decks that drafted them go further.
-  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show', 'c-well-drilled', 'c-rally-the-pack', 'c-drillmaster'];
+  const NEW_CARD_IDS = ['c-hunker-down', 'c-dig-in', 'c-memorial', 'c-pedigree', 'c-best-in-show', 'c-well-drilled', 'c-rally-the-pack', 'c-drillmaster'];
   const newCardStats = {};
   const handlerRuns = results.filter(r => r.lane === 'handler');
   for (const id of NEW_CARD_IDS) {

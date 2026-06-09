@@ -291,9 +291,9 @@ const CARDS = [
     upgrade: { effects: { strengthenAnimal: { poise: 7 }, costEscalates: true } },
     desc: 'Pick an animal on the board. It permanently braces for +5 Poise each turn — a serious composure-block wall. Costs 1 more each time you play it this combat.',
     flavor: 'It has seen things. It will not be discussing them. There is tea at four.' },
-  { id: 'c-drillmaster', name: 'Drillmaster', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
-    power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
-    desc: 'Power. At the start of each turn, gain +1 Summon Strength (every animal attacks for more, building each turn).',
+  { id: 'c-drillmaster', name: 'Drillmaster', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { summonStrength: 1 }, upgrade: { effects: { summonStrength: 2 } },
+    desc: '+1 Summon Strength — every animal attacks for +1 for the rest of combat.',
     flavor: 'Drills the woods like a parade ground. The woods, to everyone\'s surprise, comply.' },
   // Training-engine POWERS (Handler v3 slice 2, Alan 2026-06-08) — the
   // powerhouse-you-build-over-time lever. Each turn, ONE animal gets a
@@ -333,12 +333,10 @@ const CARDS = [
     installPower: { id: 'memorial' },
     desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — deal 5 composure damage to all enemies.',
     flavor: 'A short service for each of them. The enemy is required to attend.' },
-  // Fodder generator (Alan, 2026-06-08): bodies for the sacrifice loop and
-  // Memorial. Two 1-turn strays arrive at once into open slots.
-  { id: 'c-strays', name: 'Strays', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
-    effects: { spawnFodder: 2 },
-    desc: 'Summon two Strays into open slots — each swings for 2 and leaves after 1 turn. Bodies for sacrifice and Memorial.',
-    flavor: 'They followed you home. All of them. It is now, apparently, your problem.' },
+  // Strays removed (Alan, 2026-06-09) — the breeding Rabbit will become the
+  // sacrifice archetype's renewable fodder engine (see roster-pass notes), so a
+  // separate fodder-spawner is redundant. The spawnFodder machinery + 'stray'
+  // animal are left as dead code (prune later).
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'costOfLittering' },
     desc: 'Power. Deal 5 composure damage to all enemies for every 5 animals you summon this combat.',
@@ -419,14 +417,8 @@ const CARDS = [
   { id: 'c-clarity', name: 'Clarity', lane: 'wit', cost: 1, type: 'skill', rarity: 'uncommon',
     effects: { draw: 3, exhaust: true }, upgrade: { effects: { draw: 4, exhaust: true } },
     desc: 'Draw 3 cards. Exhaust.' },
-  // Cycle 4 batch 3: handler sustain + next-cast boost. Pairs with
-  // Don't Hold Back / Go For The Throat / Corner Them — heal the chip
-  // damage your own deck inflicts, then go big on the next handler cast.
-  { id: 'c-iron-stomach', name: 'Iron Stomach', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
-    effects: { hp: 5, boostNextHandlerCast: 0.5, exhaust: true },
-    upgrade: { effects: { hp: 8, boostNextHandlerCast: 0.5, exhaust: true } },
-    desc: 'Heal 5 HP. Your next Handler Effect this turn deals +50% damage. Exhaust.',
-    flavor: 'You\'ve digested worse. You\'ll digest this.' },
+  // Iron Stomach removed (Alan, 2026-06-09). The boostNextHandlerCast machinery
+  // is left as dead code (prune later).
   // v2.97: defensive variants (universal). Three options that each force a
   // different "how to spend my defense energy" decision. Brace rewards
   // safe turns; Reframe trades incoming HP for incoming Composure;
@@ -2890,7 +2882,15 @@ const uid = () => `u${++_uid}`;
 // system so an enemy can't fire the same intent (e.g. 'block') 3+ turns in
 // a row. Falls back to the full behavior list if every option is excluded
 // (e.g. an enemy whose only behaviors share one kind).
-function rollIntent(enemy, excludeKinds = []) {
+// An intent that acts ON a summoned animal — pointless (and confusing) with an
+// empty board. Maul tears one, freeze ("Pins") freezes one, betray steals one,
+// turnAgainst flips them on you. Gated on hasAnimals in rollIntent (Alan,
+// 2026-06-09: "animal-focused attacks should never fire if there's no summoned
+// animal in play").
+function isAnimalTargetingBehavior(b) {
+  return !!b.maul || b.kind === 'freeze' || b.kind === 'betray' || b.kind === 'turnAgainst';
+}
+function rollIntent(enemy, excludeKinds = [], hasAnimals = true) {
   // Charge release (Spindlewight, Alan 2026-06-08): the turn AFTER a `charge`
   // wind-up, the parked value comes back as a single big telegraphed attack.
   // Emitting it from rollIntent makes the player SEE it coming as the next
@@ -2909,10 +2909,14 @@ function rollIntent(enemy, excludeKinds = []) {
     enemy.maulStep = step + 1;
     const value = 4 + Math.floor(step / 2);     // 4,4,5,5,6,6,...
     const composurePool = (step % 2 === 1);      // HP, comp, HP, comp, ...
+    // No animals → it still attacks for the same value, but there's nothing to
+    // maul, so drop the maul rider (no "maul nothing").
     return {
-      kind: 'attack', maul: true, value,
+      kind: 'attack', maul: hasAnimals || undefined, value,
       pool: composurePool ? 'composure' : undefined,
-      telegraph: `🦷 ${value} ${composurePool ? '🎭' : '❤'} maul (unblocked → lose your strongest animal)`,
+      telegraph: hasAnimals
+        ? `🦷 ${value} ${composurePool ? '🎭' : '❤'} maul (unblocked → lose your strongest animal)`
+        : `${composurePool ? '🎭' : '⚔'} ${value}`,
     };
   }
   // E2E hook: ?forceMaul makes the next intent roll pick this enemy's maul
@@ -2929,7 +2933,12 @@ function rollIntent(enemy, excludeKinds = []) {
     const kindB = enemy.behaviors.find(b => b.kind === window.__forceIntentKind);
     if (kindB) { window.__forceIntentKind = null; return { ...kindB }; }
   }
-  const filtered = enemy.behaviors.filter(b => !excludeKinds.includes(b.kind));
+  let filtered = enemy.behaviors.filter(b => !excludeKinds.includes(b.kind));
+  // Drop animal-targeting behaviors when the board is empty (Alan, 2026-06-09).
+  if (!hasAnimals) {
+    const noAnimalTargeting = filtered.filter(b => !isAnimalTargetingBehavior(b));
+    if (noAnimalTargeting.length > 0) filtered = noAnimalTargeting;
+  }
   const pool = filtered.length > 0 ? filtered : enemy.behaviors;
   const total = pool.reduce((s, b) => s + (b.weight || 1), 0);
   let roll = Math.random() * total;
@@ -5830,7 +5839,7 @@ export default function App() {
     setPouchGuard(false);
     pouchGuardRef.current = false;
     setAbilitiesUsedThisTurn([]);
-    setEnemyIntent(rollIntent(e));
+    setEnemyIntent(rollIntent(e, [], false)); // combat start: empty board, no animal-targeting
     setIntentTick(t => t + 1);
     setPeekedNextIntent(null);
     // Duo encounter — the main enemy brings its companion (same difficulty
@@ -9005,7 +9014,7 @@ export default function App() {
     if (fx.revealNextIntent) {
       // Pre-roll the upcoming intent and store it for UI display.
       if (enemy) {
-        const peeked = rollIntent(enemy, [enemyIntent?.kind].filter(Boolean));
+        const peeked = rollIntent(enemy, [enemyIntent?.kind].filter(Boolean), SLOT_ORDER.some(s => tray[s]?.kind === 'animal'));
         setPeekedNextIntent(peeked);
         logBits.push(`👁 peek: ${peeked.telegraph || peeked.kind}`);
       }
@@ -9698,7 +9707,7 @@ export default function App() {
         if (enemy.id === 'e2-loom-familiar' && loomStoleThisCombatRef.current && !exclude.includes('discard-hand')) {
           exclude.push('discard-hand');
         }
-        setEnemyIntent(rollIntent(enemy, exclude));
+        setEnemyIntent(rollIntent(enemy, exclude, SLOT_ORDER.some(s => tray[s]?.kind === 'animal')));
         setIntentTick(t => t + 1);
       }
       setAbilitiesUsedThisTurn(u => [...u, slotName]);
@@ -12188,7 +12197,7 @@ export default function App() {
         setEnemyIntent(peekedNextIntent);
         setPeekedNextIntent(null);
       } else {
-        setEnemyIntent(rollIntent(enemy, exclude));
+        setEnemyIntent(rollIntent(enemy, exclude, SLOT_ORDER.some(s => boardFullRef.current?.[s]?.kind === 'animal')));
       }
       setIntentTick(t => t + 1);
     }

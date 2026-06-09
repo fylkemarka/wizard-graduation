@@ -12,7 +12,6 @@ const ON_THREE = 'c-pack-tactics';
 const HOUSE_RULES = 'c-house-rules';
 const NARROW = 'c-narrow';
 const TENDER_GREENS = 'cv2-l-tender-greens';
-const IRON_STOMACH = 'c-iron-stomach';
 
 // Dismiss the Loom Familiar's card-steal notice if it's up — it blocks
 // every other click. (Surfaced 2026-06-07 when c-buffet left the starter
@@ -174,18 +173,4 @@ test('Acquired Taste safely no-ops when no ≥3-species lure is narrowable', asy
   expect(await handCardById(page, NARROW).count()).toBe(0);
 });
 
-test('Iron Stomach exhausts on play (lands in exile, not discard) and arms the next-cast boost', async ({ page }) => {
-  // Deck of only Iron Stomach: nothing else cycles, so discard staying at 0
-  // proves the skill exhausted to exile rather than going to discard.
-  await gotoLab(page, 'handler', { seed: 11 });
-  for (let i = 0; i < 6; i++) await addCard(page, IRON_STOMACH);
-  await fightEnemy(page, 'Loom Familiar');
-
-  expect(await ensureInHand(page, IRON_STOMACH)).toBeTruthy();
-  await playCardById(page, IRON_STOMACH);
-
-  // The played copy is gone from hand and did NOT go to discard — it exhausted.
-  expect(await handCardById(page, IRON_STOMACH).count()).toBeLessThan(6);
-  await expect(page.getByTestId('discard-pile-btn')).toContainText('Discard 0');
-  await expect(page.getByTestId('hand')).toBeVisible();
-});
+// Iron Stomach removed (Alan, 2026-06-09) — test deleted.
