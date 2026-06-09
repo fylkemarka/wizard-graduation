@@ -37,25 +37,25 @@ test('a Drystone Ox keeper braces for Block; split training grows the wall and t
   await expect(ox).toBeVisible();
   // Keeper baseline: 2 dmg/turn and a 6 Block/turn wall.
   await expect(ox).toContainText(/2 dmg \/ turn/);
-  await expect(ox).toContainText(/🛡 6\/turn/);
+  await expect(ox).toContainText(/🛡 4\/turn/);
 
   // Whet the Claws → offense only: 2 → 5 dmg, block unchanged.
   expect(await ensurePlay(page, WHET)).toBeTruthy();
   await expect(page.getByText(/💪 Training:/)).toBeVisible();
   await ox.click();
   await expect(ox).toContainText(/5 dmg \/ turn/);   // 2 + 3
-  await expect(ox).toContainText(/🛡 6\/turn/);       // block untouched
+  await expect(ox).toContainText(/🛡 4\/turn/);       // block untouched
   await expect(ox).toContainText(/💪 trained/);
 
   // Thicken the Hide → defense only: block 6 → 9, attack unchanged.
   expect(await ensurePlay(page, HIDE)).toBeTruthy();
   await ox.click();
   await expect(ox).toContainText(/5 dmg \/ turn/);   // attack untouched
-  await expect(ox).toContainText(/🛡 9\/turn/);       // 6 + 3
+  await expect(ox).toContainText(/🛡 7\/turn/);       // 6 + 3
 
-  // The pending menagerie Block now shows on the Player block stat (9 from
-  // the Ox, surfaced so it nets against the enemy intent bar).
-  await expect(page.getByTestId('pending-menagerie-block')).toContainText(/\+9/);
+  // The pending menagerie Block now shows on the Player block stat (7 from
+  // the Ox: 4 base + 3 Thicken, surfaced so it nets against the intent bar).
+  await expect(page.getByTestId('pending-menagerie-block')).toContainText(/\+7/);
 
   // Escalating cost (anti-spam): a SECOND Whet the Claws this combat costs 1
   // more (base 1 → 2). Draw one and check its effective cost on the pill. (Run

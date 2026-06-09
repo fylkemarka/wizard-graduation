@@ -17,6 +17,7 @@ import { gotoLab, addCard, fightEnemy, handCardById, endTurn } from './helpers/l
 const BIRDSEED = 'cv2-l-birdseed';      // → goose (atk 6) under forceSpecies
 const OATS = 'cv2-l-bag-of-oats';       // → Drystone Ox (atk 2, keeper)
 const STEP_BACK = 'c-defend-handler';   // handler starter: +6 player Block
+const HIDE = 'c-thicken-hide';          // +3 Block/turn on an animal (trains the wall)
 
 const oxPill = (page) => page.locator('[data-testid="board-animal"][data-animal-id="ox"]');
 const goosePill = (page) => page.locator('[data-testid="board-animal"][data-animal-id="goose"]');
@@ -108,22 +109,30 @@ test('a fully-blocked maul tears nobody — not even the keeper', async ({ page 
 
 test("a keeper self-tanks: its OWN per-turn Block absorbs a modest maul (no player Block)", async ({ page }) => {
   // Alan, 2026-06-08: animals resolve and brace BEFORE the enemy attacks, so a
-  // keeper's own per-turn Block should absorb the maul. The Ox braces 6/turn;
-  // The Moth Choir's maul is 5 (< 6), so with NO player Block at all the Ox's
-  // own wall covers it and nothing is torn. (Proves the self-tank — the brace
-  // is threaded through shieldBraceRef so the same-tick maul sees it.)
+  // keeper's own per-turn Block should absorb the maul. The Ox braces 4/turn;
+  // trained once with Thicken the Hide it braces 7 — comfortably over The Moth
+  // Choir's 5 HP maul. With NO player Block card, the Ox's own wall covers it
+  // and nothing is torn. (Proves the self-tank — the brace is threaded through
+  // shieldBraceRef so the same-tick maul sees it. An HP maul also targets the
+  // highest-Block animal, which is the Ox itself.)
   await gotoLab(page, 'handler', { seed: 7 });
   for (let i = 0; i < 4; i++) await addCard(page, OATS);
+  for (let i = 0; i < 4; i++) await addCard(page, HIDE);
   await fightEnemy(page, 'The Moth Choir');
 
   expect(await ensurePlay(page, OATS)).toBeTruthy();
-  await page.evaluate(() => { window.__forceMaul = true; });
   await endTurn(page); await ack(page);
   await expect(oxPill(page).first()).toBeVisible();
-  await expect(page.getByText(/🦷/).first()).toBeVisible();
 
-  // Resolve the maul WITHOUT playing any Block card — the Ox's own 6/turn brace
-  // is the only defense, and it's enough for the 5 maul.
+  // Train the Ox's wall: Thicken the Hide → +3 Block/turn (4 → 7).
+  expect(await ensurePlay(page, HIDE)).toBeTruthy();
+  await oxPill(page).first().click();
+  await expect(oxPill(page).first()).toContainText(/🛡 7\/turn/);
+
+  // Arm the maul, resolve it with NO player Block — the 7 brace covers the 5 maul.
+  await page.evaluate(() => { window.__forceMaul = true; });
+  await endTurn(page); await ack(page);
+  await expect(page.getByText(/🦷/).first()).toBeVisible();
   await endTurn(page); await ack(page);
   await expect(page.getByTestId('hand')).toBeVisible();
   await expect(oxPill(page).first()).toBeVisible(); // self-tanked — keeper survives

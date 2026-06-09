@@ -417,12 +417,12 @@ export const ANIMALS = {
     icon: '🐂',
     attack: 2,
     attackPool: 'composure',
-    duration: 6,        // keeper: long stay so you can invest in it
+    duration: 6,        // keeper: persists (never ticks toward exit) — see App tick
     keeper: true,
-    turnGrant: { block: 6 },
+    turnGrant: { block: 4 },
     flavor: 'It was here before you. It will be here after. It is, in the meantime, in the way.',
-    desc: 'A keeper. Stays 6 turns and never needs feeding. Braces for 6 Block each turn and chips 2 composure. Strengthen it to grow the wall — and the swing.',
-    upgrade: { attack: 3, duration: 7, turnGrant: { block: 9 } },
+    desc: 'A keeper — it persists and never needs feeding. Braces for 4 Block each turn and chips 2 composure. HP mauls go for the wall (it intercepts), so strengthen it to take the hits and keep your team safe.',
+    upgrade: { attack: 3, turnGrant: { block: 6 } },
   },
 };
 
