@@ -312,9 +312,10 @@ const COMBINE_BY_SPECIES = { 'field-mouse': 'mouse-house', 'rabbit': 'long-hare'
 const COMBINE_RESULT_IDS = new Set(Object.values(COMBINE_BY_SPECIES));
 const HANDLER_STARTER = [
   'c-defend-handler', 'c-defend-handler', 'c-compose',
-  // v3 starter (Alan, 2026-06-09): one of each foundational lure + the Ox.
-  // Training cards moved to the reward pool. Mirrors buildStarterDeckForLane.
+  // v3 starter (Alan, 2026-06-09): one of each foundational lure + the Ox +
+  // the two training cards. Mirrors buildStarterDeckForLane.
   'cv2-l-tender-greens', 'cv2-l-birdseed', 'cv2-l-bag-of-oats',
+  'c-whet-claws', 'c-thicken-hide',
   'c-pack-tactics', 'c-tactic-shield',
 ];
 const HANDLER_REWARD_POOL = [

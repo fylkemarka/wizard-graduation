@@ -1184,12 +1184,13 @@ function buildStarterDeckForLane(lane, startingRow = null) {
   // and Birdseed are reward-pool lures, not in the opening deck.
   if (lane === 'handler') {
     // v3 starter (Alan, 2026-06-09): a tight 3-lure roster — one of each
-    // foundational lure + the Ox keeper. The training cards (Whet/Thicken) live
-    // in the reward pool now, not the opener (a cluttered starter buried the
-    // animals the player actually cared about).
+    // foundational lure + the Ox keeper — plus the two training cards so the
+    // player can start investing in their team from turn one.
     ids.push('cv2-l-tender-greens');    // → mouse / buck
     ids.push('cv2-l-birdseed');         // → goose / raven
     ids.push('cv2-l-bag-of-oats');      // keeper: Drystone Ox
+    ids.push('c-whet-claws');           // train: +2 attack (escalating cost)
+    ids.push('c-thicken-hide');         // train: +2 Block/turn (escalating cost)
     ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
     ids.push('c-tactic-shield');        // Summoned Shield — route animal attacks into Block
   }
