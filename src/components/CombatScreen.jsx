@@ -682,9 +682,9 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         </div>
         <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
           <span data-testid="player-hp" data-hp={hp} title="HP — physical health. 0 = defeat." className="font-mono text-sm text-moss-300">{hp}<span className="text-[10px] text-parchment-400">/{maxHp}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">HP</span></span>
-          <span title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
+          <span data-testid="player-composure" data-composure={playerComposure} title="Composure — verbal HP. 0 = lose your nerve." className="font-mono text-sm text-iris-200">{playerComposure}<span className="text-[10px] text-parchment-400">/{playerComposureMax}</span><span className="text-[9px] uppercase text-parchment-400 ml-0.5">Comp</span></span>
           <span data-testid="player-energy" data-energy={energy} data-energy-max={energyMax} title="Energy — refills each turn." className="font-mono text-sm text-gold-300"><Icon name="energy" className="mr-0.5" />{energy}/{energyMax}</span>
-          <span title={pendingMenagerieBlock > 0
+          <span data-testid="player-block" data-block={block} title={pendingMenagerieBlock > 0
                   ? `Block — absorbs physical hits, resets each turn. ${block} now + ${pendingMenagerieBlock} your menagerie braces at end of turn = ${block + pendingMenagerieBlock} against the next attack.`
                   : "Block — absorbs physical hits. Resets each turn."}
                 className="font-mono text-sm text-iris-300"><Icon name="block" className="mr-0.5" />{block}{pendingMenagerieBlock > 0 && <span className="text-moss-300" data-testid="pending-menagerie-block"> +{pendingMenagerieBlock}🐾</span>}</span>
@@ -1937,9 +1937,24 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             const hasMemorial = (powers || []).some(p => p.installPower?.id === 'memorial');
             const hasPalpable = (powers || []).some(p => p.installPower?.id === 'palpableSadness');
             const sacAoE = (hasMemorial ? 5 : 0) + (hasPalpable ? 4 : 0);
-            const title = sacAoE > 0
-              ? `Sacrifice ${animal?.name || 'this animal'}: +${sacBlock} Block AND ${sacAoE} Composure to ALL enemies (${[hasMemorial && 'Memorial', hasPalpable && 'Palpable Sadness'].filter(Boolean).join(' + ')}). No exit bonus.`
-              : `Sacrifice ${animal?.name || 'this animal'} now for +${sacBlock} Block. No exit bonus.`;
+            // v3 slice 3: sacrifice now ALSO fires the animal's own exit bonus.
+            // Surface it in the pill so the player knows what they're cashing.
+            const exFx = animal?.onExit;
+            const exParts = [];
+            if (exFx) {
+              if (exFx.damage > 0)         exParts.push(`💔${exFx.damage}`);
+              if (exFx.block > 0)          exParts.push(`🛡${exFx.block}`);
+              if (exFx.healComp > 0)       exParts.push(`💟${exFx.healComp}`);
+              if (exFx.healHp > 0)         exParts.push(`❤${exFx.healHp}`);
+              if (exFx.applyWeak > 0)      exParts.push(`💢weak`);
+              if (exFx.applyVulnerable > 0) exParts.push(`💫vuln`);
+              if (exFx.redirectEnemyAttack) exParts.push(`↩redirect`);
+            }
+            const exitClause = exParts.length > 0 ? ` PLUS its exit bonus (${exParts.join(' ')})` : '';
+            const aoeClause = sacAoE > 0
+              ? ` AND ${sacAoE} Composure to ALL enemies (${[hasMemorial && 'Memorial', hasPalpable && 'Palpable Sadness'].filter(Boolean).join(' + ')})`
+              : '';
+            const title = `Sacrifice ${animal?.name || 'this animal'}: +${sacBlock} Block${aoeClause}${exitClause}.`;
             return (
               <span role="button" tabIndex={0}
                 data-testid="sacrifice-animal"
@@ -1950,7 +1965,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                     ? 'bg-rose-900/80 text-rose-100 border-rose-400 hover:bg-rose-700 animate-pulse-soft'
                     : 'bg-iris-900/80 text-iris-100 border-iris-500 hover:bg-iris-700'
                 }`}>
-                <Icon name="block" /> sacrifice → +{sacBlock}{sacAoE > 0 && <span className="text-rose-200"> · 💔{sacAoE} all</span>}
+                <Icon name="block" /> sacrifice → +{sacBlock}{sacAoE > 0 && <span className="text-rose-200"> · 💔{sacAoE} all</span>}{exParts.length > 0 && <span className="text-rose-200"> · exit {exParts.join(' ')}</span>}
               </span>
             );
           })()}

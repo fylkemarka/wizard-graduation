@@ -957,6 +957,21 @@ function noteSacrificeSim(state, combat, n = 1) {
     for (let i = 0; i < n; i++) { dealComposureAllSim(state, combat, 5); notePlay('_memorialProcs'); }
   }
 }
+// v3 slice 3: fire an animal's onExit payload. Mirrors the tick-local `onExit`
+// helper so player-initiated sacrifice paths cash the exit bonus too.
+function applyAnimalOnExitSim(state, combat, animal) {
+  const fx = animal?.onExit; if (!fx) return;
+  if (fx.damage > 0) {
+    if (fx.damageType === 'physical') handlerDealHp(combat, fx.damage);
+    else { handlerDealComposure(combat, fx.damage); combat.menagerieComposure += fx.damage; }
+    combat.totalDamageDealt += fx.damage;
+  }
+  if (fx.block > 0)     { state.block += fx.block; combat.menagerieBlock += fx.block; }
+  if (fx.applyWeak > 0) combat.enemyDmgMult = 0.75;
+  if (fx.healComp > 0)  state.composure = Math.min(state.maxComposure, state.composure + fx.healComp);
+  if (fx.healHp > 0)    state.hp = Math.min(state.maxHp, state.hp + fx.healHp);
+  if (fx.redirectEnemyAttack) state.redirectEnemyAttack = true;
+}
 // One funnel per summon: Horde counter (combat.summons) + Cost of Littering
 // AoE each time the running total crosses a multiple of 5.
 function bumpSummonsSim(state, combat, n = 1) {
@@ -1306,6 +1321,7 @@ function applyHandlerSkill(state, combat, card) {
       state.energy += turnsLeft;
       drawCards(state, 1);
       noteHandlerExit(state, combat);
+      applyAnimalOnExitSim(state, combat, ANIMALS[tgt.slot.animalId]); // v3 slice 3 — sacrifice cashes exit bonus
       clearHandlerSlot(state, combat.htray, tgt.slot, tgt.s);
       noteSacrificeSim(state, combat, 1);
     }
@@ -1316,6 +1332,7 @@ function applyHandlerSkill(state, combat, card) {
     for (const { s, slot } of animals()) {
       const a = ANIMALS[slot.animalId];
       if (a?.attack > 0) handlerAnimalAttack(state, combat, slot, a, 2);
+      applyAnimalOnExitSim(state, combat, a); // v3 slice 3 — Make It Count cashes each exit bonus
       clearHandlerSlot(state, combat.htray, slot, s);
       departed++;
     }
@@ -1717,6 +1734,7 @@ function aiTurnHandler(state, combat) {
             if (gain > 0) {
               state.block += gain;
               const sl = give.sl;
+              applyAnimalOnExitSim(state, combat, ANIMALS[sl.animalId]); // v3 slice 3 — sacrifice cashes exit bonus
               if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
               else combat.htray[give.s] = null;
               noteHandlerExit(state, combat);
