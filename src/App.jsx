@@ -9545,28 +9545,25 @@ export default function App() {
   // is queued but not yet flushed to the `tray` closure.
   // count > 1 = double/triple maul (Alan, 2026-06-08): tears the N strongest
   // animals off the board (or the N weakest under Pecking Order).
-  const maulStrongestAnimal = (count = 1) => {
+  const maulStrongestAnimal = (count = 1, pool = 'hp') => {
     const board = boardForMaulRef.current;
     if (!board) return;
     const redirect = hasHandlerPower('peckingOrder');
-    // Rank animal slots strongest-first (weakest-first under Pecking Order).
+    // v3 (Alan, 2026-06-08): maul victim selection is by DAMAGE TYPE.
+    //  • HP-pool maul → tears the animal with the HIGHEST BLOCK (the wall is
+    //    what an HP strike grabs — so a keeper/Ox, being the biggest block,
+    //    naturally intercepts HP mauls; the keeper-taunt is now subsumed here).
+    //  • Composure-pool maul → tears the animal with the HIGHEST ATTACK.
+    // Pecking Order reverses it (the weakest of the relevant stat goes forward).
+    const composureMaul = pool === 'composure';
+    const statOf = (slot) => composureMaul
+      ? animalAttackValue(getAnimal(slot.animalId), slot)
+      : (getAnimal(slot.animalId)?.turnGrant?.block || slot.turnGrantTemp?.block || 0) + (slot.blockBonus || 0);
     const ranked = ['intro', 'subject', 'target']
       .map(s => ({ s, slot: board[s] }))
       .filter(x => x.slot?.kind === 'animal')
-      .map(x => ({ ...x, keeper: !!getAnimal(x.slot.animalId)?.keeper, atk: animalAttackValue(getAnimal(x.slot.animalId), x.slot) }))
-      .sort((a, b) => redirect ? a.atk - b.atk : b.atk - a.atk);
-    // v3 slice 4 — keeper taunt / interception (Alan, 2026-06-08; FIRST PASS).
-    // A defensive keeper (the Drystone Ox) on the board INTERCEPTS the maul:
-    // it takes the hit for the team and is the one torn, ahead of the strongest
-    // (or, under Pecking Order, the weakest). Stable-sort keepers to the front
-    // so they're chosen first — among multiple keepers, atk-order from above
-    // breaks ties. The Block-absorbs-the-maul gate still lives upstream (this
-    // function only runs once damage leaked past Block), so a fully-blocked
-    // maul tears nobody, keeper included. Over-committing to one keeper is the
-    // deliberate risk: the powerhouse you can lose. With NO keeper present,
-    // selection falls back to the existing strongest/Pecking-Order behavior.
-    ranked.sort((a, b) => (b.keeper ? 1 : 0) - (a.keeper ? 1 : 0));
-    const keeperIntercept = ranked.length > 0 && ranked[0].keeper;
+      .map(x => ({ ...x, keeper: !!getAnimal(x.slot.animalId)?.keeper, stat: statOf(x.slot) }))
+      .sort((a, b) => redirect ? a.stat - b.stat : b.stat - a.stat);
     const victims = ranked.slice(0, Math.max(1, count));
     if (victims.length === 0) return;
     const updates = {};
@@ -12410,6 +12407,13 @@ export default function App() {
       setPouchGuard(false);
       pushLog(`🦘 Safe in the pouch — ${e.name}'s turn glances off. No damage.`);
       setPouchNotice({ id: Date.now(), enemy: e.name || 'The enemy' });
+      // v3 (Alan, 2026-06-08): the pouch saves YOU, not the menagerie. You
+      // ducked instead of bracing, so a maul still grabs an animal even though
+      // you take no damage — the pouch negates the hit, not the snatch.
+      if (intent.maul) {
+        pushLog(`🦷 ...but you weren't there to defend them — the maul still finds the menagerie.`);
+        maulStrongestAnimal(intent.maulCount || 1, intent.pool);
+      }
       return;
     }
     // Sloth (slowsEnemy, Alan 2026-06-03): while a sloth hangs around, time
@@ -12861,7 +12865,7 @@ export default function App() {
       // also tears the strongest animal off the board. Fully blocked (HP) or
       // poised (composure) → menagerie safe. (Composure-pool mauls exist for
       // Garth Maul's escalating alternating hits — Alan 2026-06-08.)
-      if (intent.maul && (wHp < hp || wComp < composure)) maulStrongestAnimal(intent.maulCount || 1);
+      if (intent.maul && (wHp < hp || wComp < composure)) maulStrongestAnimal(intent.maulCount || 1, intent.pool);
       // v2.10: reactive annotation damage on enemy attack.
       const annReactive = annoFx('damageOnEnemyAttack');
       if (annReactive > 0) {

@@ -185,6 +185,28 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
   // Build a plain-language tooltip for the enemy's intent box. The
   // telegraph string ('🎭 5 (pattern-wrong)') is opaque on first read —
   // this is what teaches the icon vocabulary on hover.
+  // v3 (Alan, 2026-06-08): project WHICH animal a maul will tear, so the intent
+  // bar names the specific victim instead of the ambiguous "your strongest".
+  // HP maul → the animal with the highest BLOCK (the wall); composure maul →
+  // the highest ATTACK. Mirrors App.maulStrongestAnimal. (Pecking Order would
+  // flip to the lowest; the common case names what the player expects.)
+  const projectedMaulVictim = (intent) => {
+    if (!intent?.maul) return null;
+    const composureMaul = intent.pool === 'composure';
+    const cands = ['intro', 'subject', 'target']
+      .map(s => ({ s, slot: tray?.[s] }))
+      .filter(x => x.slot?.kind === 'animal')
+      .map(x => {
+        const a = animals?.[x.slot.animalId];
+        const stat = composureMaul
+          ? effAnimalAttack(a, x.slot, x.s)
+          : (a?.turnGrant?.block || x.slot.turnGrantTemp?.block || 0) + (x.slot.blockBonus || 0);
+        return { name: a?.name || x.slot.animalId, icon: a?.icon || '🐾', stat };
+      });
+    if (cands.length === 0) return null;
+    cands.sort((a, b) => b.stat - a.stat);
+    return cands[0];
+  };
   const intentTooltip = (intent) => {
     if (!intent) return '';
     const lines = [];
@@ -202,7 +224,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         lines.push('Composure attacks bypass HP. Lose all Composure and you fail by losing your nerve.');
       }
       if (intent.maul) {
-        lines.push('🦷 Maul: if any of this leaks past your Block, your strongest animal is torn off the board. Block it ALL to keep your menagerie.');
+        const v = projectedMaulVictim(intent);
+        const by = intent.pool === 'composure' ? 'highest Attack' : 'highest Block';
+        const shield = intent.pool === 'composure' ? 'Poise' : 'Block';
+        lines.push(`🦷 Maul: if any of this leaks past your ${shield}, it tears the animal with the ${by}${v ? ` — right now ${v.name}` : ''}. ${shield} it ALL to keep your menagerie. (Ducking into the pouch dodges the damage but NOT the maul.)`);
       }
     } else if (intent.kind === 'block') {
       lines.push(`🛡 Gains ${intent.value} Block — absorbs your damage to it until its next turn.`);
@@ -476,6 +501,16 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 return <span className={color + (tooltip ? ' cursor-help' : '')} title={tooltip}>{display}</span>;
               })()}
             </div>
+            {/* v3 (Alan): name the specific animal a maul will tear. */}
+            {enemyIntent?.maul && !enemyTurnSkipped && !enemyWillSloth && (() => {
+              const v = projectedMaulVictim(enemyIntent);
+              return (
+                <div className="text-xs font-mono text-ember-200 mt-0.5"
+                     title={`A maul grabs the animal with the highest ${enemyIntent.pool === 'composure' ? 'Attack' : 'Block'}. ${enemyIntent.pool === 'composure' ? 'Poise' : 'Block'} it all to keep your menagerie.`}>
+                  {v ? <>🦷 will maul {v.icon} {v.name}</> : '🦷 maul — no animals to grab'}
+                </div>
+              );
+            })()}
             {/* v2.36: ACTUALLY— arguing-back surcharge. Each Actually—
                 played this turn adds +1 to this enemy attack's raw damage.
                 Shown inline with intent so the player sees the cost of

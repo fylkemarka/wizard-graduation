@@ -49,7 +49,7 @@ test('a fully-braced maul (Summoned Shield) leaks no HP', async ({ page }) => {
   await expect(page.getByTestId('hand')).toBeVisible();
 
   // BOTH geese arrived (brace 12 ≥ maul); maul telegraphed next.
-  await expect(page.getByText(/🪿 Goose/)).toHaveCount(2);
+  await expect(page.locator('[data-testid="board-animal"][data-animal-id="goose"]')).toHaveCount(2);
   await expect(page.getByText(/🦷/).first()).toBeVisible();
 
   // Turn 2: ensure the stance is set, then resolve. The pre-pass braces
@@ -63,5 +63,5 @@ test('a fully-braced maul (Summoned Shield) leaks no HP', async ({ page }) => {
   // tears on a leak — BOTH geese are still on the board.
   const hpAfter = await readHp(page);
   expect(hpAfter).toBe(hpBefore);
-  await expect(page.getByText(/🪿 Goose/)).toHaveCount(2);
+  await expect(page.locator('[data-testid="board-animal"][data-animal-id="goose"]')).toHaveCount(2);
 });

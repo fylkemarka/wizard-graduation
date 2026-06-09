@@ -2031,6 +2031,37 @@ function aiTurnHandler(state, combat) {
     combat.enemyIntent = rollIntent(combat.enemy, exclude);
   }
 }
+// v3 (Alan, 2026-06-08): maul victim selection by DAMAGE TYPE — HP maul tears
+// the highest-BLOCK animal (the wall/keeper), composure maul tears the highest-
+// ATTACK. Mirrors App.maulStrongestAnimal. Shared so the pouch path can fire it
+// too (the pouch dodges the damage, NOT the snatch).
+function simFireMaul(state, combat, intent) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const eligible = combat.maulEligibleSlots || new Set();
+  const redirect = hasHandlerPower(state, 'peckingOrder');
+  const composureMaul = intent.pool === 'composure';
+  const cands = [];
+  for (const s of SLOT) {
+    if (!eligible.has(s)) continue;
+    const slot = combat.htray[s];
+    if (slot?.kind !== 'animal') continue;
+    const a = ANIMALS[slot.animalId];
+    const stat = composureMaul
+      ? (a?.attack > 0 ? a.attack + (slot.attackBonus || 0) : 0)
+      : ((a?.turnGrant?.block || slot.turnGrantTemp?.block || 0) + (slot.blockBonus || 0));
+    cands.push({ s, slot, stat });
+  }
+  cands.sort((a, b) => redirect ? a.stat - b.stat : b.stat - a.stat);
+  if (cands.length) noteEnemyProc((intent.maulCount || 1) > 1 ? 'doubleMaul' : 'maul');
+  for (const v of cands.slice(0, Math.max(1, intent.maulCount || 1))) {
+    if (v.slot?.sourceLures?.length) state.discard.push(...v.slot.sourceLures.map(c => ({ ...c })));
+    if (Array.isArray(v.slot.spans)) for (const s of v.slot.spans) combat.htray[s] = null;
+    else combat.htray[v.s] = null;
+    combat.mauls = (combat.mauls || 0) + 1;
+    if (typeof globalThis.__maulCount === 'number') globalThis.__maulCount++;
+    if (hasHandlerPower(state, 'whisperer')) combat.whisperPending = (combat.whisperPending || 0) + 1;
+  }
+}
 function handlerApplyIntent(state, combat, intent) {
   if (!intent) return;
   // Mime (self-consume, Alan 2026-06-05): the player activated the Mime's wall
@@ -2039,7 +2070,9 @@ function handlerApplyIntent(state, combat, intent) {
   if (combat.enemySkipNextTurn) { combat.enemySkipNextTurn = false; return; }
   // Kangaroo pouch (Alan 2026-06-05): the player ducked in last turn → this
   // enemy turn deals no damage (the whole turn glances off). Mirrors App.jsx.
-  if (combat.pouchGuard) { combat.pouchGuard = false; return; }
+  // Pouch dodges the damage but NOT the maul (Alan, 2026-06-08): you ducked
+  // instead of defending the menagerie, so a maul still grabs one.
+  if (combat.pouchGuard) { combat.pouchGuard = false; if (intent.maul) simFireMaul(state, combat, intent); return; }
   // Sloth (slowsEnemy, Alan 2026-06-03): while a sloth hangs around, the enemy
   // acts at half speed — skipping every OTHER turn. The toggle alternates per
   // enemy turn. Reads the post-tick board limited to maul-eligible slots
@@ -2140,34 +2173,7 @@ function handlerApplyIntent(state, combat, intent) {
     // past Poise — Garth Maul's composure mauls) tears the strongest animal
     // off the board. Mirrors App.jsx maulStrongestAnimal. No exit payoff.
     if (intent.maul && (wHp < hpBefore || wComp < compBefore)) {
-      const SLOT = ['intro', 'subject', 'target'];
-      const eligible = combat.maulEligibleSlots || new Set();
-      // Pecking Order redirects the maul to the weakest animal. Mirrors App.jsx.
-      const redirect = hasHandlerPower(state, 'peckingOrder');
-      const cands = [];
-      for (const s of SLOT) {
-        if (!eligible.has(s)) continue;
-        const slot = combat.htray[s];
-        if (slot?.kind !== 'animal') continue;
-        const a = ANIMALS[slot.animalId]; let atk = a?.attack || 0;
-        if (atk > 0) atk += (slot.attackBonus || 0);
-        cands.push({ s, slot, atk, keeper: !!a?.keeper });
-      }
-      cands.sort((a, b) => redirect ? a.atk - b.atk : b.atk - a.atk);
-      // v3 slice 4 — keeper taunt/interception (mirrors App.jsx maulStrongestAnimal):
-      // a defensive keeper (Ox) on the board takes the hit ahead of the
-      // strongest/weakest. Stable-sort keepers to the front.
-      cands.sort((a, b) => (b.keeper ? 1 : 0) - (a.keeper ? 1 : 0));
-      if (cands.length) noteEnemyProc((intent.maulCount || 1) > 1 ? 'doubleMaul' : 'maul');
-      // maulCount > 1 = double/triple maul (Warp). Mirrors App.jsx.
-      for (const v of cands.slice(0, Math.max(1, intent.maulCount || 1))) {
-        if (v.slot?.sourceLures?.length) state.discard.push(...v.slot.sourceLures.map(c => ({ ...c }))); // v3 single-use lure returns
-        if (Array.isArray(v.slot.spans)) for (const s of v.slot.spans) combat.htray[s] = null;
-        else combat.htray[v.s] = null;
-        combat.mauls = (combat.mauls || 0) + 1;
-        if (typeof globalThis.__maulCount === 'number') globalThis.__maulCount++;
-        if (hasHandlerPower(state, 'whisperer')) combat.whisperPending = (combat.whisperPending || 0) + 1;
-      }
+      simFireMaul(state, combat, intent);
     }
   } else if (intent.kind === 'block') {
     combat.enemyBlock += intent.value;
