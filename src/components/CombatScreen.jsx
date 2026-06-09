@@ -1454,17 +1454,23 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   // Resolves through a multi-slot animal's `occupied` placeholder to its anchor
   // (e.g. McCloven), mirroring App.jsx copyLeftAttack. Returns 0 if there's
   // nothing/no attacker to the left.
-  const animalLeftAttack = (slotName) => {
+  // Lyrebird (Alan 2026-06-09): the highest-attacking OTHER animal × copyFactor.
+  // Mirrors App.jsx copyHighestAttack. Returns 0 if it's alone.
+  const animalCopyHighest = (slotName, mimic) => {
     const ORDER = ['intro', 'subject', 'target'];
-    const idx = ORDER.indexOf(slotName);
-    if (idx <= 0) return 0;
-    let ls = tray[ORDER[idx - 1]];
-    if (ls?.kind === 'occupied' && ls.occupiedBy) ls = tray[ls.occupiedBy];
-    if (ls?.kind !== 'animal') return 0;
-    const la = animals?.[ls.animalId];
-    let lv = la?.attack || 0;
-    if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (drilledSpecies[ls.animalId] || 0) + (summonStrength || 0);
-    return lv;
+    let best = 0;
+    for (const sn of ORDER) {
+      if (sn === slotName) continue;
+      let s = tray?.[sn];
+      if (s?.kind === 'occupied' && s.occupiedBy) s = tray[s.occupiedBy];
+      if (s?.kind !== 'animal') continue;
+      const a = animals?.[s.animalId];
+      if (a?.copiesHighest) continue;
+      let v = a?.attack || 0;
+      if (v > 0) v += (s.attackBonus || 0) + 2 * (drilledSpecies[s.animalId] || 0) + (summonStrength || 0);
+      if (v > best) best = v;
+    }
+    return Math.round(best * (mimic?.copyFactor ?? 0.75));
   };
   // Sheepdog (any `amplifyAdjacent` animal): an animal next to an amplifier
   // deals +amplifyAdjacent (middle slot touches both). Mirrors App.jsx
@@ -1485,9 +1491,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     return mult;
   };
   const effAnimalAttack = (animal, slotCard, slotName) => {
-    // Lyrebird: its shown swing is the left neighbour's, falling back to own.
-    if (animal?.copiesLeft && slotName !== undefined) {
-      const lv = animalLeftAttack(slotName);
+    // Lyrebird: its shown swing is the highest other animal × copyFactor.
+    if (animal?.copiesHighest && slotName !== undefined) {
+      const lv = animalCopyHighest(slotName, animal);
       if (lv > 0) return Math.round(lv * adjAmpMult(slotName));
     }
     let a = animal?.attack || 0;

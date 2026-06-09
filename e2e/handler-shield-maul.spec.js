@@ -59,9 +59,10 @@ test('a fully-braced maul (Summoned Shield) leaks no HP', async ({ page }) => {
   await endTurn(page);
   await expect(page.getByTestId('hand')).toBeVisible(); // no render crash
 
-  // The brace held: not a point of HP leaked, and — since the maul only
-  // tears on a leak — BOTH geese are still on the board.
+  // The brace held: not a point of HP leaked. (We no longer also assert the
+  // geese remain — at goose duration 2 the unfed birds short-stay and leave by
+  // duration on this very turn, which is unrelated to the maul. The HP-no-leak
+  // check IS the shieldBraceRef regression: the bug leaked HP through a full brace.)
   const hpAfter = await readHp(page);
   expect(hpAfter).toBe(hpBefore);
-  await expect(page.locator('[data-testid="board-animal"][data-animal-id="goose"]')).toHaveCount(2);
 });

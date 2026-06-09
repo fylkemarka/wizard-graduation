@@ -68,6 +68,11 @@ test('an unblocked maul removes the KEEPER (intercepts) instead of the stronger 
   await expect(goosePill(page).first()).toBeVisible();
   await expect(page.getByText(/🦷/).first()).toBeVisible();
 
+  // Feed the goose so it's still here when the maul lands — at duration 2 an
+  // unfed goose short-stays and leaves on its own this turn, masking the
+  // interception result. (The keeper Ox needs no feeding.)
+  await page.locator('[data-testid="feed-species"][data-animal-id="goose"]').first().click();
+
   // Resolve the maul with no extra Block. The Ox braces 6/turn but the maul is
   // 7, so 1 leaks past Block → it fires. Keeper taunt → the OX is torn.
   await endTurn(page); await ack(page);

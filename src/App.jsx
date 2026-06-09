@@ -8481,28 +8481,8 @@ export default function App() {
         logBits.push(`🧬 Pedigree — no animal on the board to set the bloodline. Summon one first.`);
       }
     }
-    // Strays — drop N 1-turn fodder bodies into open slots immediately. Bodies
-    // for sacrifice-for-Block and the Memorial / Light the Mound engine.
-    if (fx.spawnFodder) {
-      const open = SLOT_ORDER.filter(s => !tray[s] || tray[s] === null);
-      const placed = open.slice(0, fx.spawnFodder);
-      if (placed.length === 0) {
-        logBits.push(`🐈‍⬛ Strays — no open slot for them. They sulk off.`);
-      } else {
-        const fodder = getAnimal('stray');
-        setTray(p => {
-          const n = { ...p };
-          for (const s of placed) n[s] = {
-            kind: 'animal', animalId: 'stray',
-            durationRemaining: fodder?.duration || 1,
-            predatorProgress: 0, adjacentSpawnProgress: 0, summonSet: null,
-          };
-          return syncTrayLegacy(n);
-        });
-        for (let i = 0; i < placed.length; i++) noteAnimalSummoned(1);
-        logBits.push(`🐈‍⬛ Strays — ${placed.length} arrive (2 atk, leave after 1 turn).`);
-      }
-    }
+    // Strays / spawnFodder removed 2026-06-09 (Alan) — the Strays card and the
+    // 'stray' fodder animal are gone.
     // The Horde — deal composure equal to animals summoned this combat.
     if (fx.damagePerSummonThisCombat) {
       const dmg = animalsSummonedRef.current * fx.damagePerSummonThisCombat;
@@ -9450,22 +9430,26 @@ export default function App() {
     return mult;
   };
 
-  // Lyrebird (`copiesLeft`): its effective base attack this turn is whatever
-  // the animal to its LEFT is swinging for (its own attack if there's nothing
-  // there or the neighbour is a non-attacker). Reads the neighbour through
-  // animalAttackValue so per-slot attackBonus carries through.
-  const copyLeftAttack = (slotName, animal, trayObj) => {
-    const idx = SLOT_ORDER.indexOf(slotName);
+  // Lyrebird (`copiesHighest`, Alan 2026-06-09): its effective base attack is
+  // the HIGHEST-attacking OTHER animal on the board × its copyFactor (0.75, or
+  // 1.0 trained). Falls back to its own small attack if it's alone. Reads other
+  // animals through animalAttackValue so their attackBonus/Summon Strength carry
+  // through; skips other mimics to avoid a copy-of-a-copy loop.
+  const copyHighestAttack = (slotName, animal, trayObj) => {
     const own = animal?.attack || 0;
-    if (idx <= 0) return own;
-    let ls = trayObj[SLOT_ORDER[idx - 1]];
-    // A multi-slot animal (e.g. the McCloven combine) fills its extra cells
-    // with an `occupied` placeholder pointing back to the anchor. Resolve
-    // through it so the Lyrebird copies the spanning animal, not its stand-in.
-    if (ls?.kind === 'occupied' && ls.occupiedBy) ls = trayObj[ls.occupiedBy];
-    if (ls?.kind !== 'animal') return own;
-    const lv = animalAttackValue(getAnimal(ls.animalId), ls);
-    return lv > 0 ? lv : own;
+    let best = 0;
+    for (const sn of SLOT_ORDER) {
+      if (sn === slotName) continue;
+      let s = trayObj[sn];
+      if (s?.kind === 'occupied' && s.occupiedBy) s = trayObj[s.occupiedBy];
+      if (s?.kind !== 'animal') continue;
+      const other = getAnimal(s.animalId);
+      if (other?.copiesHighest) continue; // don't copy another mimic
+      const v = animalAttackValue(other, s);
+      if (v > best) best = v;
+    }
+    const factor = animal?.copyFactor ?? 0.75;
+    return best > 0 ? Math.round(best * factor) : own;
   };
 
   // Fire an animal's onExit payload immediately (Last Supper / Make It
@@ -10738,11 +10722,9 @@ export default function App() {
       // combine animal anchored at intro spanning into subject. target
       // empties. Combine animals never need feeding (no feedKey) and
       // attack/grant defense on the turn they form (no eatenThisTurn).
-      const COMBINE_BY_SPECIES = {
-        'field-mouse': 'mouse-house',
-        'rabbit':      'long-hare',
-        'young-buck':  'mccloven',
-      };
+      // Combine results (Mouse House / Long Hare / McCloven) removed 2026-06-09
+      // (Alan). Map is empty → the three-of-a-kind pre-pass below never fires.
+      const COMBINE_BY_SPECIES = {};
       const firstSlot = workingTray[SLOT_ORDER[0]];
       const matchedSpecies = (firstSlot?.kind === 'animal' && COMBINE_BY_SPECIES[firstSlot.animalId])
         ? firstSlot.animalId
@@ -10868,18 +10850,20 @@ export default function App() {
         pushLog(`${animal.icon} ${animal.name} unsettles the enemy — Vulnerable ${animal.prePassVulnerable} (before the swarm).`);
       }
 
-      // Pre-pass: RAVEN BIRD THEFT (2026-06-02). On the turn a Raven is set to
-      // exit (durationRemaining === 1, i.e. its last attack happens this tick),
-      // it strips `birdTheft` Block from the enemy BEFORE any animal attacks —
-      // so the burst that follows lands on bare composure. Uses enemyBlockRef
-      // for the synchronous value (setEnemyBlock is async). Skips unfed ravens,
-      // which short-stay and never reach their payoff turn.
+      // Pre-pass: RAVEN BIRD THEFT. The Raven strips `birdTheft` Block from the
+      // enemy BEFORE any animal attacks, so the flock lands on bare composure.
+      // v3 (Alan, 2026-06-09): `birdTheftPerTurn` ravens strip EVERY turn they
+      // attack; a legacy exit-only theft would fire just on durationRemaining===1.
+      // Uses enemyBlockRef for the synchronous value (setEnemyBlock is async).
       for (const slotName of SLOT_ORDER) {
         const slot = workingTray[slotName];
         if (!slot || slot.kind !== 'animal') continue;
         const animal = getAnimal(slot.animalId);
-        if (!animal?.birdTheft || slot.durationRemaining !== 1) continue;
-        if (animal.feedKey && !slot.feedReceived) continue; // unfed short-stays; no payoff
+        if (!animal?.birdTheft || slot.eatenThisTurn) continue;
+        if (!animal.birdTheftPerTurn) {
+          if (slot.durationRemaining !== 1) continue;        // legacy: exit turn only
+          if (animal.feedKey && !slot.feedReceived) continue; // unfed short-stay, no payoff
+        }
         const stripped = Math.min(enemyBlockRef.current, animal.birdTheft);
         if (stripped > 0) {
           enemyBlockRef.current = Math.max(0, enemyBlockRef.current - animal.birdTheft);
@@ -10978,14 +10962,14 @@ export default function App() {
           } else if (!slot.eatenThisTurn && animal.attack > 0) {
             const atkMult = slot.nextAttackMult || 1;
             const ampMult = adjacentAmplifyMult(slotName, workingTray);
-            const baseAtk = animal.copiesLeft ? copyLeftAttack(slotName, animal, workingTray) : animalAttackValue(animal, slot);
+            const baseAtk = animal.copiesHighest ? copyHighestAttack(slotName, animal, workingTray) : animalAttackValue(animal, slot);
             // Animals respect enemy Vulnerable (playerDmgMult): the menagerie
             // is the handler's main damage, so Vulnerable now actually matters
             // to it (Alan, 2026-06-08). playerDmgMult is the binary 1.5/0.75.
             let atk = Math.round(baseAtk * atkMult * ampMult * playerDmgMult);
             const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
             const ampLabel = ampMult > 1 ? ` (🐕 +${Math.round((ampMult - 1) * 100)}%)` : '';
-            const copyLabel = animal.copiesLeft ? ' (🎙️ copies left)' : '';
+            const copyLabel = animal.copiesHighest ? " (🎙️ copies strongest)" : "";
             const tacticId = tray.tactic?.tactic?.id;
             const isShield = tacticId === 'shield';
             const isRabid  = tacticId === 'rabid';
@@ -12209,7 +12193,7 @@ export default function App() {
       if (!animal) continue;
       const atkMult = slot.nextAttackMult || 1;
       const ampMult = adjacentAmplifyMult(sn, tray);
-      const baseAtk = animal.copiesLeft ? copyLeftAttack(sn, animal, tray) : animalAttackValue(animal, slot);
+      const baseAtk = animal.copiesHighest ? copyHighestAttack(sn, animal, tray) : animalAttackValue(animal, slot);
       if (animal.attack > 0) total += Math.round(baseAtk * atkMult * ampMult);
       const extra = slot.extraAttacks || 0;
       // On Three! extra swings are FULL amplified swings (baseAtk × amp), matching
@@ -12253,7 +12237,7 @@ export default function App() {
       if (!animal || !(animal.attack > 0)) continue;
       const atkMult = slot.nextAttackMult || 1;
       const ampMult = adjacentAmplifyMult(sn, tray);
-      const baseAtk = animal.copiesLeft ? copyLeftAttack(sn, animal, tray) : animalAttackValue(animal, slot);
+      const baseAtk = animal.copiesHighest ? copyHighestAttack(sn, animal, tray) : animalAttackValue(animal, slot);
       total += Math.round(baseAtk * atkMult * ampMult);
       const extra = slot.extraAttacks || 0;
       // Extra On Three! swings are full amplified swings, matching the real tick.

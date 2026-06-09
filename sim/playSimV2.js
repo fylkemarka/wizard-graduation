@@ -310,7 +310,8 @@ const HANDLER_TACTIC_UTIL = [
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
-const COMBINE_BY_SPECIES = { 'field-mouse': 'mouse-house', 'rabbit': 'long-hare', 'young-buck': 'mccloven' };
+// Combine results removed 2026-06-09 (Alan) — empty map disables three-of-a-kind.
+const COMBINE_BY_SPECIES = {};
 // Combine RESULT ids (the jackpot animals), for telemetry on whether the
 // 3-of-a-kind payoff is strong/interesting enough (Alan flagged 2026-06-02).
 const COMBINE_RESULT_IDS = new Set(Object.values(COMBINE_BY_SPECIES));
@@ -1070,30 +1071,34 @@ function adjacentAmplifyMultSim(work, slotName) {
   }
   return mult;
 }
-// Lyrebird copy (mirrors App.jsx copyLeftAttack): effective base = the left
-// neighbour's swing (its own attack if there's nothing/no attacker there).
-function copyLeftAttackSim(work, slotName, animal, combat) {
+// Lyrebird copy (mirrors App.jsx copyHighestAttack, Alan 2026-06-09): the
+// highest-attacking OTHER animal × copyFactor (0.75, or 1.0 trained); its own
+// small attack if it's alone. Skips other mimics to avoid a copy-of-a-copy loop.
+function copyHighestAttackSim(work, slotName, animal, combat) {
   const SLOT = ['intro', 'subject', 'target'];
-  const idx = SLOT.indexOf(slotName);
   const own = animal.attack || 0;
-  if (idx <= 0) return own;
-  let ls = work[SLOT[idx - 1]];
-  // Resolve through a multi-slot animal's `occupied` placeholder to its anchor
-  // (e.g. the McCloven combine), so the Lyrebird copies the spanning animal.
-  if (ls?.kind === 'occupied' && ls.occupiedBy) ls = work[ls.occupiedBy];
-  if (!ls || ls.kind !== 'animal') return own;
-  const la = ANIMALS[ls.animalId];
-  let lv = la?.attack || 0;
-  if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[ls.animalId] || 0) + (combat?.summonStrength || 0);
-  return lv > 0 ? lv : own;
+  let best = 0;
+  for (const sn of SLOT) {
+    if (sn === slotName) continue;
+    let s = work[sn];
+    if (s?.kind === 'occupied' && s.occupiedBy) s = work[s.occupiedBy];
+    if (!s || s.kind !== 'animal') continue;
+    const a = ANIMALS[s.animalId];
+    if (a?.copiesHighest) continue;
+    let v = a?.attack || 0;
+    if (v > 0) v += (s.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[s.animalId] || 0) + (combat?.summonStrength || 0);
+    if (v > best) best = v;
+  }
+  const factor = animal?.copyFactor ?? 0.75;
+  return best > 0 ? Math.round(best * factor) : own;
 }
 function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotName) {
   // Effective base attack reflects every live rider (mirrors App.jsx
   // animalAttackValue): any slot.attackBonus from Gorge or Well-Drilled.
   // Lyrebird copies its left neighbour; Sheepdog amplifies adjacent swings.
   let base;
-  if (animal.copiesLeft && work && slotName !== undefined) {
-    base = copyLeftAttackSim(work, slotName, animal, combat);
+  if (animal.copiesHighest && work && slotName !== undefined) {
+    base = copyHighestAttackSim(work, slotName, animal, combat);
   } else {
     base = animal.attack;
     if (base > 0) { base += (slot.attackBonus || 0) + 2 * (combat?.drilledSpecies?.[slot.animalId] || 0) + (combat?.summonStrength || 0); }
@@ -1361,15 +1366,7 @@ function applyHandlerSkill(state, combat, card) {
     for (const id in counts) if (counts[id] > pickN) { pickN = counts[id]; pick = id; }
     if (pick) combat.lockedSpecies = pick;
   }
-  // Strays — drop N 1-turn fodder bodies into open slots immediately.
-  if (fx.spawnFodder) {
-    const open = SLOT.filter(s => combat.htray[s] == null);
-    const placed = open.slice(0, fx.spawnFodder);
-    for (const s of placed) {
-      combat.htray[s] = makeAnimalSlot('stray', 0, null);
-      bumpSummonsSim(state, combat, 1);
-    }
-  }
+  // Strays / spawnFodder removed 2026-06-09 (Alan).
   // Trough — the next 3 summoned animals arrive already fed.
   if (fx.troughFeed) combat.troughCharges = (combat.troughCharges || 0) + fx.troughFeed;
   // The Horde — composure equal to animals summoned this combat
@@ -2382,8 +2379,11 @@ function handlerEndOfTurnTick(state, combat) {
     const s = work[slotName];
     if (!s || s.kind !== 'animal') continue;
     const a = ANIMALS[s.animalId];
-    if (!a?.birdTheft || s.durationRemaining !== 1) continue;
-    if (a.feedKey && !s.feedReceived) continue;
+    if (!a?.birdTheft || s.eatenThisTurn) continue;
+    if (!a.birdTheftPerTurn) {                    // legacy: exit turn only
+      if (s.durationRemaining !== 1) continue;
+      if (a.feedKey && !s.feedReceived) continue;
+    }
     combat.enemyBlock = Math.max(0, combat.enemyBlock - a.birdTheft);
   }
 

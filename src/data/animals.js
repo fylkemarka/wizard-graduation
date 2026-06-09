@@ -166,12 +166,12 @@ export const ANIMALS = {
     icon: '🪿',
     attack: 6,
     attackPool: 'composure',
-    duration: 3,
+    duration: 2, // 3 → 2 (Alan, 2026-06-09): same burst window as the Young Buck.
     feedKey: 'bird',
     // exit damage 4 → 3 (Alan, 2026-06-07).
     onExit: { damage: 3, damageType: 'composure' },
     flavor: 'It has strong opinions about your personal space.',
-    desc: 'THE HEAVY HITTER. The biggest raw bird damage: 6 composure each turn for 3 turns. Parting hiss: 3 composure on exit.',
+    desc: 'THE HEAVY HITTER. The biggest raw bird damage: 6 composure each turn for 2 turns. Parting hiss: 3 composure on exit.',
     upgrade: { attack: 8, duration: 3, onExit: { damage: 5, damageType: 'composure', healHp: 2 } },
   },
   // Birdseed variety (2026-06-01, Flock pass — addresses playtest note #2:
@@ -180,18 +180,20 @@ export const ANIMALS = {
   raven: {
     name: 'Raven',
     icon: '🐦‍⬛',
-    attack: 6,
+    attack: 3,
     attackPool: 'composure',
     duration: 2,
     feedKey: 'bird',
-    // Bird Theft: on the turn the raven is set to exit (durationRemaining === 1),
-    // before any animal attacks, strip `birdTheft` Block from the enemy.
-    // Handled in the end-of-turn pre-pass (mirrors hawk/bear). (2026-06-02.)
+    // Bird Theft (Alan, 2026-06-09): strips `birdTheft` Block from the enemy
+    // EVERY turn (if any is present), in the end-of-turn pre-pass before any
+    // animal attacks — not just the exit turn. A steady armor-strip while it
+    // chips for 3.
     birdTheft: 6,
+    birdTheftPerTurn: true,
     onExit: { healHp: 1 },
     flavor: 'It has counted you. It will remember the number. It will also take your things.',
-    desc: 'THE ARMOR-STRIP. Attacks for 6 composure each turn for 2 turns. Bird Theft: strips 6 Block from the enemy the turn it exits, so the rest of the flock lands clean. +1 HP on exit.',
-    upgrade: { attack: 8, birdTheft: 9, onExit: { healHp: 2, healComp: 2 } },
+    desc: 'THE ARMOR-STRIP. Each turn: strips 6 Block from the enemy (if any) before the flock attacks, then chips 3 composure. +1 HP on exit.',
+    upgrade: { attack: 5, birdTheft: 9, onExit: { healHp: 2, healComp: 2 } },
   },
   owl: {
     name: 'Owl',
@@ -209,56 +211,9 @@ export const ANIMALS = {
     flavor: 'It asks the obvious question. The enemy has no good answer.',
     desc: 'Attacks for 3 composure each turn. Applies Vulnerable 1 to the enemy before your animals attack. On its exit turn, eats one adjacent prey to stay one more turn (once).',
   },
-  // Mouse House — formed when all three slots hold Field Mice. The mice
-  // combine into one Mouse House in the center slot (subject); the
-  // outer slots empty. Mouse House attacks 8 composure each turn for 2
-  // turns AND applies Vulnerable 1 to the enemy each attack.
-  // ---- COMBINE ANIMALS (formed by a three-of-a-kind pre-pass at end of
-  // turn). They never need feeding — feedKey is intentionally absent so the
-  // feed gate (isUnfed) always sees them as "fed" and grants the full
-  // duration + exit bonus. They also don't carry an eatenThisTurn flag on
-  // formation: they attack and grant defense the same turn they combine.
-  'mouse-house': {
-    name: 'Mouse House',
-    icon: '🏠',
-    attack: 8,
-    attackPool: 'composure',
-    duration: 2,
-    onAttackEffect: { applyVulnerable: 1 },
-    onForm: { damage: 14, pool: 'composure' },
-    onExit: { healComp: 5 },
-    flavor: 'They were, you realise, organising the whole time.',
-    desc: 'On forming: bursts for 14 composure. Then attacks for 8 composure each turn for 2 turns. Applies Vulnerable 1 to the enemy with each attack. Heals 5 Composure on exit.',
-    // Combine payoff, not a summon you train — cannot be upgraded at an Inn
-    // (Alan, 2026-06-01). The reward is forming it, not training it.
-  },
-  'long-hare': {
-    name: 'The Long Hare',
-    // attack 8 → 10 (Alan, 2026-06-07): three rabbits do 3×3 = 9/turn, so
-    // the combine must beat 9 to be worth assembling.
-    icon: '🐇',
-    attack: 10,
-    attackPool: 'composure',
-    duration: 2,
-    onAttackEffect: { applyWeak: 1 },
-    turnGrant: { poise: 5 },
-    onForm: { damage: 14, pool: 'composure', applyVulnerable: 2 },
-    onExit: { healComp: 5 },
-    flavor: 'It is many. It is one. It is, frankly, late.',
-    desc: 'On forming: bursts for 14 composure and applies Vulnerable 2. Then attacks for 10 composure and applies Weak 1 each turn for 2 turns. Grants 5 Poise per turn. Heals 5 Composure on exit.',
-  },
-  mccloven: {
-    name: 'McCloven',
-    icon: '🦌',
-    attack: 10,
-    attackPool: 'composure',
-    duration: 2,
-    turnGrant: { block: 5 },
-    onForm: { damage: 18, pool: 'composure' },
-    onExit: { healHp: 5 },
-    flavor: 'A great cloven thing has, by collective vote, decided.',
-    desc: 'On forming: bursts for 18 composure. Then attacks for 10 composure each turn for 2 turns. Grants 5 Block per turn. Heals 5 HP on exit.',
-  },
+  // Combine result animals (Mouse House / The Long Hare / McCloven) removed
+  // 2026-06-09 (Alan). Three-of-a-kind combines are disabled with no targets;
+  // see COMBINE_BY_SPECIES in App.jsx / playSimV2.js (now empty).
   bear: {
     name: 'Bear',
     icon: '🐻',
@@ -296,13 +251,16 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     special: true,
-    amplifyAdjacent: 0.5,
+    // 0.5 → 0.3, upgrades back to 0.5 (Alan, 2026-06-09).
+    amplifyAdjacent: 0.3,
+    upgrade: { amplifyAdjacent: 0.5 },
     flavor: 'Not interested in fighting. Interested in everyone being where they should be.',
-    desc: 'THE AMPLIFIER. Does not attack. Animals in adjacent slots deal +50% (the middle slot reaches both). Stays 3 turns; replay its lure to extend.',
+    desc: 'THE AMPLIFIER. Does not attack. Animals in adjacent slots deal +30% (the middle slot reaches both). Train it to +50%. Stays 3 turns; replay its lure to extend.',
   },
-  // GROUP C — Lyrebird: directional mimic. Each turn it copies the attack of
-  // the animal immediately to its LEFT (earlier tray slot). With nothing to
-  // its left it does its own small 2.
+  // GROUP C — Lyrebird: the mimic. Each turn it copies the highest-attacking
+  // OTHER animal on the board at 75% strength (100% trained). Pair it with a
+  // heavy hitter and it becomes a powerful filler. (Alan, 2026-06-09 — was a
+  // left-neighbour copy.)
   lyrebird: {
     name: 'Lyrebird',
     icon: '🎙️',
@@ -310,9 +268,11 @@ export const ANIMALS = {
     attackPool: 'composure',
     duration: 3,
     special: true,
-    copiesLeft: true,
+    copiesHighest: true,
+    copyFactor: 0.75,
+    upgrade: { copyFactor: 1.0 },
     flavor: 'An uncanny impression of whatever just happened. Including the parts you would rather it did not.',
-    desc: "THE MIMIC. Each turn, copies the attack of the animal to its left (its own 2 composure if there's nothing there). Stays 3 turns; replay its lure to extend.",
+    desc: "THE MIMIC. Each turn, copies the highest-attacking other animal at 75% (its own 2 composure if it's alone). Train it to 100%. Stays 3 turns; replay its lure to extend.",
   },
   // GROUP B — DEFENSE. Porcupine: a reflecting shield. `thorns` is the per-
   // swing ABSORB cap — that much of an incoming attack never reaches the
@@ -386,19 +346,8 @@ export const ANIMALS = {
     flavor: 'Roomy, surprisingly clean, smells faintly of eucalyptus. You have had worse hiding places.',
     desc: 'THE DODGE. Click and spend 2 energy to duck into the pouch: your turn ends and you take no damage on the next enemy turn. Stays 3 turns; replay its lure to extend.',
   },
-  // Fodder body (Alan, 2026-06-08) — summoned in pairs by the Strays card.
-  // 1-turn life, small swing; exists to be sacrificed or to leave and feed
-  // Memorial / Light the Mound. No feedKey (never asks to be fed).
-  stray: {
-    name: 'Stray',
-    icon: '🐈‍⬛',
-    attack: 2,
-    attackPool: 'composure',
-    duration: 1,
-    special: true,
-    flavor: 'It has decided you are family now. The arrangement is, at best, provisional.',
-    desc: 'THE FODDER. A 1-turn body. Swings for 2, then wanders off — pure fuel for sacrifice or Memorial.',
-  },
+  // Stray (fodder body) removed 2026-06-09 (Alan) — the Strays card was already
+  // gone; the orphaned animal + spawnFodder machinery are retired with it.
 
   // ─────────────────────────────────────────────────────────────────────
   // KEEPERS (Alan, 2026-06-08) — the menagerie as a TEAM you form, retain,
