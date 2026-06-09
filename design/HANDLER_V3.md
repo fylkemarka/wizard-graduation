@@ -31,6 +31,12 @@ spend on your terms.
 
 ## Build slices (each lands coherently; mirror every mechanic in the sim)
 
+### Slice 1a — single-use lures ✅ DONE (2026-06-08, committed + pushed)
+Live + sim, 55 e2e green incl. single-use-lures.spec.js proving the return
+invariant. sourceLures ride each animal; returned at every departure
+(exit/short-stay/maul/sacrifice×2/Make-It-Count/eaten-prey/betray) + carried
+through chain/roll/swoop/combine + combat-end sweep. Original design below.
+
 ### Slice 1a — single-use lures (FIRST: safe, fork-independent foundation)
 Lure leaves the deck on summon; returns to hand on the animal's departure. Works
 with the CURRENT duration model (departure-returns-the-lure → never stranded),
