@@ -1530,7 +1530,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
   let crescendoPreview = null;
   if (ready) {
     sentence = composeSpellText(intro, subject, target, modifiers);
-    const { damage: baseDamage, riders, predatorBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive });
+    const { damage: baseDamage, riders, predatorBonus, blockConsumeBonus, insultBonus, insultMatches, insultMatchedTags } = computeSpellDamage(intro, subject, target, modifiers, { playerDmgMult, enemyDmgMult, combatTurn, insultVulnerabilities: enemy?.insultVulnerabilities || [], pauseDoubled: pauseHeldActive, currentBlock: block });
     // v3.4.73 (Alan): predicted damage previously showed only the cast
     // base from computeSpellDamage — but full FFT riders fire AFTER the
     // base and can add huge amounts (Bluster-1's `bonus: 12`, pressure
@@ -1539,6 +1539,10 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     // and got hit for 21. Now Predicted shows the actual delivered total.
     let damage = baseDamage;
     const damageParts = [];
+    // Thorns BODY SLAM — the consumed-Block bonus is already inside baseDamage
+    // (computeSpellDamage read currentBlock); surface it as a chip so the player
+    // sees the detonation value BEFORE committing the wall.
+    if (blockConsumeBonus > 0) damageParts.push(`+${blockConsumeBonus} (🛡 ${block} Block spent)`);
     const fftPre = detectFFT(intro, subject, target);
     if (fftPre.fft) {
       const r = fftPre.fft.rider || {};

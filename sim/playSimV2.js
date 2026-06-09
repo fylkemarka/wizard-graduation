@@ -3239,6 +3239,7 @@ function runCombat(state, enemyId, telemetry) {
           combatTurn: state._combatTurn || 1,
           openingExtended: !!state.openingExtended,
           insultVulnerabilities: enemy?.insultVulnerabilities || [],
+          currentBlock: state.block || 0, // Thorns BODY SLAM scoring
         };
         const preview = computeSpellDamage(introCard, subjectCard, targetCard, [], preCtx);
         const dmgType = targetCard.effect?.damageType || 'composure';
@@ -3326,6 +3327,7 @@ function runCombat(state, enemyId, telemetry) {
             combatTurn: state._combatTurn || 1,
             openingExtended: !!state.openingExtended,
             insultVulnerabilities: enemy?.insultVulnerabilities || [],
+            currentBlock: state.block || 0, // Thorns BODY SLAM scoring
           };
           const preview = computeSpellDamage(introCard, subjectCard, targetCard, [], preCtx);
           const dmgType = targetCard.effect?.damageType || 'composure';
@@ -4062,6 +4064,7 @@ function runCombat(state, enemyId, telemetry) {
           longThread: state.longThread || 0, // v2.34
           combatTurn: state._combatTurn || 1, // v2.39
             insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
+            currentBlock: state.block || 0, // Thorns BODY SLAM scoring
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const preMult = (tray.target.effect?.damageType === 'physical')
@@ -4109,6 +4112,7 @@ function runCombat(state, enemyId, telemetry) {
           combatTurn: state._combatTurn || 1,
           openingExtended: !!state.openingExtended,
           insultVulnerabilities: enemy?.insultVulnerabilities || [],
+          currentBlock: state.block || 0, // Thorns BODY SLAM scoring
         };
         const preview = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, preCtx);
         const targetDmgType = tray.target.effect?.damageType || 'composure';
@@ -4153,9 +4157,18 @@ function runCombat(state, enemyId, telemetry) {
         insultVulnerabilities: enemy?.insultVulnerabilities || [], // v2.42
         pauseDoubled: !!state.pauseHeldActive, // v2.48
         isSecondCast, // v2.50: doubleOnSecondCast rider reads this flag
+        currentBlock: state.block || 0, // Thorns BODY SLAM — consumed below
       };
       const result = computeSpellDamage(tray.intro, tray.subject, tray.target, tray.modifiers, simCtx);
       let dmg = result.damage;
+      // Thorns BODY SLAM — spend the wall once the cast has read it (mirror
+      // App.jsx setBlock(0)). The damage is already in result.damage.
+      if (tray.target.effect?.consumeBlockAsDamage > 0 && (state.block || 0) > 0) {
+        telemetry.thornsBodySlamDamage = (telemetry.thornsBodySlamDamage || 0)
+          + Math.round(state.block * tray.target.effect.consumeBlockAsDamage);
+        telemetry.thornsBodySlamCasts = (telemetry.thornsBodySlamCasts || 0) + 1;
+        state.block = 0;
+      }
       // v2.48: AWKWARD PAUSE — compute the doubling delta for telemetry by
       // re-running the formula WITHOUT the doubling. Single-use; clear the
       // flag once we've computed the bonus. Telemetry: doubledCasts and

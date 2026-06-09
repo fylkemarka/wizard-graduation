@@ -7021,8 +7021,11 @@ export default function App() {
       pauseDoubled: pauseHeldActive,
       // v2.50: BABBLING 2nd-cast flag — doubleOnSecondCast targets fire here.
       isSecondCast: ctxIsSecondCast,
+      // Thorns BODY SLAM — "collected works" targets read the current Block to
+      // convert it into composure. Block is zeroed below once the cast lands.
+      currentBlock: block,
     };
-    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, predatorBonus, threadBonus, footnoteBonus, insultBonus, insultMatches, insultMatchedTags } =
+    const { damage: rawDamage, tier, riders, flippedDmgType, sideEffects, stakeBonus, predatorBonus, blockConsumeBonus, threadBonus, footnoteBonus, insultBonus, insultMatches, insultMatchedTags } =
       computeSpellDamage(intro, subject, target, modifiers, ctx);
     // v2.48: AWKWARD PAUSE — compute the doubling delta for telemetry by
     // re-running the formula WITHOUT the doubling. Only when actually paused.
@@ -7051,6 +7054,18 @@ export default function App() {
         playerDmgMult, enemyDmgMult,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
       });
+    }
+    // Thorns BODY SLAM — surface the consumed-Block bonus and ZERO the wall.
+    // The damage is already baked into rawDamage (computeSpellDamage read
+    // ctx.currentBlock); here we just spend the Block and log it. `block` is
+    // the value at cast time, the same one the formula consumed.
+    if (blockConsumeBonus > 0) {
+      pushLog(`📚 COLLECTED WORKS — ${block} Block spent → +${blockConsumeBonus} composure`);
+      logEvent('wit.thorns.bodySlam', {
+        block, bonusDamage: blockConsumeBonus,
+        enemyId: enemy?.id, enemyTier: enemy?.tier,
+      });
+      setBlock(0);
     }
     // v2.34: LONG THREAD — surface the thread-scaling bonus when it fired.
     if (threadBonus > 0) {

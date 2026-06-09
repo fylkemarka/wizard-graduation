@@ -371,6 +371,18 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     damage += stakeBonus;
   }
 
+  // Thorns BODY SLAM ("collected works") — consume the player's accumulated
+  // Block and deal it as flat composure on top of the cast. The caller passes
+  // the current Block via context.currentBlock and ZEROES it after the cast
+  // resolves (App.jsx setBlock(0) / sim state.block = 0). Flat (added post-tier,
+  // alongside stake/predator) so a big defensive wall isn't tier-multiplied
+  // into a one-shot — the wall converts 1:1 (× the card's consumeBlockAsDamage).
+  let blockConsumeBonus = 0;
+  if (eff.consumeBlockAsDamage > 0 && (context.currentBlock || 0) > 0) {
+    blockConsumeBonus = Math.round(context.currentBlock * eff.consumeBlockAsDamage);
+    damage += blockConsumeBonus;
+  }
+
   // v2.35: footnote bonus = pre-modifier dmg delta the footnotes carried,
   // surfaced for log/telemetry. Modifiers (damageMult etc.) compound onto
   // this too — `damage - damageNoFootnotes` would be the modifier-aware
@@ -393,6 +405,7 @@ export function computeSpellDamage(intro, subject, target, modifiers = [], conte
     stakeBonus, // v2.11: how much damage came from the stake (for UI/log)
     loudBonus, // v2.29: how much damage came from saying-it-louder repetition
     predatorBonus, // v2.30: how much damage came from the predator rider
+    blockConsumeBonus, // Thorns BODY SLAM — composure from consumed Block
     threadBonus, // v2.34: how much damage came from the LONG THREAD scaling
     footnoteBonus, // v2.35: how much damage came from FOOTNOTE stat-riders
     openingBonus: 0, // v3.4.47: Opening Statement removed; field retained as 0 so UI/sim don't crash

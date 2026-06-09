@@ -427,6 +427,21 @@ const TARGETS = [
     desc: 'Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.',
     flavor: 'You said it with conviction. The conviction is, on reflection, the problem.' },
 
+  // THORNS finisher — "My Collected Works" (the Body Slam). The Thorns school
+  // accumulates Block (block-routed casts + per-turn defensive schedules); this
+  // target CONSUMES all of it and deals it as flat composure, converting the
+  // wall into a kill. Turtle for a few turns, then drop the whole bound volume
+  // at once. consumeBlockAsDamage is handled in shared.js computeSpellDamage
+  // (reads context.currentBlock); App.jsx and the sim ZERO Block after the cast.
+  // The 1× rate keeps it value-neutral (10 Block → 10 composure) plus a small
+  // Wit-scaled base so it isn't dead with an empty wall. Mirrored in playSimV2.
+  { id: 'wv2-t-collected-works', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    phrase: 'collapses under the weight of the collected works.', tags: ['academic', 'cutting'],
+    schoolId: 'thorns',
+    effect: { scaleBy: 'wit', base: 0, multiplier: 1, damageType: 'composure', consumeBlockAsDamage: 1 },
+    desc: 'Consumes ALL your Block, dealing that much composure on top of the cast (1 Block = 1 composure). The longer you turtle, the heavier it lands.',
+    flavor: 'You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.' },
+
   // v3.2 damage tune: basic-tier STARTER variant of the Fabric target.
   // Same setId as the uncommon Fabric (atelier-4) so FFT detection still
   // fires, but base damage is 4 (vs uncommon's 7) and tier 1 (vs 2). At
