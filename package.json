@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "dataset": "node tools/build-dataset.mjs",
+    "predev": "node tools/build-dataset.mjs",
+    "prebuild": "node tools/build-dataset.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
