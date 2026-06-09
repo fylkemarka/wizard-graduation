@@ -331,10 +331,10 @@ const CARDS = [
     flavor: 'You leave them everywhere. Someone, eventually, has to be made to care.' },
   // ---- THE BUTCHER — the board is ammunition. These two cash the board in
   // for value. Pairs with The Whisperer.
-  { id: 'c-last-supper', name: 'Last Supper', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
-    effects: { sacrificeForValue: true },
-    desc: 'Send off one of your animals. Gain Energy equal to its remaining turns and draw 1.',
-    flavor: 'A generous portion. A fond farewell. A faint sense of having planned this.' },
+  // Last Supper removed completely (Alan, 2026-06-08). The sacrifice-prompt
+  // machinery (sacrificeForValue / sacrificeAnimalFromSlot) is now dead code —
+  // safe to prune in a later cleanup. The always-available sacrifice-for-Block
+  // pill is a separate mechanism and stays.
   { id: 'c-make-it-count', name: 'Make It Count', cost: 2, type: 'skill', rarity: 'rare', lane: 'handler',
     effects: { sacrificeAllForBurst: true, exhaust: true },
     desc: 'Each of your animals attacks for double, then leaves play. Exhaust.',

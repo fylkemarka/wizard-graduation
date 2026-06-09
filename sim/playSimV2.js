@@ -285,7 +285,6 @@ const HANDLER_TACTIC_UTIL = [
   { id: 'c-strays',            name: 'Strays',            cost: 1, type: 'handler-skill', rarity: 'common', effects: { spawnFodder: 2 } },
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', installPower: { id: 'costOfLittering' } },
   { id: 'c-full-pockets',  name: 'Full Pockets',    cost: 2, type: 'power', rarity: 'common',   installPower: { id: 'fullPockets' } },
-  { id: 'c-last-supper',   name: 'Last Supper',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { sacrificeForValue: true } },
   { id: 'c-make-it-count', name: 'Make It Count',   cost: 2, type: 'handler-skill', rarity: 'rare',     effects: { sacrificeAllForBurst: true, exhaust: true } },
   { id: 'c-murmuration',   name: 'Murmuration',     cost: 1, type: 'handler-skill', rarity: 'uncommon', effects: { compDmgPerBird: 3 } },
   { id: 'c-stampede',      name: 'Stampede',        cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { smallLandAttackAgain: true, exhaust: true } },
@@ -324,7 +323,7 @@ const HANDLER_REWARD_POOL = [
   'c-tactic-rabid', 'c-tactic-youth', 'c-tactic-nurture', 'c-tactic-feather', 'c-tactic-shield',
   'c-pack-tactics', 'c-just-eat-it', 'c-treat', 'c-sharp-whistle',
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
-  'c-last-supper', 'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
+  'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
   'c-narrow', 'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
   'c-light-the-mound', 'c-palpable-sadness', 'c-cost-of-littering',
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).

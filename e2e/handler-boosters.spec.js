@@ -7,7 +7,6 @@ import { gotoLab, addCard, fightEnemy, handCardById, playCardById, endTurn } fro
 // of render-time crash these new prompts/pills could introduce.
 
 const WELL_DRILLED = 'c-well-drilled';
-const LAST_SUPPER = 'c-last-supper';
 const FULL_POCKETS = 'c-full-pockets';
 const SNACK = 'c-snack';
 const BIRDSEED = 'cv2-l-birdseed';
@@ -107,30 +106,6 @@ test('Dismissing Well-Drilled refunds the card to hand', async ({ page }) => {
   await page.getByRole('button', { name: 'Dismiss' }).click();
   await expect(page.getByText(/Well-Drilled:/)).toHaveCount(0);
   expect(await handCardById(page, WELL_DRILLED).count()).toBe(before);
-});
-
-test('Last Supper opens the sacrifice prompt and cashing in an animal does not crash', async ({ page }) => {
-  await gotoLab(page, 'handler', { seed: 11 });
-  for (let i = 0; i < 4; i++) await addCard(page, LAST_SUPPER);
-  for (let i = 0; i < 10; i++) await addCard(page, BIRDSEED);
-  await fightEnemy(page, 'Loom Familiar');
-
-  // Get a body on the board first.
-  expect(await ensureAnimalStaged(page)).toBeTruthy();
-  // Then make sure Last Supper is in hand.
-  expect(await ensureInHand(page, LAST_SUPPER)).toBeTruthy();
-
-  await playCardById(page, LAST_SUPPER);
-
-  // The sacrifice banner arms.
-  const banner = page.getByText(/Last Supper:/);
-  await expect(banner).toBeVisible();
-
-  // Click the first armed animal pill to cash it in.
-  await page.getByText(/click to cash in/).first().click();
-
-  // Prompt dismisses and combat is still alive (hand still rendered).
-  await expect(page.getByTestId('hand')).toBeVisible();
 });
 
 test('Full Pockets adds a single Treat to hand on play (one-time), and the Treat extends an animal', async ({ page }) => {
