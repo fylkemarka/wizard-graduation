@@ -1380,11 +1380,29 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     if (lv > 0) lv += (ls.attackBonus || 0) + 2 * (drilledSpecies[ls.animalId] || 0) + (summonStrength || 0);
     return lv;
   };
+  // Sheepdog (any `amplifyAdjacent` animal): an animal next to an amplifier
+  // deals +amplifyAdjacent (middle slot touches both). Mirrors App.jsx
+  // adjacentAmplifyMult — the projected pill/strip MUST include it or the math
+  // bar undercounts the Sheepdog boost (Alan, 2026-06-08).
+  const adjAmpMult = (slotName) => {
+    if (slotName === undefined) return 1;
+    const ORDER = ['intro', 'subject', 'target'];
+    const idx = ORDER.indexOf(slotName);
+    let mult = 1;
+    for (const ni of [idx - 1, idx + 1]) {
+      if (ni < 0 || ni >= ORDER.length) continue;
+      const ns = tray?.[ORDER[ni]];
+      if (ns?.kind !== 'animal') continue;
+      const na = animals?.[ns.animalId];
+      if (na?.amplifyAdjacent > 0) mult += na.amplifyAdjacent;
+    }
+    return mult;
+  };
   const effAnimalAttack = (animal, slotCard, slotName) => {
     // Lyrebird: its shown swing is the left neighbour's, falling back to own.
     if (animal?.copiesLeft && slotName !== undefined) {
       const lv = animalLeftAttack(slotName);
-      if (lv > 0) return lv;
+      if (lv > 0) return Math.round(lv * adjAmpMult(slotName));
     }
     let a = animal?.attack || 0;
     if (a <= 0) return a;
@@ -1393,7 +1411,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
     a += 2 * (drilledSpecies[slotCard?.animalId] || 0);
     // Summon Strength: flat +N to every animal (App animalAttackValue mirror).
     a += (summonStrength || 0);
-    return a;
+    return Math.round(a * adjAmpMult(slotName));
   };
   const introCard = isSummonEnvelope(tray.intro) ? null : tray.intro;
   const subjectCard = isSummonEnvelope(tray.subject) ? null : tray.subject;
