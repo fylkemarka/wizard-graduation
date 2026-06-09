@@ -81,12 +81,7 @@ const SPECIAL_LURE_CARDS = [
     flavor: 'An invitation with no particular deadline. It will be honoured eventually.' },
   // Batch 2 — player-activated abilities. Click the on-board animal to spend
   // its verb (App.jsx activateAnimalFromSlot).
-  { id: 'cv2-l-white-glove', name: 'A Single White Glove', cost: 1, type: 'lure', slot: 'lure',
-    lane: LANE, rarity: 'uncommon', tier: 2, special: true,
-    summon: { animalId: 'mime', turnsToArrive: 1 },
-    desc: 'In 1T, summons a Mime (0 attack). Click it to mime a wall — the enemy skips its next turn, then the Mime leaves. No feeding needed; replay for another.',
-    flavor: 'You find it in your pocket. You do not remember a second glove, or a first.' },
-  { id: 'cv2-l-stale-crust', name: 'A Stale Crust', cost: 1, type: 'lure', slot: 'lure',
+{ id: 'cv2-l-stale-crust', name: 'A Stale Crust', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'uncommon', tier: 2, special: true,
     summon: { animalId: 'pigeon', turnsToArrive: 1 },
     desc: "In 1T, summons a Pigeon. Click once a turn to scramble the enemy's intent into a different one. No feeding needed; replay to extend.",

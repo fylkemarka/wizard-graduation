@@ -1672,17 +1672,6 @@ function aiTurnHandler(state, combat) {
       const poolMax = targetsComp ? Math.max(1, state.composure) : Math.max(1, state.hp);
       const dire = incoming > 0 && (uncovered / poolMax) > 0.3;
       if (dire) {
-        // Mime — best value: skips the whole enemy turn, then leaves.
-        const mimeSlot = findAbility('mime-wall');
-        if (mimeSlot) {
-          combat.enemySkipNextTurn = true;
-          const sl = combat.htray[mimeSlot];
-          if (Array.isArray(sl.spans)) for (const s of sl.spans) combat.htray[s] = null;
-          else combat.htray[mimeSlot] = null;
-          noteHandlerExit(state, combat); // self-consume departure banks a Whisperer draw (mirrors App noteAnimalDeparted)
-          combat.abilityActivations = (combat.abilityActivations || 0) + 1;
-          continue;
-        }
         // Pigeon — scramble the threatening intent into something else (once/turn).
         const pigeonSlot = findAbility('pigeon-scramble');
         if (pigeonSlot && !combat.pigeonUsedThisTurn) {

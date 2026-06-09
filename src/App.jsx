@@ -9642,19 +9642,6 @@ export default function App() {
     // Per-turn verbs fire at most once per player turn.
     if (ability.cadence === 'per-turn' && abilitiesUsedThisTurn.includes(slotName)) return;
 
-    if (ability.id === 'mime-wall') {
-      // Self-consume: the invisible wall makes the enemy skip its next FULL
-      // turn, then the Mime takes its bow and leaves the board.
-      logEvent('combat.ability_activate', { abilityId: 'mime-wall', animalId: slot.animalId, slotName, enemyId: enemy?.id, intentKind: enemyIntent?.kind, intentMaul: !!enemyIntent?.maul });
-      setEnemySkipNextTurn(true);
-      const updates = {};
-      if (Array.isArray(slot.spans)) for (const s of slot.spans) updates[s] = null;
-      else updates[slotName] = null;
-      setTray(p => syncTrayLegacy({ ...p, ...updates }));
-      noteAnimalDeparted();
-      pushLog(`🧱 ${animal.icon} Mime throws up an invisible wall — ${enemy?.name || 'the enemy'} skips its next turn. The Mime bows out.`);
-      return;
-    }
     if (ability.id === 'pigeon-scramble') {
       // Scramble the telegraphed intent into a DIFFERENT kind (a gamble — it
       // might land on something worse). Once per turn; the Pigeon stays.
@@ -14374,7 +14361,6 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
       body: (<>
         <p>A few animals don't just auto-attack — they carry a <b>verb you trigger by clicking them</b> (look for "⚡ click to activate"):</p>
         <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
-          <li><b>🧱 Mime</b> — mimes a wall: the enemy skips its next turn entirely, then the Mime bows out.</li>
           <li><b>🐦 Pigeon</b> — struts through the plans: scrambles the enemy's telegraphed intent into a different one (once per turn).</li>
           <li><b>🦘 Kangaroo</b> — spend 2 energy to duck into the pouch: your turn ends and you take <b>no damage</b> next enemy turn.</li>
         </ul>

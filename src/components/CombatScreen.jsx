@@ -442,8 +442,8 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
         <div className="rounded bg-ember-950/50 border border-ember-800">
           {/* Wall / Speechless armed — the enemy's coming turn is forfeit.
               Without this banner the only feedback was a log line, and a
-              player couldn't tell whether their Mime click actually armed
-              the wall (Alan's mime-vs-maul report, 2026-06-07). */}
+              player couldn't tell whether an ability actually armed
+              the wall. */}
           {enemyTurnSkipped && (
             <div data-testid="enemy-turn-skipped"
                  className="px-3 py-1.5 bg-moss-900/70 border-b border-moss-600 text-moss-200 text-sm font-bold flex items-center gap-2">

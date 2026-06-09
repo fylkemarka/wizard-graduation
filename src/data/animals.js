@@ -353,20 +353,6 @@ export const ANIMALS = {
   //   endsTurn      — true: activating immediately ends the player's turn
   // ─────────────────────────────────────────────────────────────────────
 
-  // GROUP A — TEMPO. Mime: one invisible wall. Activate to make the enemy skip
-  // its NEXT turn outright, then the Mime is spent and leaves. The whole point
-  // of the summon is that single, well-timed stop.
-  mime: {
-    name: 'Mime',
-    icon: '🤫',
-    attack: 0,
-    attackPool: 'composure',
-    duration: 3,
-    special: true,
-    activatedAbility: { id: 'mime-wall', label: '🧱 mime a wall — enemy skips its next turn', cadence: 'self-consume' },
-    flavor: 'It insists there is a wall. The enemy, against its better judgement, agrees.',
-    desc: 'Does not attack. Click to mime an invisible wall: the enemy skips its next turn, then the Mime takes its bow and leaves. One use; replay its lure for another.',
-  },
   // GROUP A — TEMPO. Pigeon: struts across the enemy's plans. Activate to
   // SCRAMBLE the telegraphed intent — it re-rolls into something different.
   // A gamble button you can pull once a turn while the pigeon's around.
