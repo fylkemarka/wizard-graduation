@@ -977,6 +977,7 @@ function makeAnimalSlot(animalId, youthBonus, summonSet, durBonus) {
     predatorProgress: 0, adjacentSpawnProgress: 0, adjacentSpawned: false,
     summonSet: summonSet || null, feedReceived: false, fedThisTurn: false, nextAttackMult: 1,
     attackBonus: 0,
+    sourceLures: [], // v3 single-use lures — set at the summon site
   };
 }
 // Best in Show — a fresh arrival whose species is already on the board makes
@@ -1102,7 +1103,11 @@ function handlerAnimalAttack(state, combat, slot, animal, baseMult, work, slotNa
   if (animal.onAttackEffect?.applyVulnerable > 0) combat.playerDmgMult = 1.5;
   if (animal.onAttackEffect?.applyWeak > 0)       combat.enemyDmgMult  = 0.75;
 }
-function clearHandlerSlot(next, slot, slotName) {
+function clearHandlerSlot(state, next, slot, slotName) {
+  // v3 single-use lures: a departing animal returns its source lure(s) to
+  // circulation (discard → reshuffled/redrawn). App returns them to hand; the
+  // sim's hand is discarded+redrawn each turn, so discard is the clean parity.
+  if (state && slot?.sourceLures?.length) state.discard.push(...slot.sourceLures.map(c => ({ ...c })));
   if (slot.spans && slot.spans.length) { for (const s of slot.spans) next[s] = null; }
   else next[slotName] = null;
 }
@@ -1198,10 +1203,10 @@ function stageHandlerLure(state, combat, lure) {
     if (nurture) {
       const animalId = resolveLureSpecies(lure, combat);
       const ns = applyTroughFeed(combat, makeAnimalSlot(animalId, youthBonus, lure.summon.summonSet));
+      if (withCard) ns.sourceLures = [lure]; // v3 single-use lure rides the animal
       applyBestInShowSim(state, combat, combat.htray, ns, s);
       combat.htray[s] = ns;
       bumpSummonsSim(state, combat, 1);
-      if (withCard) state.discard.push(lure);
     } else {
       combat.htray[s] = {
         kind: 'lure', card: withCard ? { ...lure } : null,
@@ -1233,8 +1238,8 @@ function applyHandlerUtil(state, combat, card) {
     if (s) {
       const lure = combat.htray[s];
       const animalId = resolveLureSpecies(lure, combat);
-      if (lure.card) state.discard.push({ ...lure.card });
       const ns = applyTroughFeed(combat, makeAnimalSlot(animalId, lure.youthBonus || 0, lure.summonSet));
+      if (lure.card) ns.sourceLures = [lure.card]; // v3 single-use lure rides the animal
       applyBestInShowSim(state, combat, combat.htray, ns, s);
       combat.htray[s] = ns;
       bumpSummonsSim(state, combat, 1);
@@ -1301,7 +1306,7 @@ function applyHandlerSkill(state, combat, card) {
       state.energy += turnsLeft;
       drawCards(state, 1);
       noteHandlerExit(state, combat);
-      clearHandlerSlot(combat.htray, tgt.slot, tgt.s);
+      clearHandlerSlot(state, combat.htray, tgt.slot, tgt.s);
       noteSacrificeSim(state, combat, 1);
     }
   }
@@ -1311,7 +1316,7 @@ function applyHandlerSkill(state, combat, card) {
     for (const { s, slot } of animals()) {
       const a = ANIMALS[slot.animalId];
       if (a?.attack > 0) handlerAnimalAttack(state, combat, slot, a, 2);
-      clearHandlerSlot(combat.htray, slot, s);
+      clearHandlerSlot(state, combat.htray, slot, s);
       departed++;
     }
     if (departed) noteHandlerExit(state, combat, departed);
@@ -2095,6 +2100,7 @@ function handlerApplyIntent(state, combat, intent) {
       if (cands.length) noteEnemyProc((intent.maulCount || 1) > 1 ? 'doubleMaul' : 'maul');
       // maulCount > 1 = double/triple maul (Warp). Mirrors App.jsx.
       for (const v of cands.slice(0, Math.max(1, intent.maulCount || 1))) {
+        if (v.slot?.sourceLures?.length) state.discard.push(...v.slot.sourceLures.map(c => ({ ...c }))); // v3 single-use lure returns
         if (Array.isArray(v.slot.spans)) for (const s of v.slot.spans) combat.htray[s] = null;
         else combat.htray[v.s] = null;
         combat.mauls = (combat.mauls || 0) + 1;
@@ -2237,11 +2243,14 @@ function handlerEndOfTurnTick(state, combat) {
   if (matched && SLOT.every(s => work[s]?.kind === 'animal' && work[s].animalId === matched)) {
     const combineId = COMBINE_BY_SPECIES[matched];
     const ca = ANIMALS[combineId];
+    // v3 single-use lures: the combine inherits all three source lures.
+    const combinedLures = SLOT.flatMap(s => work[s]?.sourceLures || []);
     work.intro = {
       kind: 'animal', animalId: combineId, durationRemaining: ca?.duration || 2,
       predatorProgress: 0, adjacentSpawnProgress: 0, adjacentSpawned: false,
       summonSet: matched === 'field-mouse' ? 'tender-greens' : null,
       spans: ['intro', 'subject'], justCombined: true, feedReceived: true, nextAttackMult: 1,
+      sourceLures: combinedLures,
     };
     work.subject = { kind: 'occupied', occupiedBy: 'intro' };
     work.target = null;
@@ -2362,10 +2371,11 @@ function handlerEndOfTurnTick(state, combat) {
       const nt = slot.turnsRemaining - 1;
       if (nt <= 0) {
         const animalId = resolveLureSpecies(slot, combat);
-        if (slot.card) state.discard.push({ ...slot.card });
         bumpSummonsSim(state, combat, 1);
         if (ANIMALS[animalId]?.special) combat.specialSummons = (combat.specialSummons || 0) + 1;
         const animalSlot = applyTroughFeed(combat, makeAnimalSlot(animalId, slot.youthBonus || 0, slot.summonSet));
+        // v3 single-use lure: the lure rides on the animal, not the discard.
+        if (slot.card) animalSlot.sourceLures = [slot.card];
         const boardNow = {}; for (const bs of SLOT) boardNow[bs] = (next[bs] !== undefined ? next[bs] : work[bs]);
         applyBestInShowSim(state, combat, boardNow, animalSlot, slotName);
         next[slotName] = animalSlot;
@@ -2415,6 +2425,7 @@ function handlerEndOfTurnTick(state, combat) {
       if (ids.length > 0) {
         const rollTargetId = ids[Math.floor(rnd() * ids.length)];
         next[slotName] = makeAnimalSlot(rollTargetId, 0, slot.summonSet);
+        next[slotName].sourceLures = slot.sourceLures || []; // v3: lineage keeps the lure
         bumpSummonsSim(state, combat, 1);
         continue;
       }
@@ -2430,8 +2441,10 @@ function handlerEndOfTurnTick(state, combat) {
     }, 0) : 0;
     if (chainReady && chainTargetCount < MAX_CHAIN_TARGET) {
       next[slotName] = makeAnimalSlot(animal.predatorChain.animalId, 0, slot.summonSet);
+      next[slotName].sourceLures = slot.sourceLures || []; // v3: lineage keeps the lure
       continue;
     }
+
     const sidx = SLOT.indexOf(slotName);
     const hasEmptyNb = [sidx - 1, sidx + 1].some(n => {
       if (n < 0 || n >= SLOT.length) return false;
@@ -2447,7 +2460,7 @@ function handlerEndOfTurnTick(state, combat) {
         if (proj == null) { const child = makeAnimalSlot(animal.adjacentSpawn.animalId, 0, slot.summonSet); child.adjacentSpawned = true; next[ns] = child; bumpSummonsSim(state, combat, 1); }
       }
       nextDur = (slot.durationRemaining - 1) + (animal.adjacentSpawn.extendSelfTurns || 0);
-      if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
+      if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(state, next, slot, slotName); }
       // FEED RETRIGGER (mirrors App.jsx): an extension to 2+ turns is a fresh
       // feed cycle — clear stale fed status so the animal must be fed again
       // before its next make-or-break. Preserved at nextDur===1 so the dur-2
@@ -2455,8 +2468,8 @@ function handlerEndOfTurnTick(state, combat) {
       else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: 0, adjacentSpawned: true, nextAttackMult: 1, extraAttacks: 0, eatenThisTurn: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
       continue;
     }
-    if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(next, slot, slotName); }
-    else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; noteExit(); clearHandlerSlot(next, slot, slotName); }
+    if (nextDur <= 0) { if (!isUnfed(slot, animal)) onExit(animal); noteExit(); clearHandlerSlot(state, next, slot, slotName); }
+    else if (nextDur === 1 && isUnfed(slot, animal)) { combat.shortStays++; noteExit(); clearHandlerSlot(state, next, slot, slotName); }
     else next[slotName] = { ...slot, durationRemaining: nextDur, predatorProgress: nextPred, adjacentSpawnProgress: nextAdj, nextAttackMult: 1, extraAttacks: 0, eatenThisTurn: false, justCombined: false, fedThisTurn: false, feedReceived: nextDur >= 2 ? false : slot.feedReceived };
   }
 
@@ -2474,6 +2487,12 @@ function flushStagedLures(state, combat) {
   for (const s of ['intro', 'subject', 'target']) {
     const slot = combat.htray[s];
     if (slot?.kind === 'lure' && slot.card) state.discard.push({ ...slot.card });
+    // v3 single-use lures: an animal alive at combat end folds its source
+    // lure(s) back into circulation so they're not lost (mirrors App's
+    // extractTrayCardsForReturn combat-end sweep). 'occupied' cells skip.
+    if (slot?.kind === 'animal' && slot.sourceLures?.length) {
+      state.discard.push(...slot.sourceLures.map(c => ({ ...c })));
+    }
   }
 }
 // Run a whole handler combat to completion. Returns the V2 runCombat contract:
