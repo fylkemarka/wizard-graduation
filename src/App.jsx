@@ -14357,7 +14357,7 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
         <p className="mt-2">There are three FFT <b>Schools</b>:</p>
         <ul className="list-disc list-inside text-sm mt-1 leading-relaxed">
           <li><b>🌡 Slow Burn</b> — stacking damage-over-time. Cast another Slow Burn FFT and the waves add together. <i>Your starter is here.</i></li>
-          <li><b>🪞 Thorns</b> — counter-puncher. Casts route to player Block; reflect riders hurt the enemy when they attack.</li>
+          <li><b>🪞 Thorns</b> — the counter-puncher. Casts route to your Block and reflect riders punish the enemy for swinging. Then <i>convert</i>: a finisher like <b>My Collected Works</b> spends your <b>entire Block wall</b> as composure damage (1 Block = 1 composure). Turtle for a few turns, then drop the whole bound volume at once.</li>
           <li><b>🎺 Crescendo</b> — Words Bank ticks composure damage each turn; spend the Bank on Crescendo cards for big spikes.</li>
         </ul>
         <p className="mt-2">You'll draft new rows from elite and boss combats (full 3-card bundles).</p>
