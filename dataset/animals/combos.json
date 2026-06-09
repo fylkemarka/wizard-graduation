@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Warren Rush",
+    "icon": "🐭",
+    "pair": "field-mouse+rabbit",
+    "damage": 6,
+    "pool": "composure",
+    "riders": "draw:1",
+    "description": "Field Mouse beside Rabbit: a scurrying rush for 6 composure and draw 1."
+  },
+  {
+    "name": "Fowl Play",
+    "icon": "🪿",
+    "pair": "goose+raven",
+    "damage": 8,
+    "pool": "composure",
+    "riders": "weak:1",
+    "description": "Goose beside Raven: a mobbing for 8 composure and Weak 1."
+  }
+]

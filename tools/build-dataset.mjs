@@ -28,6 +28,7 @@ import { WIT_V2 } from '../src/cards/wit-v2.js';
 import { HANDLER_V2 } from '../src/cards/handler-v2.js';
 import { JNSQ_V2 } from '../src/cards/jnsq-v2.js';
 import { ENEMIES } from '../src/data/enemies.js';
+import { ANIMALS, ADJACENCY_COMBOS } from '../src/data/animals.js';
 
 const GAME = 'Witch Mountain Bridge';
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -352,10 +353,215 @@ ${ENEMY_COLUMNS.map(c => `- \`${c}\``).join('\n')}
 }
 
 // =============================================================================
+// ANIMALS DATASET
+//
+// Animals are the Handler lane's actual damage dealers — summoned entities,
+// not cards. To make them comparable to STS-style one-shot cards, the headline
+// metric is `lifetime_damage` (attack × duration + composure exit damage): the
+// total a body delivers across its stay, which lines up against a card's single
+// damage number.
+// =============================================================================
+const ANIMAL_COLUMNS = [
+  'id', 'game', 'name', 'icon', 'role',
+  'attack', 'attack_pool', 'duration', 'lifetime_damage',
+  'feed_key', 'summoned_by', 'summon_source', 'elite_variant',
+  'is_special', 'is_keeper',
+  'on_attack', 'on_exit', 'turn_grant',
+  'trained_attack', 'trained_duration', 'trained_lifetime_damage',
+  'mechanics', 'flavor', 'description', 'raw_json',
+];
+
+// Top-level fields surfaced as columns or pure presentation — excluded from the
+// `mechanics` summary.
+const ANIMAL_COLUMN_KEYS = new Set([
+  'name', 'icon', 'attack', 'attackPool', 'duration', 'feedKey', 'elite',
+  'special', 'keeper', 'onAttack', 'onExit', 'turnGrant', 'upgrade',
+  'flavor', 'desc',
+]);
+
+// Reverse index: animalId → lures that summon it (from the live handler cards).
+function buildSummonIndex() {
+  const idx = {};
+  for (const card of HANDLER_V2) {
+    const s = card.summon;
+    if (!s) continue;
+    const ids = s.animalId ? [s.animalId] : (s.animalIds || []);
+    for (const id of ids) (idx[id] ||= []).push(card.name);
+  }
+  return idx;
+}
+
+// Sets of animals that arrive by means OTHER than a lure, for summon_source.
+function buildArrivalSets() {
+  const predators = new Set();
+  const elites = new Set();
+  const spawns = new Set();
+  for (const a of Object.values(ANIMALS)) {
+    for (const row of a.predatorRoll?.table || []) for (const id of row.ids) predators.add(id);
+    if (a.predatorChain?.animalId) predators.add(a.predatorChain.animalId);
+    if (a.elite) elites.add(a.elite);
+    if (a.adjacentSpawn?.animalId) spawns.add(a.adjacentSpawn.animalId);
+  }
+  return { predators, elites, spawns };
+}
+
+// composure damage a body delivers over its whole stay: per-turn attack × turns
+// + a composure-typed exit hit. Utility/0-attack animals score their exit hit
+// only (their value is the verb, captured in `mechanics`/`description`).
+function lifetimeDamage(attack, duration, onExit) {
+  let dmg = (attack || 0) * (duration || 0);
+  if (onExit?.damage && (onExit.damageType === 'composure' || !onExit.damageType)) {
+    dmg += onExit.damage;
+  }
+  return dmg;
+}
+
+function kvSummary(obj) {
+  if (!obj || typeof obj !== 'object') return '';
+  return Object.entries(obj)
+    .filter(([, v]) => v !== undefined && v !== null)
+    .map(([k, v]) => (typeof v === 'boolean' ? (v ? k : '') : `${k}:${v}`))
+    .filter(Boolean)
+    .join('|');
+}
+
+function animalRole(a) {
+  // Descriptions lead with "THE HEAVY HITTER." / "THE CYCLER." etc.
+  const m = (a.desc || '').match(/THE ([A-Z][A-Z- ]+?)[.—]/);
+  if (m) return m[1].trim();
+  if (a.keeper) return 'KEEPER';
+  if (a.special) return 'UTILITY';
+  return '';
+}
+
+function animalMechanics(a) {
+  const keys = new Set();
+  for (const [k, v] of Object.entries(a)) {
+    if (ANIMAL_COLUMN_KEYS.has(k)) continue;
+    if (v === undefined || v === null || v === false) continue;
+    keys.add(k === 'activatedAbility' && v?.id ? `activatedAbility:${v.id}` : k);
+  }
+  // redirectEnemyAttack lives inside onExit — surface it as a mechanic too.
+  if (a.onExit?.redirectEnemyAttack) keys.add('redirectEnemyAttack');
+  return [...keys].sort().join('|');
+}
+
+function animalRow(id, a, summonIdx, arrival) {
+  const summonedBy = summonIdx[id] || [];
+  let source = summonedBy.length ? 'lure'
+    : arrival.predators.has(id) ? 'predator'
+    : arrival.elites.has(id) ? 'elite-upgrade'
+    : arrival.spawns.has(id) ? 'adjacent-spawn'
+    : '';
+  const up = a.upgrade || {};
+  const trainedAttack = up.attack ?? a.attack;
+  const trainedDuration = up.duration ?? a.duration;
+  return {
+    id,
+    game: GAME,
+    name: a.name,
+    icon: a.icon || '',
+    role: animalRole(a),
+    attack: num(a.attack),
+    attack_pool: a.attackPool || '',
+    duration: num(a.duration),
+    lifetime_damage: lifetimeDamage(a.attack, a.duration, a.onExit),
+    feed_key: a.feedKey || '',
+    summoned_by: summonedBy.join('|'),
+    summon_source: source,
+    elite_variant: a.elite || '',
+    is_special: !!a.special,
+    is_keeper: !!a.keeper,
+    on_attack: kvSummary(a.onAttack),
+    on_exit: kvSummary(a.onExit),
+    turn_grant: kvSummary(a.turnGrant),
+    trained_attack: num(trainedAttack),
+    trained_duration: num(trainedDuration),
+    trained_lifetime_damage: lifetimeDamage(trainedAttack, trainedDuration, up.onExit || a.onExit),
+    mechanics: animalMechanics(a),
+    flavor: a.flavor || '',
+    description: a.desc || '',
+    raw_json: JSON.stringify(a),
+  };
+}
+
+const COMBO_COLUMNS = ['name', 'icon', 'pair', 'damage', 'pool', 'riders', 'description'];
+function comboRow(c) {
+  const riders = kvSummary({
+    weak: c.applyWeak, vulnerable: c.applyVulnerable, draw: c.draw, block: c.block,
+  });
+  return {
+    name: c.name,
+    icon: c.icon || '',
+    pair: `${c.a}+${c.b}`,
+    damage: num(c.damage),
+    pool: c.pool || '',
+    riders,
+    description: c.desc || '',
+  };
+}
+
+function buildAnimals() {
+  const summonIdx = buildSummonIndex();
+  const arrival = buildArrivalSets();
+  const rows = Object.entries(ANIMALS).map(([id, a]) => animalRow(id, a, summonIdx, arrival));
+  const comboRows = ADJACENCY_COMBOS.map(comboRow);
+  const bySource = tally(rows, 'summon_source');
+
+  const readme = `# ${GAME} — Animal Dataset
+
+The Handler lane's combatants. Animals are summoned entities (not cards) that
+occupy a stage slot and attack each turn, so this is the table that makes the
+Handler comparable to the other lanes' damage cards. Generated by
+\`tools/build-dataset.mjs\` from the live source (\`src/data/animals.js\`) — the
+same module \`sim/playSimV2.js\` runs against. Auto-refreshes on \`npm run dev\`/\`build\`.
+
+## Files
+- \`animals.json\` / \`animals.jsonl\` / \`animals.csv\` — the roster (${rows.length} animals)
+- \`combos.json\` / \`combos.csv\` — ${comboRows.length} adjacency combos (joint attacks when two
+  species sit in adjacent slots)
+
+## By summon source
+${Object.entries(bySource).map(([k, v]) => `- ${k || '(other)'}: ${v}`).join('\n')}
+
+## Schema (animals)
+${ANIMAL_COLUMNS.map(c => `- \`${c}\``).join('\n')}
+
+### Comparing animals to cards
+- **lifetime_damage** = \`attack × duration\` + composure exit damage. This is the
+  apples-to-apples number against a card's one-shot \`damage\`: a Goose (6×2 + 3 =
+  **15**) is roughly a mid-tier finisher that also costs a slot and a turn to land.
+- **trained_lifetime_damage** is the same after the animal's \`upgrade\` (Basic
+  Training). 0-attack utility animals score only their exit hit — their value is
+  the **mechanics** verb (amplify / reflect / tempo-lock / intent-scramble / …),
+  not raw damage.
+- **summoned_by** lists the lure card(s) that bring the animal; **summon_source**
+  distinguishes lure / predator (swoops on bait) / elite-upgrade (rare variant) /
+  adjacent-spawn.
+- **mechanics** is a scannable pipe-list of special engine fields
+  (\`predatorRoll\`, \`eatsAdjacent\`, \`amplifyAdjacent\`, \`birdTheft\`,
+  \`copiesHighest\`, \`thorns\`, \`slowsEnemy\`, \`activatedAbility:*\`, \`turnGrant\`, …);
+  \`raw_json\` holds the full animal.
+- **on_attack / on_exit / turn_grant** summarize the per-turn and send-off riders
+  (draw, block, heal, applyWeak, …).
+`;
+  writeDataset('animals', ANIMAL_COLUMNS, rows, readme);
+  // Secondary combos table in the same folder.
+  const dir = join(OUT_DIR, 'animals');
+  writeFileSync(join(dir, 'combos.json'), JSON.stringify(comboRows, null, 2));
+  const header = COMBO_COLUMNS.join(',');
+  const body = comboRows.map(r => COMBO_COLUMNS.map(c => csvCell(r[c])).join(',')).join('\n');
+  writeFileSync(join(dir, 'combos.csv'), header + '\n' + body + '\n');
+
+  return { count: rows.length, combos: comboRows.length, bySource };
+}
+
+// =============================================================================
 // RUN
 // =============================================================================
 const cards = buildCards();
 const enemies = buildEnemies();
+const animals = buildAnimals();
 
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(join(OUT_DIR, 'README.md'), `# ${GAME} — Diagnostic Datasets
@@ -370,7 +576,9 @@ whenever the game is run or built. Refresh on demand with \`npm run dataset\`.
 
 - [\`cards/\`](./cards/README.md) — ${cards.count} cards
 - [\`enemies/\`](./enemies/README.md) — ${enemies.count} enemies
+- [\`animals/\`](./animals/README.md) — ${animals.count} Handler animals + ${animals.combos} adjacency combos
 `);
 
 console.log(`cards:   ${cards.count}`, cards.byLane);
 console.log(`enemies: ${enemies.count}`, enemies.byTier);
+console.log(`animals: ${animals.count} (+${animals.combos} combos)`, animals.bySource);

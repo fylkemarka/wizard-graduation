@@ -10,3 +10,4 @@ whenever the game is run or built. Refresh on demand with `npm run dataset`.
 
 - [`cards/`](./cards/README.md) — 288 cards
 - [`enemies/`](./enemies/README.md) — 38 enemies
+- [`animals/`](./animals/README.md) — 20 Handler animals + 2 adjacency combos
