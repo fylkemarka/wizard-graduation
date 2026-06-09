@@ -150,10 +150,10 @@ const CARDS = [
   // the play loop is "stage → defend → wait → repeat" with no in-turn
   // choices. These four hit different beats: slot setup (Whistle), patience
   // payoff (Treat), spike turn (Pack Tactics), impatience option (Just Eat It).
-  { id: 'c-whistle', name: 'Whistle', cost: 1, type: 'skill', rarity: 'basic', lane: 'handler',
+  { id: 'c-whistle', name: 'Places, Everyone', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { whistleSwap: true },
     desc: 'Pick two stage slots and swap their contents. (Lures, animals, or empty.)',
-    flavor: 'A short, important note. The animals re-arrange themselves accordingly.' },
+    flavor: 'A short, important note. The animals re-arrange themselves, with dignity.' },
   // c-treat / c-snack / Full Pockets removed (Alan, 2026-06-09): Treat extends an
   // animal's duration +1, which is meaningless under v3 persist (animals stay as
   // long as you feed them). The treatExtend / fullPockets machinery is now dead
@@ -1164,7 +1164,7 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // foundational lure + the Ox keeper — plus the two training cards so the
     // player can start investing in their team from turn one.
     ids.push('cv2-l-tender-greens');    // → mouse / buck
-    ids.push('cv2-l-birdseed');         // → goose / raven
+    ids.push('cv2-l-birdseed');         // → goose (premium heavy hitter)
     ids.push('cv2-l-bag-of-oats');      // keeper: Drystone Ox
     ids.push('c-whet-claws');           // train: +2 attack (escalating cost)
     ids.push('c-thicken-hide');         // train: +2 Block/turn (escalating cost)
@@ -8401,7 +8401,7 @@ export default function App() {
     // swaps that slot's contents with the second-clicked slot.
     if (fx.whistleSwap) {
       armTargetingPrompt('whistle');
-      logBits.push(`🎶 Whistle armed — pick two slots to swap.`);
+      logBits.push(`🎶 Places, Everyone armed — pick two slots to swap.`);
     }
     // Treat — arm a 1-click prompt. Click any animal slot → +1 duration.
     if (fx.treatExtend) {
@@ -9987,21 +9987,21 @@ export default function App() {
     if (!whistlePromptActive) return;
     if (!whistlePick1Slot) {
       setWhistlePick1Slot(slotName);
-      pushLog(`🎶 Whistle — first slot: ${slotName}. Click a second slot to swap.`);
+      pushLog(`🎶 Places, Everyone — first slot: ${slotName}. Click a second slot to swap.`);
       return;
     }
     if (slotName === whistlePick1Slot) {
       setWhistlePromptActive(false);
       setWhistlePick1Slot(null);
       const refunded = refundArmedCard();
-      pushLog(`🎶 Whistle cancelled (same slot picked twice).${refunded}`);
+      pushLog(`🎶 Places, Everyone cancelled (same slot picked twice).${refunded}`);
       return;
     }
     const a = whistlePick1Slot, b = slotName;
     setTray(p => syncTrayLegacy({ ...p, [a]: tray[b], [b]: tray[a] }));
     setWhistlePromptActive(false);
     setWhistlePick1Slot(null);
-    pushLog(`🎶 Whistle — swapped slots ${a} and ${b}.`);
+    pushLog(`🎶 Places, Everyone — swapped slots ${a} and ${b}.`);
   }
 
   function cancelWhistlePrompt() {
@@ -10009,7 +10009,7 @@ export default function App() {
     setWhistlePromptActive(false);
     setWhistlePick1Slot(null);
     const refunded = refundArmedCard();
-    pushLog(`🎶 Whistle dismissed without swapping.${refunded}`);
+    pushLog(`🎶 Places, Everyone dismissed without swapping.${refunded}`);
   }
 
   // Treat click — pick an animal; its durationRemaining +1.
@@ -14517,7 +14517,7 @@ function TutorialOverlay({ step, lane = 'wit', onAdvance, onExit }) {
     {
       title: 'Step 1 — Stage a lure in the Summoning Pitch.',
       body: (<>
-        <p>Look at your hand for a <b>🪱 Lure</b> card — <b>Tender Greens</b> (a mouse or buck), <b>Birdseed</b> (a goose or raven), or <b>🐂 A Bag of Oats</b> (the Drystone Ox, a defensive keeper). Each summons a different kind of animal.</p>
+        <p>Look at your hand for a <b>🪱 Lure</b> card — <b>Tender Greens</b> (a mouse or buck), <b>Birdseed</b> (the Goose, a heavy hitter), or <b>🐂 A Bag of Oats</b> (the Drystone Ox, a defensive keeper). Each summons a different kind of animal.</p>
         <p className="mt-2"><b>Play one now</b> — click it, or drag it onto an <i>available</i> slot. It won't do anything this turn; it's a countdown. <b>Waiting is the move.</b></p>
         <p className="mt-2"><b>Lures are single-use:</b> once a lure summons its animal, the card <i>leaves your deck</i> and only returns to your hand when that animal is gone. So a lure in hand is a slot you're choosing to fill — and your deck stays clean. You can hold at most <b>5 lures</b>, and you'll mostly earn new ones from <b>elites and bosses</b>, so commit to the team you want.</p>
       </>),
@@ -14729,8 +14729,8 @@ const WIZARD_TUTORIALS = {
         heading: '🪱 LURES → 🐾 ANIMALS (the signature)',
         body: 'You play lure cards into one of the 3 Summoning Pitch slots. The lure ticks down for N turns, then transforms in place into the animal it summons. The animal auto-attacks at the end of each of your turns until its duration expires. Stage multiple lures into the other slots in parallel — a full pitch is three threats ticking at once.',
         examples: [
-          { name: 'Birdseed (1E)', text: '1-turn wait → 🐦 Sparrow. Feeds: birds.' },
-          { name: 'Tender Greens (1E)', text: '1-turn wait → 🐭 Field Mouse, 🐰 Rabbit, or 🦌 Young Buck. Feeds: small-land animals.' },
+          { name: 'Birdseed (1E)', text: '1-turn wait → 🪿 Goose (heavy hitter). Feeds: birds.' },
+          { name: 'Tender Greens (1E)', text: '1-turn wait → 🐭 Field Mouse or 🦌 Young Buck. Feeds: small-land animals.' },
         ],
       },
       {

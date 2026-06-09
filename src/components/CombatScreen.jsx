@@ -1070,7 +1070,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       {whistlePromptActive && (
         <div className="mb-2 p-3 rounded border-2 border-gold-400 bg-gold-900/40 flex items-center justify-between gap-3">
           <div className="text-sm text-gold-100">
-            <span className="font-bold">🎶 Whistle:</span> {whistlePick1Slot
+            <span className="font-bold">🎶 Places, Everyone:</span> {whistlePick1Slot
               ? `first slot ${whistlePick1Slot} selected. Click a second slot to swap.`
               : 'click any two slots in order to swap their contents.'}
           </div>

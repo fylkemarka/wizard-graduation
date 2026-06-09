@@ -37,15 +37,15 @@ const LURE_CARDS = [
     summon: { animalId: 'salmon', turnsToArrive: 1 },
     desc: 'Stage. A Salmon arrives next turn and flops for 2 turns. Each turn, 50% chance to attract a predator — usually a bird, sometimes a bear. High risk.',
     flavor: 'Smells of yesterday. Something downstream has already noticed.' },
-  // Slice 5 (Alan, 2026-06-08): foundational pools narrowed 3→2 so there's no
-  // raw-stat ladder inside a pool — each option is a distinct ROLE gamble.
-  // Birdseed = heavy hitter (goose) vs armor-stripper (raven). The dropped
-  // disruptor (rabid-scrubjay) survives as the single-species "A Shiny Bauble".
+  // Birdseed reliably summons the Goose — the premium heavy-hitter bird (Alan,
+  // 2026-06-09: "make goose the premium bird"). Its old pool-partner the Raven
+  // moved to its own single-species lure ("A Loose Button"), the same way the
+  // narrowed-pool dropouts (rabbit → Clover Patch, scrubjay → Shiny Bauble) did.
   { id: 'cv2-l-birdseed', name: 'Birdseed', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'basic', tier: 1, feedKey: 'bird',
-    summon: { animalIds: ['goose', 'raven'], turnsToArrive: 1 },
-    desc: 'In 1T, summons a Goose (heavy hitter) or a Raven (armor-stripper). Feeds: birds.',
-    flavor: 'You scatter it like you mean it. Something always turns up.' },
+    summon: { animalId: 'goose', turnsToArrive: 1 },
+    desc: 'In 1T, summons a Goose — THE HEAVY HITTER (6 composure/turn for 3 turns). Feeds: birds.',
+    flavor: 'You scatter it like you mean it. The goose was already on its way.' },
   // Tender Greens = value-cycler (field-mouse) vs burst (young-buck). The
   // dropped swarm (rabbit) survives as the single-species "A Clover Patch".
   { id: 'cv2-l-tender-greens', name: 'Tender Greens', cost: 1, type: 'lure', slot: 'lure',
@@ -102,6 +102,11 @@ const SPECIAL_LURE_CARDS = [
   // each summoning ONE named animal whose role the desc spells out. Unlike the
   // other specials these carry a feedKey (the animal still needs feeding), so
   // the species-feed button keeps them on the board.
+  { id: 'cv2-l-loose-button', name: 'A Loose Button', cost: 1, type: 'lure', slot: 'lure',
+    lane: LANE, rarity: 'uncommon', tier: 2, special: true, feedKey: 'bird',
+    summon: { animalId: 'raven', turnsToArrive: 1 },
+    desc: 'In 1T, summons a Raven — THE ARMOR-STRIP (6 composure/turn for 2 turns; strips 6 enemy Block the turn it leaves). Feeds: birds.',
+    flavor: 'It has been admiring your button. It has, you sense, plans for your button.' },
   { id: 'cv2-l-clover-patch', name: 'A Clover Patch', cost: 1, type: 'lure', slot: 'lure',
     lane: LANE, rarity: 'uncommon', tier: 2, special: true, feedKey: 'small-land',
     summon: { animalId: 'rabbit', turnsToArrive: 1 },
