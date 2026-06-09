@@ -301,6 +301,8 @@ const HANDLER_TACTIC_UTIL = [
   // offense/defense + exhaust (spam audit): one card can't stack both stats.
   { id: 'c-whet-claws',    name: 'Whet the Claws',           cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { attack: 3 }, costEscalates: true } },
   { id: 'c-thicken-hide',  name: 'Thicken the Hide',         cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { block: 3 }, costEscalates: true } },
+  { id: 'c-steel-nerves',   name: 'Steel the Nerves',       cost: 1, type: 'handler-skill', rarity: 'common',   effects: { strengthenAnimal: { poise: 3 }, costEscalates: true } },
+  { id: 'c-stiff-upper-lip',name: 'Stiff Upper Lip',        cost: 2, type: 'handler-skill', rarity: 'uncommon', effects: { strengthenAnimal: { poise: 5 }, costEscalates: true } },
 ];
 const HANDLER_CARDS = [...HANDLER_V2, ...HANDLER_TACTIC_UTIL];
 const HANDLER_CARDS_BY_ID = Object.fromEntries(HANDLER_CARDS.map(c => [c.id, c]));
@@ -331,7 +333,7 @@ const HANDLER_REWARD_POOL = [
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
   'c-hunker-down', 'c-dig-in',
   'c-memorial', 'c-strays', 'c-pedigree', 'c-best-in-show',
-  'c-rally-the-pack', 'c-drillmaster', 'c-whet-claws', 'c-thicken-hide',
+  'c-rally-the-pack', 'c-drillmaster', 'c-whet-claws', 'c-thicken-hide', 'c-steel-nerves', 'c-stiff-upper-lip',
   'c-sergeant-at-arms', 'c-quartermaster-regimen',
 ];
 
@@ -1420,6 +1422,7 @@ function applyHandlerSkill(state, combat, card) {
       const tgt = pool[0];
       tgt.slot.attackBonus = (tgt.slot.attackBonus || 0) + (buff.attack || 0);
       tgt.slot.blockBonus = (tgt.slot.blockBonus || 0) + (buff.block || 0);
+      tgt.slot.poiseBonus = (tgt.slot.poiseBonus || 0) + (buff.poise || 0);
     }
   }
   // Acquired Taste — narrow a variable lure toward an adjacency combo. AI:
@@ -2469,7 +2472,7 @@ function handlerEndOfTurnTick(state, combat) {
     // Per-turn Block = innate grant + Basic Training investment (blockBonus).
     const grantBlock = (grant?.block || 0) + (slot.blockBonus || 0);
     if (grantBlock > 0) { state.block += grantBlock; combat.menagerieBlock += grantBlock; }
-    if (grant?.poise > 0) state.poise += grant.poise;
+    const grantPoiseS = (grant?.poise || 0) + (slot.poiseBonus || 0); if (grantPoiseS > 0) state.poise += grantPoiseS;
 
     // v3: keepers (Ox) persist — never tick toward exit. Mirrors App.jsx.
     let nextDur = (animal.keeper || slot.justCombined) ? slot.durationRemaining : slot.durationRemaining - 1;

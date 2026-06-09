@@ -62,11 +62,11 @@ import { ReadingRoom } from './components/ReadingRoom.jsx';
 const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
 const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2];
-// Only the foundational VARIETY lures come in pairs as a reward — each summons
-// from a 3-animal pool, so two copies keep the species cycling. Every other
-// lure (Fish Food and the single-named-animal special lures) is a single card.
-// Single source of truth for both the reward-screen badge and the deck-add.
-const PAIR_LURE_IDS = new Set(['cv2-l-birdseed', 'cv2-l-tender-greens']);
+// v3 (Alan, 2026-06-08): NO lure comes in pairs anymore. With single-use lures
+// (a lure leaves the deck while its animal is out) and 2-animal pools, paired
+// foundational rewards over-stuffed the deck. Every lure reward is now a single
+// card. (Kept as a set so a lure can be re-paired later by adding its id.)
+const PAIR_LURE_IDS = new Set([]);
 // Handler menagerie slot order. Module-scoped so helpers/intent handlers
 // outside endTurn (adjacent-amplify, copy-left, Sloth, Porcupine) can read it.
 const SLOT_ORDER = ['intro', 'subject', 'target'];
@@ -277,6 +277,20 @@ const CARDS = [
     upgrade: { effects: { strengthenAnimal: { block: 4 }, costEscalates: true } },
     desc: 'Pick an animal on the board. It permanently braces for +3 Block each turn — for as long as it stays. Lose the animal, lose the hide. Costs 1 more each time you play it this combat.',
     flavor: 'Weeks of conditioning, compressed into an afternoon. The animal files a mild complaint.' },
+  // Composure-block (Poise) training (Alan, 2026-06-08) — the Poise twin of
+  // Thicken the Hide. Poise absorbs COMPOSURE damage (and composure mauls), so
+  // an animal trained this way guards your nerve, not your hide. Reward pool
+  // only (common/uncommon auto-pool); NOT in the handler starter.
+  { id: 'c-steel-nerves', name: 'Steel the Nerves', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
+    effects: { strengthenAnimal: { poise: 3 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { poise: 4 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently braces for +3 Poise each turn — composure-block, for as long as it stays. Costs 1 more each time you play it this combat.',
+    flavor: 'A short pep talk about the fundamental indifference of the universe. Oddly, it helps.' },
+  { id: 'c-stiff-upper-lip', name: 'Stiff Upper Lip', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
+    effects: { strengthenAnimal: { poise: 5 }, costEscalates: true },
+    upgrade: { effects: { strengthenAnimal: { poise: 7 }, costEscalates: true } },
+    desc: 'Pick an animal on the board. It permanently braces for +5 Poise each turn — a serious composure-block wall. Costs 1 more each time you play it this combat.',
+    flavor: 'It has seen things. It will not be discussing them. There is tea at four.' },
   { id: 'c-drillmaster', name: 'Drillmaster', cost: 2, type: 'power', rarity: 'uncommon', lane: 'handler',
     power: { startOfTurn: { summonStrength: 1 } }, upgrade: { power: { startOfTurn: { summonStrength: 2 } } },
     desc: 'Power. At the start of each turn, gain +1 Summon Strength (every animal attacks for more, building each turn).',
@@ -4199,6 +4213,9 @@ export default function App() {
   // survives the same-endTurn stale-closure window between the animal tick and
   // applyEnemyIntent. Consumed (and cleared) when the enemy next attacks.
   const redirectEnemyAttackRef = useRef(false);
+  // State mirror for rendering — surfaces the armed redirect as a status chip +
+  // in the incoming math bar (Alan, 2026-06-08). Set alongside the ref writes.
+  const [redirectArmed, setRedirectArmed] = useState(false);
   // Maul (Alan, 2026-06-02): the handler end-of-turn tick writes the
   // post-tick board here so applyEnemyIntent — which runs later in the same
   // endTurn, after the tick's setTray has been queued but not yet flushed to
@@ -5820,6 +5837,7 @@ export default function App() {
     loomStoleThisCombatRef.current = false;
     enemyDefeatedHandledRef.current = false;
     redirectEnemyAttackRef.current = false;
+    setRedirectArmed(false);
     setEnemySkipNextTurn(false);
     setPouchGuard(false);
     pouchGuardRef.current = false;
@@ -9460,7 +9478,7 @@ export default function App() {
     if (fx.applyWeak > 0) { applyExpiringWeak(fx.applyWeak); pushLog(`${animal.icon} ${animal.name} parting screech — Weak ${fx.applyWeak} on enemy.`); }
     if (fx.healComp > 0) { setComposure(c => Math.min(composureMax, c + fx.healComp)); pushLog(`${animal.icon} ${animal.name} nuzzles you — +${fx.healComp} composure.`); }
     if (fx.healHp > 0) { setHp(h => Math.min(maxHp, h + fx.healHp)); pushLog(`${animal.icon} ${animal.name} leaves you a kindness — +${fx.healHp} HP.`); }
-    if (fx.redirectEnemyAttack) { redirectEnemyAttackRef.current = true; pushLog(`${animal.icon} ${animal.name} — Spittle Peck: the enemy's next attack turns on itself.`); }
+    if (fx.redirectEnemyAttack) { redirectEnemyAttackRef.current = true; setRedirectArmed(true); pushLog(`${animal.icon} ${animal.name} — Spittle Peck: the enemy's next attack turns on itself.`); }
   };
 
   // Note an animal leaving play for The Whisperer — banks a draw delivered
@@ -10058,9 +10076,11 @@ export default function App() {
       ...slot,
       attackBonus: (slot.attackBonus || 0) + (buff.attack || 0),
       blockBonus: (slot.blockBonus || 0) + (buff.block || 0),
+      poiseBonus: (slot.poiseBonus || 0) + (buff.poise || 0),
     } }));
     setStrengthenPromptActive(false);
-    pushLog(`💪 Basic Training — ${animal?.name || slot.animalId} gains +${buff.attack || 0} attack and +${buff.block || 0} Block/turn (for as long as it stays).`);
+    const bits = [buff.attack && `+${buff.attack} attack`, buff.block && `+${buff.block} Block/turn`, buff.poise && `+${buff.poise} Poise/turn`].filter(Boolean).join(', ');
+    pushLog(`💪 ${animal?.name || slot.animalId} gains ${bits} (for as long as it stays).`);
   }
 
   function cancelStrengthenPrompt() {
@@ -10666,6 +10686,7 @@ export default function App() {
         }
         if (fx.redirectEnemyAttack) {
           redirectEnemyAttackRef.current = true;
+          setRedirectArmed(true);
           pushLog(`${animal.icon} ${animal.name} — Spittle Peck: the enemy's next attack turns on itself.`);
         }
       };
@@ -11117,10 +11138,14 @@ export default function App() {
             hTick.blockGained += grantBlock;
             pushLog(`${animal.icon} ${animal.name} braces: +${grantBlock} Block.`);
           }
-          if (grant?.poise > 0) {
-            setPoise(p => p + grant.poise);
-            shieldBraceRef.current.poise += grant.poise;
-            pushLog(`${animal.icon} ${animal.name} steadies you: +${grant.poise} Poise.`);
+          // Per-turn Poise = innate turnGrant.poise (Long Hare) PLUS any
+          // poiseBonus invested by the composure-block training cards. Folded
+          // into shieldBraceRef so the same-tick composure maul/attack sees it.
+          const grantPoise = (grant?.poise || 0) + (slot.poiseBonus || 0);
+          if (grantPoise > 0) {
+            setPoise(p => p + grantPoise);
+            shieldBraceRef.current.poise += grantPoise;
+            pushLog(`${animal.icon} ${animal.name} steadies you: +${grantPoise} Poise.`);
           }
           // Decrement duration and tick chain counters. A combine on its
           // formation turn attacks (payoff) but does NOT spend a duration
@@ -12551,6 +12576,7 @@ export default function App() {
       // turn — same assumption skipAndReturn relies on).
       if (redirectEnemyAttackRef.current) {
         redirectEnemyAttackRef.current = false;
+        setRedirectArmed(false);
         const swings = hits;
         const per = Math.round(intent.value * enemyDmgMult);
         const returned = Math.max(0, per * swings);
@@ -14057,6 +14083,7 @@ export default function App() {
       onWellDrilledClick={wellDrilledClickSlot}
       drilledSpecies={drilledSpecies}
       summonStrength={summonStrength}
+      redirectArmed={redirectArmed}
       silencedTurns={silencedTurns}
       animalsTurned={animalsTurned}
       betrayPending={betrayPending}

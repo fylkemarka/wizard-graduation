@@ -91,6 +91,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        onCancelWellDrilled = () => {},
                        drilledSpecies = {},
                        summonStrength = 0,
+                       redirectArmed = false,
                        silencedTurns = 0,
                        animalsTurned = false,
                        betrayPending = false,
@@ -640,6 +641,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             <><Icon name="stagger" /> 50% dodge</>, `Drunken Stagger: each swing has a 50% chance to miss entirely — you may take less, or nothing.`));
           if (p.maul) chips.push(chip('maul', 'bg-ember-900 text-ember-100',
             <><Icon name="maul" /> mauls</>, `If any HP leaks past Block, this attack also tears your strongest animal off the board.`));
+          // Spittle Peck (Rabid Scrubjay) — the enemy's next attack reflects.
+          // Surface it in the Incoming bar: 0 reaches you; the enemy eats it.
+          if (redirectArmed && (enemyIntent?.kind === 'attack' || enemyIntent?.kind === 'attack-multi')) {
+            chips.length = 0;
+            chips.push(<span key="redir" data-testid="incoming-reflect"
+              className="px-1.5 py-0.5 rounded bg-moss-900 text-moss-100 border border-moss-500"
+              title="Spittle Peck: this attack turns on the enemy. You take 0 — the enemy eats it.">↩ reflects onto the enemy — 0 to you</span>);
+          }
           return (
             <div className="px-3 py-2 border-t border-ember-800/60 flex flex-wrap gap-1.5 items-center"
                  title="What the enemy's attack actually does to you, step by step.">
@@ -742,6 +751,10 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           {isHandler && summonStrength > 0 && (
             <span data-testid="summon-strength" title={`Summon Strength — every one of your animals attacks for +${summonStrength} (rest of combat).`}
                   className="font-mono text-sm text-ember-300">💪{summonStrength}</span>
+          )}
+          {isHandler && redirectArmed && (
+            <span data-testid="redirect-armed" title="Spittle Peck — the enemy's NEXT attack turns on itself. You take no damage from it; the enemy eats it."
+                  className="font-mono text-sm text-moss-300 animate-pulse-soft">↩ reflect</span>
           )}
           {isHandler && silencedTurns > 0 && (
             <span data-testid="silenced" title={`Silenced — you can't play lures (no new summons) for ${silencedTurns} more turn${silencedTurns > 1 ? 's' : ''}.`}
@@ -1920,7 +1933,8 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             // Per-turn Block grant (keepers / McCloven / trained animals) — the
             // wall, shown as its own chip so the player can build around it.
             const effBlock = (animal?.turnGrant?.block || 0) + (card.blockBonus || 0);
-            const trained = (card.attackBonus || 0) > 0 || (card.blockBonus || 0) > 0;
+            const effPoise = (animal?.turnGrant?.poise || 0) + (card.poiseBonus || 0);
+            const trained = (card.attackBonus || 0) > 0 || (card.blockBonus || 0) > 0 || (card.poiseBonus || 0) > 0;
             // Exit-bonus legibility (Alan, 2026-06-08): surface what this animal
             // does WHEN IT LEAVES, on the board, so exits are something you plan
             // around — not a number buried in the log.
@@ -1935,18 +1949,24 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               if (ex.applyVulnerable>0) exBits.push(`💫vuln`);
               if (ex.redirectEnemyAttack) exBits.push(`↩`);
             }
-            if (effBlock <= 0 && !trained && exBits.length === 0) return null;
+            if (effBlock <= 0 && effPoise <= 0 && !trained && exBits.length === 0) return null;
             return (
               <span className="flex flex-wrap gap-1 justify-center mt-0.5">
                 {effBlock > 0 && (
                   <span className="font-mono text-[9px] px-1 rounded bg-sky-900/70 text-sky-100 border border-sky-500"
-                        title={`Braces for ${effBlock} Block each turn${trained ? ' (incl. Basic Training)' : ''}.`}>
+                        title={`Braces for ${effBlock} Block each turn${trained ? ' (incl. training)' : ''}. Block absorbs HP / HP mauls.`}>
                     🛡 {effBlock}/turn
+                  </span>
+                )}
+                {effPoise > 0 && (
+                  <span className="font-mono text-[9px] px-1 rounded bg-iris-900/70 text-iris-100 border border-iris-500"
+                        title={`Braces for ${effPoise} Poise each turn${trained ? ' (incl. training)' : ''}. Poise absorbs Composure / composure mauls.`}>
+                    🧠 {effPoise}/turn
                   </span>
                 )}
                 {trained && (
                   <span className="font-mono text-[9px] px-1 rounded bg-gold-900/70 text-gold-100 border border-gold-500"
-                        title={`Trained: +${card.attackBonus || 0} attack, +${card.blockBonus || 0} Block/turn (lost if this animal leaves).`}>
+                        title={`Trained: +${card.attackBonus || 0} attack, +${card.blockBonus || 0} Block/turn, +${card.poiseBonus || 0} Poise/turn (lost if this animal leaves).`}>
                     💪 trained
                   </span>
                 )}
