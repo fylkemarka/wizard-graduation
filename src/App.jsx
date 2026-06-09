@@ -3234,6 +3234,13 @@ const REWARD_SLOT_WEIGHTS = { target: 35, intro: 25, subject: 25, modifier: 15 }
 // "same generic stat-pump as the starter" per playtest, so they're
 // filtered out regardless of trivial side-effects. Modifiers can be
 // common (they carry distinct modifierEffect math). Same for targets.
+
+// Benched cards — kept in CARDS (definition + mechanics intact) but pulled
+// from the reward draft for now. c-narrow (Acquired Taste) was sidelined when
+// slice 5 narrowed the foundational lure pools to 2 species, leaving it with
+// nothing to narrow against the default deck (Alan, 2026-06-08). Drop an id
+// here to re-bench; remove it to put the card back in rotation.
+const BENCHED_REWARD_IDS = new Set(['c-narrow']);
 function isInterestingReward(card) {
   if (card.effect) return true;
   if (card.type === 'power' || card.type === 'annotation' || card.type === 'skill' || card.type === 'gesture') return true;
@@ -3290,7 +3297,7 @@ function pickCardByRarity(rarityWeights = { common: 4, uncommon: 1 }, exclude = 
   // no spell-piece staging to manipulate. Tagged via fftOnly: true on the
   // card data; new FFT-only cards just need the same flag to inherit this.
   const notFFTOnlyForNonFFTLanes = (c) => !c.fftOnly || lane === 'wit';
-  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c) && supportOnly(c) && notFFTOnlyForNonFFTLanes(c));
+  const pool = CARDS.filter(c => rarityWeights[c.rarity] && !BENCHED_REWARD_IDS.has(c.id) && !exclude.includes(c.id) && matchesLane(c) && isInterestingReward(c) && setTaggedOnly(c) && supportOnly(c) && notFFTOnlyForNonFFTLanes(c));
   if (pool.length === 0) return null;
   // Weight by rarity AND slot together.
   const weightOf = (c) => (rarityWeights[c.rarity] || 0) * (REWARD_SLOT_WEIGHTS[c.slot] || 10);

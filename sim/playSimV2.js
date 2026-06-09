@@ -324,7 +324,9 @@ const HANDLER_REWARD_POOL = [
   'c-pack-tactics', 'c-just-eat-it', 'c-treat', 'c-sharp-whistle',
   'c-house-rules', 'c-well-drilled', 'c-whisperer', 'c-open-door', 'c-full-pockets',
   'c-make-it-count', 'c-murmuration', 'c-stampede', 'c-gorge',
-  'c-narrow', 'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
+  // c-narrow (Acquired Taste) benched 2026-06-08 — slice-5 pools narrowed to
+  // 2 species, nothing left to narrow. Card kept in HANDLER_CARDS, off the draft.
+  'c-trough', 'c-animal-midnight', 'c-move-in-herds', 'c-the-horde',
   'c-light-the-mound', 'c-palpable-sadness', 'c-cost-of-littering',
   // 2026-06-08 new cards — block answers + synergy archetypes (A/C).
   'c-hunker-down', 'c-dig-in',
