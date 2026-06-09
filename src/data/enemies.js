@@ -245,6 +245,10 @@ export const ENEMIES = [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5 + ⛧ Weak 1 (tugs a thread)', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1 (points out the flaw)' },
       { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 (a firm pull)' },
+      // v3 slice 4 (Alan, 2026-06-08): a modest animal-targeting maul. It finds
+      // the loose thread on your menagerie too. Low weight + low value: pressure
+      // not erase — a single brace turns it aside.
+      { kind: 'attack', maul: true, value: 4, weight: 1, telegraph: '🦷 4 — finds the loose thread on your pet (unblocked → lose your strongest animal)' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4 (winds the slack)' },
     ] },
 
@@ -281,6 +285,10 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3 (a flutter of consensus)' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 2, telegraph: '🎭 6 (a hymn about your coat)' },
       { kind: 'weak',   value: 1, weight: 1, telegraph: '⛧ Weak 1 (dusts your resolve)' },
+      // v3 slice 4 (Alan, 2026-06-08): the choir, in unanimous accord, carries
+      // off the smallest member of your menagerie. Modest value + low weight —
+      // a single brace turns it aside (pressure not erase).
+      { kind: 'attack', maul: true, value: 5, weight: 1, telegraph: '🦷 5 — the choir agrees to carry one off (unblocked → lose your strongest animal)' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4 (closes ranks)' },
     ] },
   // First CHARGE user — winds up a strike that lands NEXT turn. Defend or disrupt.

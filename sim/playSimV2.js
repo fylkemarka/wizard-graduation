@@ -2149,9 +2149,13 @@ function handlerApplyIntent(state, combat, intent) {
         if (slot?.kind !== 'animal') continue;
         const a = ANIMALS[slot.animalId]; let atk = a?.attack || 0;
         if (atk > 0) atk += (slot.attackBonus || 0);
-        cands.push({ s, slot, atk });
+        cands.push({ s, slot, atk, keeper: !!a?.keeper });
       }
       cands.sort((a, b) => redirect ? a.atk - b.atk : b.atk - a.atk);
+      // v3 slice 4 — keeper taunt/interception (mirrors App.jsx maulStrongestAnimal):
+      // a defensive keeper (Ox) on the board takes the hit ahead of the
+      // strongest/weakest. Stable-sort keepers to the front.
+      cands.sort((a, b) => (b.keeper ? 1 : 0) - (a.keeper ? 1 : 0));
       if (cands.length) noteEnemyProc((intent.maulCount || 1) > 1 ? 'doubleMaul' : 'maul');
       // maulCount > 1 = double/triple maul (Warp). Mirrors App.jsx.
       for (const v of cands.slice(0, Math.max(1, intent.maulCount || 1))) {

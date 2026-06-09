@@ -9546,8 +9546,20 @@ export default function App() {
     const ranked = ['intro', 'subject', 'target']
       .map(s => ({ s, slot: board[s] }))
       .filter(x => x.slot?.kind === 'animal')
-      .map(x => ({ ...x, atk: animalAttackValue(getAnimal(x.slot.animalId), x.slot) }))
+      .map(x => ({ ...x, keeper: !!getAnimal(x.slot.animalId)?.keeper, atk: animalAttackValue(getAnimal(x.slot.animalId), x.slot) }))
       .sort((a, b) => redirect ? a.atk - b.atk : b.atk - a.atk);
+    // v3 slice 4 — keeper taunt / interception (Alan, 2026-06-08; FIRST PASS).
+    // A defensive keeper (the Drystone Ox) on the board INTERCEPTS the maul:
+    // it takes the hit for the team and is the one torn, ahead of the strongest
+    // (or, under Pecking Order, the weakest). Stable-sort keepers to the front
+    // so they're chosen first — among multiple keepers, atk-order from above
+    // breaks ties. The Block-absorbs-the-maul gate still lives upstream (this
+    // function only runs once damage leaked past Block), so a fully-blocked
+    // maul tears nobody, keeper included. Over-committing to one keeper is the
+    // deliberate risk: the powerhouse you can lose. With NO keeper present,
+    // selection falls back to the existing strongest/Pecking-Order behavior.
+    ranked.sort((a, b) => (b.keeper ? 1 : 0) - (a.keeper ? 1 : 0));
+    const keeperIntercept = ranked.length > 0 && ranked[0].keeper;
     const victims = ranked.slice(0, Math.max(1, count));
     if (victims.length === 0) return;
     const updates = {};
@@ -9560,8 +9572,11 @@ export default function App() {
       noteAnimalDeparted();
       queueSourceLureReturn(v.slot); // v3 single-use lure → back to hand at refill
       const animal = getAnimal(v.slot.animalId);
-      logEvent('combat.maul_tear', { animalId: v.slot.animalId, slotName: v.s, redirect, enemyId: enemy?.id });
-      pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || v.slot.animalId} is mauled off the board${redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all"}.`);
+      logEvent('combat.maul_tear', { animalId: v.slot.animalId, slotName: v.s, redirect, keeper: !!v.keeper, enemyId: enemy?.id });
+      const why = v.keeper
+        ? ' — your keeper took the hit for the team'
+        : (redirect ? ' — Pecking Order sent the runt forward' : " — you didn't block it all");
+      pushLog(`🦷 ${animal?.icon || '🐾'} ${animal?.name || v.slot.animalId} is mauled off the board${why}.`);
     }
     const first = getAnimal(victims[0].slot.animalId);
     setMaulNotice({
@@ -9569,7 +9584,9 @@ export default function App() {
       icon: first?.icon || '🐾',
       name: victims.length > 1 ? `${victims.length} animals` : (first?.name || victims[0].slot.animalId),
       enemy: enemy?.name || 'The enemy',
-      reason: redirect ? 'Pecking Order sent your runt forward instead' : 'damage leaked past your Block',
+      reason: keeperIntercept
+        ? 'your keeper intercepted and took the hit for the team'
+        : (redirect ? 'Pecking Order sent your runt forward instead' : 'damage leaked past your Block'),
     });
   };
 
