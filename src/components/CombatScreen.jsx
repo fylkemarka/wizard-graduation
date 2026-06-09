@@ -94,6 +94,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        redirectArmed = false,
                        silencedTurns = 0,
                        animalsTurned = false,
+                       menagerieAttackTotal = 0,
                        betrayPending = false,
                        herdPromptActive = false,
                        onHerdClick = () => {},
@@ -554,6 +555,14 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                 </div>
               );
             })()}
+            {/* v3 (Alan, 2026-06-09): the menagerie turned on you — the math bar
+                was blank for this intent. Surface the self-damage it'll deal. */}
+            {(enemyIntent?.kind === 'turnAgainst' || animalsTurned) && !enemyTurnSkipped && !enemyWillSloth && (
+              <div className="text-xs font-mono text-ember-200 mt-0.5"
+                   title="Your menagerie has been turned against you — at the end of your turn its attacks hit YOUR Composure instead of the enemy. Spend or sacrifice the animals first to deny it.">
+                🔄 menagerie turned — ~{menagerieAttackTotal} composure to YOU {animalsTurned ? 'this turn' : 'next turn'}
+              </div>
+            )}
             {/* v2.36: ACTUALLY— arguing-back surcharge. Each Actually—
                 played this turn adds +1 to this enemy attack's raw damage.
                 Shown inline with intent so the player sees the cost of

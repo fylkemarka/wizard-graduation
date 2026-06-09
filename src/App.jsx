@@ -12237,6 +12237,28 @@ export default function App() {
     return total;
   }
 
+  // Total composure the menagerie will deal at end of turn — the ATTACK portion
+  // only (no block/poise grants). Mirrors projectedShieldBrace's attack terms
+  // but ungated by tactic. Used by the turn-against warning: when the enemy has
+  // flipped your menagerie, this is roughly how much it deals to YOU instead of
+  // the enemy (Alan, 2026-06-09 — the math bar was blank for that intent).
+  function projectedMenagerieAttack() {
+    let total = 0;
+    for (const sn of SLOT_ORDER) {
+      const slot = tray[sn];
+      if (slot?.kind !== 'animal' || slot.eatenThisTurn) continue;
+      const animal = getAnimal(slot.animalId);
+      if (!animal || !(animal.attack > 0)) continue;
+      const atkMult = slot.nextAttackMult || 1;
+      const ampMult = adjacentAmplifyMult(sn, tray);
+      const baseAtk = animal.copiesLeft ? copyLeftAttack(sn, animal, tray) : animalAttackValue(animal, slot);
+      total += Math.round(baseAtk * atkMult * ampMult);
+      const extra = slot.extraAttacks || 0;
+      if (extra > 0) total += Math.round(animal.attack || 0) * extra;
+    }
+    return total;
+  }
+
   // Block / Poise the menagerie will brace for at end of turn REGARDLESS of
   // tactic — innate turnGrant (Ox, McCloven, Long Hare) plus Basic Training
   // (blockBonus). Folded into the incoming-damage projection AND shown on the
@@ -14080,6 +14102,7 @@ export default function App() {
       redirectArmed={redirectArmed}
       silencedTurns={silencedTurns}
       animalsTurned={animalsTurned}
+      menagerieAttackTotal={projectedMenagerieAttack()}
       betrayPending={betrayPending}
       onCancelWellDrilled={cancelWellDrilledPrompt}
       herdPromptActive={herdPromptActive}
