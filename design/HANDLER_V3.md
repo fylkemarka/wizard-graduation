@@ -64,25 +64,41 @@ Implementation (App.jsx end-of-turn tick is the hot zone):
 - Mirror in `sim/playSimV2.js` handler tick; e2e: summon → lure leaves hand/deck;
   animal departs → lure back in hand.
 
-### Slice 1b — feeding-as-button + persist
+### Slice 1b — feeding-as-button + persist  ✅ DONE (2026-06-08)
+Live + sim. Species-feed button (1E resets the timer = persist); keepers persist
+with no feeding; missed-feed is a hard deadline; drag-feed slots removed. Fixed a
+pure-updater energy-deduction bug. e2e feed-persist.
+
 Replace feedKey feed-cards with the species-feed button (1E, resets the species'
 feed timer). Reinterpret the feed timer: instead of counting down to exit, it
 counts down to "needs food"; feeding resets it; a missed needs-food turn commits
 the animal to leave next turn (unfeedable). Animals with no feed need = keepers
 (Ox) stay low-maintenance. Single-use lures now shine (lure gone for a long time).
 
-### Slice 2 — buff/economy layer
+### Slice 2 — buff/economy layer  ✅ PARTIAL DONE (training powers, 2026-06-08)
+Sergeant-at-Arms (+1 atk/turn to the strongest animal) + Quartermaster's Regimen
+(+1 block/turn, prefers a keeper) — merged. The Trough (feed-banking) still TODO
+(depends on the now-landed feeding model). e2e training-powers.
+
 Training-engine POWERS (+1 atk or +1 block/turn to one animal each turn). The
 Trough (feed-banking reservoir — rename the existing troughFeed card). Escalating
 -cost training already shipped (Whet the Claws / Thicken the Hide).
 
-### Slice 3 — exit-on-sacrifice + bigger build-around exit bonuses
+### Slice 3 — exit-on-sacrifice  ✅ DONE (2026-06-08)
+Sacrifice now also fires the animal's onExit bonus (ADDITIVE on top of Block/
+Memorial — tunable; Alan may later UNIFY). Sacrifice pill previews the payoff.
+Merged. e2e exit-on-sacrifice.
+
 Sacrifice fires the animal's exit bonus (unify with the current Block/ Memorial
 payoff, don't pile a 3rd reward). License to make exit bonuses big. Watch the
 farm loop (cheap animal + strong exit + returning lure) — gate strong exits
 behind slow/expensive-to-redeploy animals.
 
-### Slice 4 — enemies target animals + interception (no HP)
+### Slice 4 — enemies target animals + interception (no HP)  🔄 IN PROGRESS (agent)
+Keeper-taunt model (a keeper intercepts maul; survives if Block absorbs, else it's
+the one removed). Building. TODO after merge: name the SPECIFIC maul victim in the
+intent bar (Alan: 'your strongest' is unclear when block vs attack differ).
+
 Enemy target-selection AI; a targeted hit is absorbed by the animal's Block/
 thorns first, removes it only if it breaks through. Keeper = the answer.
 Guardrail: PRESSURE not ERASE — always an affordable line to keep some board.
