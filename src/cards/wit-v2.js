@@ -915,6 +915,20 @@ const STARTER_CARDS = [
     effects: { block: 3, draw: 1 },
     desc: 'Gain 3 Block. Draw 1.',
     flavor: 'A small triangle. The page knows what it is now.' },
+  // v3.7 (2026-06-10, smart-sim balance loop): wit's missing answer to the
+  // Vulnerable spiral. The three late-game wit-killers (Vein Devourer, the
+  // Anvil-Forged, the Thornlord) all stack Vulnerable riders at weight 2 —
+  // a body-blocking handler shrugs them off, but wit had NO cleanse, so the
+  // +50% amplification compounded into 46-70% intrinsic loss rates. Same
+  // pattern as the Act-1 wall: a missing player answer, not enemy overtuning.
+  // (removeVulnerable plumbing already existed in applySideEffects — v2.32 —
+  // with no wit card using it.)
+  { id: 'wv2-k-reframe', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'Reframe the Premise', phrase: 'Reframe the Premise',
+    tags: ['academic', 'cutting'],
+    effects: { block: 4, removeVulnerable: 1 },
+    desc: 'Gain 4 Block. You are no longer Vulnerable.',
+    flavor: 'The hit landed, certainly. But context is everything, and you have just changed it.' },
   // Throat-Clear — small gesture, chip + draw. Bypasses tray.
   { id: 'wv2-g-throat-clear', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
     name: 'Throat-Clear', phrase: '(clears throat. Audibly.)',

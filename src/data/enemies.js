@@ -81,10 +81,14 @@ export const ENEMIES = [
     // 16-block and beast-claiming maul stay. Landed boss-loss curve (smart
     // sim, 1000 runs): Tapestry 13% / Anvil 7% / Thornlord 21% — the finale
     // is clearly the deadliest without being a wall.
+    // v3.7b (wit balance pass): Vuln rider dropped from the 4×4 multi — the
+    // trio's weight-2 Vuln uptime refreshed faster than wit's new cleanse
+    // could answer (wit intrinsic loss 60% vs handler 21%). Damage values
+    // untouched; handler curve unchanged (47%/1.91 post-tune).
     insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
       { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
-      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4' },
       { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (bramble-whisper)' },
       // v3.6: the apex of the forest claims your beasts outright.
@@ -440,7 +444,9 @@ export const ENEMIES = [
     // (Walter punches it, it backs off); evades wit and jnsq.
     insultVulnerabilities: [], // Mindless. Cannot be insulted. ALL insults backfire on it.
     behaviors: [
-      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      // v3.7b (2026-06-10, wit balance): Vuln rider dropped from the w2 swing —
+      // weight-2 Vuln uptime outpaced wit's cleanse (intrinsic loss 44%→33%).
+      { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13' },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 + ⛧ Weak 1', riders: { weak: 1 } },
       // v3.6: it is, after all, a Devourer — it eats your beasts too.
@@ -459,7 +465,9 @@ export const ENEMIES = [
     // softer side (0.7); wit stays neutral.
     insultVulnerabilities: ['dismissive', 'petty', 'absurd'], // Rule-bound; absurdity unmoors them.
     behaviors: [
-      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      // v3.7b (2026-06-10, wit balance): Vuln rider dropped from the w2 swing
+      // (same pass as Vein/Thornlord — weight-2 Vuln uptime vs wit).
+      { kind: 'attack', value: 11, weight: 2, telegraph: '⚔ 11' },
       { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (hammer-rhythm)' },

@@ -105,7 +105,7 @@ function rollIntent(enemy, excludeKinds = [], hasAnimals = true) {
   const pool = filtered.length > 0 ? filtered : behaviors;
   if (pool.length === 0) return null;
   const total = pool.reduce((s, b) => s + (b.weight || 1), 0);
-  let roll = Math.random() * total;
+  let roll = rnd() * total;
   for (const b of pool) {
     roll -= (b.weight || 1);
     if (roll <= 0) return { ...b };
@@ -248,6 +248,59 @@ const MAX_COMBAT_TURNS = 30;  // safety net
 
 const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
+const WIT_CARDS_BY_ID = Object.fromEntries(WIT_V2.map(c => [c.id, c]));
+
+// Sim mirror of App.jsx upgradeCard's v2 branch (boss row grants arrive
+// tier-bumped): intros/subjects +1 wit, targets +2 base, modifiers +0.25 mult.
+function upgradeWitCardSim(card) {
+  if (card.upgraded) return card;
+  const next = { ...card, uid: uid(), name: `${card.name}+`, upgraded: true };
+  if (card.slot === 'intro' || card.slot === 'subject') {
+    next.stats = { ...(card.stats || {}), wit: (card.stats?.wit || 0) + 1 };
+  } else if (card.slot === 'target') {
+    next.effect = { ...(card.effect || {}), base: (card.effect?.base || 0) + 2 };
+  } else if (card.slot === 'modifier') {
+    next.effect = { ...(card.effect || {}), multiplier: (card.effect?.multiplier || 1) + 0.25 };
+  }
+  return next;
+}
+
+// SIM-FIDELITY (2026-06-10, smart-wit balance loop): the live game's wit
+// elite/boss reward is an FFT ROW BUNDLE — pick of 3 rows, the chosen row's
+// intro+subject+target join the deck, boss grants arrive tier-bumped
+// (v3.4.15; spell pieces are NEVER standalone rewards). The sim never granted
+// rows AT ALL, so its wit bot fought Acts 2-3 with the single starter row —
+// 7.6 avg damage/cast, 11,411 T1 vs 153 T3 casts, and a 71-83% intrinsic loss
+// rate to late elites/bosses that the HUMAN handles fine. That was sim
+// infidelity misread as wit weakness. AI pick mirrors a committed human:
+// finish a partial row first, else grow the dominant school, else explore.
+function grantWitRow(state, isBoss) {
+  const all = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+  const ownedRowSlots = {};
+  for (const c of all) {
+    if (!c.setId) continue;
+    (ownedRowSlots[c.setId] = ownedRowSlots[c.setId] || new Set()).add(c.setSlot);
+  }
+  const fullyOwned = (r) => ownedRowSlots[r.id]?.size === 3;
+  const eligible = WIT_ROWS.filter(r => !fullyOwned(r));
+  if (!eligible.length) return;
+  const schoolCounts = {};
+  for (const c of all) if (c.schoolId) schoolCounts[c.schoolId] = (schoolCounts[c.schoolId] || 0) + 1;
+  const domSchool = Object.entries(schoolCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  const partials = eligible.filter(r => ownedRowSlots[r.id]?.size > 0);
+  const sameSchool = eligible.filter(r => !ownedRowSlots[r.id] && r.schoolId === domSchool);
+  const fresh = eligible.filter(r => !ownedRowSlots[r.id] && r.schoolId !== domSchool);
+  const row = partials.length ? pickRandom(partials)
+            : sameSchool.length ? pickRandom(sameSchool)
+            : fresh.length ? pickRandom(fresh) : null;
+  if (!row) return;
+  let cards = [row.introId, row.subjectId, row.targetId]
+    .map(id => WIT_CARDS_BY_ID[id]).filter(Boolean)
+    .map(c => ({ ...c, uid: uid() }));
+  if (isBoss) cards = cards.map(upgradeWitCardSim);
+  state.discard.push(...cards);
+  state.rewardsTaken.push(`row:${row.id}${isBoss ? '+' : ''}`);
+}
 
 // =============================================================================
 // 1c. HANDLER (Animal Summoner) CARD DATA. Lures come from the shared
@@ -380,7 +433,22 @@ function notePlay(id) { if (SIM_SEARCH_MODE) return; NEW_CARD_PLAYS[id] = (NEW_C
 const ENEMY_PROCS = {};
 function noteEnemyProc(kind) { if (SIM_SEARCH_MODE) return; ENEMY_PROCS[kind] = (ENEMY_PROCS[kind] || 0) + 1; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-function rnd() { return Math.random(); }
+// Seedable RNG (mulberry32). Unseeded (default) = Math.random, statistically
+// identical to before. The wit smart AI seeds it to replay a combat under
+// multiple policies on the SAME randomness, then re-runs the winner for real —
+// every random call in the sim routes through rnd() so replays are exact.
+let _rndState = null;
+function setRndSeed(seed) {
+  _rndState = seed == null ? null : (seed >>> 0) || 1;
+}
+function rnd() {
+  if (_rndState === null) return Math.random();
+  _rndState = (_rndState + 0x6D2B79F5) >>> 0;
+  let t = _rndState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
 function pickRandom(arr) { return arr[Math.floor(rnd() * arr.length)]; }
 function shuffle(arr) {
   const a = arr.slice();
@@ -1172,9 +1240,9 @@ function resolveLureSpecies(lure, combat) {
   }
   // Pedigree lock — this lure's pool can make the locked species, so it does.
   if (combat.lockedSpecies && pool && pool.includes(combat.lockedSpecies)) return combat.lockedSpecies;
-  let id = (pool && pool.length) ? pool[Math.floor(Math.random() * pool.length)] : s.animalId;
+  let id = (pool && pool.length) ? pool[Math.floor(rnd() * pool.length)] : s.animalId;
   const base = ANIMALS[id];
-  if (base?.elite && Math.random() < 0.035) id = base.elite;
+  if (base?.elite && rnd() < 0.035) id = base.elite;
   return id;
 }
 // Sheepdog amplify (mirrors App.jsx adjacentAmplifyMult): an animal next to an
@@ -2209,6 +2277,76 @@ function useSmartHandlerAi() {
   return String(v).toLowerCase() !== 'greedy';
 }
 
+// =============================================================================
+// SMART WIT AI — seeded policy-portfolio search (2026-06-10).
+//
+// The wit turn is ~2,500 closure-coupled lines inside runCombat — action-level
+// search (the handler approach) would mean a high-risk extraction. Instead the
+// whole COMBAT is the rollout unit: snapshot the run state at combat entry,
+// replay the full fight under K policy variants on the SAME RNG seed (rnd() is
+// seedable; every random call routes through it), score each finished trial,
+// then re-run the winning policy on the real state with the same seed — an
+// exact replay of the best line. The policies parameterize the three highest-
+// leverage gates in the greedy wit turn (defense threshold / chip-cast
+// patience / energy reservation) — full-combat rollouts pick per-fight which
+// posture wins, which a static heuristic never could.
+// =============================================================================
+function WPOL() { return globalThis.__WIT_POLICY || null; }
+
+const WIT_POLICIES = [
+  null,                               // baseline greedy (human-calibrated)
+  { defScale: 1.6 },                  // defensive: block earlier and harder
+  { defScale: 0.5 },                  // aggressive: tolerate chip, spend on tray
+  { reserve: 1 },                     // reserve 1E each turn for spell pieces
+  { defScale: 1.6, holdChips: true }, // turtle + hold the tray for real spells
+  { holdChips: false },               // tempo: never skip a chip cast
+];
+
+function scoreWitTrial(result, finalState) {
+  if (result.outcome === 'won') {
+    // Composure carries between fights BY DESIGN — exiting healthy is worth
+    // almost as much as winning fast.
+    return 1e6 - result.turns * 50 + finalState.hp * 3 + finalState.composure * 5;
+  }
+  // All trials lost: prefer the line that survived longest with most pool left.
+  return result.turns * 50 + finalState.hp + finalState.composure;
+}
+
+function runCombatSmart(state, enemyId, telemetry) {
+  if (state.lane !== 'wit' || !useSmartHandlerAi()) return runCombat(state, enemyId, telemetry);
+  const seed = (Math.random() * 0xffffffff) >>> 0;
+  let best = null;
+  SIM_SEARCH_MODE = true;
+  try {
+    for (const p of WIT_POLICIES) {
+      const trialState = structuredClone(state);
+      globalThis.__WIT_POLICY = p;
+      setRndSeed(seed);
+      const r = runCombat(trialState, enemyId, {});
+      const sc = scoreWitTrial(r, trialState);
+      if (!best || sc > best.sc) best = { p, sc };
+    }
+  } finally {
+    SIM_SEARCH_MODE = false;
+    setRndSeed(null);
+  }
+  // Exact replay of the winning line on the real state.
+  globalThis.__WIT_POLICY = best.p;
+  setRndSeed(seed);
+  if (globalThis.__combatLog) {
+    const tmpl = ENEMIES_BY_ID[enemyId];
+    globalThis.__combatLog.push({ enemy: enemyId, tier: tmpl?.tier, entryHp: state.hp, entryComp: state.composure });
+  }
+  const real = runCombat(state, enemyId, telemetry);
+  if (globalThis.__combatLog?.length && real.outcome !== 'won') {
+    const e = globalThis.__combatLog[globalThis.__combatLog.length - 1];
+    e.outcome = real.outcome; e.cause = state.hp <= 0 ? 'hp' : state.composure <= 0 ? 'comp' : 'stall'; e.turns = real.turns;
+  }
+  setRndSeed(null);
+  globalThis.__WIT_POLICY = null;
+  return real;
+}
+
 function cloneSlotSim(sl) {
   if (!sl) return sl;
   const c = { ...sl };
@@ -2761,8 +2899,8 @@ function handlerEndOfTurnTick(state, combat) {
     const slot = work[s];
     if (!slot || slot.kind !== 'animal') continue;
     if (slot.animalId !== 'field-mouse') continue;
-    if (Math.random() >= 0.05) continue;
-    const raptorId = Math.random() < 0.65 ? 'hawk' : 'owl';
+    if (rnd() >= 0.05) continue;
+    const raptorId = rnd() < 0.65 ? 'hawk' : 'owl';
     const h = makeAnimalSlot(raptorId, 0, slot.summonSet); h.eatenThisTurn = true;
     work[s] = h;
   }
@@ -3148,6 +3286,11 @@ function runCombat(state, enemyId, telemetry) {
   // verbal per-combat state is initialized. enemy is already DIFFICULTY_MULT-
   // scaled above, so the handler engine inherits the same difficulty.
   if (state.lane === 'handler') return runHandlerCombat(state, enemy, telemetry);
+  // Balance-diagnostic hooks (wit/jnsq twin of the runHandlerCombat ones):
+  // force full pools at entry to isolate an enemy's INTRINSIC difficulty from
+  // arrival attrition. Guarded; free when unset.
+  if (globalThis.__fullPoolBosses && enemy.tier === 'boss') { state.hp = state.maxHp; state.composure = state.maxComposure; }
+  if (globalThis.__fullPoolElites && enemy.tier === 'elite') { state.hp = state.maxHp; state.composure = state.maxComposure; }
   // Roll the opening intent (the player "sees" it before their first turn,
   // exactly as App.jsx does via setEnemyIntent(rollIntent(e)) in enterFight).
   state.enemyIntent = rollIntent(enemy, [], false);
@@ -3189,6 +3332,19 @@ function runCombat(state, enemyId, telemetry) {
   state.castWitEffectThisTurn = false;
   state._longThreadPeak = 0;
   const flushThreadPeak = () => {
+    // CARD-LEAK FIX (2026-06-10, found by the smart-wit stall diagnostics):
+    // a combat that ends with pieces still STAGED (gesture/DoT kill mid-
+    // assembly, or a death holding a partial tray) silently destroyed them —
+    // the local `tray` was dropped on return, shrinking the run deck (decks
+    // observed at 6-8 cards with ZERO spell pieces left → permanent grind-
+    // stalls). Live App merges every pile back at combat end; the handler
+    // path has flushStagedLures. This is the wit twin: flushThreadPeak runs
+    // immediately before every return in the wit loop, so the tray merge
+    // rides it. (`tray` is a same-scope `let`; safe to reference here.)
+    for (const p of [tray.intro, tray.subject, tray.target, ...(tray.modifiers || [])]) {
+      if (p) state.discard.push(p);
+    }
+    tray = { intro: null, subject: null, target: null, modifiers: [] };
     telemetry.longThreadPeakSum = (telemetry.longThreadPeakSum || 0) + (state._longThreadPeak || 0);
     if ((state._longThreadPeak || 0) > 0) {
       telemetry.combatsWithThread = (telemetry.combatsWithThread || 0) + 1;
@@ -3820,7 +3976,15 @@ function runCombat(state, enemyId, telemetry) {
         const wouldSurvive = state.hp - unblockedExpected > 5;
         // Don't skip on the LAST act's boss (commit to the kill).
         const isFinalActBoss = enemy.tier === 'boss' && (state.actIdx || 0) >= 2;
-        if (isChip && !wouldKill && hpRatio > 0.4 && wouldSurvive && defenseTight && !isFinalActBoss && !triggersFftLayer) {
+        // Smart-wit policy override: holdChips=true skips chip casts more
+        // eagerly (patience build — hold the tray for a real spell);
+        // holdChips=false never skips (tempo build — always fire). Baseline
+        // (no policy) keeps the tuned human-calibrated gate.
+        const _hc = WPOL()?.holdChips;
+        const _skipNow = _hc === true ? (isChip && !wouldKill && hpRatio > 0.3 && wouldSurvive && !isFinalActBoss && !triggersFftLayer)
+                       : _hc === false ? false
+                       : (isChip && !wouldKill && hpRatio > 0.4 && wouldSurvive && defenseTight && !isFinalActBoss && !triggersFftLayer);
+        if (_skipNow) {
           skipChipCast = true;
           telemetry.chipCastSkips = (telemetry.chipCastSkips || 0) + 1;
         }
@@ -4037,7 +4201,10 @@ function runCombat(state, enemyId, telemetry) {
     // state.energy (no reservation) — keeps the call sites stable in
     // case a future cycle wants to try a softer reservation (e.g. only
     // partial cost, or only when HP > 60%).
-    const budgetForOther = () => state.energy;
+    // Smart-wit (2026-06-10): the portfolio search can set a per-combat
+    // reserve via the policy knob — the static-reservation experiment was net
+    // negative GLOBALLY, but per-combat selection only uses it where it wins.
+    const budgetForOther = () => Math.max(0, state.energy - (WPOL()?.reserve || 0));
 
     // v3.4.9 — Hoist staging helpers outside the pass loop (used to be
     // re-defined every pass; semantically identical). Lets the staging
@@ -4220,12 +4387,34 @@ function runCombat(state, enemyId, telemetry) {
       // skip all defensive plays — they'd be wasted.
       const incomingThisTurn = state.enemySkipNextAttack ? 0 : expectedHpHit;
       const incomingCompThisTurn = state.enemySkipNextAttack ? 0 : expectedCompHit;
+      // v3.7: CLEANSE — being Vulnerable (enemyDmgMult > 1) amplifies every
+      // incoming hit 1.5×; clearing it outvalues almost any same-cost block
+      // play. Fire a removeVulnerable skill the moment the debuff is up.
+      // Mirrors App.jsx applySideEffects' clean-clear semantics (v2.32).
+      if ((state.enemyDmgMult || 1) > 1.0) {
+        const ci = state.hand.findIndex(c => c.type === 'skill' && c.effects?.removeVulnerable && (c.cost || 0) <= budgetForOther());
+        if (ci >= 0) {
+          const c = state.hand[ci];
+          const fx = c.effects || {};
+          state.energy -= c.cost || 0;
+          state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
+          state.enemyDmgMult = 1.0;
+          state.block += fx.block || 0;
+          if (fx.poise) state.poise += fx.poise;
+          if (fx.draw) drawCards(state, fx.draw);
+          if (fx.exhaust) state.exiled.push(c); else state.discard.push(c);
+          state.hand.splice(ci, 1);
+          telemetry.vulnCleanses = (telemetry.vulnCleanses || 0) + 1;
+          progressed = true;
+          continue;
+        }
+      }
       // Play any BLOCK-providing skill if expected unblocked HP damage > 0.
       // v2.95: generalized from c-defend/c-mend-only → any skill with
       // effects.block > 0 (covers Page-Mark, Square Up, c-defend, c-mend,
       // future block skills). HP-trade skills (loseHp > 0) gated by HP > 5
       // to avoid sim KO from a defensive play.
-      if (state.block < incomingThisTurn) {
+      if (state.block < incomingThisTurn * (WPOL()?.defScale ?? 1)) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
           if (c.type !== 'skill') continue;
@@ -4243,6 +4432,10 @@ function runCombat(state, enemyId, telemetry) {
           if (fx.poise) state.poise += fx.poise;
           if (fx.draw) drawCards(state, fx.draw);
           if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
+          // v3.7: cleanse riders on defensive skills now apply (c-compose's
+          // removeWeak was silently dropped here — sim-fidelity fix).
+          if (fx.removeVulnerable && (state.enemyDmgMult || 1) > 1.0) state.enemyDmgMult = 1.0;
+          if (fx.removeWeak && (state.playerDmgMult || 1) < 1.0) state.playerDmgMult = 1.0;
           // Exhaust on play if the card declares it.
           if (fx.exhaust) state.exiled.push(c);
           else            state.discard.push(c);
@@ -4346,7 +4539,7 @@ function runCombat(state, enemyId, telemetry) {
       // Play any POISE-providing skill if expected unblocked composure damage > 0.
       // v2.95: generalized from c-compose/c-steady-only → any skill with
       // effects.poise > 0 (covers An Aside, c-compose, c-steady).
-      if (state.poise < incomingCompThisTurn) {
+      if (state.poise < incomingCompThisTurn * (WPOL()?.defScale ?? 1)) {
         for (let i = 0; i < state.hand.length; i++) {
           const c = state.hand[i];
           if (c.type !== 'skill') continue;
@@ -4362,6 +4555,9 @@ function runCombat(state, enemyId, telemetry) {
           if (fx.block) state.block += fx.block;
           if (fx.draw) drawCards(state, fx.draw);
           if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
+          // v3.7: cleanse riders apply here too (c-compose carries removeWeak).
+          if (fx.removeVulnerable && (state.enemyDmgMult || 1) > 1.0) state.enemyDmgMult = 1.0;
+          if (fx.removeWeak && (state.playerDmgMult || 1) < 1.0) state.playerDmgMult = 1.0;
           if (fx.exhaust) state.exiled.push(c);
           else            state.discard.push(c);
           state.hand.splice(i, 1);
@@ -6262,7 +6458,21 @@ function runCombat(state, enemyId, telemetry) {
     }
   }
 
-  // Stall
+  // Stall — the wit loop's stall is exhausting MAX_COMBAT_TURNS (30), i.e. a
+  // grind-out (the fight never ended), not a frozen board.
+  if (globalThis.__witStallCtx && !SIM_SEARCH_MODE) {
+    const deckAll = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+    const rows = {};
+    for (const c of deckAll) if (c.setId) { rows[c.setId] = rows[c.setId] || new Set(); rows[c.setId].add(c.slot); }
+    const completeRows = Object.values(rows).filter(s => s.has('intro') && s.has('subject') && s.has('target')).length;
+    globalThis.__witStallCtx.push({
+      by: enemy.id, enemyCompLeftPct: Math.round(100 * enemy.currentComp / (enemy.startComp || 1)),
+      hp: state.hp, comp: state.composure, deckSize: deckAll.length, completeRows,
+      setPieces: deckAll.filter(c => c.setId).length,
+      tray: { intro: tray.intro?.id || null, subject: tray.subject?.id || null, target: tray.target?.id || null },
+      slotsInDeck: { intro: deckAll.filter(c => c.slot === 'intro').length, subject: deckAll.filter(c => c.slot === 'subject').length, target: deckAll.filter(c => c.slot === 'target').length },
+    });
+  }
   flushThreadPeak();
   return { outcome: 'stall', turns, killedBy: enemy.id, telemetry };
 }
@@ -6442,6 +6652,19 @@ function awardReward(state) {
   }
   // Count defense cards in current deck.
   const allCards = [...state.deck, ...state.hand, ...state.discard, ...state.exiled];
+  // v3.7: Reframe the Premise measurability bias (same pattern as Animal
+  // Midnight / A Firm Hand) — the Vulnerable-cleanse answer card must reach
+  // decks often enough to measure. With elite/boss rewards now granting rows,
+  // wit only gets ~3 card drafts per act, so an unbiased common almost never
+  // shows. ~25% per reward when unowned. Sim-side only; live draft unbiased.
+  if (state.lane === 'wit' && !allCards.some(c => c.id === 'wv2-k-reframe') && rnd() < 0.25) {
+    const rc = WIT_CARDS_BY_ID['wv2-k-reframe'];
+    if (rc) {
+      state.discard.push({ ...rc, uid: uid() });
+      state.rewardsTaken.push(rc.id);
+      return;
+    }
+  }
   const blockCount = allCards.filter(c => c.id === 'c-defend' || c.id === 'c-mend').length;
   const poiseCount = allCards.filter(c => c.id === 'c-compose' || c.id === 'c-steady').length;
   // If a defense type is below 2 cards AND coinflip, grant that defender.
@@ -7191,7 +7414,7 @@ function simRun(forcedLane = null) {
     state.currentActId = act.id; // for aiPickHandlerReward's act-gated draft bias
     // 3 normals — scale easy→hard across the act (mirrors map-progress bias).
     for (let i = 0; i < 3; i++) {
-      const r = runCombat(state, pickActEnemyIdSim(actNormalsFor(act.id, state.lane), i / 2), tele);
+      const r = runCombatSmart(state, pickActEnemyIdSim(actNormalsFor(act.id, state.lane), i / 2), tele);
       tele.combatCount++;
       tele.combatTurns += r.turns;
       lastResult = { ...r, where: `act${act.id}-normal-${i}` };
@@ -7201,11 +7424,12 @@ function simRun(forcedLane = null) {
       maybeReflect();
     }
     // 1 elite — late-act difficulty bias.
-    const eliteR = runCombat(state, pickActEnemyIdSim(ACT_ELITES[act.id], 0.8), tele);
+    const eliteR = runCombatSmart(state, pickActEnemyIdSim(ACT_ELITES[act.id], 0.8), tele);
     tele.combatCount++; tele.combatTurns += eliteR.turns;
     lastResult = { ...eliteR, where: `act${act.id}-elite` };
     if (eliteR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length, rewardsTaken: state.rewardsTaken.slice() };
-    awardReward(state);
+    // Wit elite reward = FFT row bundle, REPLACING the card draft (live v3.4.15).
+    if (state.lane === 'wit') grantWitRow(state, false); else awardReward(state);
     postCombatHeal();
     maybeReflect();
     // Pre-boss REST (sim-fidelity, 2026-06-10): the live map guarantees a rest
@@ -7218,12 +7442,13 @@ function simRun(forcedLane = null) {
     state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * 0.3));
     state.composure = Math.min(state.maxComposure, state.composure + Math.floor(state.maxComposure * 0.3));
     // Boss
-    const bossR = runCombat(state, act.bossId, tele);
+    const bossR = runCombatSmart(state, act.bossId, tele);
     tele.combatCount++; tele.combatTurns += bossR.turns;
     lastResult = { ...bossR, where: `act${act.id}-boss` };
     if (bossR.outcome !== 'won') return { lane, familiar: state.familiar, actsCleared, ...tele, ...lastResult, finalHp: state.hp, finalComposure: state.composure, finalDeckSize: state.deck.length + state.discard.length + state.exiled.length, rewardsTaken: state.rewardsTaken.slice() };
     actsCleared++;
-    awardReward(state);
+    // Wit boss reward = tier-bumped FFT row bundle (live v3.4.15).
+    if (state.lane === 'wit') grantWitRow(state, true); else awardReward(state);
     // Inter-act heal (in addition to post-combat heal) — bigger swing
     // when crossing acts.
     state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * INTER_ACT_HEAL_RATIO));

@@ -166,13 +166,13 @@
     "exp_composure_dmg": 1,
     "max_attack": 16,
     "applies_weak": false,
-    "applies_vulnerable": true,
+    "applies_vulnerable": false,
     "insult_vulnerabilities": "petty|dismissive|sarcastic",
     "special_flags": "",
     "duo_partner": "",
-    "behaviors": "[{\"kind\":\"attack\",\"value\":14,\"weight\":2,\"telegraph\":\"⚔ 14\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":2,\"telegraph\":\"⚔ 4×4 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"block\",\"value\":16,\"weight\":1,\"telegraph\":\"🛡 16\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 (bramble-whisper)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":10,\"weight\":1,\"telegraph\":\"🦷 10 — the thorns take one of yours (unblocked → lose your strongest animal)\"}]",
+    "behaviors": "[{\"kind\":\"attack\",\"value\":14,\"weight\":2,\"telegraph\":\"⚔ 14\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":2,\"telegraph\":\"⚔ 4×4\"},{\"kind\":\"block\",\"value\":16,\"weight\":1,\"telegraph\":\"🛡 16\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 (bramble-whisper)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":10,\"weight\":1,\"telegraph\":\"🦷 10 — the thorns take one of yours (unblocked → lose your strongest animal)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e1-boss-thornlord\",\"act\":3,\"name\":\"The Thornlord\",\"composureMax\":95,\"hpMax\":115,\"tier\":\"boss\",\"insultVulnerabilities\":[\"petty\",\"dismissive\",\"sarcastic\"],\"behaviors\":[{\"kind\":\"attack\",\"value\":14,\"weight\":2,\"telegraph\":\"⚔ 14\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":2,\"telegraph\":\"⚔ 4×4 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"block\",\"value\":16,\"weight\":1,\"telegraph\":\"🛡 16\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 (bramble-whisper)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":10,\"weight\":1,\"telegraph\":\"🦷 10 — the thorns take one of yours (unblocked → lose your strongest animal)\"}]}"
+    "raw_json": "{\"id\":\"e1-boss-thornlord\",\"act\":3,\"name\":\"The Thornlord\",\"composureMax\":95,\"hpMax\":115,\"tier\":\"boss\",\"insultVulnerabilities\":[\"petty\",\"dismissive\",\"sarcastic\"],\"behaviors\":[{\"kind\":\"attack\",\"value\":14,\"weight\":2,\"telegraph\":\"⚔ 14\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":2,\"telegraph\":\"⚔ 4×4\"},{\"kind\":\"block\",\"value\":16,\"weight\":1,\"telegraph\":\"🛡 16\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 (bramble-whisper)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":10,\"weight\":1,\"telegraph\":\"🦷 10 — the thorns take one of yours (unblocked → lose your strongest animal)\"}]}"
   },
   {
     "id": "e2-hollow-weaver",
@@ -866,13 +866,13 @@
     "exp_composure_dmg": 1,
     "max_attack": 16,
     "applies_weak": true,
-    "applies_vulnerable": true,
+    "applies_vulnerable": false,
     "insult_vulnerabilities": "",
     "special_flags": "",
     "duo_partner": "",
-    "behaviors": "[{\"kind\":\"attack\",\"value\":13,\"weight\":2,\"telegraph\":\"⚔ 13 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"attack-multi\",\"value\":5,\"count\":3,\"weight\":1,\"telegraph\":\"⚔ 5×3\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 + ⛧ Weak 1\",\"riders\":{\"weak\":1}},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":2,\"telegraph\":\"🦷 9 — DEVOURS a beast (unblocked → lose your strongest animal)\"},{\"kind\":\"attack\",\"value\":16,\"weight\":1,\"telegraph\":\"⚔ 16 (DEVOUR)\"}]",
+    "behaviors": "[{\"kind\":\"attack\",\"value\":13,\"weight\":2,\"telegraph\":\"⚔ 13\"},{\"kind\":\"attack-multi\",\"value\":5,\"count\":3,\"weight\":1,\"telegraph\":\"⚔ 5×3\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 + ⛧ Weak 1\",\"riders\":{\"weak\":1}},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":2,\"telegraph\":\"🦷 9 — DEVOURS a beast (unblocked → lose your strongest animal)\"},{\"kind\":\"attack\",\"value\":16,\"weight\":1,\"telegraph\":\"⚔ 16 (DEVOUR)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e3-vein-devourer\",\"act\":2,\"name\":\"Vein Devourer\",\"composureMax\":72,\"hpMax\":28,\"tier\":\"elite\",\"insultVulnerabilities\":[],\"behaviors\":[{\"kind\":\"attack\",\"value\":13,\"weight\":2,\"telegraph\":\"⚔ 13 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"attack-multi\",\"value\":5,\"count\":3,\"weight\":1,\"telegraph\":\"⚔ 5×3\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 + ⛧ Weak 1\",\"riders\":{\"weak\":1}},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":2,\"telegraph\":\"🦷 9 — DEVOURS a beast (unblocked → lose your strongest animal)\"},{\"kind\":\"attack\",\"value\":16,\"weight\":1,\"telegraph\":\"⚔ 16 (DEVOUR)\"}]}"
+    "raw_json": "{\"id\":\"e3-vein-devourer\",\"act\":2,\"name\":\"Vein Devourer\",\"composureMax\":72,\"hpMax\":28,\"tier\":\"elite\",\"insultVulnerabilities\":[],\"behaviors\":[{\"kind\":\"attack\",\"value\":13,\"weight\":2,\"telegraph\":\"⚔ 13\"},{\"kind\":\"attack-multi\",\"value\":5,\"count\":3,\"weight\":1,\"telegraph\":\"⚔ 5×3\"},{\"kind\":\"attack\",\"value\":7,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 7 + ⛧ Weak 1\",\"riders\":{\"weak\":1}},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":2,\"telegraph\":\"🦷 9 — DEVOURS a beast (unblocked → lose your strongest animal)\"},{\"kind\":\"attack\",\"value\":16,\"weight\":1,\"telegraph\":\"⚔ 16 (DEVOUR)\"}]}"
   },
   {
     "id": "e3-boss-anvil",
@@ -891,13 +891,13 @@
     "exp_composure_dmg": 1,
     "max_attack": 16,
     "applies_weak": false,
-    "applies_vulnerable": true,
+    "applies_vulnerable": false,
     "insult_vulnerabilities": "dismissive|petty|absurd",
     "special_flags": "",
     "duo_partner": "",
-    "behaviors": "[{\"kind\":\"attack\",\"value\":11,\"weight\":2,\"telegraph\":\"⚔ 11 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":1,\"telegraph\":\"⚔ 4×4\"},{\"kind\":\"block\",\"value\":12,\"weight\":1,\"telegraph\":\"🛡 12\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (hammer-rhythm)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":1,\"telegraph\":\"🦷 9 — pins a beast to the anvil (unblocked → lose your strongest animal)\"}]",
+    "behaviors": "[{\"kind\":\"attack\",\"value\":11,\"weight\":2,\"telegraph\":\"⚔ 11\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":1,\"telegraph\":\"⚔ 4×4\"},{\"kind\":\"block\",\"value\":12,\"weight\":1,\"telegraph\":\"🛡 12\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (hammer-rhythm)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":1,\"telegraph\":\"🦷 9 — pins a beast to the anvil (unblocked → lose your strongest animal)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e3-boss-anvil\",\"act\":2,\"name\":\"The Anvil-Forged\",\"composureMax\":88,\"hpMax\":50,\"tier\":\"boss\",\"insultVulnerabilities\":[\"dismissive\",\"petty\",\"absurd\"],\"behaviors\":[{\"kind\":\"attack\",\"value\":11,\"weight\":2,\"telegraph\":\"⚔ 11 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":1,\"telegraph\":\"⚔ 4×4\"},{\"kind\":\"block\",\"value\":12,\"weight\":1,\"telegraph\":\"🛡 12\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (hammer-rhythm)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":1,\"telegraph\":\"🦷 9 — pins a beast to the anvil (unblocked → lose your strongest animal)\"}]}"
+    "raw_json": "{\"id\":\"e3-boss-anvil\",\"act\":2,\"name\":\"The Anvil-Forged\",\"composureMax\":88,\"hpMax\":50,\"tier\":\"boss\",\"insultVulnerabilities\":[\"dismissive\",\"petty\",\"absurd\"],\"behaviors\":[{\"kind\":\"attack\",\"value\":11,\"weight\":2,\"telegraph\":\"⚔ 11\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":4,\"weight\":1,\"telegraph\":\"⚔ 4×4\"},{\"kind\":\"block\",\"value\":12,\"weight\":1,\"telegraph\":\"🛡 12\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (hammer-rhythm)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":9,\"weight\":1,\"telegraph\":\"🦷 9 — pins a beast to the anvil (unblocked → lose your strongest animal)\"}]}"
   },
   {
     "id": "sq-critical-apparition",

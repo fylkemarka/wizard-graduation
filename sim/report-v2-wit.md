@@ -1,34 +1,34 @@
 # Witch Mountain Bridge v2 — Playtest Report
 
-N = **100** runs simulated with a greedy v2 AI.
+N = **1000** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **0 wins / 100** = **0.0%**
-- Losses by acts-cleared: 0=74 · 1=26 · 2=0 · 3=0
+- **170 wins / 1000** = **17.0%**
+- Losses by acts-cleared: 0=283 · 1=454 · 2=93 · 3=0
 
 ## Lane outcomes
-- **wit**: 100 runs · 0 wins (0.0%)
+- **wit**: 1000 runs · 170 wins (17.0%)
 - **handler**: 0 runs · 0 wins (0.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-raven**: 9 runs · 0 wins (0.0%)
-- **fam-snake**: 13 runs · 0 wins (0.0%)
-- **fam-owl**: 15 runs · 0 wins (0.0%)
-- **fam-rabbit**: 7 runs · 0 wins (0.0%)
-- **fam-beetle**: 6 runs · 0 wins (0.0%)
-- **fam-hedgehog**: 12 runs · 0 wins (0.0%)
-- **fam-crow**: 10 runs · 0 wins (0.0%)
-- **fam-cat**: 9 runs · 0 wins (0.0%)
-- **fam-toad**: 12 runs · 0 wins (0.0%)
-- **fam-mouse**: 7 runs · 0 wins (0.0%)
+- **fam-owl**: 99 runs · 27 wins (27.3%)
+- **fam-toad**: 101 runs · 21 wins (20.8%)
+- **fam-snake**: 97 runs · 19 wins (19.6%)
+- **fam-hedgehog**: 95 runs · 16 wins (16.8%)
+- **fam-crow**: 113 runs · 19 wins (16.8%)
+- **fam-raven**: 99 runs · 15 wins (15.2%)
+- **fam-cat**: 123 runs · 18 wins (14.6%)
+- **fam-mouse**: 86 runs · 12 wins (14.0%)
+- **fam-beetle**: 94 runs · 12 wins (12.8%)
+- **fam-rabbit**: 93 runs · 11 wins (11.8%)
 
 ## Cast distribution
-- Total casts: 1808
-- Tier 1 (COHERENT): 1439 (79.6%)
-- Tier 2 (RESONANT): 366 (20.2%)
-- Tier 3 (DEVASTATING): 3 (0.2%)
-- Holds (turn ended without cast — tray persists): 2821 (60.9%)
+- Total casts: 36716
+- Tier 1 (COHERENT): 17510 (47.7%)
+- Tier 2 (RESONANT): 16233 (44.2%)
+- Tier 3 (DEVASTATING): 2973 (8.1%)
+- Holds (turn ended without cast — tray persists): 27643 (43.0%)
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
 - Handler runs: 0 · 0 wins (0.0%)
@@ -63,74 +63,74 @@ Draft rate among handler runs, total PLAYS this batch (drafted-but-low-plays = d
 
 ## ANOMALIES (red-team tripwires)
 Outliers are exploit candidates — investigate anything that jumps batch-over-batch.
-- Max single-cast damage: 51 · casts ≥ 40 dmg: 41
+- Max single-cast damage: 112 · casts ≥ 40 dmg: 1279
 - Max casts in one turn: 1
-- Peak Block: 23 · peak Words Bank: 23
-- Fastest combat win: 2 turns · wins in ≤ 3 turns: 17
+- Peak Block: 45 · peak Words Bank: 40
+- Fastest combat win: 1 turns · wins in ≤ 3 turns: 686
 
 ## Wit SCHOOLS (1000-run cycle telemetry)
-- Full FFT casts: 589 (total FFT damage 7692) · partial-row: 763 · same-school (non-row): 28
-- Slow Burn DoT deposited: 7816
-- Crescendo bank cash-ins (flat damage): 4114
-- Thorns block granted by casts: 2713
-- Thorns BODY SLAM: 0 casts · 0 damage
-- Slot-tutor skills: 51 plays · 51 cards pulled
-- Hold causes: full-tray(deliberate/energy-at-cast) 0 · energy-short 403 · missing-slot 2418 (intro 598 / subject 1480 / target 1074)
+- Full FFT casts: 10217 (total FFT damage 142742) · partial-row: 18645 · same-school (non-row): 2115
+- Slow Burn DoT deposited: 146032
+- Crescendo bank cash-ins (flat damage): 60391
+- Thorns block granted by casts: 145068
+- Thorns BODY SLAM: 5 casts · 29 damage
+- Slot-tutor skills: 663 plays · 663 cards pulled
+- Hold causes: full-tray(deliberate/energy-at-cast) 0 · energy-short 8412 · missing-slot 19231 (intro 5037 / subject 7809 / target 8780)
 
 ## Wit LONG THREAD (v2.34)
-- Combats reaching LT ≥ 1: 409 (runs: 100 / 100, 100.0%)
-- Avg peak LT per run (across all combats): 9.04
-- Avg peak LT per threaded combat: 2.21
-- Thread breaks (unblocked hit reset a non-zero meter): 482
-- Thread-scaling rider triggers: 0
-- Total bonus damage from thread scaling: 0
-- "natural conclusion." target casts: 2
-- v2.43 thread-preservation skip-casts: 0
-- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 2
+- Combats reaching LT ≥ 1: 8258 (runs: 999 / 1000, 99.9%)
+- Avg peak LT per run (across all combats): 17.53
+- Avg peak LT per threaded combat: 2.12
+- Thread breaks (unblocked hit reset a non-zero meter): 10691
+- Thread-scaling rider triggers: 233
+- Total bonus damage from thread scaling: 1408
+- "natural conclusion." target casts: 127
+- v2.43 thread-preservation skip-casts: 8
+- v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 16
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 68 granted, 61 played
-- v2.93 Find the Seam (bypass-effectiveness) fires: 3
-- v2.93 Precedent (echo-last-damage) fires: 2
-- v2.93 Insult-to-Injury (×N mult) fires: 4
-- v2.93 Doubletake (cast resolves twice) fires: 3
-- v2.93 Skip-next-attack fires: 3
-- v2.93 Mirror Reasoning (reflect debuff) fires: 2
-- v2.93 Bracing (draw-3-on-HP-loss) fires: 1
+- v2.92 Passing Thoughts: 1450 granted, 1297 played
+- v2.93 Find the Seam (bypass-effectiveness) fires: 72
+- v2.93 Precedent (echo-last-damage) fires: 53
+- v2.93 Insult-to-Injury (×N mult) fires: 66
+- v2.93 Doubletake (cast resolves twice) fires: 42
+- v2.93 Skip-next-attack fires: 330
+- v2.93 Mirror Reasoning (reflect debuff) fires: 38
+- v2.93 Bracing (draw-3-on-HP-loss) fires: 19
 
 ## Wit FOOTNOTE (v2.35)
-- Footnotes applied: 0 (runs: 0 / 100, 0.0%)
-- Casts contributing footnote bonus: 0
-- Total footnote bonus damage: 0
-- Avg bonus per footnoted cast: 0.00
+- Footnotes applied: 248 (runs: 248 / 1000, 24.8%)
+- Casts contributing footnote bonus: 868
+- Total footnote bonus damage: 2091
+- Avg bonus per footnoted cast: 2.41
 
 ## Wit ACTUALLY— (v2.36)
-- Re-fires resolved: 0 (runs: 0 / 100, 0.0%)
-- Total re-fire damage: 0
-- Avg damage / re-fire: 0.00
-- Enemy bonus from arguing-back: 0 (cost side fired)
+- Re-fires resolved: 498 (runs: 161 / 1000, 16.1%)
+- Total re-fire damage: 12280
+- Avg damage / re-fire: 24.66
+- Enemy bonus from arguing-back: 344 (cost side fired)
 
 ## Wit HOLD ON — (v2.37)
-- Plays: 0 (runs: 0 / 100, 0.0%)
-- Total damage prevented: 0
-- Avg prevention / play: 0.00
+- Plays: 175 (runs: 111 / 1000, 11.1%)
+- Total damage prevented: 295
+- Avg prevention / play: 1.69
 
 ## Wit SAYING SOMETHING WRONG (v2.38)
-- Casts that queued a Misstep: 0 (runs: 0 / 100, 0.0%)
-- Up-front damage dealt by those casts: 0
-- Tokens delivered to hand: 0
-- Discarded (1 Energy paid): 0
-- Auto-played (-3 HP eaten): 0 (total damage: 0)
+- Casts that queued a Misstep: 1078 (runs: 257 / 1000, 25.7%)
+- Up-front damage dealt by those casts: 27068
+- Tokens delivered to hand: 501
+- Discarded (1 Energy paid): 462
+- Auto-played (-3 HP eaten): 39 (total damage: 117)
 - KOs by Misstep auto-play: 0
-- Avg up-front damage / cast: 0.00
+- Avg up-front damage / cast: 25.11
 
 ## Wit OPENING STATEMENT (v2.39)
-- Bonus triggers: 0 (runs: 0 / 100, 0.0%)
+- Bonus triggers: 0 (runs: 0 / 1000, 0.0%)
 - Total bonus damage: 0
 - Avg bonus / trigger: 0.00
 - Revisit-opening skill plays: 0
 
 ## Wit PATIENCE (v2.40)
-- Installs: 0 (runs: 0 / 100, 0.0%)
+- Installs: 0 (runs: 0 / 1000, 0.0%)
 - Peak stacks — max: 0, mean: 0.00
 - Total damage from patience-spend: 0
 - Casts that consumed bank: 0
@@ -138,37 +138,37 @@ Outliers are exploit candidates — investigate anything that jumps batch-over-b
 - Avg damage / spend: 0.00
 
 ## Wit SYNERGY CAPSTONE (v2.41)
-- "in summary," casts: 0 (runs: 0 / 100, 0.0%)
+- "in summary," casts: 422 (runs: 121 / 1000, 12.1%)
 - Total capstone damage: 0
 - Avg damage per cast: 0.00
 
 ## Wit INSULT VULNERABILITIES (v2.42)
-- Casts that hit the rider: 0 (runs: 0 / 100, 0.0%)
+- Casts that hit the rider: 0 (runs: 0 / 1000, 0.0%)
 - Total matched tags (capped 3/cast): 0
 - Total bonus damage: 0
 - Avg bonus per cast: 0.00
 
 ## Jnsq TANGENT (v2.44)
-- "That reminds me," skill plays: 0 (runs: 0 / 100, 0.0%)
+- "That reminds me," skill plays: 0 (runs: 0 / 1000, 0.0%)
 - Detours that cast a target: 0
 - Detours that staged a word/modifier: 0
 - Detours that fizzled (target hit incomplete tray): 0
 - Outcome ratio: cast / staged / fizzle: 0 / 0 / 0
 
 ## Jnsq APOLOGY (v2.45)
-- "I shouldn't have said that —" plays: 0 (runs: 0 / 100, 0.0%)
+- "I shouldn't have said that —" plays: 0 (runs: 0 / 1000, 0.0%)
 - Total HP healed: 0
 - Total tray cards discarded by reset: 0
 - Avg tray cards / cast: 0.00
 
 ## Jnsq WON'T SHUT UP (v2.46)
-- Rider armed (soup target cast): 0 (runs: 0 / 100, 0.0%)
+- Rider armed (soup target cast): 0 (runs: 0 / 1000, 0.0%)
 - Dodges (kept going — follow-up jnsq played): 0 (0%)
 - Damage fires (-3 HP each): 0 (0%)
 - Total HP lost to commitment: 0
 
 ## Jnsq DRUNKEN CONFIDENCE (v2.47)
-- Installs (per-combat): 0 (runs: 0 / 100, 0.0%)
+- Installs (per-combat): 0 (runs: 0 / 1000, 0.0%)
 - Uninstalls (sober second thought): 0
 - Casts that received the +50%: 0
 - Total bonus damage from +50% on casts: 0
@@ -176,56 +176,57 @@ Outliers are exploit candidates — investigate anything that jumps batch-over-b
 - Net trade: 0 (positive = paying off)
 
 ## Jnsq AWKWARD PAUSE (v2.48)
-- "...go on, I'm listening." plays: 0 (runs: 0 / 100, 0.0%)
+- "...go on, I'm listening." plays: 0 (runs: 0 / 1000, 0.0%)
 - Doubled casts (bank cashed in): 0
 - Total extra damage from doubling: 0
 - Avg extra damage / doubled cast: 0.0
 - Cash-in ratio (doubled casts / pauses): 0%
 
 ## Jnsq BABBLING (v2.49)
-- Installs (per-combat): 0 (runs: 0 / 100, 0.0%)
+- Installs (per-combat): 0 (runs: 0 / 1000, 0.0%)
 - 2nd casts fired: 0
 - Total damage delivered by 2nd casts: 0
 - Avg damage / 2nd cast: 0.0
 - 2nd-cast rate per install: 0.00
 
 ## Jnsq GETTING-AWAY-FROM-ME (v2.50)
-- Rare casts: 0 (runs: 0 / 100, 0.0%)
+- Rare casts: 0 (runs: 0 / 1000, 0.0%)
 - Doubled fires (cast #2 under Babbling): 0 (0% of casts)
 
 ## Jnsq SYNERGY CAPSTONE — "universe sideways" (v2.51)
-- Capstone casts: 0 (runs: 0 / 100, 0.0%)
+- Capstone casts: 0 (runs: 0 / 1000, 0.0%)
 - Total capstone damage: 0
 - Avg damage / capstone cast: 0.00
 - Tangent-on-cast fires: 0
 
 ## Jnsq DRUNKEN STAGGER (v2.52)
-- "sorry, I lost my balance" plays: 0 (runs: 0 / 100, 0.0%)
+- "sorry, I lost my balance" plays: 0 (runs: 0 / 1000, 0.0%)
 - Swings missed (50% dodge fired): 0
 - Total damage avoided: 0
 - Avg damage avoided / play: 0.0
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 10.23
-- Avg damage / run: 126
-- Mean final deck size: 5.9
+- Avg turns / combat: 6.91
+- Avg damage / run: 355
+- Mean final deck size: 21.5
 
 ## Archetype of winning decks
+- mid-t2t3: 170
 
 ## Top killer enemies
-- e2-boss-tapestry (The Tapestry Walker): 30
-- e3-vein-devourer (Vein Devourer): 10
-- e2-silent-spinner (The Silent Spinner): 9
-- e3-glow-mite (Glow Mite Swarm): 6
-- e2-pattern-maker (The Pattern-Maker): 6
-- e2-spinster-matron (The Spinster Matron): 5
-- e2-needlepoint-cross (Needlepoint Cross): 4
-- e2-silk-wraith (Silk Wraith): 4
-- weave: 3
-- e2-gauze-revenant (The Gauze Revenant): 3
-- e3-quartz-sentinel (Quartz Sentinel): 3
-- e2-patchwork-golem (Patchwork Golem): 3
-- e3-boss-anvil (The Anvil-Forged): 3
-- e2-spindlewight (Spindlewight): 2
-- e3-geode-crab (Geode Crab): 2
+- e3-vein-devourer (Vein Devourer): 197
+- e2-boss-tapestry (The Tapestry Walker): 182
+- e3-quartz-sentinel (Quartz Sentinel): 122
+- e3-boss-anvil (The Anvil-Forged): 105
+- e1-boss-thornlord (The Thornlord): 86
+- e2-pattern-maker (The Pattern-Maker): 39
+- e2-silent-spinner (The Silent Spinner): 37
+- e3-glow-mite (Glow Mite Swarm): 19
+- weave: 10
+- e2-silk-wraith (Silk Wraith): 8
+- e-rogue-smelterson (Smelterson, J.C. (alloyed)): 5
+- e2-warp (Warp): 5
+- e3-crystal-beetle (Crystal Beetle): 4
+- e1-shrine-rat (Shrine Rat Pack): 2
+- e1-tutor (Stern Tutor): 2
