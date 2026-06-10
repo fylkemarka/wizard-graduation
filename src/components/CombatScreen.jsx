@@ -272,7 +272,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
       if (r.vulnerable) lines.push(`+ rider 🩸 Vulnerable ${r.vulnerable} — also amplifies your incoming damage.`);
       if (r.block)      lines.push(`+ rider 🛡 ${r.block} — also gains Block.`);
     }
-    lines.push('Block + Defense reduce attack damage to either pool. Debuffs drift back toward neutral by 0.25/turn.');
+    lines.push('Block + Defense reduce attack damage to either pool. Weak / Vulnerable hold full strength for their listed turns, then clear.');
     return lines.join('\n');
   };
   // v3.4.28 (Alan): UI refresh — fixed-location information zones.

@@ -657,6 +657,10 @@ const CARDS = [
     flavor: 'The fire is technically there. The fire-flavoured atmosphere certainly is.' },
   { id: 'p-octarine-squint', name: 'Octarine Squint',
     cost: 2, type: 'power', rarity: 'rare',
+    // Lane-agnostic for wit/jnsq, but excluded from handler offers: its payoff
+    // keys off casting Effect cards, which the Animal Summoner never does, so
+    // it's a dead pick there (Alan, 2026-06-09).
+    notLanes: ['handler'],
     power: { onEffectCardPlayed: { vulnerable: 1 } }, upgrade: { power: { onEffectCardPlayed: { vulnerable: 2 } } },
     desc: 'Each Effect you cast also applies 1 Vulnerable.',
     flavor: 'You\'re looking at the colour magic comes from. Don\'t blink.' },
@@ -3727,9 +3731,11 @@ export default function App() {
   // to tell anything had changed otherwise.
   const [intentTick, setIntentTick] = useState(0);
   // Damage multipliers — replace the old discrete Weak/Vulnerable
-  // status. Each modifier card / enemy intent shifts the multiplier
-  // by ±0.25, clamped to [0.5, 1.5]. Drifts 0.25 toward 1.0 each
-  // end-of-turn so stacks don't lock the fight.
+  // status. Each modifier card / enemy intent shifts the multiplier,
+  // clamped to [0.5, 1.5]. v3.4.84 (Alan): per-turn 0.25 DRIFT REMOVED —
+  // the value now holds for STATUS_DURATION turns (see enemyDmgTurns /
+  // playerDmgTurns) then SNAPS back to 1.0 at the end-of-turn tick
+  // (~line 11890). No fractional creep.
   //   enemyDmgMult  — applied to enemy outgoing damage (was: playerVuln +50%, enemyWeak -25%)
   //   playerDmgMult — applied to player outgoing spell damage (was: enemyVuln +50%, playerWeak -25%)
   const [enemyDmgMult, setEnemyDmgMult] = useState(1.0);
