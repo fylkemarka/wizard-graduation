@@ -9,20 +9,24 @@ export const ENEMIES = [
   // summon-tank-block loop. These were pre-handler designs. This pass bumps the
   // damage floor AND ports the Act-1 handler-hostile vocabulary (maul) onto the
   // forest so the menagerie loop finally costs something late.
-  { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 25, hpMax: 18, tier: 'normal',
+  // v3.9 (2026-06-10, act-curve pass): act-3 composure pools were SMALLER than
+  // act-2's (scaled 31/29/25/56 vs 50/45/50/55) — the final act's normals died
+  // faster than the countryside's. Pools raised so the act ramp is monotonic:
+  // act1 ~40 < act2 ~50 < act3 ~55-65 scaled (bosses already ramped 103/110/119).
+  { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 44, hpMax: 18, tier: 'normal',
     behaviors: [
       { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
       { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 (faltering)' },
     ] },
-  { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 23, hpMax: 999, tier: 'normal',
+  { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 42, hpMax: 999, tier: 'normal',
     // v2.4: handler 0.7 → 1.0 (less hostile to handler in act 1).
     behaviors: [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
-  { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 20, hpMax: 12, tier: 'normal',
+  { id: 'e1-shrine-rat', act: 3, name: 'Shrine Rat Pack', composureMax: 40, hpMax: 12, tier: 'normal',
     // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
     // partly because Shrine Rat and Thicket were freebies for it.
     behaviors: [
@@ -36,7 +40,7 @@ export const ENEMIES = [
   // to the work. The staff turned him to wood. He is, the records will
   // show, both. The bureaucracy is unclear on the matter.
   { id: 'e-rogue-ashweather', act: 3, name: 'Doctor Phin Ashweather (recently inanimate)',
-    composureMax: 45, hpMax: 32, tier: 'normal',
+    composureMax: 52, hpMax: 32, tier: 'normal',
     // failure mode: mystical mishap (transformation). Handler 0.6 —
     // you cannot bully a piece of wood. Wit 1.4 — the absurdity is the
     // wound. Physical 1.0 — he is also wood, axe him.
@@ -46,7 +50,7 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (the staff insists)' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (you remember when he was a person)' },
     ] },
-  { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 40, hpMax: 999, tier: 'elite',
+  { id: 'e1-tutor', act: 3, name: 'Stern Tutor', composureMax: 68, hpMax: 999, tier: 'elite',
     behaviors: [
       { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
@@ -55,7 +59,7 @@ export const ENEMIES = [
       // "No familiars in the examination hall." Expels your strongest beast.
       { kind: 'attack', maul: true, value: 6, weight: 1, telegraph: '🦷 6 — sends one from the room (unblocked → lose your strongest animal)' },
     ] },
-  { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 69, hpMax: 38, tier: 'elite',
+  { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 76, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
     // v3.6 (2026-06-10): was the WEAKEST elite in the game (maxAtk 6). Bumped,
