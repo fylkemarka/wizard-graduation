@@ -929,6 +929,24 @@ const STARTER_CARDS = [
     effects: { block: 4, removeVulnerable: 1 },
     desc: 'Gain 4 Block. You are no longer Vulnerable.',
     flavor: 'The hit landed, certainly. But context is everything, and you have just changed it.' },
+  // v3.8 (Alan, 2026-06-10): wit defensive depth — "defense that rewards
+  // building." Scales with the tray, so the assembling turns (when wit is
+  // most exposed) are exactly the turns it shields hardest.
+  { id: 'wv2-k-measured-response', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'Measured Response', phrase: 'Measured Response',
+    tags: ['academic', 'observational'],
+    effects: { block: 2, blockPerStaged: 2 },
+    desc: 'Gain 2 Block, plus 2 per spell piece staged in your tray.',
+    flavor: 'You are not ignoring them. You are formatting.' },
+  // v3.8: the composure-defense gap — wit had exactly one poise card (the
+  // starter Compose). A draftable second shield for the pool that matters
+  // most in verbal fights.
+  { id: 'wv2-k-politely-decline', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 1, type: 'skill',
+    name: 'Politely Decline', phrase: 'Politely Decline',
+    tags: ['formal', 'observational'],
+    effects: { poise: 5, draw: 1 },
+    desc: 'Gain 5 Poise. Draw 1.',
+    flavor: 'Refuse politely. They expected this. It stings anyway.' },
   // Throat-Clear — small gesture, chip + draw. Bypasses tray.
   { id: 'wv2-g-throat-clear', slot: 'gesture', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'gesture',
     name: 'Throat-Clear', phrase: '(clears throat. Audibly.)',

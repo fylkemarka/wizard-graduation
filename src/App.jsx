@@ -7387,6 +7387,18 @@ export default function App() {
       // a depleted composure pool.
       setComposure(c => Math.min(composureMax, c + 1));
       pushLog(`✨ +1 Composure (FFT bonus).`);
+      // v3.8 (Alan, 2026-06-10): a finished thought steadies the nerves —
+      // every full FFT cast also grants Block AND Poise = 2 × spell tier.
+      // Defense built into wit's core loop: assembling real spells IS the
+      // defensive play, which is exactly what the long burst fights punish
+      // wit for lacking. Wit-only (handler retired FFT; its school riders
+      // have their own economy). Mirrored in the sim's FFT branch.
+      if (selectedCharacter?.lane === 'wit') {
+        const steadied = 3 * (tier || 1);
+        setBlock(b => b + steadied);
+        setPoise(p => p + steadied);
+        pushLog(`🛡 +${steadied} Block · 🪞 +${steadied} Poise — a finished thought steadies the nerves.`);
+      }
       logEvent('wit.fft.cast', {
         rowId: row.id, rowName: row.name, schoolId: row.schoolId,
         rider: { ...rider }, damageAfterRider: dmg,
@@ -7400,6 +7412,14 @@ export default function App() {
       const partialBonus = WIT_PARTIAL_ROW_BONUSES[row.schoolId];
       const schoolName = partialBonus?.name?.replace(' (half-formed)', '') || row.schoolId;
       pushLog(`📐 Half-formed ${schoolName} — ${row.name} (the third word would have landed harder).`);
+      // v3.8: half-formed thoughts steady half as much — 1 × tier each pool
+      // (full FFT grants 3 × tier; see the fft branch above). Wit-only.
+      if (selectedCharacter?.lane === 'wit') {
+        const steadied = (tier || 1);
+        setBlock(b => b + steadied);
+        setPoise(p => p + steadied);
+        pushLog(`🛡 +${steadied} Block · 🪞 +${steadied} Poise — half-steadied.`);
+      }
       logEvent('wit.fft.partial', {
         rowId: row.id, rowName: row.name, schoolId: row.schoolId,
         enemyId: enemy?.id, enemyTier: enemy?.tier,
@@ -8306,6 +8326,19 @@ export default function App() {
     if (fx.block) {
       setBlock(b => b + fx.block);
       logBits.push(`🛡 +${fx.block}`);
+    }
+    // v3.8 (Alan, 2026-06-10): tray-scaling defense — Block per spell piece
+    // currently staged (intro/subject/target + modifiers). Wit's "defense
+    // that rewards building": the deeper the argument under construction,
+    // the better it shields you. Mirrored in the sim's wit skill loops.
+    if (fx.blockPerStaged) {
+      const staged = ['intro', 'subject', 'target'].filter(s => tray[s]).length
+        + (tray.modifiers?.length || 0);
+      const extra = fx.blockPerStaged * staged;
+      if (extra > 0) {
+        setBlock(b => b + extra);
+        logBits.push(`🛡 +${extra} (${staged} staged)`);
+      }
     }
     // v2.9: poise — composure-pool shield.
     if (fx.poise) {

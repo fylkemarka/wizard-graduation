@@ -4429,6 +4429,12 @@ function runCombat(state, enemyId, telemetry) {
           state.energy -= c.cost || 0;
           state.wordsBank = Math.min((state.wordsBank || 0) + 1, 20);
           state.block += fx.block || 0;
+          // v3.8: tray-scaling block (Measured Response). Mirrors App.jsx
+          // applySideEffects' blockPerStaged.
+          if (fx.blockPerStaged) {
+            const staged = ['intro', 'subject', 'target'].filter(s => tray[s]).length + (tray.modifiers?.length || 0);
+            state.block += fx.blockPerStaged * staged;
+          }
           if (fx.poise) state.poise += fx.poise;
           if (fx.draw) drawCards(state, fx.draw);
           if (hpCost) state.hp = Math.max(0, state.hp - hpCost);
@@ -5219,8 +5225,25 @@ function runCombat(state, enemyId, telemetry) {
       };
       if (fftResult.fft) {
         applyRiderSim(fftResult.fft.rider);
+        // v3.8 (Alan, 2026-06-10): a finished thought steadies the nerves —
+        // every full FFT cast grants Block AND Poise = 2 × spell tier.
+        // Mirrors App.jsx castV2SentenceSpell (wit-only; defense built into
+        // the core spell loop).
+        if (state.lane === 'wit') {
+          const steadied = 3 * (result.tier || 1);
+          state.block += steadied;
+          state.poise += steadied;
+          telemetry.fftSteadied = (telemetry.fftSteadied || 0) + steadied;
+        }
       } else if (fftResult.partialRow) {
         applyRiderSim(WIT_PARTIAL_ROW_BONUSES[fftResult.partialRow.schoolId]);
+        // v3.8: half-formed thoughts steady half as much (1 × tier each pool).
+        if (state.lane === 'wit') {
+          const steadied = (result.tier || 1);
+          state.block += steadied;
+          state.poise += steadied;
+          telemetry.fftSteadied = (telemetry.fftSteadied || 0) + steadied;
+        }
       } else if (fftResult.schoolId) {
         applyRiderSim(WIT_SAME_SCHOOL_BONUSES[fftResult.schoolId]);
       }
@@ -6671,7 +6694,12 @@ function awardReward(state) {
   if ((blockCount < 2 || poiseCount < 2) && rnd() < 0.4) {
     // Pick whichever shield is weaker; tie → coinflip.
     const needBlock = blockCount < poiseCount || (blockCount === poiseCount && rnd() < 0.5);
-    const def = needBlock ? DEFENSE_REWARDS[0] : DEFENSE_REWARDS[1];
+    // v3.8: the wit defensive pool grew (Measured Response / Politely
+    // Decline) — rotate them into the defense grant so the new tools get
+    // exercised alongside the legacy Mend/Steady pair.
+    const def = needBlock
+      ? (state.lane === 'wit' && rnd() < 0.5 ? WIT_CARDS_BY_ID['wv2-k-measured-response'] : DEFENSE_REWARDS[0])
+      : (state.lane === 'wit' && rnd() < 0.5 ? WIT_CARDS_BY_ID['wv2-k-politely-decline'] : DEFENSE_REWARDS[1]);
     state.discard.push({ ...def, uid: uid() });
     state.rewardsTaken.push(def.id);
     return;
