@@ -4,16 +4,21 @@
 
 export const ENEMIES = [
   // ===== ACT 3 — The Staff Path (the deep forest, final act) =====
+  // v3.6 (2026-06-10, telemetry): Act-3 (the FINAL act) was the easiest in the
+  // run — normals dealt ~0 and no enemy here pressured the handler's
+  // summon-tank-block loop. These were pre-handler designs. This pass bumps the
+  // damage floor AND ports the Act-1 handler-hostile vocabulary (maul) onto the
+  // forest so the menagerie loop finally costs something late.
   { id: 'e1-acolyte', act: 3, name: 'Lost Acolyte', composureMax: 25, hpMax: 18, tier: 'normal',
     behaviors: [
-      { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5' },
+      { kind: 'attack', value: 8, weight: 3, telegraph: '⚔ 8' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5' },
-      { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (faltering)' },
+      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 (faltering)' },
     ] },
   { id: 'e1-imp', act: 3, name: 'Pact Imp', composureMax: 23, hpMax: 999, tier: 'normal',
     // v2.4: handler 0.7 → 1.0 (less hostile to handler in act 1).
     behaviors: [
-      { kind: 'attack', value: 4, weight: 3, telegraph: '⚔ 4 + ⛧ Weak 1', riders: { weak: 1 } },
+      { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6 + ⛧ Weak 1', riders: { weak: 1 } },
       { kind: 'weak',   value: 1, weight: 2, telegraph: '⛧ Weak 1' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🩸 Vuln 1' },
     ] },
@@ -21,9 +26,11 @@ export const ENEMIES = [
     // Cycle 4 batch 4: physical 2.0 → 1.5. Pure-physical was at 64%
     // partly because Shrine Rat and Thicket were freebies for it.
     behaviors: [
-      { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3' },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 3, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 4, weight: 1, telegraph: '🛡 4' },
-      { kind: 'attack', value: 5, weight: 2, telegraph: '⚔ 5 (lunging)' },
+      { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (lunging)' },
+      // The swarm drags a beast off into the dark. Block it or lose it.
+      { kind: 'attack', maul: true, value: 5, weight: 1, telegraph: '🦷 5 — the pack drags one off (unblocked → lose your strongest animal)' },
     ] },
   // v2.17: rogue wizard — was about to claim his staff. Got too close
   // to the work. The staff turned him to wood. He is, the records will
@@ -45,14 +52,20 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 3, count: 3, weight: 1, telegraph: '⚔ 3×3' },
       { kind: 'block',  value: 7, weight: 1, telegraph: '🛡 7' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (cutting remark)' },
+      // "No familiars in the examination hall." Expels your strongest beast.
+      { kind: 'attack', maul: true, value: 6, weight: 1, telegraph: '🦷 6 — sends one from the room (unblocked → lose your strongest animal)' },
     ] },
   { id: 'e1-thicket', act: 3, name: 'Living Thicket', composureMax: 69, hpMax: 38, tier: 'elite',
     // Cycle 4 batch 4: physical 1.5 → 1.0. The "physical-only" theme stays
     // (verbal at 0.5) but no longer hands pure-physical a 1.5× freebie.
+    // v3.6 (2026-06-10): was the WEAKEST elite in the game (maxAtk 6). Bumped,
+    // and the bramble now ensnares beasts — maul is the natural read for it.
     behaviors: [
-      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6' },
+      { kind: 'attack', value: 9, weight: 2, telegraph: '⚔ 9' },
       { kind: 'block',  value: 9, weight: 2, telegraph: '🛡 9' },
       { kind: 'vulnerable', value: 1, weight: 1, telegraph: '🌀 Vuln' },
+      // Vines close around the nearest animal and pull it into the bramble.
+      { kind: 'attack', maul: true, value: 7, weight: 2, telegraph: '🦷 7 — vines drag a beast into the bramble (unblocked → lose your strongest animal)' },
     ] },
   { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 119, hpMax: 115, tier: 'boss',
     // v2.16: was killing 182/500 handler runs. First pass 0.7→0.85
@@ -64,6 +77,8 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (bramble-whisper)' },
+      // v3.6: the apex of the forest claims your beasts outright.
+      { kind: 'attack', maul: true, value: 10, weight: 1, telegraph: '🦷 10 — the thorns take one of yours (unblocked → lose your strongest animal)' },
     ] },
 
   // ===== ACT 1 — The Thread Path (the countryside) =====
@@ -407,6 +422,8 @@ export const ENEMIES = [
       { kind: 'attack', value: 8, pool: 'composure', weight: 2, telegraph: '🎭 8 (axiom-strike)' },
       // v2.9 burst — single-pool HP hammer.
       { kind: 'attack', value: 16, weight: 1, telegraph: '⚔ 16 (RULING)' },
+      // v3.6: a crystalline pincer closes on the nearest beast.
+      { kind: 'attack', maul: true, value: 8, weight: 1, telegraph: '🦷 8 — facets close on a beast (unblocked → lose your strongest animal)' },
     ] },
   { id: 'e3-vein-devourer', act: 2, name: 'Vein Devourer', composureMax: 72, hpMax: 28, tier: 'elite',
     // v2.4: handler-favored. The Devourer responds to direct threat
@@ -416,6 +433,8 @@ export const ENEMIES = [
       { kind: 'attack', value: 13, weight: 2, telegraph: '⚔ 13 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'attack-multi', value: 5, count: 3, weight: 1, telegraph: '⚔ 5×3' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 + ⛧ Weak 1', riders: { weak: 1 } },
+      // v3.6: it is, after all, a Devourer — it eats your beasts too.
+      { kind: 'attack', maul: true, value: 9, weight: 2, telegraph: '🦷 9 — DEVOURS a beast (unblocked → lose your strongest animal)' },
       // v2.9 burst — the Devourer's "DEVOUR" is a 1-shot KO risk.
       // v3.5 (1000-run iter-2): DEVOUR 18→16 (post-scalar 23→20). The 23 was
       // a genuine outlier — bigger than any Act-3 boss single hit, on an Act-2
@@ -434,6 +453,8 @@ export const ENEMIES = [
       { kind: 'attack-multi', value: 4, count: 4, weight: 1, telegraph: '⚔ 4×4' },
       { kind: 'block',  value: 12, weight: 1, telegraph: '🛡 12' },
       { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 (hammer-rhythm)' },
+      // v3.6: a beast caught on the anvil and forged into the work.
+      { kind: 'attack', maul: true, value: 9, weight: 1, telegraph: '🦷 9 — pins a beast to the anvil (unblocked → lose your strongest animal)' },
     ] },
 
   // ===== TUTORIAL =====
