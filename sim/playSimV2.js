@@ -2773,7 +2773,7 @@ function runHandlerCombat(state, enemy, telemetry) {
   let prevDamage = 0, zeroStreak = 0;
   while (safety-- > 0) {
     if (state.hp <= 0 || state.composure <= 0) { if (typeof globalThis.__deathCause==='object'){const k=state.hp<=0?'hp':'composure';globalThis.__deathCause[k]=(globalThis.__deathCause[k]||0)+1;} flushStagedLures(state, combat); flushTelemetry('lost'); return { outcome: 'lost', turns: combat.turn, telemetry, killedBy: enemy.id }; }
-    if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) { flushStagedLures(state, combat); flushTelemetry('won'); return { outcome: 'won', turns: combat.turn, telemetry }; }
+    if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) { flushStagedLures(state, combat); flushTelemetry('won'); telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, combat.turn); if (combat.turn <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; return { outcome: 'won', turns: combat.turn, telemetry }; }
     aiTurnHandler(state, combat);
     if (combat.totalDamageDealt === prevDamage) {
       if (++zeroStreak >= 5) { flushStagedLures(state, combat); flushTelemetry('stall'); return { outcome: 'stall', turns: combat.turn, telemetry, killedBy: enemy.id }; }
@@ -4526,6 +4526,11 @@ function runCombat(state, enemyId, telemetry) {
         telemetry.fftDotDepositDamage = (telemetry.fftDotDepositDamage || 0) + (perTurn * turns);
         dmg = 0; // suppress direct damage application
       }
+      // Red-team anomaly tripwires (2026-06-09): outlier casts are exploit
+      // candidates — surfaced in the report's ANOMALIES section.
+      telemetry.maxCastDmg = Math.max(telemetry.maxCastDmg || 0, dmg);
+      telemetry.maxCastsOneTurn = Math.max(telemetry.maxCastsOneTurn || 0, castsThisTurn);
+      if (dmg >= 40) telemetry.bigCasts = (telemetry.bigCasts || 0) + 1;
       state.lastCastDamage = dmg;
       // v3.4.34 cycle 1 — Thorns school casts (damageType: 'block') route the
       // cast number to player block, not enemy damage. Mirrors App.jsx.
@@ -4952,6 +4957,9 @@ function runCombat(state, enemyId, telemetry) {
         }
       }
     }
+    // Red-team anomaly tripwires — resource peaks per turn.
+    telemetry.peakBlock = Math.max(telemetry.peakBlock || 0, state.block || 0);
+    telemetry.peakBank = Math.max(telemetry.peakBank || 0, state.wordsBank || 0);
 
     // v2.49: BABBLING 2nd-cast restage. If babbling is installed AND the
     // first cast fired AND we still have energy + a remaining intro+subject
@@ -5281,6 +5289,7 @@ function runCombat(state, enemyId, telemetry) {
       // covers the bravado. Reset for sanity, although combat is over.
       state.cornerTokens = 0;
       flushThreadPeak();
+      { telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, turns); if (turns <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; }
       return { outcome: 'won', turns, telemetry };
     }
 
@@ -5351,7 +5360,8 @@ function runCombat(state, enemyId, telemetry) {
       if (enemy.dot.turnsRemaining <= 0) enemy.dot = null;
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
-        return { outcome: 'won', turns, telemetry };
+        { telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, turns); if (turns <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; }
+      return { outcome: 'won', turns, telemetry };
       }
     }
     // v3.3 scheduled-effects tick (non-DoT over-time effects).
@@ -5379,7 +5389,8 @@ function runCombat(state, enemyId, telemetry) {
       state.scheduledEffects = remaining;
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
-        return { outcome: 'won', turns, telemetry };
+        { telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, turns); if (turns <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; }
+      return { outcome: 'won', turns, telemetry };
       }
     }
     // v2.27: HIT ME AGAIN recoil fires BEFORE the enemy's swing damage.
@@ -5401,7 +5412,8 @@ function runCombat(state, enemyId, telemetry) {
       if (enemy.currentComp <= 0 || (enemyHpIsReal && enemy.currentHp <= 0)) {
         telemetry.hitMeAgainKills = (telemetry.hitMeAgainKills || 0) + 1;
         flushThreadPeak();
-        return { outcome: 'won', turns, telemetry };
+        { telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, turns); if (turns <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; }
+      return { outcome: 'won', turns, telemetry };
       }
     }
     // === INTENT RESOLUTION (v3.5 — full port from App.jsx applyEnemyIntent) ===
@@ -5548,7 +5560,8 @@ function runCombat(state, enemyId, telemetry) {
       state.thornsCharges.count -= 1;
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
-        return { outcome: 'won', turns, telemetry };
+        { telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, turns); if (turns <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; }
+      return { outcome: 'won', turns, telemetry };
       }
     }
     // v3.4.42 — Mirror Reflect: reflects 100% of incoming damage capped per hit.
@@ -5559,7 +5572,8 @@ function runCombat(state, enemyId, telemetry) {
       state.mirrorReflectCharges.count -= 1;
       if (enemy.currentComp <= 0) {
         flushThreadPeak();
-        return { outcome: 'won', turns, telemetry };
+        { telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, turns); if (turns <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; }
+      return { outcome: 'won', turns, telemetry };
       }
     }
     // v2.52: DRUNKEN STAGGER — 50% dodge roll. Sim models the enemy turn as a
@@ -6944,6 +6958,14 @@ function aggregate(results) {
     totalHolds: results.reduce((s, r) => s + (r.holds || 0), 0),
     // 1000-run cycle telemetry (2026-06-09): wit school engagement — the
     // school-differentiation loop needs these surfaced per batch.
+    // Red-team anomaly tripwires.
+    maxCastDmg: results.reduce((m, r) => Math.max(m, r.maxCastDmg || 0), 0),
+    bigCasts: results.reduce((s, r) => s + (r.bigCasts || 0), 0),
+    maxCastsOneTurn: results.reduce((m, r) => Math.max(m, r.maxCastsOneTurn || 0), 0),
+    peakBlock: results.reduce((m, r) => Math.max(m, r.peakBlock || 0), 0),
+    peakBank: results.reduce((m, r) => Math.max(m, r.peakBank || 0), 0),
+    fastestWin: results.reduce((m, r) => Math.min(m, r.fastestWin || 99), 99),
+    speedWins: results.reduce((s, r) => s + (r.speedWins || 0), 0),
     holdFullTray: results.reduce((s, r) => s + (r.holdFullTray || 0), 0),
     holdEnergyShort: results.reduce((s, r) => s + (r.holdEnergyShort || 0), 0),
     holdMissingSlot: results.reduce((s, r) => s + (r.holdMissingSlot || 0), 0),
@@ -7243,6 +7265,13 @@ function buildReport(agg) {
     lines.push('- ' + procOrder.map(k => `${k} ${ENEMY_PROCS[k] || 0}`).join(' · '));
     lines.push('');
   }
+  lines.push(`## ANOMALIES (red-team tripwires)`);
+  lines.push(`Outliers are exploit candidates — investigate anything that jumps batch-over-batch.`);
+  lines.push(`- Max single-cast damage: ${agg.maxCastDmg} · casts ≥ 40 dmg: ${agg.bigCasts}`);
+  lines.push(`- Max casts in one turn: ${agg.maxCastsOneTurn}`);
+  lines.push(`- Peak Block: ${agg.peakBlock} · peak Words Bank: ${agg.peakBank}`);
+  lines.push(`- Fastest combat win: ${agg.fastestWin === 99 ? '—' : agg.fastestWin + ' turns'} · wins in ≤ 3 turns: ${agg.speedWins}`);
+  lines.push('');
   lines.push(`## Wit SCHOOLS (1000-run cycle telemetry)`);
   lines.push(`- Full FFT casts: ${agg.fftCasts} (total FFT damage ${agg.fftDamage}) · partial-row: ${agg.fftPartialCasts} · same-school (non-row): ${agg.fftSameSchoolCasts}`);
   lines.push(`- Slow Burn DoT deposited: ${agg.fftDotDepositDamage}`);

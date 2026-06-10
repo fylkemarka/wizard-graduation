@@ -73,13 +73,15 @@ export function computeSpellTier(intro, subject, target) {
   // committed decks. Single implementation point: App, the tray preview,
   // and the sim all import this function.
   // Cycle-8: schoolWildcard (FLEX words) — a wildcard counts as whatever
-  // school the OTHER staged cards speak. The bump applies when every
-  // non-wildcard card shares one school and at least one real school is
-  // present (an all-wildcard tray earns nothing).
+  // school the OTHER staged cards speak.
+  // Red-team fix (2026-06-09): the bump needs ≥ TWO real-school cards.
+  // Two flex words + any target was claiming the monogamy reward with zero
+  // school commitment (the "double-stuff" exploit) — a wildcard may stand
+  // in for ONE slot, never two.
   const schools = [intro, subject, target]
     .filter(c => !c.schoolWildcard)
     .map(c => c.schoolId);
-  if (schools.length > 0 && schools.every(s => s && s === schools[0])) {
+  if (schools.length >= 2 && schools.every(s => s && s === schools[0])) {
     sum += 1;
   }
   if (sum <= 4) return 1;
