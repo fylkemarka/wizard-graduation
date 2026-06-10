@@ -3,25 +3,25 @@
 N = **1000** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **464 wins / 1000** = **46.4%**
-- Losses by acts-cleared: 0=186 · 1=156 · 2=194 · 3=0
+- **422 wins / 1000** = **42.2%**
+- Losses by acts-cleared: 0=190 · 1=172 · 2=216 · 3=0
 
 ## Lane outcomes
 - **wit**: 0 runs · 0 wins (0.0%)
-- **handler**: 1000 runs · 464 wins (46.4%)
+- **handler**: 1000 runs · 422 wins (42.2%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-owl**: 114 runs · 67 wins (58.8%)
-- **fam-cat**: 102 runs · 56 wins (54.9%)
-- **fam-toad**: 96 runs · 52 wins (54.2%)
-- **fam-mouse**: 97 runs · 48 wins (49.5%)
-- **fam-beetle**: 93 runs · 46 wins (49.5%)
-- **fam-snake**: 99 runs · 47 wins (47.5%)
-- **fam-rabbit**: 106 runs · 45 wins (42.5%)
-- **fam-raven**: 103 runs · 38 wins (36.9%)
-- **fam-hedgehog**: 96 runs · 35 wins (36.5%)
-- **fam-crow**: 94 runs · 30 wins (31.9%)
+- **fam-beetle**: 117 runs · 60 wins (51.3%)
+- **fam-cat**: 104 runs · 50 wins (48.1%)
+- **fam-snake**: 96 runs · 44 wins (45.8%)
+- **fam-crow**: 101 runs · 44 wins (43.6%)
+- **fam-toad**: 104 runs · 44 wins (42.3%)
+- **fam-owl**: 100 runs · 40 wins (40.0%)
+- **fam-mouse**: 107 runs · 41 wins (38.3%)
+- **fam-rabbit**: 92 runs · 35 wins (38.0%)
+- **fam-hedgehog**: 88 runs · 33 wins (37.5%)
+- **fam-raven**: 91 runs · 31 wins (34.1%)
 
 ## Cast distribution
 - Total casts: 0
@@ -31,42 +31,42 @@ N = **1000** runs simulated with a greedy v2 AI.
 - Holds (turn ended without cast — tray persists): 0 (NaN%)
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
-- Handler runs: 1000 · 464 wins (46.4%)
-- Combats fought: 12086
-- Summons: 46114 · feeds: 76272 · short-stays (unfed left early): 19870 · combines: 0
+- Handler runs: 1000 · 422 wins (42.2%)
+- Combats fought: 11903
+- Summons: 46381 · feeds: 80753 · short-stays (unfed left early): 19865 · combines: 0
 - Combine payoff: burst 0 (avg 0/combine) · lifetime attacks 0 (avg 0/combine) · combine = 0.0% of all menagerie composure
-- Menagerie composure dealt: 877013 · block generated: 295031
-- Avg summons/combat: 3.82 · avg feeds/combat: 6.31
-- Tactic changes: 1926 · avg distinct tactics/combat: 0.15
-- Special-lure animals: summons 4864 · porcupine thorns dealt 7698 · sloth enemy-turns skipped 546
-- Activated abilities (Mime/Pigeon/Kangaroo): 827 activations
-- A Firm Hand ward fizzles (disruption absorbed): 1245
-- Fond Farewell composure regained: 1410
-- Tactic engagement: shield 0 · rabid 888 · youth 285 · nurture 382 · feather 371
+- Menagerie composure dealt: 914645 · block generated: 303979
+- Avg summons/combat: 3.90 · avg feeds/combat: 6.78
+- Tactic changes: 1859 · avg distinct tactics/combat: 0.15
+- Special-lure animals: summons 5055 · porcupine thorns dealt 7578 · sloth enemy-turns skipped 876
+- Activated abilities (Mime/Pigeon/Kangaroo): 840 activations
+- A Firm Hand ward fizzles (disruption absorbed): 1177
+- Fond Farewell composure regained: 1678
+- Tactic engagement: shield 0 · rabid 827 · youth 291 · nurture 333 · feather 408
 
 ## NEW CARDS (2026-06-08 — block + synergy archetypes)
 Draft rate among handler runs, total PLAYS this batch (drafted-but-low-plays = dead in hand), and avg acts-cleared with vs without (survivorship-confounded — relative reads only).
-- **c-hunker-down**: drafted 242 (24.2%) · played 1555× · 169 wins · avg acts 2.51 with / 1.75 without
-- **c-dig-in**: drafted 202 (20.2%) · played 1113× · 145 wins · avg acts 2.56 with / 1.78 without
-- **c-firm-hand**: drafted 879 (87.9%) · played 5230× · 457 wins · avg acts 2.15 with / 0.36 without
-- **c-memorial**: drafted 263 (26.3%) · played 614× · 155 wins · avg acts 2.44 with / 1.75 without
-- **c-fond-farewell**: drafted 876 (87.6%) · played 703× · 450 wins · avg acts 2.13 with / 0.56 without
-- **c-pedigree**: drafted 134 (13.4%) · played 24× · 93 wins · avg acts 2.58 with / 1.84 without
-- **c-best-in-show**: drafted 212 (21.2%) · played 15× · 152 wins · avg acts 2.56 with / 1.77 without
-- **c-well-drilled**: drafted 242 (24.2%) · played 527× · 170 wins · avg acts 2.56 with / 1.74 without
-- **c-rally-the-pack**: drafted 114 (11.4%) · played 94× · 80 wins · avg acts 2.65 with / 1.84 without
-- **c-drillmaster**: drafted 118 (11.8%) · played 613× · 85 wins · avg acts 2.64 with / 1.84 without
-- Memorial AoE procs (every exit/sacrifice while installed): 1522
+- **c-hunker-down**: drafted 253 (25.3%) · played 1787× · 173 wins · avg acts 2.53 with / 1.65 without
+- **c-dig-in**: drafted 186 (18.6%) · played 1264× · 139 wins · avg acts 2.67 with / 1.69 without
+- **c-firm-hand**: drafted 887 (88.7%) · played 5080× · 418 wins · avg acts 2.08 with / 0.24 without
+- **c-memorial**: drafted 253 (25.3%) · played 526× · 158 wins · avg acts 2.45 with / 1.67 without
+- **c-fond-farewell**: drafted 905 (90.5%) · played 722× · 421 wins · avg acts 2.05 with / 0.20 without
+- **c-pedigree**: drafted 135 (13.5%) · played 15× · 95 wins · avg acts 2.64 with / 1.75 without
+- **c-best-in-show**: drafted 235 (23.5%) · played 17× · 133 wins · avg acts 2.37 with / 1.72 without
+- **c-well-drilled**: drafted 227 (22.7%) · played 669× · 143 wins · avg acts 2.50 with / 1.69 without
+- **c-rally-the-pack**: drafted 112 (11.2%) · played 94× · 68 wins · avg acts 2.49 with / 1.79 without
+- **c-drillmaster**: drafted 102 (10.2%) · played 764× · 70 wins · avg acts 2.61 with / 1.79 without
+- Memorial AoE procs (every exit/sacrifice while installed): 1370
 
 ## NEW ENEMY MECHANICS — fire counts (this batch)
-- heal 416 · charge 310 · summon 506 · cutShort 101 · undermineTactic 5 · doubleMaul 3 · freeze 285 · silence 688 · turnAgainst 884 · betray 104 · maul 1148
+- heal 437 · charge 310 · summon 482 · cutShort 77 · undermineTactic 4 · doubleMaul 1 · freeze 309 · silence 709 · turnAgainst 912 · betray 103 · maul 1117
 
 ## ANOMALIES (red-team tripwires)
 Outliers are exploit candidates — investigate anything that jumps batch-over-batch.
 - Max single-cast damage: 0 · casts ≥ 40 dmg: 0
 - Max casts in one turn: 0
 - Peak Block: 0 · peak Words Bank: 0
-- Fastest combat win: 2 turns · wins in ≤ 3 turns: 305
+- Fastest combat win: 2 turns · wins in ≤ 3 turns: 245
 
 ## Wit SCHOOLS (1000-run cycle telemetry)
 - Full FFT casts: 0 (total FFT damage 0) · partial-row: 0 · same-school (non-row): 0
@@ -88,7 +88,7 @@ Outliers are exploit candidates — investigate anything that jumps batch-over-b
 - v2.43 thread-preservation skip-casts: 0
 - v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 1921 granted, 0 played
+- v2.92 Passing Thoughts: 1888 granted, 0 played
 - v2.93 Find the Seam (bypass-effectiveness) fires: 0
 - v2.93 Precedent (echo-last-damage) fires: 0
 - v2.93 Insult-to-Injury (×N mult) fires: 0
@@ -207,26 +207,26 @@ Outliers are exploit candidates — investigate anything that jumps batch-over-b
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 8.36
-- Avg damage / run: 920
-- Mean final deck size: 21.9
+- Avg turns / combat: 8.65
+- Avg damage / run: 959
+- Mean final deck size: 21.6
 
 ## Archetype of winning decks
-- mid-t2t3: 464
+- mid-t2t3: 422
 
 ## Top killer enemies
-- e1-boss-thornlord (The Thornlord): 141
-- e2-boss-tapestry (The Tapestry Walker): 111
-- e3-boss-anvil (The Anvil-Forged): 63
-- e3-vein-devourer (Vein Devourer): 58
+- e1-boss-thornlord (The Thornlord): 134
+- e2-boss-tapestry (The Tapestry Walker): 119
+- e3-vein-devourer (Vein Devourer): 69
+- e3-boss-anvil (The Anvil-Forged): 57
+- e3-quartz-sentinel (Quartz Sentinel): 33
 - e2-silent-spinner (The Silent Spinner): 27
-- e3-quartz-sentinel (Quartz Sentinel): 24
-- e2-spinster-matron (The Spinster Matron): 23
-- e1-tutor (Stern Tutor): 20
-- e2-pattern-maker (The Pattern-Maker): 17
-- e1-thicket (Living Thicket): 14
-- e-rogue-ashweather (Doctor Phin Ashweather (recently inanimate)): 12
-- e3-crystal-beetle (Crystal Beetle): 5
-- e2-hollow-weaver (Hollow Weaver): 3
-- e3-geode-crab (Geode Crab): 3
-- e1-imp (Pact Imp): 3
+- e1-tutor (Stern Tutor): 26
+- e1-thicket (Living Thicket): 23
+- e2-pattern-maker (The Pattern-Maker): 19
+- e2-spinster-matron (The Spinster Matron): 18
+- e-rogue-ashweather (Doctor Phin Ashweather (recently inanimate)): 14
+- e1-shrine-rat (Shrine Rat Pack): 8
+- e-rogue-smelterson (Smelterson, J.C. (alloyed)): 6
+- e1-imp (Pact Imp): 6
+- e1-acolyte (Lost Acolyte): 5

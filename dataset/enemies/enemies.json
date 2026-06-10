@@ -6,7 +6,7 @@
     "act": 3,
     "tier": "normal",
     "diff": "",
-    "composure_max": 25,
+    "composure_max": 44,
     "hp_max": 18,
     "physical_immune": false,
     "num_behaviors": 3,
@@ -22,7 +22,7 @@
     "duo_partner": "",
     "behaviors": "[{\"kind\":\"attack\",\"value\":8,\"weight\":3,\"telegraph\":\"⚔ 8\"},{\"kind\":\"block\",\"value\":5,\"weight\":1,\"telegraph\":\"🛡 5\"},{\"kind\":\"attack\",\"value\":5,\"weight\":2,\"telegraph\":\"⚔ 5 (faltering)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e1-acolyte\",\"act\":3,\"name\":\"Lost Acolyte\",\"composureMax\":25,\"hpMax\":18,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack\",\"value\":8,\"weight\":3,\"telegraph\":\"⚔ 8\"},{\"kind\":\"block\",\"value\":5,\"weight\":1,\"telegraph\":\"🛡 5\"},{\"kind\":\"attack\",\"value\":5,\"weight\":2,\"telegraph\":\"⚔ 5 (faltering)\"}]}"
+    "raw_json": "{\"id\":\"e1-acolyte\",\"act\":3,\"name\":\"Lost Acolyte\",\"composureMax\":44,\"hpMax\":18,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack\",\"value\":8,\"weight\":3,\"telegraph\":\"⚔ 8\"},{\"kind\":\"block\",\"value\":5,\"weight\":1,\"telegraph\":\"🛡 5\"},{\"kind\":\"attack\",\"value\":5,\"weight\":2,\"telegraph\":\"⚔ 5 (faltering)\"}]}"
   },
   {
     "id": "e1-imp",
@@ -31,7 +31,7 @@
     "act": 3,
     "tier": "normal",
     "diff": "",
-    "composure_max": 23,
+    "composure_max": 42,
     "hp_max": 999,
     "physical_immune": true,
     "num_behaviors": 3,
@@ -47,7 +47,7 @@
     "duo_partner": "",
     "behaviors": "[{\"kind\":\"attack\",\"value\":6,\"weight\":3,\"telegraph\":\"⚔ 6 + ⛧ Weak 1\",\"riders\":{\"weak\":1}},{\"kind\":\"weak\",\"value\":1,\"weight\":2,\"telegraph\":\"⛧ Weak 1\"},{\"kind\":\"vulnerable\",\"value\":1,\"weight\":1,\"telegraph\":\"🩸 Vuln 1\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e1-imp\",\"act\":3,\"name\":\"Pact Imp\",\"composureMax\":23,\"hpMax\":999,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack\",\"value\":6,\"weight\":3,\"telegraph\":\"⚔ 6 + ⛧ Weak 1\",\"riders\":{\"weak\":1}},{\"kind\":\"weak\",\"value\":1,\"weight\":2,\"telegraph\":\"⛧ Weak 1\"},{\"kind\":\"vulnerable\",\"value\":1,\"weight\":1,\"telegraph\":\"🩸 Vuln 1\"}]}"
+    "raw_json": "{\"id\":\"e1-imp\",\"act\":3,\"name\":\"Pact Imp\",\"composureMax\":42,\"hpMax\":999,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack\",\"value\":6,\"weight\":3,\"telegraph\":\"⚔ 6 + ⛧ Weak 1\",\"riders\":{\"weak\":1}},{\"kind\":\"weak\",\"value\":1,\"weight\":2,\"telegraph\":\"⛧ Weak 1\"},{\"kind\":\"vulnerable\",\"value\":1,\"weight\":1,\"telegraph\":\"🩸 Vuln 1\"}]}"
   },
   {
     "id": "e1-shrine-rat",
@@ -56,7 +56,7 @@
     "act": 3,
     "tier": "normal",
     "diff": "",
-    "composure_max": 20,
+    "composure_max": 40,
     "hp_max": 12,
     "physical_immune": false,
     "num_behaviors": 4,
@@ -72,7 +72,7 @@
     "duo_partner": "",
     "behaviors": "[{\"kind\":\"attack-multi\",\"value\":3,\"count\":3,\"weight\":3,\"telegraph\":\"⚔ 3×3\"},{\"kind\":\"block\",\"value\":4,\"weight\":1,\"telegraph\":\"🛡 4\"},{\"kind\":\"attack\",\"value\":7,\"weight\":2,\"telegraph\":\"⚔ 7 (lunging)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":5,\"weight\":1,\"telegraph\":\"🦷 5 — the pack drags one off (unblocked → lose your strongest animal)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e1-shrine-rat\",\"act\":3,\"name\":\"Shrine Rat Pack\",\"composureMax\":20,\"hpMax\":12,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack-multi\",\"value\":3,\"count\":3,\"weight\":3,\"telegraph\":\"⚔ 3×3\"},{\"kind\":\"block\",\"value\":4,\"weight\":1,\"telegraph\":\"🛡 4\"},{\"kind\":\"attack\",\"value\":7,\"weight\":2,\"telegraph\":\"⚔ 7 (lunging)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":5,\"weight\":1,\"telegraph\":\"🦷 5 — the pack drags one off (unblocked → lose your strongest animal)\"}]}"
+    "raw_json": "{\"id\":\"e1-shrine-rat\",\"act\":3,\"name\":\"Shrine Rat Pack\",\"composureMax\":40,\"hpMax\":12,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack-multi\",\"value\":3,\"count\":3,\"weight\":3,\"telegraph\":\"⚔ 3×3\"},{\"kind\":\"block\",\"value\":4,\"weight\":1,\"telegraph\":\"🛡 4\"},{\"kind\":\"attack\",\"value\":7,\"weight\":2,\"telegraph\":\"⚔ 7 (lunging)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":5,\"weight\":1,\"telegraph\":\"🦷 5 — the pack drags one off (unblocked → lose your strongest animal)\"}]}"
   },
   {
     "id": "e-rogue-ashweather",
@@ -81,7 +81,7 @@
     "act": 3,
     "tier": "normal",
     "diff": "",
-    "composure_max": 45,
+    "composure_max": 52,
     "hp_max": 32,
     "physical_immune": false,
     "num_behaviors": 4,
@@ -97,7 +97,7 @@
     "duo_partner": "",
     "behaviors": "[{\"kind\":\"attack\",\"value\":8,\"weight\":2,\"telegraph\":\"⚔ 8 (the staff turns)\"},{\"kind\":\"block\",\"value\":9,\"weight\":1,\"telegraph\":\"🛡 9 (knots tighten)\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":2,\"weight\":2,\"telegraph\":\"⚔ 4×2 (the staff insists)\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (you remember when he was a person)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e-rogue-ashweather\",\"act\":3,\"name\":\"Doctor Phin Ashweather (recently inanimate)\",\"composureMax\":45,\"hpMax\":32,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack\",\"value\":8,\"weight\":2,\"telegraph\":\"⚔ 8 (the staff turns)\"},{\"kind\":\"block\",\"value\":9,\"weight\":1,\"telegraph\":\"🛡 9 (knots tighten)\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":2,\"weight\":2,\"telegraph\":\"⚔ 4×2 (the staff insists)\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (you remember when he was a person)\"}]}"
+    "raw_json": "{\"id\":\"e-rogue-ashweather\",\"act\":3,\"name\":\"Doctor Phin Ashweather (recently inanimate)\",\"composureMax\":52,\"hpMax\":32,\"tier\":\"normal\",\"behaviors\":[{\"kind\":\"attack\",\"value\":8,\"weight\":2,\"telegraph\":\"⚔ 8 (the staff turns)\"},{\"kind\":\"block\",\"value\":9,\"weight\":1,\"telegraph\":\"🛡 9 (knots tighten)\"},{\"kind\":\"attack-multi\",\"value\":4,\"count\":2,\"weight\":2,\"telegraph\":\"⚔ 4×2 (the staff insists)\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (you remember when he was a person)\"}]}"
   },
   {
     "id": "e1-tutor",
@@ -106,7 +106,7 @@
     "act": 3,
     "tier": "elite",
     "diff": "",
-    "composure_max": 40,
+    "composure_max": 68,
     "hp_max": 999,
     "physical_immune": true,
     "num_behaviors": 5,
@@ -122,7 +122,7 @@
     "duo_partner": "",
     "behaviors": "[{\"kind\":\"attack\",\"value\":8,\"weight\":2,\"telegraph\":\"⚔ 8 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"attack-multi\",\"value\":3,\"count\":3,\"weight\":1,\"telegraph\":\"⚔ 3×3\"},{\"kind\":\"block\",\"value\":7,\"weight\":1,\"telegraph\":\"🛡 7\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (cutting remark)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":6,\"weight\":1,\"telegraph\":\"🦷 6 — sends one from the room (unblocked → lose your strongest animal)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e1-tutor\",\"act\":3,\"name\":\"Stern Tutor\",\"composureMax\":40,\"hpMax\":999,\"tier\":\"elite\",\"behaviors\":[{\"kind\":\"attack\",\"value\":8,\"weight\":2,\"telegraph\":\"⚔ 8 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"attack-multi\",\"value\":3,\"count\":3,\"weight\":1,\"telegraph\":\"⚔ 3×3\"},{\"kind\":\"block\",\"value\":7,\"weight\":1,\"telegraph\":\"🛡 7\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (cutting remark)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":6,\"weight\":1,\"telegraph\":\"🦷 6 — sends one from the room (unblocked → lose your strongest animal)\"}]}"
+    "raw_json": "{\"id\":\"e1-tutor\",\"act\":3,\"name\":\"Stern Tutor\",\"composureMax\":68,\"hpMax\":999,\"tier\":\"elite\",\"behaviors\":[{\"kind\":\"attack\",\"value\":8,\"weight\":2,\"telegraph\":\"⚔ 8 + 🩸 Vuln 1\",\"riders\":{\"vulnerable\":1}},{\"kind\":\"attack-multi\",\"value\":3,\"count\":3,\"weight\":1,\"telegraph\":\"⚔ 3×3\"},{\"kind\":\"block\",\"value\":7,\"weight\":1,\"telegraph\":\"🛡 7\"},{\"kind\":\"attack\",\"value\":6,\"pool\":\"composure\",\"weight\":1,\"telegraph\":\"🎭 6 (cutting remark)\"},{\"kind\":\"attack\",\"maul\":true,\"value\":6,\"weight\":1,\"telegraph\":\"🦷 6 — sends one from the room (unblocked → lose your strongest animal)\"}]}"
   },
   {
     "id": "e1-thicket",
@@ -131,7 +131,7 @@
     "act": 3,
     "tier": "elite",
     "diff": "",
-    "composure_max": 69,
+    "composure_max": 76,
     "hp_max": 38,
     "physical_immune": false,
     "num_behaviors": 4,
@@ -147,7 +147,7 @@
     "duo_partner": "",
     "behaviors": "[{\"kind\":\"attack\",\"value\":9,\"weight\":2,\"telegraph\":\"⚔ 9\"},{\"kind\":\"block\",\"value\":9,\"weight\":2,\"telegraph\":\"🛡 9\"},{\"kind\":\"vulnerable\",\"value\":1,\"weight\":1,\"telegraph\":\"🌀 Vuln\"},{\"kind\":\"attack\",\"maul\":true,\"value\":7,\"weight\":2,\"telegraph\":\"🦷 7 — vines drag a beast into the bramble (unblocked → lose your strongest animal)\"}]",
     "flavor": "",
-    "raw_json": "{\"id\":\"e1-thicket\",\"act\":3,\"name\":\"Living Thicket\",\"composureMax\":69,\"hpMax\":38,\"tier\":\"elite\",\"behaviors\":[{\"kind\":\"attack\",\"value\":9,\"weight\":2,\"telegraph\":\"⚔ 9\"},{\"kind\":\"block\",\"value\":9,\"weight\":2,\"telegraph\":\"🛡 9\"},{\"kind\":\"vulnerable\",\"value\":1,\"weight\":1,\"telegraph\":\"🌀 Vuln\"},{\"kind\":\"attack\",\"maul\":true,\"value\":7,\"weight\":2,\"telegraph\":\"🦷 7 — vines drag a beast into the bramble (unblocked → lose your strongest animal)\"}]}"
+    "raw_json": "{\"id\":\"e1-thicket\",\"act\":3,\"name\":\"Living Thicket\",\"composureMax\":76,\"hpMax\":38,\"tier\":\"elite\",\"behaviors\":[{\"kind\":\"attack\",\"value\":9,\"weight\":2,\"telegraph\":\"⚔ 9\"},{\"kind\":\"block\",\"value\":9,\"weight\":2,\"telegraph\":\"🛡 9\"},{\"kind\":\"vulnerable\",\"value\":1,\"weight\":1,\"telegraph\":\"🌀 Vuln\"},{\"kind\":\"attack\",\"maul\":true,\"value\":7,\"weight\":2,\"telegraph\":\"🦷 7 — vines drag a beast into the bramble (unblocked → lose your strongest animal)\"}]}"
   },
   {
     "id": "e1-boss-thornlord",

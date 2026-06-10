@@ -210,6 +210,35 @@ export const WIT_ROWS = [
     rider: { doubleBankNow: true, bankAuraDoublePerTurn: { turns: 3 } },
     riderDesc: 'Bank doubles immediately — AND the Bank Aura ticks at 2× for 3 turns. No consume. Escalation.',
   },
+
+  // ───── T3 CAPSTONE ROWS (v3.9, 2026-06-10) ─────
+  // The act-3 build ceiling: before these, the pool held 4 T3 words and 6 T3
+  // targets with NO all-T3 row — top-tier decks were unconstructible (~9% T3
+  // cast rate even school-committed). One capstone per school. All rider keys
+  // pre-existing (no engine work). thorns-9 is assembled from cards that
+  // already existed rowless; the new slowburn/crescendo card phrases are
+  // PLACEHOLDERS — TODO(Alan): rewrite per phrase-text-is-the-product.
+  {
+    id: 'thorns-9', schoolId: 'thorns', name: 'The Reasonable Observer',
+    canonical: 'By the standards of any reasonable observer, the slow architecture of your self-deception collapses under the weight of its own punctuation.',
+    introId: 'wv2-i-reasonable-observer', subjectId: 'wv2-s-slow-architecture', targetId: 'wv2-t-own-punctuation',
+    rider: { mirrorReflectCharges: { count: 4, capPerHit: 15 }, selfBlockPerTurn: { amount: 3, turns: 3 } },
+    riderDesc: 'Next 4 enemy hits reflect 100% (cap 15 each) AND +3 Block/turn for 3 turns. The school, perfected.',
+  },
+  {
+    id: 'slowburn-9', schoolId: 'slowburn', name: 'The Inescapable Conclusion',
+    canonical: 'It pains me to confirm that the entire weave of your reasoning is, in summary, the inescapable conclusion.',
+    introId: 'wv2-i-pains-me-confirm', subjectId: 'wv2-s-entire-weave', targetId: 'wv2-t-in-summary',
+    rider: { setDotSchedule: [8, 6, 5, 4, 3], enemyVulnPerTurn: { amount: 1, turns: 2 } },
+    riderDesc: 'DoT 8, 6, 5, 4, 3 composure across 5 turns (26 total) AND Vulnerable 1× each turn × 2. The verdict, delivered slowly.',
+  },
+  {
+    id: 'crescendo-9', schoolId: 'crescendo', name: 'The Entire Intersection',
+    canonical: 'Having signaled well in advance, your conduct at this four-way stop has been noted by the entire intersection.',
+    introId: 'wv2-i-signaled-advance', subjectId: 'wv2-s-four-way-stop', targetId: 'wv2-t-entire-intersection',
+    rider: { consumeBankFlat: 3, draw: 2 },
+    riderDesc: 'Consume Bank for Bank × 3 damage AND draw 2. The full audience payoff.',
+  },
 ];
 
 export const WIT_RIDER_KEYS = [

@@ -112,10 +112,22 @@ const INTROS = [
   // ---- Rare (2) — cost 2, +4 wit, tier 3 ----
   { id: 'wv2-i-reasonable-observer', schoolId: 'thorns', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'By the standards of any reasonable observer,', tags: ['academic', 'cutting'], stats: { wit: 3 },
+    setId: 'thorns-9', setSlot: 'intro',
     flavor: 'Reasonable observers are a small population. You are, suddenly, one.' },
   { id: 'wv2-i-full-possession', schoolId: 'thorns', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'And I say this with full possession of the facts,', tags: ['academic', 'cutting'], stats: { wit: 3 },
     flavor: 'The facts have been alphabetized. Indexed. Cross-referenced. Their footnotes have footnotes.' },
+  // ───── T3 capstone-row words (v3.9, 2026-06-10). TODO(Alan): placeholder
+  // phrases — rewrite per phrase-text-is-the-product. Mechanics are final;
+  // the words aren't.
+  { id: 'wv2-i-pains-me-confirm', schoolId: 'slowburn', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+    setId: 'slowburn-9', setSlot: 'intro',
+    phrase: 'It pains me to confirm that', tags: ['formal', 'observational'], stats: { wit: 3 },
+    flavor: 'It does not pain you. It has, in fact, made your week.' },
+  { id: 'wv2-i-signaled-advance', schoolId: 'crescendo', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+    setId: 'crescendo-9', setSlot: 'intro',
+    phrase: 'Having signaled well in advance,', tags: ['formal', 'observational'], stats: { wit: 3 },
+    flavor: 'Three hundred yards back. As is correct.' },
 
   // ---- FFT Sample Rows (Phase 2 — three sample intros, one per tier) ----
   // Linen Truths (Atelier) — "As I was saying to the fabric merchant,"
@@ -234,10 +246,20 @@ const SUBJECTS = [
   // ---- Rare (2) ----
   { id: 'wv2-s-slow-architecture', schoolId: 'thorns', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'the slow architecture of your self-deception', tags: ['academic', 'cutting', 'observational'], stats: { wit: 3 },
+    setId: 'thorns-9', setSlot: 'subject',
     flavor: 'Slow because it had time. Architecture because someone clearly drew plans.' },
   { id: 'wv2-s-not-thought-through', schoolId: 'thorns', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'everything you have not thought through carefully', tags: ['academic', 'cutting', 'observational'], stats: { wit: 3 },
     flavor: 'Everything is a strong word. It is, here, the precisely correct one.' },
+  // ───── T3 capstone-row subjects (v3.9). TODO(Alan): placeholder phrases.
+  { id: 'wv2-s-entire-weave', schoolId: 'slowburn', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+    setId: 'slowburn-9', setSlot: 'subject',
+    phrase: 'the entire weave of your reasoning', tags: ['academic', 'observational'], stats: { wit: 3 },
+    flavor: 'Warp, weft, and wishful thinking.' },
+  { id: 'wv2-s-four-way-stop', schoolId: 'crescendo', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
+    setId: 'crescendo-9', setSlot: 'subject',
+    phrase: 'your conduct at this four-way stop', tags: ['observational', 'cutting'], stats: { wit: 3 },
+    flavor: 'There is an order to these things. There was, at any rate.' },
 
   // v3.2 damage tune: basic-tier STARTER variant of the Bouclé subject.
   // Wit starter seeds Atelier-4 row so the player triggers FFT in combat 1,
@@ -410,6 +432,7 @@ const TARGETS = [
     flavor: 'The citation is the gift. The avoidance is the lesson.' },
   { id: 'wv2-t-own-punctuation', schoolId: 'thorns', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 3, type: 'effect',
     phrase: 'collapses under the weight of its own punctuation.', tags: ['academic', 'cutting'],
+    setId: 'thorns-9', setSlot: 'target',
     effect: { scaleBy: 'wit', base: 15, multiplier: 3.5, damageType: 'composure',
              requiresTier3: { failureDamageMult: 0.5, exhaustOnFail: true } },
     flavor: 'Em dashes can carry a great deal. Not, however, this.' },
@@ -776,10 +799,17 @@ const SKILLS = [
 const SYNERGY_CAPSTONE_CARDS = [
   { id: 'wv2-t-in-summary', schoolId: 'slowburn', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, in summary, the inescapable conclusion.', tags: ['academic'],
+    setId: 'slowburn-9', setSlot: 'target',
     effect: { scaleBy: 'wit', base: 9, multiplier: 3, damageType: 'composure',
               threadScaling: 4, delayedMisstep: true },
     desc: 'Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.',
     flavor: 'Summary being a polite word for verdict.' },
+  // ───── T3 capstone-row target (v3.9). TODO(Alan): placeholder phrase.
+  { id: 'wv2-t-entire-intersection', schoolId: 'crescendo', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
+    setId: 'crescendo-9', setSlot: 'target',
+    phrase: 'has been noted by the entire intersection.', tags: ['observational', 'cutting'],
+    effect: { scaleBy: 'wit', base: 11, multiplier: 3, damageType: 'composure' },
+    flavor: 'Including the cyclist. Especially the cyclist.' },
   { id: 'wv2-m-as-previously-stated', name: 'Reliable Hearsay', slot: 'modifier', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'modifier',
     modifierKind: 'pre', phrase: 'as previously stated,', tags: ['academic'], stats: { wit: 1 },
     effects: { footnoteSelfOnStage: true },

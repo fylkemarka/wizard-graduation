@@ -3,32 +3,32 @@
 N = **1000** runs simulated with a greedy v2 AI.
 
 ## Win rate
-- **318 wins / 1000** = **31.8%**
-- Losses by acts-cleared: 0=86 · 1=449 · 2=147 · 3=0
+- **375 wins / 1000** = **37.5%**
+- Losses by acts-cleared: 0=94 · 1=391 · 2=140 · 3=0
 
 ## Lane outcomes
-- **wit**: 1000 runs · 318 wins (31.8%)
+- **wit**: 1000 runs · 375 wins (37.5%)
 - **handler**: 0 runs · 0 wins (0.0%)
 - **jnsq**: 0 runs · 0 wins (0.0%)
 
 ## Familiar outcomes (v2.9)
-- **fam-beetle**: 91 runs · 35 wins (38.5%)
-- **fam-owl**: 111 runs · 40 wins (36.0%)
-- **fam-hedgehog**: 113 runs · 39 wins (34.5%)
-- **fam-mouse**: 98 runs · 32 wins (32.7%)
-- **fam-cat**: 105 runs · 34 wins (32.4%)
-- **fam-toad**: 96 runs · 31 wins (32.3%)
-- **fam-snake**: 92 runs · 28 wins (30.4%)
-- **fam-raven**: 91 runs · 27 wins (29.7%)
-- **fam-rabbit**: 97 runs · 26 wins (26.8%)
-- **fam-crow**: 106 runs · 26 wins (24.5%)
+- **fam-toad**: 95 runs · 46 wins (48.4%)
+- **fam-beetle**: 93 runs · 45 wins (48.4%)
+- **fam-mouse**: 111 runs · 50 wins (45.0%)
+- **fam-owl**: 104 runs · 44 wins (42.3%)
+- **fam-crow**: 87 runs · 34 wins (39.1%)
+- **fam-snake**: 99 runs · 36 wins (36.4%)
+- **fam-cat**: 89 runs · 32 wins (36.0%)
+- **fam-raven**: 114 runs · 36 wins (31.6%)
+- **fam-hedgehog**: 103 runs · 31 wins (30.1%)
+- **fam-rabbit**: 105 runs · 21 wins (20.0%)
 
 ## Cast distribution
-- Total casts: 40770
-- Tier 1 (COHERENT): 16913 (41.5%)
-- Tier 2 (RESONANT): 20167 (49.5%)
-- Tier 3 (DEVASTATING): 3690 (9.1%)
-- Holds (turn ended without cast — tray persists): 31344 (43.5%)
+- Total casts: 39531
+- Tier 1 (COHERENT): 16509 (41.8%)
+- Tier 2 (RESONANT): 15507 (39.2%)
+- Tier 3 (DEVASTATING): 7515 (19.0%)
+- Holds (turn ended without cast — tray persists): 31014 (44.0%)
 
 ## Handler ANIMAL SUMMONER (consolidated 2026-06-01)
 - Handler runs: 0 · 0 wins (0.0%)
@@ -63,65 +63,65 @@ Draft rate among handler runs, total PLAYS this batch (drafted-but-low-plays = d
 
 ## ANOMALIES (red-team tripwires)
 Outliers are exploit candidates — investigate anything that jumps batch-over-batch.
-- Max single-cast damage: 144 · casts ≥ 40 dmg: 1802
+- Max single-cast damage: 164 · casts ≥ 40 dmg: 3648
 - Max casts in one turn: 1
-- Peak Block: 78 · peak Words Bank: 40
-- Fastest combat win: 1 turns · wins in ≤ 3 turns: 1456
+- Peak Block: 98 · peak Words Bank: 40
+- Fastest combat win: 1 turns · wins in ≤ 3 turns: 1648
 
 ## Wit SCHOOLS (1000-run cycle telemetry)
-- Full FFT casts: 10471 (total FFT damage 188126) · partial-row: 20460 · same-school (non-row): 2901
-- Slow Burn DoT deposited: 219510
-- Crescendo bank cash-ins (flat damage): 72371
-- Thorns block granted by casts: 225513
-- Thorns BODY SLAM: 10 casts · 53 damage
-- Slot-tutor skills: 752 plays · 752 cards pulled
-- Hold causes: full-tray(deliberate/energy-at-cast) 0 · energy-short 9294 · missing-slot 22050 (intro 6062 / subject 8752 / target 10017)
+- Full FFT casts: 9885 (total FFT damage 182567) · partial-row: 19607 · same-school (non-row): 2923
+- Slow Burn DoT deposited: 250616
+- Crescendo bank cash-ins (flat damage): 64664
+- Thorns block granted by casts: 202643
+- Thorns BODY SLAM: 9 casts · 41 damage
+- Slot-tutor skills: 734 plays · 734 cards pulled
+- Hold causes: full-tray(deliberate/energy-at-cast) 0 · energy-short 9679 · missing-slot 21335 (intro 5725 / subject 8613 / target 9585)
 
 ## Wit LONG THREAD (v2.34)
-- Combats reaching LT ≥ 1: 9747 (runs: 1000 / 1000, 100.0%)
-- Avg peak LT per run (across all combats): 20.99
-- Avg peak LT per threaded combat: 2.15
-- Thread breaks (unblocked hit reset a non-zero meter): 11170
-- Thread-scaling rider triggers: 254
-- Total bonus damage from thread scaling: 1560
-- "natural conclusion." target casts: 102
-- v2.43 thread-preservation skip-casts: 1
+- Combats reaching LT ≥ 1: 9661 (runs: 1000 / 1000, 100.0%)
+- Avg peak LT per run (across all combats): 20.23
+- Avg peak LT per threaded combat: 2.09
+- Thread breaks (unblocked hit reset a non-zero meter): 10697
+- Thread-scaling rider triggers: 561
+- Total bonus damage from thread scaling: 3395
+- "natural conclusion." target casts: 233
+- v2.43 thread-preservation skip-casts: 4
 - v2.67 chip-cast skips (HUMAN_PLAY_PROFILE-aligned): 0
 - v2.90 backfire-smoother fires (3rd consecutive 1 → 2): 0
-- v2.92 Passing Thoughts: 1882 granted, 1639 played
-- v2.93 Find the Seam (bypass-effectiveness) fires: 87
+- v2.92 Passing Thoughts: 1882 granted, 1651 played
+- v2.93 Find the Seam (bypass-effectiveness) fires: 77
 - v2.93 Precedent (echo-last-damage) fires: 92
-- v2.93 Insult-to-Injury (×N mult) fires: 89
-- v2.93 Doubletake (cast resolves twice) fires: 58
-- v2.93 Skip-next-attack fires: 327
-- v2.93 Mirror Reasoning (reflect debuff) fires: 37
-- v2.93 Bracing (draw-3-on-HP-loss) fires: 26
+- v2.93 Insult-to-Injury (×N mult) fires: 95
+- v2.93 Doubletake (cast resolves twice) fires: 49
+- v2.93 Skip-next-attack fires: 292
+- v2.93 Mirror Reasoning (reflect debuff) fires: 39
+- v2.93 Bracing (draw-3-on-HP-loss) fires: 17
 
 ## Wit FOOTNOTE (v2.35)
-- Footnotes applied: 290 (runs: 290 / 1000, 29.0%)
-- Casts contributing footnote bonus: 1097
-- Total footnote bonus damage: 3466
-- Avg bonus per footnoted cast: 3.16
+- Footnotes applied: 305 (runs: 305 / 1000, 30.5%)
+- Casts contributing footnote bonus: 1126
+- Total footnote bonus damage: 4340
+- Avg bonus per footnoted cast: 3.85
 
 ## Wit ACTUALLY— (v2.36)
-- Re-fires resolved: 643 (runs: 201 / 1000, 20.1%)
-- Total re-fire damage: 22555
-- Avg damage / re-fire: 35.08
-- Enemy bonus from arguing-back: 332 (cost side fired)
+- Re-fires resolved: 522 (runs: 199 / 1000, 19.9%)
+- Total re-fire damage: 24205
+- Avg damage / re-fire: 46.37
+- Enemy bonus from arguing-back: 237 (cost side fired)
 
 ## Wit HOLD ON — (v2.37)
-- Plays: 226 (runs: 122 / 1000, 12.2%)
-- Total damage prevented: 414
-- Avg prevention / play: 1.83
+- Plays: 225 (runs: 125 / 1000, 12.5%)
+- Total damage prevented: 368
+- Avg prevention / play: 1.64
 
 ## Wit SAYING SOMETHING WRONG (v2.38)
-- Casts that queued a Misstep: 1436 (runs: 344 / 1000, 34.4%)
-- Up-front damage dealt by those casts: 48040
-- Tokens delivered to hand: 560
-- Discarded (1 Energy paid): 516
-- Auto-played (-3 HP eaten): 44 (total damage: 132)
+- Casts that queued a Misstep: 2190 (runs: 394 / 1000, 39.4%)
+- Up-front damage dealt by those casts: 45437
+- Tokens delivered to hand: 1028
+- Discarded (1 Energy paid): 921
+- Auto-played (-3 HP eaten): 101 (total damage: 303)
 - KOs by Misstep auto-play: 0
-- Avg up-front damage / cast: 33.45
+- Avg up-front damage / cast: 20.75
 
 ## Wit OPENING STATEMENT (v2.39)
 - Bonus triggers: 0 (runs: 0 / 1000, 0.0%)
@@ -138,7 +138,7 @@ Outliers are exploit candidates — investigate anything that jumps batch-over-b
 - Avg damage / spend: 0.00
 
 ## Wit SYNERGY CAPSTONE (v2.41)
-- "in summary," casts: 456 (runs: 132 / 1000, 13.2%)
+- "in summary," casts: 1352 (runs: 252 / 1000, 25.2%)
 - Total capstone damage: 0
 - Avg damage per cast: 0.00
 
@@ -207,26 +207,27 @@ Outliers are exploit candidates — investigate anything that jumps batch-over-b
 - Dodge rate (misses / plays): 0%
 
 ## Combat pacing
-- Avg turns / combat: 6.25
-- Avg damage / run: 565
-- Mean final deck size: 27.0
+- Avg turns / combat: 6.06
+- Avg damage / run: 625
+- Mean final deck size: 28.3
 
 ## Archetype of winning decks
-- mid-t2t3: 318
+- honed-t3: 42
+- mid-t2t3: 333
 
 ## Top killer enemies
-- e3-vein-devourer (Vein Devourer): 209
-- e3-boss-anvil (The Anvil-Forged): 164
-- e1-boss-thornlord (The Thornlord): 129
-- e3-quartz-sentinel (Quartz Sentinel): 67
-- e2-boss-tapestry (The Tapestry Walker): 61
-- e2-silent-spinner (The Silent Spinner): 12
-- e1-tutor (Stern Tutor): 9
-- e2-pattern-maker (The Pattern-Maker): 8
+- e3-vein-devourer (Vein Devourer): 168
+- e3-boss-anvil (The Anvil-Forged): 163
+- e1-boss-thornlord (The Thornlord): 106
+- e3-quartz-sentinel (Quartz Sentinel): 54
+- e2-boss-tapestry (The Tapestry Walker): 50
+- e2-silent-spinner (The Silent Spinner): 24
+- e1-tutor (Stern Tutor): 16
+- e2-pattern-maker (The Pattern-Maker): 12
+- e1-shrine-rat (Shrine Rat Pack): 9
 - e1-thicket (Living Thicket): 6
 - e3-glow-mite (Glow Mite Swarm): 5
-- e2-silk-wraith (Silk Wraith): 3
+- e2-warp (Warp): 2
 - e-rogue-ashweather (Doctor Phin Ashweather (recently inanimate)): 2
-- e-rogue-smelterson (Smelterson, J.C. (alloyed)): 2
-- e3-geode-crab (Geode Crab): 1
-- e1-shrine-rat (Shrine Rat Pack): 1
+- weave: 2
+- e1-acolyte (Lost Acolyte): 1
