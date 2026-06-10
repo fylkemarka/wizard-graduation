@@ -67,14 +67,24 @@ export const ENEMIES = [
       // Vines close around the nearest animal and pull it into the bramble.
       { kind: 'attack', maul: true, value: 7, weight: 2, telegraph: '🦷 7 — vines drag a beast into the bramble (unblocked → lose your strongest animal)' },
     ] },
-  { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 119, hpMax: 115, tier: 'boss',
+  { id: 'e1-boss-thornlord', act: 3, name: 'The Thornlord', composureMax: 95, hpMax: 115, tier: 'boss',
     // v2.16: was killing 182/500 handler runs. First pass 0.7→0.85
     // overcorrected (handler jumped to 41%). Settled at 0.75: still
     // a handler-hostile boss, just not a trap.
+    // v3.7 (2026-06-10, smart-sim balance loop): intrinsically overtuned —
+    // 22% loss rate even entering at FULL pools (vs Tapestry 4% / Anvil 1%),
+    // deaths at 61% of its composure remaining: the race was too long AND the
+    // burst too high. composure 119→95 (scaled 149→119), multi 5×4→4×4
+    // (post-scale 25→20, same "one Block can answer it" shape as Tapestry's
+    // v3.4.69 nerf), and the big swing 15→14 (still 28% after the first two
+    // cuts; 13 overshot to a 13% loss rate — tied with the ACT-1 boss). The
+    // 16-block and beast-claiming maul stay. Landed boss-loss curve (smart
+    // sim, 1000 runs): Tapestry 13% / Anvil 7% / Thornlord 21% — the finale
+    // is clearly the deadliest without being a wall.
     insultVulnerabilities: ['petty', 'dismissive', 'sarcastic'], // Apex; cuts most when made small.
     behaviors: [
-      { kind: 'attack', value: 15, weight: 2, telegraph: '⚔ 15' },
-      { kind: 'attack-multi', value: 5, count: 4, weight: 2, telegraph: '⚔ 5×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
+      { kind: 'attack', value: 14, weight: 2, telegraph: '⚔ 14' },
+      { kind: 'attack-multi', value: 4, count: 4, weight: 2, telegraph: '⚔ 4×4 + 🩸 Vuln 1', riders: { vulnerable: 1 } },
       { kind: 'block',  value: 16, weight: 1, telegraph: '🛡 16' },
       { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 (bramble-whisper)' },
       // v3.6: the apex of the forest claims your beasts outright.

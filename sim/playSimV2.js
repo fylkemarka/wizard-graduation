@@ -3031,6 +3031,12 @@ function flushStagedLures(state, combat) {
 // Run a whole handler combat to completion. Returns the V2 runCombat contract:
 // { outcome, turns, telemetry, killedBy? }. Stall = 5 turns no damage dealt.
 function runHandlerCombat(state, enemy, telemetry) {
+  // Balance-diagnostic hooks (guarded, free when unset). Used by the boss-race
+  // balance loop (2026-06-10). __fullPoolBosses isolates a boss's INTRINSIC
+  // difficulty from arrival attrition (the compressed sim act has no rest
+  // nodes, so entry pools run leaner than the live map's).
+  if (globalThis.__fullPoolBosses && enemy.tier === 'boss') { state.hp = state.maxHp; state.composure = state.maxComposure; }
+  if (globalThis.__combatLog) globalThis.__combatLog.push({ enemy: enemy.id, tier: enemy.tier, entryHp: state.hp, entryComp: state.composure });
   const fb = state.familiarBonus || {};
   if (fb.startCombatVuln) state.playerDmgMult = 1.5;
   // Fresh hand each combat (discard whatever lingered, then aiTurnHandler draws).
@@ -3102,7 +3108,7 @@ function runHandlerCombat(state, enemy, telemetry) {
   let safety = MAX_COMBAT_TURNS;
   let prevDamage = 0, zeroStreak = 0;
   while (safety-- > 0) {
-    if (state.hp <= 0 || state.composure <= 0) { if (typeof globalThis.__deathCause==='object'){const k=state.hp<=0?'hp':'composure';globalThis.__deathCause[k]=(globalThis.__deathCause[k]||0)+1;} flushStagedLures(state, combat); flushTelemetry('lost'); return { outcome: 'lost', turns: combat.turn, telemetry, killedBy: enemy.id }; }
+    if (state.hp <= 0 || state.composure <= 0) { if (typeof globalThis.__deathCause==='object'){const k=state.hp<=0?'hp':'composure';globalThis.__deathCause[k]=(globalThis.__deathCause[k]||0)+1;} if (globalThis.__combatLog?.length) { const e = globalThis.__combatLog[globalThis.__combatLog.length-1]; e.outcome='lost'; e.cause = state.hp<=0?'hp':'comp'; e.turns=combat.turn; e.enemyCompLeft=combat.enemyComposure; e.enemyCompStart=combat.enemy.startComp; } flushStagedLures(state, combat); flushTelemetry('lost'); return { outcome: 'lost', turns: combat.turn, telemetry, killedBy: enemy.id }; }
     if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) { flushStagedLures(state, combat); flushTelemetry('won'); telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, combat.turn); if (combat.turn <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; return { outcome: 'won', turns: combat.turn, telemetry }; }
     if (useSmartHandlerAi()) aiTurnHandlerSmart(state, combat);
     else aiTurnHandler(state, combat);
@@ -7202,6 +7208,15 @@ function simRun(forcedLane = null) {
     awardReward(state);
     postCombatHeal();
     maybeReflect();
+    // Pre-boss REST (sim-fidelity, 2026-06-10): the live map guarantees a rest
+    // node right before every boss ("inn-before-boss" — rest follows each
+    // elite; resolveRestChoice heals +30% of BOTH pools). The sim act skipped
+    // it entirely, so bosses were entered at ~60% pools and the balance loop
+    // misread arrival attrition as boss overtuning (full-pool boss loss rates:
+    // Tapestry 4% / Anvil 1% vs 25% / 32% at attrited entry). Live: 2 rests
+    // per 10-fight act; the sim's 5-fight act gets the ONE that matters.
+    state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * 0.3));
+    state.composure = Math.min(state.maxComposure, state.composure + Math.floor(state.maxComposure * 0.3));
     // Boss
     const bossR = runCombat(state, act.bossId, tele);
     tele.combatCount++; tele.combatTurns += bossR.turns;
