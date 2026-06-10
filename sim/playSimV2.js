@@ -250,19 +250,93 @@ const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
 const WIT_CARDS_BY_ID = Object.fromEntries(WIT_V2.map(c => [c.id, c]));
 
-// Sim mirror of App.jsx upgradeCard's v2 branch (boss row grants arrive
-// tier-bumped): intros/subjects +1 wit, targets +2 base, modifiers +0.25 mult.
-function upgradeWitCardSim(card) {
-  if (card.upgraded) return card;
-  const next = { ...card, uid: uid(), name: `${card.name}+`, upgraded: true };
+// Full sim mirror of App.jsx upgradeCard (~line 3009): legacy `upgrade`-field
+// path + v2 slot-based auto-upgrade. Used by boss row grants AND rest-node
+// upgrades (2026-06-10, sim-fidelity #3 — rests previously never upgraded, so
+// every measurement understated late-game player power). Keep in lockstep
+// with App.jsx.
+function upgradeCardSim(card) {
+  if (!card || card.upgraded) return card;
+  if (card.upgrade) {
+    const up = card.upgrade;
+    const next = { ...card, uid: uid(), name: `${card.name}+`, upgraded: true, upgrade: null };
+    if (up.effects) next.effects = { ...card.effects, ...up.effects };
+    if (up.power)   next.power   = { ...card.power, ...up.power };
+    if (up.stats)   next.stats   = { ...card.stats, ...up.stats };
+    if (up.effect)  next.effect  = { ...card.effect, ...up.effect };
+    if (up.phrase !== undefined) next.phrase = up.phrase;
+    if (up.cost !== undefined)   next.cost   = up.cost;
+    return next;
+  }
+  const isV2 = card.slot && card.lane;
+  if (!isV2) return card;
+  const baseName = card.name || card.phrase;
+  const next = { ...card, uid: uid(), upgraded: true, name: `${baseName}+` };
   if (card.slot === 'intro' || card.slot === 'subject') {
-    next.stats = { ...(card.stats || {}), wit: (card.stats?.wit || 0) + 1 };
-  } else if (card.slot === 'target') {
-    next.effect = { ...(card.effect || {}), base: (card.effect?.base || 0) + 2 };
-  } else if (card.slot === 'modifier') {
-    next.effect = { ...(card.effect || {}), multiplier: (card.effect?.multiplier || 1) + 0.25 };
+    next.stats = { ...card.stats, [card.lane]: (card.stats?.[card.lane] || 0) + 1 };
+  } else if (card.slot === 'target' && card.effect) {
+    next.effect = { ...card.effect, base: (card.effect.base || 0) + 2 };
+  } else if (card.slot === 'modifier' && card.modifierEffect) {
+    const me = card.modifierEffect;
+    if (me.rider?.block) next.modifierEffect = { ...me, rider: { ...me.rider, block: me.rider.block + 1 } };
+    else if (me.damageMult) next.modifierEffect = { ...me, damageMult: me.damageMult + 0.25 };
+    else next.stats = { ...card.stats, [card.lane]: (card.stats?.[card.lane] || 0) + 1 };
+  } else if (card.slot === 'gesture' && card.gestureEffect) {
+    const ge = card.gestureEffect;
+    const nge = { ...ge, damage: (ge.damage || 0) + 3 };
+    if (ge.stripEnemyBlock) nge.stripEnemyBlock = ge.stripEnemyBlock + 2;
+    if (ge.draw) nge.draw = ge.draw + 1;
+    if (ge.rider) {
+      const nr = { ...ge.rider };
+      for (const k of Object.keys(nr)) if (typeof nr[k] === 'number') nr[k] += 1;
+      nge.rider = nr;
+    }
+    next.gestureEffect = nge;
+  } else if (card.slot === 'annotation' && card.annotationEffect) {
+    next.duration = (card.duration || 3) + 1;
+    const ae = { ...card.annotationEffect };
+    for (const k of Object.keys(ae)) if (typeof ae[k] === 'number') ae[k] += 1;
+    next.annotationEffect = ae;
+  } else {
+    next.stats = { ...card.stats, [card.lane]: (card.stats?.[card.lane] || 0) + 1 };
   }
   return next;
+}
+// Back-compat alias (boss row grants predate the general mirror).
+const upgradeWitCardSim = upgradeCardSim;
+
+// Rest-node upgrade AI: pick the card whose upgrade buys the most. Wit:
+// dominant-school targets first (+2 base = direct race speed), then words of
+// the committed school (+1 stat scales through the multiplier), then legacy
+// upgrade-field cards (Defend 8→11, Compose 7→10 — real gains). Non-wit cards
+// without an explicit upgrade field are ineligible (the v2 stat-bump fallback
+// is meaningless for handler lures/tactics).
+function restUpgradeSim(state, count) {
+  for (let k = 0; k < count; k++) {
+    const piles = [state.deck, state.discard, state.hand, state.exiled];
+    const all = piles.flat();
+    const schoolCounts = {};
+    for (const c of all) if (c.schoolId) schoolCounts[c.schoolId] = (schoolCounts[c.schoolId] || 0) + 1;
+    const dom = Object.entries(schoolCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    const score = (c) => {
+      if (!c || c.upgraded) return -1;
+      if (c.lane === 'wit' && c.slot === 'target' && c.effect) return 10 + (c.schoolId === dom ? 4 : 0) + (c.tier || 1);
+      if (c.lane === 'wit' && (c.slot === 'intro' || c.slot === 'subject')) return 7 + (c.schoolId === dom ? 3 : 0) + (c.tier || 1);
+      if (c.upgrade) return 8;
+      if (c.lane === 'wit' && (c.slot === 'gesture' || c.slot === 'annotation')) return 5;
+      return -1;
+    };
+    let best = null;
+    for (const pile of piles) {
+      for (let i = 0; i < pile.length; i++) {
+        const s = score(pile[i]);
+        if (s > 0 && (!best || s > best.s)) best = { pile, i, s };
+      }
+    }
+    if (!best) return;
+    best.pile[best.i] = upgradeCardSim(best.pile[best.i]);
+    state.upgradesTaken = (state.upgradesTaken || 0) + 1;
+  }
 }
 
 // SIM-FIDELITY (2026-06-10, smart-wit balance loop): the live game's wit
@@ -7450,6 +7524,13 @@ function simRun(forcedLane = null) {
       awardReward(state);
       postCombatHeal();
       maybeReflect();
+      // MID-ACT REST upgrade stop (sim-fidelity #3, 2026-06-10): the live
+      // map's FIRST rest sits mid-act (row 5, after elite #1) and that's
+      // where humans upgrade — the pre-boss inn is for healing. One upgrade
+      // per act here (live realistic rate: one of the two rests heals).
+      // Rests never upgraded in the sim before, so every prior measurement
+      // understated late-game player scaling.
+      if (i === 1) restUpgradeSim(state, 1);
     }
     // 1 elite — late-act difficulty bias.
     const eliteR = runCombatSmart(state, pickActEnemyIdSim(ACT_ELITES[act.id], 0.8), tele);
@@ -7467,6 +7548,12 @@ function simRun(forcedLane = null) {
     // misread arrival attrition as boss overtuning (full-pool boss loss rates:
     // Tapestry 4% / Anvil 1% vs 25% / 32% at attrited entry). Live: 2 rests
     // per 10-fight act; the sim's 5-fight act gets the ONE that matters.
+    // Fidelity #3 (same day): the pre-boss inn stays a PURE HEAL — measured:
+    // trading the heal for upgrades here cost both lanes ~3-5pp of clears
+    // (boss entry at 65-70% pools loses more than two upgrades return). The
+    // upgrade channel lives at the MID-ACT rest instead (see the normals
+    // loop), matching live positions: row-5 rest = upgrade stop, row-12
+    // inn = heal before the boss.
     state.hp = Math.min(state.maxHp, state.hp + Math.floor(state.maxHp * 0.3));
     state.composure = Math.min(state.maxComposure, state.composure + Math.floor(state.maxComposure * 0.3));
     // Boss
