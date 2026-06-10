@@ -318,6 +318,23 @@ const COMBINE_BY_SPECIES = {};
 // Combine RESULT ids (the jackpot animals), for telemetry on whether the
 // 3-of-a-kind payoff is strong/interesting enough (Alan flagged 2026-06-02).
 const COMBINE_RESULT_IDS = new Set(Object.values(COMBINE_BY_SPECIES));
+
+// Cycle-10 (2026-06-09): STRATEGY COMMITMENT (Alan: "playthroughs should be
+// playing the wizards' possible lanes — slow burn, thorns, crescendo, bucks,
+// geese, offense-heavy, defense-heavy. The sim should be LOOKING for
+// strategies"). Read lazily so the CLI can set it after module init.
+const SIM_STRATEGY_GET = () => globalThis.__SIM_STRATEGY || '';
+// Per-strategy handler draft preferences — the ids a committed player
+// prioritizes. Strategy cards get +14 in aiPickHandlerReward (above fresh
+// tactics at 14, dominating everything else).
+const HANDLER_STRATEGY_PREFS = {
+  geese:     ['cv2-l-birdseed', 'cv2-l-loose-button', 'cv2-l-shiny-bauble', 'c-best-in-show', 'c-pedigree', 'c-well-drilled'],
+  bucks:     ['cv2-l-tender-greens', 'cv2-l-clover-patch', 'c-best-in-show', 'c-pedigree', 'c-well-drilled'],
+  keeper:    ['cv2-l-bag-of-oats', 'c-thicken-hide', 'c-steel-nerves', 'c-stiff-upper-lip', 'c-sergeant-at-arms', 'c-quartermaster-regimen'],
+  sacrifice: ['c-memorial', 'c-fond-farewell', 'c-palpable-sadness', 'c-light-the-mound', 'cv2-l-clover-patch', 'c-make-it-count'],
+  offense:   ['c-whet-claws', 'c-rally-the-pack', 'c-drillmaster', 'c-the-horde', 'c-move-in-herds', 'cv2-l-shepherds-whistle'],
+  defense:   ['c-hunker-down', 'c-dig-in', 'c-firm-hand', 'c-animal-midnight', 'cv2-l-windfall-apple', 'cv2-l-bag-of-oats'],
+};
 const HANDLER_STARTER = [
   'c-defend-handler', 'c-defend-handler', 'c-compose',
   // v3 starter (Alan, 2026-06-09): one of each foundational lure + the Ox +
@@ -545,6 +562,53 @@ function drawCards(state, n) {
 
 // Greedy AI pick: from a slot pool in hand, prefer the highest-tier card
 // the player can afford this turn. Returns hand index or -1.
+// Cycle-9 (2026-06-09): TURN LOOKAHEAD — the "dumb greedy" fix. Score a
+// candidate by the best FULL SENTENCE it enables THIS TURN (tray slots fixed,
+// remaining slots filled from hand within the energy budget), not by its solo
+// tier/stat. Hands are ≤7 cards so this enumerates ≤ ~300 triples per turn —
+// cheap. Returns { dmg, fft } of the best completion, or dmg 0 if none.
+function bestCompletionValue(state, tray, slot, candidate, energyLeft, enemy) {
+  const fixed = {
+    intro: slot === 'intro' ? candidate : tray?.intro || null,
+    subject: slot === 'subject' ? candidate : tray?.subject || null,
+    target: slot === 'target' ? candidate : tray?.target || null,
+  };
+  const budget = energyLeft - (candidate.cost || 0);
+  const fits = (sl) => (c) =>
+    (c.slot === sl || (c.slot === 'flex' && (sl === 'intro' || sl === 'subject'))) && c !== candidate;
+  const options = (sl) => fixed[sl] ? [fixed[sl]] : state.hand.filter(fits(sl));
+  let best = { dmg: 0, fft: 0 };
+  for (const i of options('intro')) {
+    for (const s of options('subject')) {
+      if (s === i) continue;
+      for (const t of options('target')) {
+        // Cost of the not-yet-staged pieces must fit the remaining energy.
+        let cost = 0;
+        if (!fixed.intro) cost += i.cost || 0;
+        if (!fixed.subject) cost += s.cost || 0;
+        if (!fixed.target) cost += t.cost || 0;
+        if (slot === 'intro') cost -= i === candidate ? (i.cost || 0) : 0;
+        if (slot === 'subject') cost -= s === candidate ? (s.cost || 0) : 0;
+        if (slot === 'target') cost -= t === candidate ? (t.cost || 0) : 0;
+        if (cost > budget) continue;
+        const r = computeSpellDamage(i, s, t, [], {
+          playerDmgMult: state.playerDmgMult || 1.0,
+          enemyDmgMult: state.enemyDmgMult || 1.0,
+          longThread: state.longThread || 0,
+          currentBlock: state.block || 0,
+          insultVulnerabilities: enemy?.insultVulnerabilities || [],
+        });
+        // Row/school bonus estimate — full FFT rows carry the big riders.
+        const fr = detectFFT(i, s, t);
+        const rowBonus = fr.fft ? 15 : fr.partialRow ? 4 : 0;
+        const v = r.damage + rowBonus;
+        if (v > best.dmg) best = { dmg: v, fft: rowBonus };
+      }
+    }
+  }
+  return best;
+}
+
 function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
   let bestIdx = -1, bestTier = -1, bestStat = -1;
   // v3.4.8 Delta 3 — FFT-CHAIN STAGING. When the tray has already
@@ -648,6 +712,12 @@ function pickBestForSlot(state, slot, energyLeft, enemy = null, tray = null) {
     } else if (trayCommitTierId && c.schoolId === trayCommitTierId) {
       effectiveStat = effectiveStat + 4;
     }
+    // Cycle-9: TURN LOOKAHEAD — a candidate that completes a castable
+    // sentence THIS TURN dominates solo-stat picks. 2× damage weighting
+    // keeps big completions ahead of tier vanity; +25 flat ensures any
+    // completable pick beats any non-completable one.
+    const comp = bestCompletionValue(state, tray, slot, c, energyLeft, enemy);
+    if (comp.dmg > 0) effectiveStat = effectiveStat + 25 + comp.dmg * 2;
     if (tier * 10 + effectiveStat > bestTier * 10 + bestStat) {
       bestIdx = i; bestTier = tier; bestStat = effectiveStat;
     }
@@ -934,6 +1004,12 @@ function pickBestForSlotRageAware(state, slot, energyLeft, rageActive, tray, ene
         && (other.cost || 0) <= energyLeft);
       if (otherTargetExists) score -= 25;
     }
+    // Cycle-9: TURN LOOKAHEAD for targets — same as pickBestForSlot. A target
+    // whose sentence completes THIS TURN (with the staged/hand pieces) scores
+    // by the actual cast it produces, killing the "stage a vanity rare into
+    // an empty tray" failure mode.
+    const comp = bestCompletionValue(state, tray || {}, slot, c, energyLeft, enemy);
+    if (comp.dmg > 0) score += 25 + comp.dmg * 2;
     if (score > bestScore) { bestIdx = i; bestScore = score; }
   }
   return bestIdx;
@@ -5970,6 +6046,11 @@ function aiPickHandlerReward(state) {
       s += 6;
     }
     if (card.rarity === 'uncommon') s += 2;
+    // Cycle-10: strategy commitment — a committed player prioritizes their
+    // build's pieces above everything (fresh tactic = 14; this = +14 on top
+    // of the card's base score, so build pieces win nearly every draft).
+    const prefs = HANDLER_STRATEGY_PREFS[SIM_STRATEGY_GET()];
+    if (prefs && prefs.includes(card.id)) s += 14;
     return s;
   }
   const best = candidates.reduce((b, c) => (!b || score(c) > score(b.card) ? { card: c, sc: score(c) } : b), null);
@@ -6077,9 +6158,14 @@ function awardReward(state) {
   if (state.lane === 'wit') {
     const wordCount = allCards.filter(c => ['intro', 'subject', 'target', 'flex'].includes(c.slot)).length;
     if (wordCount < 10) {
+      // Cycle-10 (2026-06-09): STRATEGY-committed drafting. When STRATEGY
+      // names a wit school, draft words OF THAT SCHOOL (flex always ok) —
+      // the bot plays an archetype like a human committing to a build.
+      const stratSchool = ['slowburn', 'thorns', 'crescendo'].includes(SIM_STRATEGY_GET()) ? SIM_STRATEGY_GET() : null;
       const wordPool = LANE_POOL[state.lane].filter(c =>
         ['intro', 'subject', 'target', 'flex'].includes(c.slot)
-        && (c.rarity === 'common' || c.rarity === 'uncommon'));
+        && (c.rarity === 'common' || c.rarity === 'uncommon')
+        && (!stratSchool || c.slot === 'flex' || c.schoolId === stratSchool));
       // Draft toward the scarcest primary slot (flex counts for intro+subject).
       const sc = { intro: 0, subject: 0, target: 0 };
       for (const c of allCards) {
@@ -7327,6 +7413,16 @@ if (isMain) {
   const N = parseInt(process.argv[2] || '50', 10);
   // v2.12: optional lane filter as 3rd arg (--lane=wit or just `wit`).
   const laneArg = (process.argv[3] || '').replace(/^--lane=/, '').toLowerCase();
+  // Cycle-10: optional strategy commitment as 4th arg (--strategy=geese) or
+  // STRATEGY env. Drives archetype-committed drafting + starter pinning.
+  const stratArg = (process.argv[4] || process.env.STRATEGY || '').replace(/^--strategy=/, '').toLowerCase();
+  if (stratArg) {
+    globalThis.__SIM_STRATEGY = stratArg;
+    // Wit school strategies pin the matching starter row.
+    const rowByStrat = { slowburn: 'slowburn-4', thorns: 'thorns-1', crescendo: 'crescendo-1' };
+    if (rowByStrat[stratArg]) process.env.STARTER_ROW = rowByStrat[stratArg];
+    console.log(`Strategy commitment: ${stratArg}`);
+  }
   const forcedLane = ['wit', 'handler'].includes(laneArg) ? laneArg : null;
   console.log(`Running ${N} v2 playtests${forcedLane ? ` (lane=${forcedLane})` : ''}…`);
   if (process.env.DEATH_CAUSE) { globalThis.__deathCause = { hp: 0, composure: 0 }; globalThis.__maulCount = 0; }
