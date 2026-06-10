@@ -756,16 +756,16 @@
   {
     "id": "wv2-i-pains-me-confirm",
     "game": "Witch Mountain Bridge",
-    "name": "It pains me to confirm that",
+    "name": "With genuine regret, and a small amount of relish,",
     "lane": "wit",
     "slot": "intro",
     "type": "word",
     "rarity": "rare",
     "tier": 3,
     "cost": 1,
-    "phrase": "It pains me to confirm that",
+    "phrase": "With genuine regret, and a small amount of relish,",
     "description": "+3 wit",
-    "flavor": "It does not pain you. It has, in fact, made your week.",
+    "flavor": "The ratio shifts as the sentence goes on.",
     "keywords": "formal|observational",
     "scale_by": "",
     "damage": "",
@@ -780,7 +780,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-pains-me-confirm\",\"schoolId\":\"slowburn\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"slowburn-9\",\"setSlot\":\"intro\",\"phrase\":\"It pains me to confirm that\",\"tags\":[\"formal\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"It does not pain you. It has, in fact, made your week.\"}"
+    "raw_json": "{\"id\":\"wv2-i-pains-me-confirm\",\"schoolId\":\"slowburn\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"slowburn-9\",\"setSlot\":\"intro\",\"phrase\":\"With genuine regret, and a small amount of relish,\",\"tags\":[\"formal\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"The ratio shifts as the sentence goes on.\"}"
   },
   {
     "id": "wv2-i-signaled-advance",
@@ -794,7 +794,7 @@
     "cost": 1,
     "phrase": "Having signaled well in advance,",
     "description": "+3 wit",
-    "flavor": "Three hundred yards back. As is correct.",
+    "flavor": "Three hundred yards back, as is proper. The bulb has never once burnt out.",
     "keywords": "formal|observational",
     "scale_by": "",
     "damage": "",
@@ -809,7 +809,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-i-signaled-advance\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"crescendo-9\",\"setSlot\":\"intro\",\"phrase\":\"Having signaled well in advance,\",\"tags\":[\"formal\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Three hundred yards back. As is correct.\"}"
+    "raw_json": "{\"id\":\"wv2-i-signaled-advance\",\"schoolId\":\"crescendo\",\"slot\":\"intro\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"crescendo-9\",\"setSlot\":\"intro\",\"phrase\":\"Having signaled well in advance,\",\"tags\":[\"formal\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Three hundred yards back, as is proper. The bulb has never once burnt out.\"}"
   },
   {
     "id": "wv2-i-fabric-merchant",
@@ -1684,16 +1684,16 @@
   {
     "id": "wv2-s-entire-weave",
     "game": "Witch Mountain Bridge",
-    "name": "the entire weave of your reasoning",
+    "name": "the polyester at the heart of your argument",
     "lane": "wit",
     "slot": "subject",
     "type": "word",
     "rarity": "rare",
     "tier": 3,
     "cost": 1,
-    "phrase": "the entire weave of your reasoning",
+    "phrase": "the polyester at the heart of your argument",
     "description": "+3 wit",
-    "flavor": "Warp, weft, and wishful thinking.",
+    "flavor": "Natural fibres breathe. This does whatever the opposite is.",
     "keywords": "academic|observational",
     "scale_by": "",
     "damage": "",
@@ -1708,21 +1708,21 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-entire-weave\",\"schoolId\":\"slowburn\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"slowburn-9\",\"setSlot\":\"subject\",\"phrase\":\"the entire weave of your reasoning\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Warp, weft, and wishful thinking.\"}"
+    "raw_json": "{\"id\":\"wv2-s-entire-weave\",\"schoolId\":\"slowburn\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"slowburn-9\",\"setSlot\":\"subject\",\"phrase\":\"the polyester at the heart of your argument\",\"tags\":[\"academic\",\"observational\"],\"stats\":{\"wit\":3},\"flavor\":\"Natural fibres breathe. This does whatever the opposite is.\"}"
   },
   {
     "id": "wv2-s-four-way-stop",
     "game": "Witch Mountain Bridge",
-    "name": "your conduct at this four-way stop",
+    "name": "your interpretation of the four-way stop",
     "lane": "wit",
     "slot": "subject",
     "type": "word",
     "rarity": "rare",
     "tier": 3,
     "cost": 1,
-    "phrase": "your conduct at this four-way stop",
+    "phrase": "your interpretation of the four-way stop",
     "description": "+3 wit",
-    "flavor": "There is an order to these things. There was, at any rate.",
+    "flavor": "There is an order to these things. You have proposed an alternative order, unilaterally.",
     "keywords": "observational|cutting",
     "scale_by": "",
     "damage": "",
@@ -1737,7 +1737,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-s-four-way-stop\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"crescendo-9\",\"setSlot\":\"subject\",\"phrase\":\"your conduct at this four-way stop\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":3},\"flavor\":\"There is an order to these things. There was, at any rate.\"}"
+    "raw_json": "{\"id\":\"wv2-s-four-way-stop\",\"schoolId\":\"crescendo\",\"slot\":\"subject\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":1,\"type\":\"word\",\"setId\":\"crescendo-9\",\"setSlot\":\"subject\",\"phrase\":\"your interpretation of the four-way stop\",\"tags\":[\"observational\",\"cutting\"],\"stats\":{\"wit\":3},\"flavor\":\"There is an order to these things. You have proposed an alternative order, unilaterally.\"}"
   },
   {
     "id": "wv2-s-boucle-starter",

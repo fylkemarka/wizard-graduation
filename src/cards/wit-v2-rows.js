@@ -216,8 +216,7 @@ export const WIT_ROWS = [
   // targets with NO all-T3 row — top-tier decks were unconstructible (~9% T3
   // cast rate even school-committed). One capstone per school. All rider keys
   // pre-existing (no engine work). thorns-9 is assembled from cards that
-  // already existed rowless; the new slowburn/crescendo card phrases are
-  // PLACEHOLDERS — TODO(Alan): rewrite per phrase-text-is-the-product.
+  // already existed rowless.
   {
     id: 'thorns-9', schoolId: 'thorns', name: 'The Reasonable Observer',
     canonical: 'By the standards of any reasonable observer, the slow architecture of your self-deception collapses under the weight of its own punctuation.',
@@ -227,14 +226,14 @@ export const WIT_ROWS = [
   },
   {
     id: 'slowburn-9', schoolId: 'slowburn', name: 'The Inescapable Conclusion',
-    canonical: 'It pains me to confirm that the entire weave of your reasoning is, in summary, the inescapable conclusion.',
+    canonical: 'With genuine regret, and a small amount of relish, the polyester at the heart of your argument is, in summary, the inescapable conclusion.',
     introId: 'wv2-i-pains-me-confirm', subjectId: 'wv2-s-entire-weave', targetId: 'wv2-t-in-summary',
     rider: { setDotSchedule: [8, 6, 5, 4, 3], enemyVulnPerTurn: { amount: 1, turns: 2 } },
     riderDesc: 'DoT 8, 6, 5, 4, 3 composure across 5 turns (26 total) AND Vulnerable 1× each turn × 2. The verdict, delivered slowly.',
   },
   {
     id: 'crescendo-9', schoolId: 'crescendo', name: 'The Entire Intersection',
-    canonical: 'Having signaled well in advance, your conduct at this four-way stop has been noted by the entire intersection.',
+    canonical: 'Having signaled well in advance, your interpretation of the four-way stop has been noted by the entire intersection.',
     introId: 'wv2-i-signaled-advance', subjectId: 'wv2-s-four-way-stop', targetId: 'wv2-t-entire-intersection',
     rider: { consumeBankFlat: 3, draw: 2 },
     riderDesc: 'Consume Bank for Bank × 3 damage AND draw 2. The full audience payoff.',

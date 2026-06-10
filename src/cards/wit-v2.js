@@ -117,17 +117,15 @@ const INTROS = [
   { id: 'wv2-i-full-possession', schoolId: 'thorns', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'And I say this with full possession of the facts,', tags: ['academic', 'cutting'], stats: { wit: 3 },
     flavor: 'The facts have been alphabetized. Indexed. Cross-referenced. Their footnotes have footnotes.' },
-  // ───── T3 capstone-row words (v3.9, 2026-06-10). TODO(Alan): placeholder
-  // phrases — rewrite per phrase-text-is-the-product. Mechanics are final;
-  // the words aren't.
+  // ───── T3 capstone-row words (v3.9, 2026-06-10) ─────
   { id: 'wv2-i-pains-me-confirm', schoolId: 'slowburn', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     setId: 'slowburn-9', setSlot: 'intro',
-    phrase: 'It pains me to confirm that', tags: ['formal', 'observational'], stats: { wit: 3 },
-    flavor: 'It does not pain you. It has, in fact, made your week.' },
+    phrase: 'With genuine regret, and a small amount of relish,', tags: ['formal', 'observational'], stats: { wit: 3 },
+    flavor: 'The ratio shifts as the sentence goes on.' },
   { id: 'wv2-i-signaled-advance', schoolId: 'crescendo', slot: 'intro', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     setId: 'crescendo-9', setSlot: 'intro',
     phrase: 'Having signaled well in advance,', tags: ['formal', 'observational'], stats: { wit: 3 },
-    flavor: 'Three hundred yards back. As is correct.' },
+    flavor: 'Three hundred yards back, as is proper. The bulb has never once burnt out.' },
 
   // ---- FFT Sample Rows (Phase 2 — three sample intros, one per tier) ----
   // Linen Truths (Atelier) — "As I was saying to the fabric merchant,"
@@ -251,15 +249,15 @@ const SUBJECTS = [
   { id: 'wv2-s-not-thought-through', schoolId: 'thorns', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     phrase: 'everything you have not thought through carefully', tags: ['academic', 'cutting', 'observational'], stats: { wit: 3 },
     flavor: 'Everything is a strong word. It is, here, the precisely correct one.' },
-  // ───── T3 capstone-row subjects (v3.9). TODO(Alan): placeholder phrases.
+  // ───── T3 capstone-row subjects (v3.9) ─────
   { id: 'wv2-s-entire-weave', schoolId: 'slowburn', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     setId: 'slowburn-9', setSlot: 'subject',
-    phrase: 'the entire weave of your reasoning', tags: ['academic', 'observational'], stats: { wit: 3 },
-    flavor: 'Warp, weft, and wishful thinking.' },
+    phrase: 'the polyester at the heart of your argument', tags: ['academic', 'observational'], stats: { wit: 3 },
+    flavor: 'Natural fibres breathe. This does whatever the opposite is.' },
   { id: 'wv2-s-four-way-stop', schoolId: 'crescendo', slot: 'subject', tier: 3, rarity: 'rare', lane: LANE, cost: 1, type: 'word',
     setId: 'crescendo-9', setSlot: 'subject',
-    phrase: 'your conduct at this four-way stop', tags: ['observational', 'cutting'], stats: { wit: 3 },
-    flavor: 'There is an order to these things. There was, at any rate.' },
+    phrase: 'your interpretation of the four-way stop', tags: ['observational', 'cutting'], stats: { wit: 3 },
+    flavor: 'There is an order to these things. You have proposed an alternative order, unilaterally.' },
 
   // v3.2 damage tune: basic-tier STARTER variant of the Bouclé subject.
   // Wit starter seeds Atelier-4 row so the player triggers FFT in combat 1,
@@ -804,7 +802,7 @@ const SYNERGY_CAPSTONE_CARDS = [
               threadScaling: 4, delayedMisstep: true },
     desc: 'Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.',
     flavor: 'Summary being a polite word for verdict.' },
-  // ───── T3 capstone-row target (v3.9). TODO(Alan): placeholder phrase.
+  // ───── T3 capstone-row target (v3.9) ─────
   { id: 'wv2-t-entire-intersection', schoolId: 'crescendo', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     setId: 'crescendo-9', setSlot: 'target',
     phrase: 'has been noted by the entire intersection.', tags: ['observational', 'cutting'],
