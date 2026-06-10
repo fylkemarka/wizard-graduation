@@ -370,11 +370,15 @@ function uid() { return _uid++; }
 // alone are survivorship-confounded; we need PLAY counts + key procs to know if
 // a card is drafted-but-dead-in-hand). Module-scope = fresh per `node` process.
 const NEW_CARD_PLAYS = {};
-function notePlay(id) { NEW_CARD_PLAYS[id] = (NEW_CARD_PLAYS[id] || 0) + 1; }
+// SIM_SEARCH_MODE: true while the smart AI explores cloned states — module-
+// level stat counters must not record the search's hypothetical plays, only
+// what the AI actually commits to on the real state.
+let SIM_SEARCH_MODE = false;
+function notePlay(id) { if (SIM_SEARCH_MODE) return; NEW_CARD_PLAYS[id] = (NEW_CARD_PLAYS[id] || 0) + 1; }
 // Batch-level fire counts for the new ENEMY mechanics (Alan 1000-run, 2026-06-08):
 // did they actually proc, and how often? Module-scope = fresh per `node` process.
 const ENEMY_PROCS = {};
-function noteEnemyProc(kind) { ENEMY_PROCS[kind] = (ENEMY_PROCS[kind] || 0) + 1; }
+function noteEnemyProc(kind) { if (SIM_SEARCH_MODE) return; ENEMY_PROCS[kind] = (ENEMY_PROCS[kind] || 0) + 1; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function rnd() { return Math.random(); }
 function pickRandom(arr) { return arr[Math.floor(rnd() * arr.length)]; }
@@ -1754,7 +1758,9 @@ function handlerAdjustIncoming(combat, raw) {
   if (raw === 0) return 0;
   return Math.round(raw * combat.enemyDmgMult);
 }
-function aiTurnHandler(state, combat) {
+// ===== Handler turn phases (split 2026-06-10 for the smart search AI) =====
+// Upkeep: start-of-turn bookkeeping shared by the greedy and smart AIs.
+function handlerTurnUpkeep(state, combat) {
   combat.turn++;
   state.energy = ENERGY_PER_TURN + (combat.turn === 1 && combat.fb.startCombatEnergy ? combat.fb.startCombatEnergy : 0);
   state.block = 0;
@@ -1809,11 +1815,6 @@ function aiTurnHandler(state, combat) {
   combat.whisperPending = 0;
   drawCards(state, HAND_SIZE + whisperDraw + (combat.turn === 1 ? (combat.fb.startCombatDraw || 0) : 0));
 
-  const SLOT = ['intro', 'subject', 'target'];
-  const emptyCount = () => SLOT.filter(s => combat.htray[s] == null).length;
-  const animalCount = () => SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
-  const isBoss = combat.enemy?.tier === 'boss';
-
   // Hollow Weaver — snapshot cumulative damage so the end-of-turn weave check
   // can tell whether the player struck the enemy this turn (cast skills like
   // Tap the Glass + the animal tick both bump totalDamageDealt). Mirrors
@@ -1821,6 +1822,16 @@ function aiTurnHandler(state, combat) {
   combat.dmgDealtAtTurnStart = combat.totalDamageDealt;
   // Pigeon's scramble is once per player turn (Alan 2026-06-05).
   combat.pigeonUsedThisTurn = false;
+}
+
+// Greedy priority-list player turn — the original AI, kept as the A/B
+// baseline (SIM_AI=greedy selects it; default is the smart search AI below).
+function aiTurnHandler(state, combat) {
+  handlerTurnUpkeep(state, combat);
+  const SLOT = ['intro', 'subject', 'target'];
+  const emptyCount = () => SLOT.filter(s => combat.htray[s] == null).length;
+  const animalCount = () => SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
+  const isBoss = combat.enemy?.tier === 'boss';
 
   let safety = 30;
   while (safety-- > 0) {
@@ -2125,7 +2136,14 @@ function aiTurnHandler(state, combat) {
     }
     break;
   }
+  handlerTurnResolve(state, combat);
+}
 
+// Resolution: end-of-turn animal tick + enemy action + next-intent roll.
+// Shared by both AIs — and the smart search runs THIS on cloned states to
+// score candidate plans with real engine semantics (true 1-ply rollout:
+// maul / turnAgainst / silence / companion all actually fire on the clone).
+function handlerTurnResolve(state, combat) {
   // Maul (Alan, 2026-06-02): which slots held an animal DURING the player's
   // turn, before the tick transforms staged lures. Only these are maul-
   // eligible — a lure that becomes an animal on this tick isn't "out" until
@@ -2168,6 +2186,307 @@ function aiTurnHandler(state, combat) {
     combat.enemyIntent = rollIntent(combat.enemy, exclude, ['intro','subject','target'].some(s => combat.htray[s]?.kind === 'animal'));
   }
 }
+// =============================================================================
+// SMART HANDLER AI — turn-level beam search with real-engine rollouts.
+// (Alan, 2026-06-10: "create a sim that's smart instead of greedy.")
+//
+// Instead of the greedy priority list, each turn we SEARCH over play sequences:
+// the beam holds partial plans; each expands with every legal action (card /
+// feed / sacrifice / pouch). A node is scored by CLONING the combat and running
+// the REAL handlerTurnResolve on the clone — the animal tick, the telegraphed
+// enemy intent (maul / turnAgainst / silence actually fire), the companion turn
+// — then evaluating the resulting position (composure-race + survival terms).
+// Shield avoidance, ward timing, burst timing, and feed economy fall out of the
+// search instead of hand rules. The greedy AI remains via SIM_AI=greedy.
+// =============================================================================
+const SMART_BEAM_K = 4;
+const SMART_MAX_DEPTH = 8;
+
+function useSmartHandlerAi() {
+  const v = globalThis.__SIM_AI
+    || (typeof process !== 'undefined' && process.env && process.env.SIM_AI)
+    || 'smart';
+  return String(v).toLowerCase() !== 'greedy';
+}
+
+function cloneSlotSim(sl) {
+  if (!sl) return sl;
+  const c = { ...sl };
+  if (Array.isArray(sl.spans)) c.spans = sl.spans.slice();
+  if (Array.isArray(sl.sourceLures)) c.sourceLures = sl.sourceLures.slice();
+  return c;
+}
+// Clone the mutable combat surface. Card objects are treated as immutable by
+// the engine (all mutation rides slot envelopes / combat fields / state
+// scalars), so containers are copied but card refs are shared — keeps a clone
+// cheap enough to spend hundreds per turn.
+function cloneHandlerSim(state, combat) {
+  const s = {
+    ...state,
+    hand: state.hand.slice(),
+    // Shuffle the cloned deck so the search can't oracle-read upcoming draws.
+    deck: shuffle(state.deck.slice()),
+    discard: state.discard.slice(),
+    exiled: state.exiled.slice(),
+    powers: state.powers.slice(),
+    rewardsTaken: Array.isArray(state.rewardsTaken) ? state.rewardsTaken.slice() : state.rewardsTaken,
+  };
+  const c = {
+    ...combat,
+    htray: {
+      intro: cloneSlotSim(combat.htray.intro),
+      subject: cloneSlotSim(combat.htray.subject),
+      target: cloneSlotSim(combat.htray.target),
+    },
+    enemy: { ...combat.enemy },
+    enemyIntent: combat.enemyIntent ? { ...combat.enemyIntent } : combat.enemyIntent,
+    companion: combat.companion ? { ...combat.companion } : combat.companion,
+    maulEligibleSlots: combat.maulEligibleSlots ? new Set(combat.maulEligibleSlots) : combat.maulEligibleSlots,
+    tacticsEngaged: { ...combat.tacticsEngaged },
+    tacticTurns: { ...(combat.tacticTurns || {}) },
+    escalatingPlays: { ...(combat.escalatingPlays || {}) },
+    drilledSpecies: { ...(combat.drilledSpecies || {}) },
+    lastIntentKinds: (combat.lastIntentKinds || []).slice(),
+    lureNarrowing: Object.fromEntries(Object.entries(combat.lureNarrowing || {}).map(([k, v]) => [k, Array.isArray(v) ? v.slice() : v])),
+  };
+  return { s, c };
+}
+
+// Sacrifice the lowest-attack spare animal for Block = its attack. Standalone
+// twin of the greedy AI's inline dire-branch so the search can weigh it as a
+// regular action (the search decides WHEN; no dire-ness precondition here).
+function sacrificeSpareForBlockSim(state, combat) {
+  const SLOT = ['intro', 'subject', 'target'];
+  const atkOf = (sl) => (ANIMALS[sl.animalId]?.attack || 0) + (sl.attackBonus || 0);
+  const animalSlots = SLOT.map(s => ({ s, sl: combat.htray[s] })).filter(x => x.sl?.kind === 'animal');
+  if (animalSlots.length < 2) return false;
+  animalSlots.sort((a, b) => atkOf(a.sl) - atkOf(b.sl));
+  const give = animalSlots[0];
+  const gain = Math.max(0, atkOf(give.sl));
+  if (gain <= 0) return false;
+  state.block += gain;
+  const sl = give.sl;
+  applyAnimalOnExitSim(state, combat, ANIMALS[sl.animalId]);
+  // v3 single-use lures ride the animal — a sacrifice must return them to
+  // circulation like every other exit (clearHandlerSlot does), or the lure
+  // economy starves and the board can never regrow.
+  if (Array.isArray(sl.sourceLures) && sl.sourceLures.length) state.discard.push(...sl.sourceLures.map(c => ({ ...c })));
+  if (Array.isArray(sl.spans)) for (const s2 of sl.spans) combat.htray[s2] = null;
+  else combat.htray[give.s] = null;
+  noteHandlerExit(state, combat);
+  noteSacrificeSim(state, combat, 1);
+  return true;
+}
+
+// Every action the smart AI may take this turn. Cards dedupe by id (two copies
+// of the same card are interchangeable — halves the branching). Plays that the
+// engine would silently waste (lure into a full board, re-engaging the active
+// tactic) are filtered here rather than discovered by the search.
+function legalHandlerActions(state, combat) {
+  if (combat.pouchGuard) return []; // pouch ends the turn (mirrors App.jsx)
+  const SLOT = ['intro', 'subject', 'target'];
+  const acts = [];
+  const seen = new Set();
+  const animals = SLOT.filter(s => combat.htray[s]?.kind === 'animal').length;
+  const empties = SLOT.filter(s => combat.htray[s] == null).length;
+  const silenced = (combat.silencedTurns || 0) > 0;
+  for (let i = 0; i < state.hand.length; i++) {
+    const card = state.hand[i];
+    if (seen.has(card.id)) continue;
+    const isLure = card.type === 'lure';
+    const openDoorFree = isLure && hasHandlerPower(state, 'openDoor') && !combat.firstLureUsedThisTurn;
+    const cost = openDoorFree ? 0 : handlerEffectiveCost(combat, card);
+    if (cost > state.energy) continue;
+    if (isLure) {
+      if (silenced) continue;
+      const residentFeed = card.special && card.summon?.animalId
+        && SLOT.some(s => combat.htray[s]?.kind === 'animal' && combat.htray[s].animalId === card.summon.animalId);
+      if (empties === 0 && !residentFeed) continue;
+    }
+    if (card.type === 'tactic') {
+      // Shield never enters the action set: a 1-ply rollout rates it as a
+      // legitimate death-dodge, but the sticky stance then traps the board at
+      // zero offense (observed: search engaged it at t15 vs Tapestry →
+      // guaranteed stall). The search's horizon can't price the stickiness.
+      if (card.tactic?.id === 'shield') continue;
+      if (card.tactic?.id === combat.tactic) continue;
+      if (card.tactic?.requiresExactlyOneAnimal && animals !== 1) continue;
+    }
+    seen.add(card.id);
+    acts.push({ type: 'card', uid: card.uid, id: card.id });
+  }
+  // Feed (1-energy species action) — only when a hungry animal is at its
+  // feed window (mirrors tryHandlerFeed's own gate).
+  if (state.energy >= 1 && SLOT.some(s => {
+    const sl = combat.htray[s];
+    return sl?.kind === 'animal' && ANIMALS[sl.animalId]?.feedKey && !sl.feedReceived && sl.durationRemaining === 2;
+  })) acts.push({ type: 'feed' });
+  if (animals >= 2) acts.push({ type: 'sacrifice' });
+  // Kangaroo pouch — 2 energy: dodge the entire enemy turn, but ends ours.
+  if (state.energy >= 2 && SLOT.some(s => {
+    const sl = combat.htray[s];
+    return sl?.kind === 'animal' && ANIMALS[sl.animalId]?.activatedAbility?.id === 'kangaroo-pouch';
+  })) acts.push({ type: 'pouch' });
+  return acts;
+}
+
+// Apply one action. Returns false if illegal on THIS state (replaying a plan
+// on the real state can diverge from the clone via random summon species — a
+// failed step just ends the plan early).
+function applyHandlerActionSim(state, combat, act) {
+  if (act.type === 'card') {
+    let i = act.uid != null ? state.hand.findIndex(x => x.uid === act.uid) : -1;
+    if (i < 0) i = state.hand.findIndex(x => x.id === act.id);
+    if (i < 0) return false;
+    const card = state.hand[i];
+    const isLure = card.type === 'lure';
+    const openDoorFree = isLure && hasHandlerPower(state, 'openDoor') && !combat.firstLureUsedThisTurn;
+    const cost = openDoorFree ? 0 : handlerEffectiveCost(combat, card);
+    if (cost > state.energy) return false;
+    if (isLure && (combat.silencedTurns || 0) > 0) return false;
+    if (card.type === 'tactic') {
+      if (card.tactic?.id === combat.tactic) return false;
+      if (card.tactic?.requiresExactlyOneAnimal
+        && ['intro', 'subject', 'target'].filter(s => combat.htray[s]?.kind === 'animal').length !== 1) return false;
+    }
+    playHandlerCard(state, combat, i);
+    return true;
+  }
+  if (act.type === 'feed') return tryHandlerFeed(state, combat);
+  if (act.type === 'sacrifice') return sacrificeSpareForBlockSim(state, combat);
+  if (act.type === 'pouch') {
+    if (state.energy < 2 || combat.pouchGuard) return false;
+    state.energy -= 2;
+    combat.pouchGuard = true;
+    combat.abilityActivations = (combat.abilityActivations || 0) + 1;
+    return true;
+  }
+  return false;
+}
+
+// Position evaluation, read AFTER a rollout has resolved the turn. The spine is
+// the RACE: turns-to-kill (enemy composure vs longevity-weighted board output)
+// against turns-to-die (own pools vs the enemy's behavior-table damage rates).
+// Composure is weighted above HP throughout — it's the scarcer pool (35 vs 75)
+// and the one the bot historically lost.
+function evalHandlerPosition(state, combat) {
+  if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) return 1e6 - combat.turn; // prefer faster kills
+  if (state.hp <= 0 || state.composure <= 0) return -1e6 + combat.turn;            // prefer later deaths
+  const SLOT = ['intro', 'subject', 'target'];
+  let dps = 0, boardVal = 0;
+  for (const sn of SLOT) {
+    const sl = combat.htray[sn];
+    if (!sl) continue;
+    if (sl.kind === 'animal') {
+      const a = ANIMALS[sl.animalId];
+      if (!a) continue;
+      const atk = a.attack > 0
+        ? a.attack + (sl.attackBonus || 0) + 2 * (combat.drilledSpecies?.[sl.animalId] || 0) + (combat.summonStrength || 0)
+        : 0;
+      const dur = Math.max(0, Math.min(sl.durationRemaining ?? 3, 3));
+      dps += atk * (0.4 + 0.6 * dur / 3); // longevity-weighted: a leaving animal is worth less
+      boardVal += 1.5 + (a.turnGrant?.block || 0) * 0.4;
+    } else if (sl.kind === 'lure') {
+      const ids = sl.animalIds || (sl.animalId ? [sl.animalId] : []);
+      const avgA = ids.length ? ids.reduce((x, id) => x + Math.max(0, ANIMALS[id]?.attack || 0), 0) / ids.length : 0;
+      // An arriving animal is most of an animal — undervaluing it made the
+      // search prefer block-now over engine-building (the greedy bot's one
+      // virtue was always-be-summoning; keep that gradient).
+      dps += avgA * ((sl.turnsRemaining || 1) <= 1 ? 0.85 : 0.55);
+      boardVal += 1;
+    }
+  }
+  if (combat.tactic === 'shield') dps = 0;   // sticky stance: zero offense until swapped out
+  if (combat.tactic === 'rabid') dps *= 1.5;
+  let score = 0;
+  // Offense engine: the single most important gradient. A capped turns-to-kill
+  // ratio went flat exactly when the board was weak (the moment building
+  // matters most) — direct dps reward keeps the slope everywhere.
+  score += dps * 7;
+  if (dps < 0.5) score -= 25; // a board that can't hurt the enemy is a stall in waiting
+  // Survival pools — composure weighted above HP (35 vs 75, and it's the pool
+  // the bot historically lost). Soft near-death curves so defense starts
+  // winning trades BEFORE the rollout shows an actual death.
+  score += state.hp * 0.5 + state.composure * 1.0;
+  if (state.hp < 20) score -= (20 - state.hp) * 3;
+  if (state.composure < 12) score -= (12 - state.composure) * 4;
+  // Progress: enemy composure is the win clock.
+  score -= combat.enemyComposure * 1.2;
+  score += boardVal * 1.5;
+  // A full board compounds (adjacency combos, sheepdog amplify, feed economy)
+  // — value the 3rd body beyond its raw attack.
+  const animalCount = SLOT.filter(sn => combat.htray[sn]?.kind === 'animal').length;
+  if (animalCount >= 3) score += 8;
+  // A live ward against a disruption-capable enemy is insurance the race
+  // terms can't see (the NEXT intent isn't known yet at eval time).
+  const disrupty = (combat.enemy.behaviors || []).some(b => b.maul
+    || ['cutShort', 'undermineTactic', 'freeze', 'silence', 'turnAgainst', 'betray'].includes(b.kind));
+  if (disrupty && (combat.menagerieWard || 0) > 0) score += 5;
+  return score;
+}
+
+// Score a candidate position by resolving the rest of the turn FOR REAL on a
+// clone: animal tick, telegraphed intent, companion — then evaluating. The
+// pre→post damage delta is penalized directly: that's what makes blocking a
+// telegraphed hit compete with buffing exactly when a hit is incoming, and
+// lose to buffing when the enemy is blocking/charging (the human's pattern).
+function smartRolloutScore(state, combat) {
+  const { s, c } = cloneHandlerSim(state, combat);
+  handlerTurnResolve(s, c);
+  let score = evalHandlerPosition(s, c);
+  // Weights swept empirically 2026-06-10 (250-run batches): rising from
+  // (1.2, 2.0) → (7, 7.5) climbed avg acts 0.65 → 1.18 monotonically, then
+  // plateaued (10,10 regressed). The bot's historic failure was under-
+  // defending; the rollout makes the cost of an unblocked telegraph explicit.
+  score -= (globalThis.__W_HP ?? 7.0) * Math.max(0, state.hp - s.hp);
+  score -= (globalThis.__W_COMP ?? 7.5) * Math.max(0, state.composure - s.composure);
+  return score;
+}
+
+function searchHandlerPlan(state, combat) {
+  SIM_SEARCH_MODE = true;
+  try {
+    const root = cloneHandlerSim(state, combat);
+    let best = { score: smartRolloutScore(root.s, root.c), plan: [] };
+    let beam = [{ s: root.s, c: root.c, plan: [] }];
+    for (let depth = 0; depth < SMART_MAX_DEPTH && beam.length; depth++) {
+      const grown = [];
+      for (const node of beam) {
+        for (const act of legalHandlerActions(node.s, node.c)) {
+          const cl = cloneHandlerSim(node.s, node.c);
+          if (!applyHandlerActionSim(cl.s, cl.c, act)) continue;
+          const plan = node.plan.concat(act);
+          // Tiny per-action tax: between equal outcomes, spend fewer cards.
+          const score = smartRolloutScore(cl.s, cl.c) - 0.05 * plan.length;
+          grown.push({ s: cl.s, c: cl.c, plan, score });
+          if (score > best.score) best = { score, plan };
+        }
+      }
+      grown.sort((a, b) => b.score - a.score);
+      beam = grown.slice(0, SMART_BEAM_K);
+    }
+    return best.plan;
+  } finally {
+    SIM_SEARCH_MODE = false;
+  }
+}
+
+// The smart player turn: upkeep → search → replay the winning plan on the
+// real state (re-checking legality: random summon species can diverge from
+// the clone; a failed step just ends the plan) → resolve.
+function aiTurnHandlerSmart(state, combat) {
+  handlerTurnUpkeep(state, combat);
+  const plan = searchHandlerPlan(state, combat);
+  if (globalThis.__smartDbg) globalThis.__smartDbg.push({ enemy: combat.enemy.id, turn: combat.turn, tactic: combat.tactic || null, energy: state.energy, hand: state.hand.map(c => c.id), plan: plan.map(a => a.type === 'card' ? a.id : a.type), animals: ['intro','subject','target'].filter(s => combat.htray[s]?.kind === 'animal').length });
+  let guard = SMART_MAX_DEPTH + 4;
+  for (const act of plan) {
+    if (guard-- <= 0) break;
+    if (!applyHandlerActionSim(state, combat, act)) break;
+    if (act.type === 'pouch') break; // pouch ends the turn
+  }
+  handlerTurnResolve(state, combat);
+}
+
 // v3 (Alan, 2026-06-08): maul victim selection by DAMAGE TYPE — HP maul tears
 // the highest-BLOCK animal (the wall/keeper), composure maul tears the highest-
 // ATTACK. Mirrors App.maulStrongestAnimal. Shared so the pouch path can fire it
@@ -2195,7 +2514,7 @@ function simFireMaul(state, combat, intent) {
     if (Array.isArray(v.slot.spans)) for (const s of v.slot.spans) combat.htray[s] = null;
     else combat.htray[v.s] = null;
     combat.mauls = (combat.mauls || 0) + 1;
-    if (typeof globalThis.__maulCount === 'number') globalThis.__maulCount++;
+    if (typeof globalThis.__maulCount === 'number' && !SIM_SEARCH_MODE) globalThis.__maulCount++;
     if (hasHandlerPower(state, 'whisperer')) combat.whisperPending = (combat.whisperPending || 0) + 1;
   }
 }
@@ -2785,7 +3104,8 @@ function runHandlerCombat(state, enemy, telemetry) {
   while (safety-- > 0) {
     if (state.hp <= 0 || state.composure <= 0) { if (typeof globalThis.__deathCause==='object'){const k=state.hp<=0?'hp':'composure';globalThis.__deathCause[k]=(globalThis.__deathCause[k]||0)+1;} flushStagedLures(state, combat); flushTelemetry('lost'); return { outcome: 'lost', turns: combat.turn, telemetry, killedBy: enemy.id }; }
     if (combat.enemyComposure <= 0 || combat.enemyHp <= 0) { flushStagedLures(state, combat); flushTelemetry('won'); telemetry.fastestWin = Math.min(telemetry.fastestWin || 99, combat.turn); if (combat.turn <= 3) telemetry.speedWins = (telemetry.speedWins || 0) + 1; return { outcome: 'won', turns: combat.turn, telemetry }; }
-    aiTurnHandler(state, combat);
+    if (useSmartHandlerAi()) aiTurnHandlerSmart(state, combat);
+    else aiTurnHandler(state, combat);
     if (combat.totalDamageDealt === prevDamage) {
       if (++zeroStreak >= 5) { flushStagedLures(state, combat); flushTelemetry('stall'); return { outcome: 'stall', turns: combat.turn, telemetry, killedBy: enemy.id }; }
     } else { zeroStreak = 0; prevDamage = combat.totalDamageDealt; }
