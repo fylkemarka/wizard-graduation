@@ -27,6 +27,63 @@ const BUFF_CARD_IDS = new Set([
   'wv2-k-where-was-i', 'wv2-k-threading-needle', 'wv2-k-to-the-point',
 ]);
 
+// Challenge + Novelty — lane-agnostic signals added 2026-06-10 after a
+// near-full Handler run scored 91% "HIGHLY FUN" while the player reported
+// being bored ("same hand over and over, enemies very easy"). The 8 engine
+// signals all measure "is the engine working" — which a SOLVED engine
+// maximizes — so none of them could see an under-challenged, repetitive win.
+// These two close that blind spot:
+//   challenge — what fraction of combats actually threatened you? Trivial
+//               fights (≤2 HP lost) drag it; meaningful bites (≥5) lift it.
+//   novelty   — are you doing something DIFFERENT fight to fight, or replaying
+//               one hand? Measured as 1 − the average card-set similarity
+//               (Jaccard) between consecutive combats. High similarity = the
+//               same loop every fight.
+function computeChallengeNovelty(ev) {
+  const combats = [];
+  let cur = null;
+  for (const e of ev) {
+    if (e.type === 'combat.start') {
+      cur = { cards: new Set(), hpStart: e.payload?.hp ?? null };
+    } else if (e.type === 'combat.card_play' && cur) {
+      if (e.payload?.cardId) cur.cards.add(e.payload.cardId);
+    } else if (e.type === 'combat.end' && cur) {
+      cur.hpEnd = e.payload?.hpAfter ?? cur.hpStart;
+      combats.push(cur);
+      cur = null;
+    }
+  }
+  // Challenge: meaningful-damage fraction minus a penalty for trivial fights.
+  let challengeScore = 1.0, meaningful = 0, trivial = 0;
+  if (combats.length > 0) {
+    for (const c of combats) {
+      const lost = (c.hpStart ?? 0) - (c.hpEnd ?? 0);
+      if (lost >= 5) meaningful++;
+      if (lost <= 2) trivial++;
+    }
+    const meaningfulFrac = meaningful / combats.length;
+    const trivialFrac = trivial / combats.length;
+    challengeScore = Math.max(0, Math.min(1, meaningfulFrac - 0.5 * trivialFrac));
+  }
+  // Novelty: 1 − avg Jaccard similarity of consecutive combats' played-card
+  // sets. Needs ≥2 combats with cards; otherwise neutral.
+  const sets = combats.map(c => c.cards).filter(set => set.size > 0);
+  let sims = [];
+  for (let i = 1; i < sets.length; i++) {
+    const a = sets[i - 1], b = sets[i];
+    let inter = 0;
+    for (const x of a) if (b.has(x)) inter++;
+    const uni = new Set([...a, ...b]).size;
+    sims.push(uni ? inter / uni : 1);
+  }
+  const avgSim = sims.length ? sims.reduce((x, y) => x + y, 0) / sims.length : 0;
+  const noveltyScore = sims.length ? Math.max(0, Math.min(1, 1 - avgSim)) : 1.0;
+  return {
+    challenge: { score: challengeScore, combats: combats.length, meaningful, trivial },
+    novelty:   { score: noveltyScore, avgSimilarity: avgSim, comparisons: sims.length },
+  };
+}
+
 function scoreSession(s) {
   const ev = s.events || [];
   if (ev.length === 0) return null;
@@ -88,8 +145,18 @@ function scoreSession(s) {
     deathContextScore = wins >= 3 ? (isEliteOrBoss ? 1.0 : 0.7) : 0.3;
   }
 
-  const weights = { buff: 0.15, fft: 0.15, arc: 0.20, attr: 0.15, hold: 0.15, var: 0.10, death: 0.10 };
+  // Challenge + Novelty — same anti-boredom signals as the Handler scorer
+  // (see computeChallengeNovelty). Mirrored here so a wit run can't post a
+  // flattering score off a solved, under-challenged loop either.
+  const cn = computeChallengeNovelty(ev);
+  const challengeScore = cn.challenge.score;
+  const noveltyScore = cn.novelty.score;
+
+  const weights = { challenge: 0.18, novelty: 0.16, buff: 0.10, fft: 0.12,
+                    arc: 0.12, attr: 0.08, hold: 0.10, var: 0.06, death: 0.08 };
   const composite = (
+    challengeScore * weights.challenge +
+    noveltyScore * weights.novelty +
     buffEngagement * weights.buff +
     fftRate * weights.fft +
     runArcScore * weights.arc +
@@ -109,6 +176,8 @@ function scoreSession(s) {
     composite,
     verdict,
     metrics: {
+      challenge:      { score: challengeScore, meaningful: cn.challenge.meaningful, trivial: cn.challenge.trivial, combats: cn.challenge.combats },
+      novelty:        { score: noveltyScore, avgSimilarity: cn.novelty.avgSimilarity },
       buffEngagement: { score: buffEngagement, drafted: drafted.size, used: usedDrafted },
       fftRate:        { score: fftRate, ffts, totalCasts },
       runArc:         { score: runArcScore, wins, died },
@@ -192,11 +261,25 @@ function scoreHandlerSession(s) {
     deathContextScore = wins >= 3 ? (isEliteOrBoss ? 1.0 : 0.7) : 0.3;
   }
 
-  const weights = { summon: 0.15, output: 0.15, arc: 0.20, attr: 0.10, uptime: 0.10, var: 0.10, feed: 0.10, death: 0.10 };
+  // Challenge + Novelty — the anti-boredom signals (see computeChallengeNovelty).
+  const cn = computeChallengeNovelty(ev);
+  const challengeScore = cn.challenge.score;
+  const noveltyScore = cn.novelty.score;
+
+  // Weights rebalanced 2026-06-10: challenge (0.20) + novelty (0.18) now carry
+  // 38% combined, trimmed from the engine-humming signals (summon/output/
+  // uptime/variety) which a solved loop maxes out. A bored, under-challenged
+  // win (the 91% run that prompted this) now lands ~68% "FUN" instead of
+  // "HIGHLY FUN"; a gripping, varied run still clears 0.85.
+  const weights = { challenge: 0.20, novelty: 0.18, arc: 0.12, summon: 0.08,
+                    output: 0.08, attr: 0.07, uptime: 0.05, var: 0.05,
+                    feed: 0.07, death: 0.10 };
   const composite = (
+    challengeScore * weights.challenge +
+    noveltyScore * weights.novelty +
+    runArcScore * weights.arc +
     summonScore * weights.summon +
     outputScore * weights.output +
-    runArcScore * weights.arc +
     attritionScore * weights.attr +
     uptimeScore * weights.uptime +
     varietyScore * weights.var +
@@ -213,6 +296,8 @@ function scoreHandlerSession(s) {
     composite,
     verdict,
     metrics: {
+      challenge:{ score: challengeScore, meaningful: cn.challenge.meaningful, trivial: cn.challenge.trivial, combats: cn.challenge.combats },
+      novelty:  { score: noveltyScore, avgSimilarity: cn.novelty.avgSimilarity },
       summon:   { score: summonScore, summons: summons.length, perTurn: summonsPerTurn },
       output:   { score: outputScore, avgDmg, activeTicks: activeTicks.length },
       runArc:   { score: runArcScore, wins, died },
@@ -229,6 +314,10 @@ function formatPct(n) { return (n * 100).toFixed(0) + '%'; }
 
 function printHandlerReport(r) {
   console.log('\n=== FUN SIGNAL (HANDLER) — ' + r.startedAt + ' ===\n');
+  console.log('  Challenge:            ' + formatPct(r.metrics.challenge.score).padStart(5) +
+              '   (' + r.metrics.challenge.meaningful + '/' + r.metrics.challenge.combats + ' fights bit ≥5 HP, ' + r.metrics.challenge.trivial + ' trivial)');
+  console.log('  Novelty (vs repeat):  ' + formatPct(r.metrics.novelty.score).padStart(5) +
+              '   (' + formatPct(r.metrics.novelty.avgSimilarity) + ' same-hand similarity fight-to-fight)');
   console.log('  Summon engagement:    ' + formatPct(r.metrics.summon.score).padStart(5) +
               '   (' + r.metrics.summon.summons + ' summons, ' + r.metrics.summon.perTurn.toFixed(2) + '/turn)');
   console.log('  Menagerie output:     ' + formatPct(r.metrics.output.score).padStart(5) +
@@ -250,6 +339,10 @@ function printHandlerReport(r) {
 
 function printReport(r) {
   console.log('\n=== FUN SIGNAL — ' + r.startedAt + ' ===\n');
+  console.log('  Challenge:            ' + formatPct(r.metrics.challenge.score).padStart(5) +
+              '   (' + r.metrics.challenge.meaningful + '/' + r.metrics.challenge.combats + ' fights bit ≥5 HP, ' + r.metrics.challenge.trivial + ' trivial)');
+  console.log('  Novelty (vs repeat):  ' + formatPct(r.metrics.novelty.score).padStart(5) +
+              '   (' + formatPct(r.metrics.novelty.avgSimilarity) + ' same-hand similarity fight-to-fight)');
   console.log('  Buff engagement:      ' + formatPct(r.metrics.buffEngagement.score).padStart(5) +
               '   (drafted ' + r.metrics.buffEngagement.drafted + ', played ' + r.metrics.buffEngagement.used + ')');
   console.log('  FFT rate:             ' + formatPct(r.metrics.fftRate.score).padStart(5) +
