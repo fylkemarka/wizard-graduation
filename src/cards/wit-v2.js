@@ -384,33 +384,33 @@ const TARGETS = [
   // ---- Uncommon (6) — cost 2 ----
   { id: 'wv2-t-lacks-seriousness', schoolId: 'slowburn', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'lacks the seriousness it pretends to.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'composure', rider: { weak: 1 } },
+    effect: { scaleBy: 'wit', base: 9, multiplier: 2, damageType: 'composure', rider: { weak: 1 } },
     flavor: 'The pretense was the only weight it carried.' },
   { id: 'wv2-t-mistakes-vehemence', schoolId: 'slowburn', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'mistakes vehemence for vigor.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure', rider: { vulnerable: 1 } },
     flavor: 'The two have, at this point, never even been introduced.' },
   // v2.34: LONG THREAD payoff target. Cast damage = base 6 + Wit×3 +
   // (Long Thread × 3). Wit's first thread-scaling card — at LT=3 it's
   // +9 dmg, at LT=5 it's +15. Pays off conservative defensive play.
   { id: 'wv2-t-natural-conclusion', schoolId: 'slowburn', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, perhaps, the natural conclusion.', tags: ['academic'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure', threadScaling: 3 },
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure', threadScaling: 3 },
     desc: 'Cast: 6 + Wit×3 + Long Thread × 3 composure.',
     flavor: 'Natural is doing some work here, but it gets to.' },
 
   // ---- Rare (4) — cost 2-3 ----
   { id: 'wv2-t-generous-error', schoolId: 'slowburn', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, in the most generous reading, an error.', tags: ['academic', 'observational'],
-    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure', rider: { weak: 2 } },
+    effect: { scaleBy: 'wit', base: 11, multiplier: 3, damageType: 'composure', rider: { weak: 2 } },
     flavor: 'Less generous readings have been collected and indexed.' },
   { id: 'wv2-t-future-studies', schoolId: 'thorns', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'will be cited in future studies of what to avoid.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 10, multiplier: 3, damageType: 'composure', tier3Double: true },
+    effect: { scaleBy: 'wit', base: 13, multiplier: 3.5, damageType: 'composure', tier3Double: true },
     flavor: 'The citation is the gift. The avoidance is the lesson.' },
   { id: 'wv2-t-own-punctuation', schoolId: 'thorns', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 3, type: 'effect',
     phrase: 'collapses under the weight of its own punctuation.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 12, multiplier: 3, damageType: 'composure',
+    effect: { scaleBy: 'wit', base: 15, multiplier: 3.5, damageType: 'composure',
              requiresTier3: { failureDamageMult: 0.5, exhaustOnFail: true } },
     flavor: 'Em dashes can carry a great deal. Not, however, this.' },
   // v2.38: SAYING SOMETHING WRONG — wit's delayed-consequence target. Heavy
@@ -422,7 +422,7 @@ const TARGETS = [
   // tokens — bravado that has to be reckoned with later.
   { id: 'wv2-t-saying-something-wrong', schoolId: 'thorns', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, I am afraid, where you said something rather wrong.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 11, multiplier: 3, damageType: 'composure',
+    effect: { scaleBy: 'wit', base: 14, multiplier: 3.5, damageType: 'composure',
               delayedMisstep: { delay: 2, selfDamage: 3 } },
     desc: 'Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.',
     flavor: 'You said it with conviction. The conviction is, on reflection, the problem.' },
@@ -438,7 +438,7 @@ const TARGETS = [
   { id: 'wv2-t-collected-works', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'collapses under the weight of the collected works.', tags: ['academic', 'cutting'],
     schoolId: 'thorns',
-    effect: { scaleBy: 'wit', base: 0, multiplier: 1, damageType: 'composure', consumeBlockAsDamage: 1 },
+    effect: { scaleBy: 'wit', base: 3, multiplier: 1.5, damageType: 'composure', consumeBlockAsDamage: 1 },
     desc: 'Consumes ALL your Block, dealing that much composure on top of the cast (1 Block = 1 composure). The longer you turtle, the heavier it lands.',
     flavor: 'You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.' },
 
@@ -457,19 +457,19 @@ const TARGETS = [
   // Linen Truths (Atelier)
   { id: 'wv2-t-not-tolerated-after-8', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will slowly unravel.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-1', setSlot: 'target', schoolId: 'slowburn',
     flavor: 'Eight being, of course, the appointed hour for everything that matters.' },
   // The First Principle (Hygiene)
   { id: 'wv2-t-not-a-gentleman', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "comes back to you.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 1, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 1.25, damageType: 'block' },
     setId: 'thorns-1', setSlot: 'target', schoolId: 'thorns',
     flavor: 'A conclusion arrived at, regretfully, by direct observation.' },
   // The Long Signal (Transportation)
   { id: 'wv2-t-entire-drive', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "lands at once.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2.25, damageType: 'composure' },
     setId: 'crescendo-1', setSlot: 'target', schoolId: 'crescendo',
     flavor: 'Lasts being, on this evidence, an indictment.' },
 
@@ -477,31 +477,31 @@ const TARGETS = [
   // The Off-Season (Atelier-2)
   { id: 'wv2-t-precisely-what-one-does-not-do', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will slowly decay.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-2', setSlot: 'target', schoolId: 'slowburn',
     flavor: 'One being, in this case, the entire civilised population.' },
   // Dry Shaving (Hygiene-2)
   { id: 'wv2-t-aesthetic-failure-first', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "rebounds with interest.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 1, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 1.25, damageType: 'block' },
     setId: 'thorns-2', setSlot: 'target', schoolId: 'thorns',
     flavor: 'Aesthetics being, in his school, the only ethics that hold up.' },
   // Dental (Hygiene-3)
   { id: 'wv2-t-politely-call-memorial', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "turns inward, sharply.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 1, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 1.25, damageType: 'block' },
     setId: 'thorns-3', setSlot: 'target', schoolId: 'thorns',
     flavor: 'Politeness, in a memorial setting, is the entire performance.' },
   // The Yield (Transportation-2)
   { id: 'wv2-t-suggestion-at-best', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "is just getting started.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2.25, damageType: 'composure' },
     setId: 'crescendo-2', setSlot: 'target', schoolId: 'crescendo',
     flavor: 'A suggestion being, legally speaking, a contract you ignored.' },
   // The Volvo Sermon (Transportation-3)
   { id: 'wv2-t-conversation-with-you-itself', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "lands hardest now.", tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 2.25, damageType: 'composure' },
     setId: 'crescendo-3', setSlot: 'target', schoolId: 'crescendo',
     flavor: 'Volvos are patient. The conversation has been queued since 2003.' },
 
@@ -509,36 +509,36 @@ const TARGETS = [
   // The Bouclé Suggestion (Atelier-4)
   { id: 'wv2-t-fabric-stops-asking', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "lingers, badly.", tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-4', setSlot: 'target', schoolId: 'slowburn',
     flavor: 'Permission, in fabric, is the entire moral system.' },
   // Late Pajamas (Atelier-5)
   { id: 'wv2-t-8-has-been-and-gone', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will erode steadily.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-5', setSlot: 'target', schoolId: 'slowburn',
     flavor: 'The regret is the giveaway. Eight was, in fact, a deadline.' },
   // Standards (Hygiene-4)
   { id: 'wv2-t-soft-start', schoolId: 'thorns', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'are what the rest of us call a soft start.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3.25, damageType: 'composure' },
     flavor: 'Softness, here, is a clinical observation. Not a kindness.' },
   // The Towel (Hygiene-5)
   { id: 'wv2-t-did-not-ask-to-know', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "is what you get back.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 1, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 1.25, damageType: 'block' },
     setId: 'thorns-5', setSlot: 'target', schoolId: 'thorns',
     flavor: 'We did not ask. The towel still spoke.' },
   // The Parallel (Transportation-4)
   { id: 'wv2-t-essence-public-service', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "adds up here.", tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2.25, damageType: 'composure' },
     setId: 'crescendo-4', setSlot: 'target', schoolId: 'crescendo',
     flavor: 'The service being free entertainment for everyone watching.' },
   // The Left Lane (Transportation-5)
   { id: 'wv2-t-jurisdiction-moral-failing', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "delivers itself now.", tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2.25, damageType: 'composure' },
     setId: 'crescendo-5', setSlot: 'target', schoolId: 'crescendo',
     flavor: 'Most jurisdictions, in fact. Civilised ones, certainly.' },
 
@@ -546,49 +546,49 @@ const TARGETS = [
   // Wool's Opinions (Atelier-6)
   { id: 'wv2-t-its-own-opinions', schoolId: 'slowburn', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'has its own opinions.', tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3, damageType: 'composure' },
     flavor: 'Wool develops opinions. Linen, in spring, simply behaves.' },
   // The Hem (Atelier-7)
   { id: 'wv2-t-still-be-unkind', schoolId: 'thorns', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'would still be unkind.', tags: ['cutting', 'observational'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 9, multiplier: 3.25, damageType: 'composure' },
     flavor: 'Charity has its limits. The hem has, regretfully, exposed them.' },
   // Silk by Eight (Atelier-8)
   { id: 'wv2-t-not-what-one-wears-after', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "will fester.", tags: ['academic'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 2, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 2, damageType: 'composure' },
     setId: 'slowburn-8', setSlot: 'target', schoolId: 'slowburn',
     flavor: 'Before 8 and after 8 being, in textiles, two different gravities.' },
   // Civic Cleanliness (Hygiene-6)
   { id: 'wv2-t-rest-follows', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: "answers itself.", tags: ['observational', 'cutting'],
-    effect: { scaleBy: 'wit', base: 3, multiplier: 1, damageType: 'block' },
+    effect: { scaleBy: 'wit', base: 6, multiplier: 1.25, damageType: 'block' },
     setId: 'thorns-6', setSlot: 'target', schoolId: 'thorns',
     flavor: 'The rest, in his house, being a long list of consequences.' },
   // The Regimen (Hygiene-7)
   { id: 'wv2-t-in-fact-ongoing', schoolId: 'crescendo', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, in fact, ongoing.', tags: ['academic', 'observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3.25, damageType: 'composure' },
     flavor: 'Ongoing being a verb-form, here, with weight.' },
   // The Civilizing Hour (Hygiene-8)
   { id: 'wv2-t-optional-in-your-house', schoolId: 'thorns', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, regrettably, optional in your house.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 9, multiplier: 3, damageType: 'composure' },
     flavor: 'Optional being, in this case, a synonym for "absent altogether."' },
   // Roundabouts (Transportation-6)
   { id: 'wv2-t-insurance-forms', schoolId: 'slowburn', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is what insurance forms are for.', tags: ['observational'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 9, multiplier: 3, damageType: 'composure' },
     flavor: 'The forms have been pre-filled. By the underwriter. With a sigh.' },
   // Speed Limits (Transportation-7)
   { id: 'wv2-t-generously-aspirational', schoolId: 'crescendo', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, generously, aspirational.', tags: ['academic', 'observational'],
-    effect: { scaleBy: 'wit', base: 5, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 8, multiplier: 3.25, damageType: 'composure' },
     flavor: 'Aspiration, here, being a polite name for "regularly exceeded."' },
   // The Four-Way Stop (Transportation-8)
   { id: 'wv2-t-category-of-confusion', schoolId: 'thorns', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, on its own, a category of confusion.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure' },
+    effect: { scaleBy: 'wit', base: 9, multiplier: 3.25, damageType: 'composure' },
     flavor: 'The category is small. You are, somehow, its sole member.' },
 ];
 
@@ -690,7 +690,7 @@ const GESTURES = [
 const UNIQUE_TARGETS = [
   { id: 'wv2-t-footnote-bears-out', schoolId: 'crescendo', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: '…as the long footnote bears out.', tags: ['academic', 'observational'],
-    effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure', perDiscardCard: 1 },
+    effect: { scaleBy: 'wit', base: 5, multiplier: 2.25, damageType: 'composure', perDiscardCard: 1 },
     flavor: 'The footnote is on page 814. The page is, technically, also a footnote.' },
   // v2.15: BURST card — wit's signature payoff. Cash in the attached
   // annotation for damage = remaining_turns × 5. Requires an annotation
@@ -698,7 +698,7 @@ const UNIQUE_TARGETS = [
   // ceiling — converts a slow accelerant into a payout.
   { id: 'wv2-t-finally-answered', schoolId: 'thorns', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is finally answered, in full.', tags: ['academic', 'cutting'],
-    effect: { scaleBy: 'wit', base: 2, multiplier: 2, damageType: 'composure',
+    effect: { scaleBy: 'wit', base: 5, multiplier: 2.25, damageType: 'composure',
               requiresAnnotation: true, cashInAnnotation: { damagePerTurn: 5 } },
     desc: 'REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.',
     flavor: 'Every footnote has, eventually, a reckoning.' },
@@ -776,7 +776,7 @@ const SKILLS = [
 const SYNERGY_CAPSTONE_CARDS = [
   { id: 'wv2-t-in-summary', schoolId: 'slowburn', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, in summary, the inescapable conclusion.', tags: ['academic'],
-    effect: { scaleBy: 'wit', base: 6, multiplier: 3, damageType: 'composure',
+    effect: { scaleBy: 'wit', base: 9, multiplier: 3, damageType: 'composure',
               threadScaling: 4, delayedMisstep: true },
     desc: 'Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.',
     flavor: 'Summary being a polite word for verdict.' },
@@ -813,7 +813,7 @@ const INSULT_VULN_CARDS = [
   // caps the bonus at +12.
   { id: 'wv2-t-cannot-bear', schoolId: 'crescendo', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'that being, of course, the very thing you cannot bear to hear.', tags: ['academic'],
-    effect: { scaleBy: 'wit', base: 4, multiplier: 3, damageType: 'composure', pierceVulnerableInsult: 4 },
+    effect: { scaleBy: 'wit', base: 7, multiplier: 3.25, damageType: 'composure', pierceVulnerableInsult: 4 },
     desc: 'Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy\'s insult vulnerabilities (max 3 matches).',
     flavor: 'A flaw named is a flaw amplified.' },
 ];

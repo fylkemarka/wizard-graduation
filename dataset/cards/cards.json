@@ -2450,7 +2450,7 @@
     "flavor": "The pretense was the only weight it carried.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 6,
+    "damage": 9,
     "damage_multiplier": 2,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2462,7 +2462,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-lacks-seriousness\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lacks the seriousness it pretends to.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\",\"rider\":{\"weak\":1}},\"flavor\":\"The pretense was the only weight it carried.\"}"
+    "raw_json": "{\"id\":\"wv2-t-lacks-seriousness\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lacks the seriousness it pretends to.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":2,\"damageType\":\"composure\",\"rider\":{\"weak\":1}},\"flavor\":\"The pretense was the only weight it carried.\"}"
   },
   {
     "id": "wv2-t-mistakes-vehemence",
@@ -2479,7 +2479,7 @@
     "flavor": "The two have, at this point, never even been introduced.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 5,
+    "damage": 8,
     "damage_multiplier": 3,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2491,7 +2491,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-mistakes-vehemence\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"mistakes vehemence for vigor.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"vulnerable\":1}},\"flavor\":\"The two have, at this point, never even been introduced.\"}"
+    "raw_json": "{\"id\":\"wv2-t-mistakes-vehemence\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"mistakes vehemence for vigor.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"vulnerable\":1}},\"flavor\":\"The two have, at this point, never even been introduced.\"}"
   },
   {
     "id": "wv2-t-natural-conclusion",
@@ -2508,7 +2508,7 @@
     "flavor": "Natural is doing some work here, but it gets to.",
     "keywords": "academic",
     "scale_by": "wit",
-    "damage": 4,
+    "damage": 7,
     "damage_multiplier": 3,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2520,7 +2520,7 @@
     "feed_key": "",
     "mechanics": "threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-natural-conclusion\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, perhaps, the natural conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":4,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":3},\"desc\":\"Cast: 6 + Wit×3 + Long Thread × 3 composure.\",\"flavor\":\"Natural is doing some work here, but it gets to.\"}"
+    "raw_json": "{\"id\":\"wv2-t-natural-conclusion\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, perhaps, the natural conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":7,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":3},\"desc\":\"Cast: 6 + Wit×3 + Long Thread × 3 composure.\",\"flavor\":\"Natural is doing some work here, but it gets to.\"}"
   },
   {
     "id": "wv2-t-generous-error",
@@ -2537,7 +2537,7 @@
     "flavor": "Less generous readings have been collected and indexed.",
     "keywords": "academic|observational",
     "scale_by": "wit",
-    "damage": 8,
+    "damage": 11,
     "damage_multiplier": 3,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2549,7 +2549,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-generous-error\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in the most generous reading, an error.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"weak\":2}},\"flavor\":\"Less generous readings have been collected and indexed.\"}"
+    "raw_json": "{\"id\":\"wv2-t-generous-error\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in the most generous reading, an error.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":11,\"multiplier\":3,\"damageType\":\"composure\",\"rider\":{\"weak\":2}},\"flavor\":\"Less generous readings have been collected and indexed.\"}"
   },
   {
     "id": "wv2-t-future-studies",
@@ -2566,8 +2566,8 @@
     "flavor": "The citation is the gift. The avoidance is the lesson.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 10,
-    "damage_multiplier": 3,
+    "damage": 13,
+    "damage_multiplier": 3.5,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -2578,7 +2578,7 @@
     "feed_key": "",
     "mechanics": "tier3Double",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-future-studies\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will be cited in future studies of what to avoid.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":10,\"multiplier\":3,\"damageType\":\"composure\",\"tier3Double\":true},\"flavor\":\"The citation is the gift. The avoidance is the lesson.\"}"
+    "raw_json": "{\"id\":\"wv2-t-future-studies\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will be cited in future studies of what to avoid.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":13,\"multiplier\":3.5,\"damageType\":\"composure\",\"tier3Double\":true},\"flavor\":\"The citation is the gift. The avoidance is the lesson.\"}"
   },
   {
     "id": "wv2-t-own-punctuation",
@@ -2595,8 +2595,8 @@
     "flavor": "Em dashes can carry a great deal. Not, however, this.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 12,
-    "damage_multiplier": 3,
+    "damage": 15,
+    "damage_multiplier": 3.5,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -2607,7 +2607,7 @@
     "feed_key": "",
     "mechanics": "requiresTier3",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-own-punctuation\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"effect\",\"phrase\":\"collapses under the weight of its own punctuation.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":12,\"multiplier\":3,\"damageType\":\"composure\",\"requiresTier3\":{\"failureDamageMult\":0.5,\"exhaustOnFail\":true}},\"flavor\":\"Em dashes can carry a great deal. Not, however, this.\"}"
+    "raw_json": "{\"id\":\"wv2-t-own-punctuation\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"effect\",\"phrase\":\"collapses under the weight of its own punctuation.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":15,\"multiplier\":3.5,\"damageType\":\"composure\",\"requiresTier3\":{\"failureDamageMult\":0.5,\"exhaustOnFail\":true}},\"flavor\":\"Em dashes can carry a great deal. Not, however, this.\"}"
   },
   {
     "id": "wv2-t-saying-something-wrong",
@@ -2624,8 +2624,8 @@
     "flavor": "You said it with conviction. The conviction is, on reflection, the problem.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 11,
-    "damage_multiplier": 3,
+    "damage": 14,
+    "damage_multiplier": 3.5,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -2636,7 +2636,7 @@
     "feed_key": "",
     "mechanics": "delayedMisstep",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-saying-something-wrong\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, I am afraid, where you said something rather wrong.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":11,\"multiplier\":3,\"damageType\":\"composure\",\"delayedMisstep\":{\"delay\":2,\"selfDamage\":3}},\"desc\":\"Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.\",\"flavor\":\"You said it with conviction. The conviction is, on reflection, the problem.\"}"
+    "raw_json": "{\"id\":\"wv2-t-saying-something-wrong\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, I am afraid, where you said something rather wrong.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":14,\"multiplier\":3.5,\"damageType\":\"composure\",\"delayedMisstep\":{\"delay\":2,\"selfDamage\":3}},\"desc\":\"Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.\",\"flavor\":\"You said it with conviction. The conviction is, on reflection, the problem.\"}"
   },
   {
     "id": "wv2-t-collected-works",
@@ -2653,8 +2653,8 @@
     "flavor": "You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 0,
-    "damage_multiplier": 1,
+    "damage": 3,
+    "damage_multiplier": 1.5,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -2665,7 +2665,7 @@
     "feed_key": "",
     "mechanics": "consumeBlockAsDamage",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-collected-works\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"collapses under the weight of the collected works.\",\"tags\":[\"academic\",\"cutting\"],\"schoolId\":\"thorns\",\"effect\":{\"scaleBy\":\"wit\",\"base\":0,\"multiplier\":1,\"damageType\":\"composure\",\"consumeBlockAsDamage\":1},\"desc\":\"Consumes ALL your Block, dealing that much composure on top of the cast (1 Block = 1 composure). The longer you turtle, the heavier it lands.\",\"flavor\":\"You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.\"}"
+    "raw_json": "{\"id\":\"wv2-t-collected-works\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"collapses under the weight of the collected works.\",\"tags\":[\"academic\",\"cutting\"],\"schoolId\":\"thorns\",\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":1.5,\"damageType\":\"composure\",\"consumeBlockAsDamage\":1},\"desc\":\"Consumes ALL your Block, dealing that much composure on top of the cast (1 Block = 1 composure). The longer you turtle, the heavier it lands.\",\"flavor\":\"You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.\"}"
   },
   {
     "id": "wv2-t-fabric-starter",
@@ -2711,7 +2711,7 @@
     "flavor": "Eight being, of course, the appointed hour for everything that matters.",
     "keywords": "observational|cutting",
     "scale_by": "wit",
-    "damage": 3,
+    "damage": 6,
     "damage_multiplier": 2,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2723,7 +2723,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-not-tolerated-after-8\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will slowly unravel.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-1\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"Eight being, of course, the appointed hour for everything that matters.\"}"
+    "raw_json": "{\"id\":\"wv2-t-not-tolerated-after-8\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will slowly unravel.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-1\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"Eight being, of course, the appointed hour for everything that matters.\"}"
   },
   {
     "id": "wv2-t-not-a-gentleman",
@@ -2740,8 +2740,8 @@
     "flavor": "A conclusion arrived at, regretfully, by direct observation.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 5,
-    "damage_multiplier": 1,
+    "damage": 8,
+    "damage_multiplier": 1.25,
     "damage_type": "block",
     "stat_contribution": "",
     "block": "",
@@ -2752,7 +2752,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-not-a-gentleman\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"comes back to you.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":1,\"damageType\":\"block\"},\"setId\":\"thorns-1\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"A conclusion arrived at, regretfully, by direct observation.\"}"
+    "raw_json": "{\"id\":\"wv2-t-not-a-gentleman\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"comes back to you.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":1.25,\"damageType\":\"block\"},\"setId\":\"thorns-1\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"A conclusion arrived at, regretfully, by direct observation.\"}"
   },
   {
     "id": "wv2-t-entire-drive",
@@ -2769,8 +2769,8 @@
     "flavor": "Lasts being, on this evidence, an indictment.",
     "keywords": "observational|cutting",
     "scale_by": "wit",
-    "damage": 3,
-    "damage_multiplier": 2,
+    "damage": 6,
+    "damage_multiplier": 2.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -2781,7 +2781,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-entire-drive\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lands at once.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"crescendo-1\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"Lasts being, on this evidence, an indictment.\"}"
+    "raw_json": "{\"id\":\"wv2-t-entire-drive\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lands at once.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2.25,\"damageType\":\"composure\"},\"setId\":\"crescendo-1\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"Lasts being, on this evidence, an indictment.\"}"
   },
   {
     "id": "wv2-t-precisely-what-one-does-not-do",
@@ -2798,7 +2798,7 @@
     "flavor": "One being, in this case, the entire civilised population.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 3,
+    "damage": 6,
     "damage_multiplier": 2,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2810,7 +2810,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-precisely-what-one-does-not-do\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will slowly decay.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-2\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"One being, in this case, the entire civilised population.\"}"
+    "raw_json": "{\"id\":\"wv2-t-precisely-what-one-does-not-do\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will slowly decay.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-2\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"One being, in this case, the entire civilised population.\"}"
   },
   {
     "id": "wv2-t-aesthetic-failure-first",
@@ -2827,8 +2827,8 @@
     "flavor": "Aesthetics being, in his school, the only ethics that hold up.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 3,
-    "damage_multiplier": 1,
+    "damage": 6,
+    "damage_multiplier": 1.25,
     "damage_type": "block",
     "stat_contribution": "",
     "block": "",
@@ -2839,7 +2839,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-aesthetic-failure-first\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"rebounds with interest.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":1,\"damageType\":\"block\"},\"setId\":\"thorns-2\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"Aesthetics being, in his school, the only ethics that hold up.\"}"
+    "raw_json": "{\"id\":\"wv2-t-aesthetic-failure-first\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"rebounds with interest.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":1.25,\"damageType\":\"block\"},\"setId\":\"thorns-2\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"Aesthetics being, in his school, the only ethics that hold up.\"}"
   },
   {
     "id": "wv2-t-politely-call-memorial",
@@ -2856,8 +2856,8 @@
     "flavor": "Politeness, in a memorial setting, is the entire performance.",
     "keywords": "observational|cutting",
     "scale_by": "wit",
-    "damage": 5,
-    "damage_multiplier": 1,
+    "damage": 8,
+    "damage_multiplier": 1.25,
     "damage_type": "block",
     "stat_contribution": "",
     "block": "",
@@ -2868,7 +2868,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-politely-call-memorial\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"turns inward, sharply.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":1,\"damageType\":\"block\"},\"setId\":\"thorns-3\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"Politeness, in a memorial setting, is the entire performance.\"}"
+    "raw_json": "{\"id\":\"wv2-t-politely-call-memorial\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"turns inward, sharply.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":1.25,\"damageType\":\"block\"},\"setId\":\"thorns-3\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"Politeness, in a memorial setting, is the entire performance.\"}"
   },
   {
     "id": "wv2-t-suggestion-at-best",
@@ -2885,8 +2885,8 @@
     "flavor": "A suggestion being, legally speaking, a contract you ignored.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 3,
-    "damage_multiplier": 2,
+    "damage": 6,
+    "damage_multiplier": 2.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -2897,7 +2897,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-suggestion-at-best\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is just getting started.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"crescendo-2\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"A suggestion being, legally speaking, a contract you ignored.\"}"
+    "raw_json": "{\"id\":\"wv2-t-suggestion-at-best\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is just getting started.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2.25,\"damageType\":\"composure\"},\"setId\":\"crescendo-2\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"A suggestion being, legally speaking, a contract you ignored.\"}"
   },
   {
     "id": "wv2-t-conversation-with-you-itself",
@@ -2914,8 +2914,8 @@
     "flavor": "Volvos are patient. The conversation has been queued since 2003.",
     "keywords": "observational",
     "scale_by": "wit",
-    "damage": 5,
-    "damage_multiplier": 2,
+    "damage": 8,
+    "damage_multiplier": 2.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -2926,7 +2926,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-conversation-with-you-itself\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lands hardest now.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"crescendo-3\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"Volvos are patient. The conversation has been queued since 2003.\"}"
+    "raw_json": "{\"id\":\"wv2-t-conversation-with-you-itself\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lands hardest now.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":2.25,\"damageType\":\"composure\"},\"setId\":\"crescendo-3\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"Volvos are patient. The conversation has been queued since 2003.\"}"
   },
   {
     "id": "wv2-t-fabric-stops-asking",
@@ -2943,7 +2943,7 @@
     "flavor": "Permission, in fabric, is the entire moral system.",
     "keywords": "observational",
     "scale_by": "wit",
-    "damage": 3,
+    "damage": 6,
     "damage_multiplier": 2,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2955,7 +2955,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-fabric-stops-asking\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lingers, badly.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-4\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"Permission, in fabric, is the entire moral system.\"}"
+    "raw_json": "{\"id\":\"wv2-t-fabric-stops-asking\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"lingers, badly.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-4\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"Permission, in fabric, is the entire moral system.\"}"
   },
   {
     "id": "wv2-t-8-has-been-and-gone",
@@ -2972,7 +2972,7 @@
     "flavor": "The regret is the giveaway. Eight was, in fact, a deadline.",
     "keywords": "observational|cutting",
     "scale_by": "wit",
-    "damage": 3,
+    "damage": 6,
     "damage_multiplier": 2,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -2984,7 +2984,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-8-has-been-and-gone\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will erode steadily.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-5\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"The regret is the giveaway. Eight was, in fact, a deadline.\"}"
+    "raw_json": "{\"id\":\"wv2-t-8-has-been-and-gone\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will erode steadily.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-5\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"The regret is the giveaway. Eight was, in fact, a deadline.\"}"
   },
   {
     "id": "wv2-t-soft-start",
@@ -3001,8 +3001,8 @@
     "flavor": "Softness, here, is a clinical observation. Not a kindness.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 5,
-    "damage_multiplier": 3,
+    "damage": 8,
+    "damage_multiplier": 3.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3013,7 +3013,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-soft-start\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"are what the rest of us call a soft start.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Softness, here, is a clinical observation. Not a kindness.\"}"
+    "raw_json": "{\"id\":\"wv2-t-soft-start\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"are what the rest of us call a soft start.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3.25,\"damageType\":\"composure\"},\"flavor\":\"Softness, here, is a clinical observation. Not a kindness.\"}"
   },
   {
     "id": "wv2-t-did-not-ask-to-know",
@@ -3030,8 +3030,8 @@
     "flavor": "We did not ask. The towel still spoke.",
     "keywords": "observational|cutting",
     "scale_by": "wit",
-    "damage": 3,
-    "damage_multiplier": 1,
+    "damage": 6,
+    "damage_multiplier": 1.25,
     "damage_type": "block",
     "stat_contribution": "",
     "block": "",
@@ -3042,7 +3042,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-did-not-ask-to-know\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is what you get back.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":1,\"damageType\":\"block\"},\"setId\":\"thorns-5\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"We did not ask. The towel still spoke.\"}"
+    "raw_json": "{\"id\":\"wv2-t-did-not-ask-to-know\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is what you get back.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":1.25,\"damageType\":\"block\"},\"setId\":\"thorns-5\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"We did not ask. The towel still spoke.\"}"
   },
   {
     "id": "wv2-t-essence-public-service",
@@ -3059,8 +3059,8 @@
     "flavor": "The service being free entertainment for everyone watching.",
     "keywords": "observational",
     "scale_by": "wit",
-    "damage": 3,
-    "damage_multiplier": 2,
+    "damage": 6,
+    "damage_multiplier": 2.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3071,7 +3071,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-essence-public-service\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"adds up here.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"crescendo-4\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"The service being free entertainment for everyone watching.\"}"
+    "raw_json": "{\"id\":\"wv2-t-essence-public-service\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"adds up here.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2.25,\"damageType\":\"composure\"},\"setId\":\"crescendo-4\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"The service being free entertainment for everyone watching.\"}"
   },
   {
     "id": "wv2-t-jurisdiction-moral-failing",
@@ -3088,8 +3088,8 @@
     "flavor": "Most jurisdictions, in fact. Civilised ones, certainly.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 3,
-    "damage_multiplier": 2,
+    "damage": 6,
+    "damage_multiplier": 2.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3100,7 +3100,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-jurisdiction-moral-failing\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"delivers itself now.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"crescendo-5\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"Most jurisdictions, in fact. Civilised ones, certainly.\"}"
+    "raw_json": "{\"id\":\"wv2-t-jurisdiction-moral-failing\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"delivers itself now.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2.25,\"damageType\":\"composure\"},\"setId\":\"crescendo-5\",\"setSlot\":\"target\",\"schoolId\":\"crescendo\",\"flavor\":\"Most jurisdictions, in fact. Civilised ones, certainly.\"}"
   },
   {
     "id": "wv2-t-its-own-opinions",
@@ -3117,7 +3117,7 @@
     "flavor": "Wool develops opinions. Linen, in spring, simply behaves.",
     "keywords": "observational",
     "scale_by": "wit",
-    "damage": 5,
+    "damage": 8,
     "damage_multiplier": 3,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -3129,7 +3129,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-its-own-opinions\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"has its own opinions.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Wool develops opinions. Linen, in spring, simply behaves.\"}"
+    "raw_json": "{\"id\":\"wv2-t-its-own-opinions\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"has its own opinions.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Wool develops opinions. Linen, in spring, simply behaves.\"}"
   },
   {
     "id": "wv2-t-still-be-unkind",
@@ -3146,8 +3146,8 @@
     "flavor": "Charity has its limits. The hem has, regretfully, exposed them.",
     "keywords": "cutting|observational",
     "scale_by": "wit",
-    "damage": 6,
-    "damage_multiplier": 3,
+    "damage": 9,
+    "damage_multiplier": 3.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3158,7 +3158,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-still-be-unkind\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"would still be unkind.\",\"tags\":[\"cutting\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Charity has its limits. The hem has, regretfully, exposed them.\"}"
+    "raw_json": "{\"id\":\"wv2-t-still-be-unkind\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"would still be unkind.\",\"tags\":[\"cutting\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":3.25,\"damageType\":\"composure\"},\"flavor\":\"Charity has its limits. The hem has, regretfully, exposed them.\"}"
   },
   {
     "id": "wv2-t-not-what-one-wears-after",
@@ -3175,7 +3175,7 @@
     "flavor": "Before 8 and after 8 being, in textiles, two different gravities.",
     "keywords": "academic",
     "scale_by": "wit",
-    "damage": 3,
+    "damage": 6,
     "damage_multiplier": 2,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -3187,7 +3187,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-not-what-one-wears-after\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will fester.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-8\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"Before 8 and after 8 being, in textiles, two different gravities.\"}"
+    "raw_json": "{\"id\":\"wv2-t-not-what-one-wears-after\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"will fester.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":2,\"damageType\":\"composure\"},\"setId\":\"slowburn-8\",\"setSlot\":\"target\",\"schoolId\":\"slowburn\",\"flavor\":\"Before 8 and after 8 being, in textiles, two different gravities.\"}"
   },
   {
     "id": "wv2-t-rest-follows",
@@ -3204,8 +3204,8 @@
     "flavor": "The rest, in his house, being a long list of consequences.",
     "keywords": "observational|cutting",
     "scale_by": "wit",
-    "damage": 3,
-    "damage_multiplier": 1,
+    "damage": 6,
+    "damage_multiplier": 1.25,
     "damage_type": "block",
     "stat_contribution": "",
     "block": "",
@@ -3216,7 +3216,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-rest-follows\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"answers itself.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":1,\"damageType\":\"block\"},\"setId\":\"thorns-6\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"The rest, in his house, being a long list of consequences.\"}"
+    "raw_json": "{\"id\":\"wv2-t-rest-follows\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"answers itself.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":1.25,\"damageType\":\"block\"},\"setId\":\"thorns-6\",\"setSlot\":\"target\",\"schoolId\":\"thorns\",\"flavor\":\"The rest, in his house, being a long list of consequences.\"}"
   },
   {
     "id": "wv2-t-in-fact-ongoing",
@@ -3233,8 +3233,8 @@
     "flavor": "Ongoing being a verb-form, here, with weight.",
     "keywords": "academic|observational",
     "scale_by": "wit",
-    "damage": 5,
-    "damage_multiplier": 3,
+    "damage": 8,
+    "damage_multiplier": 3.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3245,7 +3245,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-in-fact-ongoing\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in fact, ongoing.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Ongoing being a verb-form, here, with weight.\"}"
+    "raw_json": "{\"id\":\"wv2-t-in-fact-ongoing\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in fact, ongoing.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3.25,\"damageType\":\"composure\"},\"flavor\":\"Ongoing being a verb-form, here, with weight.\"}"
   },
   {
     "id": "wv2-t-optional-in-your-house",
@@ -3262,7 +3262,7 @@
     "flavor": "Optional being, in this case, a synonym for \"absent altogether.\"",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 6,
+    "damage": 9,
     "damage_multiplier": 3,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -3274,7 +3274,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-optional-in-your-house\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, regrettably, optional in your house.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Optional being, in this case, a synonym for \\\"absent altogether.\\\"\"}"
+    "raw_json": "{\"id\":\"wv2-t-optional-in-your-house\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, regrettably, optional in your house.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Optional being, in this case, a synonym for \\\"absent altogether.\\\"\"}"
   },
   {
     "id": "wv2-t-insurance-forms",
@@ -3291,7 +3291,7 @@
     "flavor": "The forms have been pre-filled. By the underwriter. With a sigh.",
     "keywords": "observational",
     "scale_by": "wit",
-    "damage": 6,
+    "damage": 9,
     "damage_multiplier": 3,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -3303,7 +3303,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-insurance-forms\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is what insurance forms are for.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"The forms have been pre-filled. By the underwriter. With a sigh.\"}"
+    "raw_json": "{\"id\":\"wv2-t-insurance-forms\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is what insurance forms are for.\",\"tags\":[\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"The forms have been pre-filled. By the underwriter. With a sigh.\"}"
   },
   {
     "id": "wv2-t-generously-aspirational",
@@ -3320,8 +3320,8 @@
     "flavor": "Aspiration, here, being a polite name for \"regularly exceeded.\"",
     "keywords": "academic|observational",
     "scale_by": "wit",
-    "damage": 5,
-    "damage_multiplier": 3,
+    "damage": 8,
+    "damage_multiplier": 3.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3332,7 +3332,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-generously-aspirational\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, generously, aspirational.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"Aspiration, here, being a polite name for \\\"regularly exceeded.\\\"\"}"
+    "raw_json": "{\"id\":\"wv2-t-generously-aspirational\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, generously, aspirational.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":8,\"multiplier\":3.25,\"damageType\":\"composure\"},\"flavor\":\"Aspiration, here, being a polite name for \\\"regularly exceeded.\\\"\"}"
   },
   {
     "id": "wv2-t-category-of-confusion",
@@ -3349,8 +3349,8 @@
     "flavor": "The category is small. You are, somehow, its sole member.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 6,
-    "damage_multiplier": 3,
+    "damage": 9,
+    "damage_multiplier": 3.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3361,7 +3361,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-category-of-confusion\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, on its own, a category of confusion.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\"},\"flavor\":\"The category is small. You are, somehow, its sole member.\"}"
+    "raw_json": "{\"id\":\"wv2-t-category-of-confusion\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, on its own, a category of confusion.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":3.25,\"damageType\":\"composure\"},\"flavor\":\"The category is small. You are, somehow, its sole member.\"}"
   },
   {
     "id": "wv2-m-due-respect",
@@ -3871,8 +3871,8 @@
     "flavor": "The footnote is on page 814. The page is, technically, also a footnote.",
     "keywords": "academic|observational",
     "scale_by": "wit",
-    "damage": 2,
-    "damage_multiplier": 2,
+    "damage": 5,
+    "damage_multiplier": 2.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3883,7 +3883,7 @@
     "feed_key": "",
     "mechanics": "perDiscardCard",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-footnote-bears-out\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"…as the long footnote bears out.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":2,\"damageType\":\"composure\",\"perDiscardCard\":1},\"flavor\":\"The footnote is on page 814. The page is, technically, also a footnote.\"}"
+    "raw_json": "{\"id\":\"wv2-t-footnote-bears-out\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"…as the long footnote bears out.\",\"tags\":[\"academic\",\"observational\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":2.25,\"damageType\":\"composure\",\"perDiscardCard\":1},\"flavor\":\"The footnote is on page 814. The page is, technically, also a footnote.\"}"
   },
   {
     "id": "wv2-t-finally-answered",
@@ -3900,8 +3900,8 @@
     "flavor": "Every footnote has, eventually, a reckoning.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
-    "damage": 2,
-    "damage_multiplier": 2,
+    "damage": 5,
+    "damage_multiplier": 2.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -3912,7 +3912,7 @@
     "feed_key": "",
     "mechanics": "cashInAnnotation|requiresAnnotation",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-finally-answered\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is finally answered, in full.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":2,\"damageType\":\"composure\",\"requiresAnnotation\":true,\"cashInAnnotation\":{\"damagePerTurn\":5}},\"desc\":\"REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.\",\"flavor\":\"Every footnote has, eventually, a reckoning.\"}"
+    "raw_json": "{\"id\":\"wv2-t-finally-answered\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is finally answered, in full.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":2.25,\"damageType\":\"composure\",\"requiresAnnotation\":true,\"cashInAnnotation\":{\"damagePerTurn\":5}},\"desc\":\"REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.\",\"flavor\":\"Every footnote has, eventually, a reckoning.\"}"
   },
   {
     "id": "wv2-ann-footnote-credibility",
@@ -4277,7 +4277,7 @@
     "flavor": "Summary being a polite word for verdict.",
     "keywords": "academic",
     "scale_by": "wit",
-    "damage": 6,
+    "damage": 9,
     "damage_multiplier": 3,
     "damage_type": "composure",
     "stat_contribution": "",
@@ -4289,7 +4289,7 @@
     "feed_key": "",
     "mechanics": "delayedMisstep|threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-in-summary\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in summary, the inescapable conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":4,\"delayedMisstep\":true},\"desc\":\"Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.\",\"flavor\":\"Summary being a polite word for verdict.\"}"
+    "raw_json": "{\"id\":\"wv2-t-in-summary\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in summary, the inescapable conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":4,\"delayedMisstep\":true},\"desc\":\"Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.\",\"flavor\":\"Summary being a polite word for verdict.\"}"
   },
   {
     "id": "wv2-m-as-previously-stated",
@@ -4364,8 +4364,8 @@
     "flavor": "A flaw named is a flaw amplified.",
     "keywords": "academic",
     "scale_by": "wit",
-    "damage": 4,
-    "damage_multiplier": 3,
+    "damage": 7,
+    "damage_multiplier": 3.25,
     "damage_type": "composure",
     "stat_contribution": "",
     "block": "",
@@ -4376,7 +4376,7 @@
     "feed_key": "",
     "mechanics": "pierceVulnerableInsult",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-cannot-bear\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"that being, of course, the very thing you cannot bear to hear.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":4,\"multiplier\":3,\"damageType\":\"composure\",\"pierceVulnerableInsult\":4},\"desc\":\"Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).\",\"flavor\":\"A flaw named is a flaw amplified.\"}"
+    "raw_json": "{\"id\":\"wv2-t-cannot-bear\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"that being, of course, the very thing you cannot bear to hear.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":7,\"multiplier\":3.25,\"damageType\":\"composure\",\"pierceVulnerableInsult\":4},\"desc\":\"Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).\",\"flavor\":\"A flaw named is a flaw amplified.\"}"
   },
   {
     "id": "wv2-k-page-mark",
