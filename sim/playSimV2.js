@@ -1287,6 +1287,11 @@ function pickHandlerTactic(state, combat, needDefense) {
     const sl = combat.htray[s];
     return sl?.kind === 'animal' && !!COMBINE_BY_SPECIES[sl.animalId];
   });
+  // Smart-AI (2026-06-10): if we're stuck in Shield but safe this turn, breaking
+  // OUT of it (to an attacking stance) is urgent — Shield zeroes our offense and
+  // a swap is the only way to leave it. Relax rabid's composure gate to make the
+  // escape reliable whenever a rabid card is in hand and a body is on the board.
+  const escapingShield = combat.tactic === 'shield' && !needDefense;
   let best = -1, bestVal = -Infinity, bestId = null, bestEngaged = Infinity;
   for (let i = 0; i < state.hand.length; i++) {
     const c = state.hand[i];
@@ -1295,7 +1300,13 @@ function pickHandlerTactic(state, combat, needDefense) {
     if (id === combat.tactic) continue;
     if (id === 'shield' && !needDefense) continue;
     if (c.tactic.requiresExactlyOneAnimal && animals !== 1) continue;
-    const val = id === 'shield' ? 100 : tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombine);
+    // Shield engagement disabled for the AI (see aiTurnHandler note): it's a
+    // sticky stance that zeroes the menagerie's offense and was the #1 stall
+    // killer. needDefense is always false now, so this branch never fires, but
+    // keep the 0 so any future caller can't re-trap the bot.
+    let val = id === 'shield' ? 0 : tacticSituationalValue(id, animals, haveLure, compPct, isBoss, canCombine);
+    // Shield-escape: if somehow already in shield, a rabid swap restores offense.
+    if (escapingShield && id === 'rabid' && animals >= 1 && compPct > 0.25 && val <= 0) val = 8;
     if (val <= 0) continue;
     const engaged = combat.tacticsEngaged[id] || 0;
     if (val > bestVal || (val === bestVal && engaged < bestEngaged)) {
@@ -2013,19 +2024,19 @@ function aiTurnHandler(state, combat) {
       if (canNarrow) { playHandlerCard(state, combat, narrowIdx); continue; }
     }
     if (state.energy >= 1) {
-      let needDefense = false;
-      if (incoming > 0) {
-        const targetsComp = intent.pool === 'composure';
-        const expected = handlerAdjustIncoming(combat, incoming);
-        const pool = targetsComp ? state.poise : state.block;
-        const haveSkill = state.hand.some(c => c.type === 'handler-skill' && c.cost <= state.energy && (targetsComp ? c.effects?.poise : c.effects?.block));
-        const uncovered = Math.max(0, expected - pool);
-        const damagePct = targetsComp
-          ? uncovered / Math.max(1, state.composure)
-          : uncovered / Math.max(1, state.hp);
-        needDefense = uncovered > 0 && damagePct > 0.3 && !haveSkill;
-      }
-      const ti = pickHandlerTactic(state, combat, needDefense);
+      // Smart-AI fix (2026-06-10): the Shield stance was the bot's #1 killer —
+      // 736/1000 stalls, 98% in shield. Shield routes animal attacks into Block
+      // instead of enemy composure, and it's a STICKY swap-only stance (no
+      // neutral), so any single emergency shield permanently neuters the board
+      // and loses the composure race (the bot died with ~50 HP to spare). The
+      // human wins WITHOUT it (telemetry: ~0 tactics) — soak with block cards/HP
+      // and keep the menagerie swinging. Measured: disabling shield engagement
+      // took avg acts 0.41→0.63 and stalls 546→44; every escapable-shield
+      // variant scored worse (the escape card isn't reliably in hand). So the AI
+      // no longer engages shield (pickHandlerTactic scores it 0); defense comes
+      // from the block-skill / sacrifice / ability paths above. needDefense=false
+      // keeps the non-shield tactic selection (rabid/nurture/youth/feather).
+      const ti = pickHandlerTactic(state, combat, false);
       if (ti >= 0) { playHandlerCard(state, combat, ti); continue; }
     }
     if (isBoss && SLOT.some(s => combat.htray[s]?.kind === 'lure')) {
