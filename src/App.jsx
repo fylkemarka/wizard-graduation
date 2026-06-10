@@ -6214,7 +6214,13 @@ export default function App() {
 
   function playCard(handIdx, opts = {}) {
     if (stage !== 'combat') return;
-    const card = hand[handIdx];
+    // `let`, not `const`: the FLEX branch below reassigns `card` to a clone
+    // with its resolved slot. Declared const, that reassignment threw
+    // "Assignment to constant variable" on EVERY flex play — the card_play
+    // telemetry fired first (line ~6284), then the throw aborted playCard so
+    // the word never staged. Telemetry fingerprint: a flex word clicked 4× in
+    // a row with energy + hand size frozen. FLEX shipped (cycle 8) DOA.
+    let card = hand[handIdx];
     if (!card) return;
     // Swallow a double-fired click: the same card uid re-entering within 200ms
     // is a duplicate dispatch, not a real second play (the card is already
@@ -6585,7 +6591,14 @@ export default function App() {
       // subjects stay pure stat-banks (the "specialist piece"), targets
       // get their bonus in the target branch below. Layered before the
       // card's own effects so per-card riders still fire on top.
-      const slotBonus = STAGE_SLOT_BONUS[card.slot] || {};
+      // Red-team fix (2026-06-09, found in telemetry): the bonus fires ONLY
+      // when filling an EMPTY slot — a replacement is a re-stage, not a fresh
+      // stage. Without this gate, a FLEX word (which resolves to the already-
+      // full intro slot) bounced the prior intro back to hand AND re-applied
+      // {block:2} every click, at cost 0 → infinite free Block. Two intro
+      // words alternating did the same energy-neutrally. Telemetry fingerprint:
+      // by-which-i-mean played 4× with energy/hand frozen.
+      const slotBonus = prev ? {} : (STAGE_SLOT_BONUS[card.slot] || {});
       applySideEffects({ ...slotBonus, ...(card.effects || {}) }, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfHandler();
@@ -6694,6 +6707,7 @@ export default function App() {
         return;
       }
       // Replace any existing target the way intro/subject replacement works.
+      const hadTarget = !!tray.target;
       if (tray.target) {
         setHand(h => [...h, tray.target]);
         setEnergy(e => e + (tray.target.cost || 0));
@@ -6703,8 +6717,12 @@ export default function App() {
       // v3.4.19 — solo staging bonus for targets: small composure chip
       // damage on stage. The "the moment you finish a thought it lands
       // a little" beat. Per-card card.effects (rare on targets) still
-      // fire on top.
-      const slotBonus = STAGE_SLOT_BONUS[card.slot] || {};
+      // fire on top. Red-team fix (2026-06-09): only on an EMPTY target slot —
+      // a replace is a re-stage, not a fresh stage. Two target words alternating
+      // would otherwise farm infinite composure damage energy-neutrally (the
+      // replaced card bounces back to hand with its cost refunded). Same class
+      // as the intro FLEX-bounce exploit above.
+      const slotBonus = hadTarget ? {} : (STAGE_SLOT_BONUS[card.slot] || {});
       applySideEffects({ ...slotBonus, ...(card.effects || {}) }, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfHandler();
