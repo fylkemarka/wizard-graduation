@@ -46,3 +46,28 @@ test('a FLEX word stages without throwing (leaves hand, fills a slot)', async ({
   // Combat still alive — no uncaught crash took the tree down.
   await expect(page.getByTestId('hand')).toBeVisible();
 });
+
+test('a displaced FLEX word re-flexes into the open slot instead of bouncing to hand', async ({ page }) => {
+  await gotoLab(page, 'wit', { seed: 11 });
+  await page.getByRole('button', { name: /All Cards/ }).click();
+  for (let i = 0; i < 6; i++) {
+    await addCard(page, FLEX);
+    await addCard(page, 'wv2-i-frankly'); // a real intro
+  }
+  await fightEnemy(page, 'Loom Familiar');
+
+  // Stage the flex first — with an empty tray it resolves into the intro slot.
+  expect(await ensureInHand(page, FLEX)).toBeTruthy();
+  await playCardById(page, FLEX);
+  // Now play the real intro: the flex should RE-FLEX into the subject slot
+  // (v3.9.1) rather than bounce back to hand.
+  expect(await ensureInHand(page, 'wv2-i-frankly')).toBeTruthy();
+  const handBefore = await page.getByTestId('hand-card').count();
+  await playCardById(page, 'wv2-i-frankly');
+  // Hand shrank by exactly the intro played — the flex did NOT come back.
+  await expect
+    .poll(async () => page.getByTestId('hand-card').count())
+    .toBe(handBefore - 1);
+  // Combat alive, no crash.
+  await expect(page.getByTestId('hand')).toBeVisible();
+});

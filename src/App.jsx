@@ -6584,15 +6584,25 @@ export default function App() {
     }
     // v2 sentence engine routing by slot.
     if (card.slot === 'intro' || card.slot === 'subject') {
-      const prev = tray[card.slot] && tray[card.slot].flexResolved
-        ? { ...tray[card.slot], slot: 'flex', flexResolved: false }
-        : tray[card.slot];
+      const occupant = tray[card.slot];
+      const otherSlot = card.slot === 'intro' ? 'subject' : 'intro';
+      // v3.9.1 (Alan): a FLEX word displaced by a real word RE-FLEXES into
+      // the other primary slot when it's open, instead of bouncing to hand.
+      // ("I had a flex staged as intro; playing the real intro should have
+      // slid it to the subject slot, not made me unstage it by hand.")
+      const reflex = !!(occupant?.flexResolved && !tray[otherSlot]);
+      const prev = occupant && occupant.flexResolved && !reflex
+        ? { ...occupant, slot: 'flex', flexResolved: false }
+        : (reflex ? null : occupant);
       if (prev) {
         setHand(h => [...h, prev]);
         setEnergy(e => e + (prev.cost || 0));
         pushLog(`↩ Replaced ${card.slot} ${prev.name}.`);
       }
-      setTray(p => syncTrayLegacy({ ...p, [card.slot]: card }));
+      setTray(p => syncTrayLegacy(reflex
+        ? { ...p, [card.slot]: card, [otherSlot]: { ...occupant, slot: otherSlot } }
+        : { ...p, [card.slot]: card }));
+      if (reflex) pushLog(`🔀 ${occupant.phrase} re-flexes into the ${otherSlot} slot.`);
       // v3.4.19 (Alan): solo staging bonus per slot — intros add Block,
       // subjects stay pure stat-banks (the "specialist piece"), targets
       // get their bonus in the target branch below. Layered before the
@@ -6604,7 +6614,11 @@ export default function App() {
       // {block:2} every click, at cost 0 → infinite free Block. Two intro
       // words alternating did the same energy-neutrally. Telemetry fingerprint:
       // by-which-i-mean played 4× with energy/hand frozen.
-      const slotBonus = prev ? {} : (STAGE_SLOT_BONUS[card.slot] || {});
+      // Exploit gate (red-team 2026-06-09): bonus only on filling an EMPTY
+      // slot. Gates on `occupant`, not `prev` — a re-flex relocation leaves
+      // prev null but the slot WAS occupied, and granting here would re-open
+      // the free-Block loop the gate exists to close.
+      const slotBonus = occupant ? {} : (STAGE_SLOT_BONUS[card.slot] || {});
       applySideEffects({ ...slotBonus, ...(card.effects || {}) }, logBits);
       setHand(h => h.filter((_, i) => i !== handIdx));
       bumpTunnelVisionIfHandler();
@@ -7635,9 +7649,12 @@ export default function App() {
           pushLog(`🛡 Solid Argument: matching block-per-turn scheduled.`);
           setNextSpellAddDefensiveDot(false);
         }
-        setEnemy(e => {
-          if (!e) return e;
-          const cur = e.dot;
+        // v3.9.1 (Alan bug report): the DoT wave follows the SELECTED cast
+        // target. Previously it always landed on the main enemy, even when
+        // the player had targeted the companion — the one duo-fight payoff
+        // a Slow Burn deck cares about most.
+        const mergeDotWave = (holder) => {
+          const cur = holder.dot;
           const existing = (cur && Array.isArray(cur.schedule))
             ? cur.schedule.slice()
             : (cur && (cur.damage || 0) > 0 && (cur.turnsRemaining || 0) > 0)
@@ -7648,9 +7665,15 @@ export default function App() {
           for (let i = 0; i < len; i++) merged[i] = (existing[i] || 0) + (wave[i] || 0);
           // Trim trailing zeros — no ghost turns.
           while (merged.length > 0 && (merged[merged.length - 1] || 0) <= 0) merged.pop();
-          if (merged.length === 0) return { ...e, dot: null };
-          return { ...e, dot: { damage: merged[0], turnsRemaining: merged.length, schedule: merged } };
-        });
+          if (merged.length === 0) return null;
+          return { damage: merged[0], turnsRemaining: merged.length, schedule: merged };
+        };
+        if (castTargetRef.current === 'companion' && companionRef.current) {
+          setCompanion(c => c ? { ...c, dot: mergeDotWave(c) } : c);
+          pushLog(`🩸 The slow burn settles on ${companionRef.current.name || 'the companion'}.`);
+        } else {
+          setEnemy(e => e ? { ...e, dot: mergeDotWave(e) } : e);
+        }
       };
       // Flat constant DoT: { setDotMinDamage: N, setDotMinTurns: M } →
       // wave [N, N, ..., N] (M times). Key names kept for data-compat;
@@ -11771,6 +11794,31 @@ export default function App() {
         setEnemy(e => e ? { ...e, dot: null } : e);
       }
       pushLog(`🩸 DoT: ${dmg} composure (${remaining} turn${remaining === 1 ? '' : 's'} left).`);
+    }
+    // v3.9.1 — companion DoT tick (twin of the enemy tick above; DoT waves
+    // can now land on the targeted companion). Same poison semantics:
+    // bypasses block, straight to composure, fires before its intent so a
+    // DoT kill pre-empts the companion's turn (it flees at 0 composure).
+    if (companionRef.current?.dot?.turnsRemaining > 0) {
+      const c = companionRef.current;
+      const cdot = c.dot;
+      const cSched = Array.isArray(cdot.schedule) ? cdot.schedule : null;
+      const cDmg = cSched && cSched.length > 0 ? cSched[0] : cdot.damage;
+      const cRemaining = cdot.turnsRemaining - 1;
+      const cNextSched = cSched ? cSched.slice(1) : undefined;
+      const cNextDamage = cNextSched && cNextSched.length > 0 ? cNextSched[0] : cdot.damage;
+      const nextDot = cRemaining > 0 && (cNextDamage > 0 || cdot.damage > 0)
+        ? { ...cdot, damage: cNextDamage, schedule: cNextSched, turnsRemaining: cRemaining }
+        : null;
+      const cCompAfter = Math.max(0, c.composure - Math.max(0, cDmg || 0));
+      if (cCompAfter <= 0 && c.composure > 0) {
+        pushLog(`🩸 DoT: ${cDmg} composure — ${c.def?.name || 'the companion'} unravels and scurries off.`);
+        commitCompanion(null);
+        setSpellTarget('main');
+      } else {
+        commitCompanion({ ...c, composure: cCompAfter, dot: nextDot });
+        if ((cDmg || 0) > 0) pushLog(`🩸 DoT on ${c.def?.name || 'companion'}: ${cDmg} composure (${cRemaining} turn${cRemaining === 1 ? '' : 's'} left).`);
+      }
     }
 
     // 2. Enemy turn begins. Enemy block expires here, before the intent

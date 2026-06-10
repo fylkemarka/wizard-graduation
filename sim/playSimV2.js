@@ -5129,16 +5129,11 @@ function runCombat(state, enemyId, telemetry) {
       // lastCastDamage so the NEXT Precedent cast has something to mirror.
       // v3.4.x — Slow Burn targets DEPOSIT DoT (mirror App.jsx).
       // No upfront damage; cast pushes per-turn × turns into enemy.dot.
-      if (tray.target.schoolId === 'slowburn') {
-        const statWit = (tray.intro?.stats?.wit || 0) + (tray.subject?.stats?.wit || 0);
-        const perTurn = Math.max(1, (tray.target.effect?.base || 0) + statWit);
-        const turns = tray.target.effect?.multiplier || 1;
-        if (!enemy.dot) enemy.dot = { damage: 0, turnsRemaining: 0 };
-        enemy.dot.damage += perTurn;
-        enemy.dot.turnsRemaining += turns;
-        telemetry.fftDotDepositDamage = (telemetry.fftDotDepositDamage || 0) + (perTurn * turns);
-        dmg = 0; // suppress direct damage application
-      }
+      // v3.9.1 DRIFT FIX: the "Slow Burn targets DEPOSIT DoT" branch removed.
+      // App.jsx reverted that behavior in v3.4.4 (slowburn targets deal NORMAL
+      // direct damage; DoT comes ONLY from full-FFT row riders) but the sim
+      // kept depositing — every wit measurement since modeled a slowburn
+      // school that doesn't exist in the live game.
       // Red-team anomaly tripwires (2026-06-09): outlier casts are exploit
       // candidates — surfaced in the report's ANOMALIES section.
       telemetry.maxCastDmg = Math.max(telemetry.maxCastDmg || 0, dmg);
@@ -5195,10 +5190,13 @@ function runCombat(state, enemyId, telemetry) {
         if (rider.poise)          state.poise = (state.poise || 0) + rider.poise;
         if (!state.scheduledEffects) state.scheduledEffects = [];
         // v3.4.18 (Alan): DoT spells STACK additively onto existing DoT.
-        // Wave-and-sum onto enemy.dot.schedule; dot.damage = schedule[0].
+        // Wave-and-sum onto the holder's dot.schedule; dot.damage = schedule[0].
+        // v3.9.1: the wave follows the CAST'S TARGET (mirrors App.jsx — DoT on
+        // the targeted companion, not always the leader).
         const addDotWaveSim = (wave) => {
           if (!wave || wave.length === 0) return;
-          const cur = enemy.dot;
+          const holder = (castTarget === 'companion' && state.companion) ? state.companion : enemy;
+          const cur = holder.dot;
           const existing = (cur && Array.isArray(cur.schedule))
             ? cur.schedule.slice()
             : (cur && (cur.damage || 0) > 0 && (cur.turnsRemaining || 0) > 0)
@@ -5208,8 +5206,8 @@ function runCombat(state, enemyId, telemetry) {
           const merged = new Array(len);
           for (let i = 0; i < len; i++) merged[i] = (existing[i] || 0) + (wave[i] || 0);
           while (merged.length > 0 && (merged[merged.length - 1] || 0) <= 0) merged.pop();
-          if (merged.length === 0) { enemy.dot = null; return; }
-          enemy.dot = { damage: merged[0], turnsRemaining: merged.length, schedule: merged };
+          if (merged.length === 0) { holder.dot = null; return; }
+          holder.dot = { damage: merged[0], turnsRemaining: merged.length, schedule: merged };
         };
         if (rider.setDotMinDamage && rider.setDotMinTurns) {
           addDotWaveSim(new Array(rider.setDotMinTurns).fill(rider.setDotMinDamage));
@@ -5973,6 +5971,25 @@ function runCombat(state, enemyId, telemetry) {
     }
 
     // Enemy turn
+    // v3.9.1 — companion DoT tick (waves can land on the targeted companion
+    // now; mirrors App.jsx). Poison semantics: bypasses block, straight to
+    // composure; the companion flees at 0.
+    if (state.companion?.dot?.turnsRemaining > 0) {
+      const cd = state.companion.dot;
+      const cSched = Array.isArray(cd.schedule) ? cd.schedule : null;
+      const cTick = cSched && cSched.length > 0 ? cSched[0] : cd.damage;
+      if (cTick > 0) {
+        state.companion.composure = Math.max(0, state.companion.composure - cTick);
+        telemetry.fftDotTickDamage = (telemetry.fftDotTickDamage || 0) + cTick;
+      }
+      cd.turnsRemaining -= 1;
+      if (cSched) {
+        cd.schedule = cSched.slice(1);
+        cd.damage = cd.schedule.length > 0 ? cd.schedule[0] : cd.damage;
+      }
+      if (cd.turnsRemaining <= 0) state.companion.dot = null;
+      if (state.companion.composure <= 0) state.companion = null; // unravels
+    }
     // v3.4 Poison-style DoT tick (single counter on enemy.dot).
     // v3.4.17 — schedule-driven tick consumes schedule[0] then shifts.
     if (enemy.dot && enemy.dot.turnsRemaining > 0) {
