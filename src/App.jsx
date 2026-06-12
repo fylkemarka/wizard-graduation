@@ -13595,7 +13595,21 @@ export default function App() {
         ownedRowSlots[c.setId].add(c.setSlot);
       }
       const isFullyOwned = (r) => ownedRowSlots[r.id]?.size === 3;
-      const eligibleRows = laneRowsTable.filter(r => !isFullyOwned(r));
+      // v3.9.2 (Alan playtest, 2026-06-12): T3 CAPSTONE rows are act-gated.
+      // The Reasonable Observer landed off the FIRST elite of act 1 and the
+      // very next cast hit 108 (72 base × Bristle's Vulnerable) into a
+      // 35-composure normal — triple overkill, run-trivializing. The math is
+      // working; the TIMING wasn't. Capstones (all-three-cards-T3 rows) now
+      // appear only from act 2 onward — or from any BOSS reward, so the act-1
+      // boss remains the earliest legitimate capstone moment.
+      const isCapstoneRow = (r) => {
+        const tiers = [r.introId, r.subjectId, r.targetId]
+          .map(id => CARDS_BY_ID[id]?.tier || 1);
+        return Math.min(...tiers) >= 3;
+      };
+      const capstoneAllowed = actIdx >= 1 || enemy.tier === 'boss';
+      const eligibleRows = laneRowsTable.filter(r => !isFullyOwned(r)
+        && (capstoneAllowed || !isCapstoneRow(r)));
       // Bias toward partial rows (1-2 slots already owned) — finishing a
       // row a player started feels better than starting fresh on a 4th.
       const partials = eligibleRows.filter(r => ownedRowSlots[r.id]?.size > 0);

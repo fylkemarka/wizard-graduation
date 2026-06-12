@@ -356,7 +356,15 @@ function grantWitRow(state, isBoss) {
     (ownedRowSlots[c.setId] = ownedRowSlots[c.setId] || new Set()).add(c.setSlot);
   }
   const fullyOwned = (r) => ownedRowSlots[r.id]?.size === 3;
-  const eligible = WIT_ROWS.filter(r => !fullyOwned(r));
+  // v3.9.2: T3 capstone rows are act-gated (mirrors App.jsx) — act 2+ elites,
+  // or any boss. An act-1 elite capstone one-shot the rest of the act.
+  const isCapstoneRow = (r) => {
+    const tiers = [r.introId, r.subjectId, r.targetId].map(id => WIT_CARDS_BY_ID[id]?.tier || 1);
+    return Math.min(...tiers) >= 3;
+  };
+  const firstActId = ACTS[0]?.id;
+  const capstoneAllowed = isBoss || (state.currentActId !== undefined && state.currentActId !== firstActId);
+  const eligible = WIT_ROWS.filter(r => !fullyOwned(r) && (capstoneAllowed || !isCapstoneRow(r)));
   if (!eligible.length) return;
   const schoolCounts = {};
   for (const c of all) if (c.schoolId) schoolCounts[c.schoolId] = (schoolCounts[c.schoolId] || 0) + 1;
