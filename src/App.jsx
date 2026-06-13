@@ -8172,8 +8172,16 @@ export default function App() {
     if (!v) { pushLog('No animals staged — play an animal first.'); return; }
     const bits = [];
     if (v.damage > 0) { applyDamageToEnemyComposure(v.damage); bits.push(`💥 ${v.damage}`); }
-    if (v.block > 0) { setBlock(b => b + v.block); bits.push(`🛡 +${v.block}`); }
-    if (v.poise > 0) { setPoise(p => p + v.poise); bits.push(`🪞 +${v.poise}`); }
+    // Block/Poise: also write to shieldBraceRef — the synchronous accumulator
+    // applyEnemyIntent reads as `block + shieldBraceRef.current.block`. Without
+    // it, an IMPLICIT cast (hitting End Turn) gained block via setBlock but
+    // applyEnemyIntent ran in the SAME synchronous endTurn and read the stale
+    // pre-cast `block`, so the menagerie's defense didn't protect that turn
+    // (Alan bug 2026-06-13: "block only works if I specifically hit CAST").
+    // shieldBraceRef resets at end-turn-start, so a button-cast's committed
+    // block isn't double-counted.
+    if (v.block > 0) { setBlock(b => b + v.block); shieldBraceRef.current.block += v.block; bits.push(`🛡 +${v.block}`); }
+    if (v.poise > 0) { setPoise(p => p + v.poise); shieldBraceRef.current.poise += v.poise; bits.push(`🪞 +${v.poise}`); }
     if (v.weak > 0) { applyExpiringWeak(v.weak); bits.push(`⛧ Weak`); }
     if (v.vuln > 0) { applyExpiringVuln(v.vuln); bits.push(`🩸 Vuln`); }
     if (v.thorns > 0) { setMenagerieThorns(t => t + v.thorns); bits.push(`🦔 Thorns ${v.thorns}`); }
