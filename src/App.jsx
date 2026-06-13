@@ -8121,54 +8121,73 @@ export default function App() {
   // (composure), block, onCast ability — plus any installed combo payoffs,
   // then clears unfed animals (fed ones stay, fed flag reset). Repeatable per
   // turn; energy (the cost of playing more animals) is the limiter.
-  function castMenagerie() {
-    if (stage !== 'combat') return;
+  // Pure: compute what the currently-staged volley will do on CAST. Shared by
+  // castMenagerie (applies it) and the handler Math bar (previews it), so the
+  // player sees the full breakdown — per-animal lines + active combos — before
+  // firing. Returns null when no animals are staged.
+  function computeVolley() {
     const present = SLOT_ORDER.map(s => ({ s, slot: tray[s] })).filter(x => x.slot?.kind === 'animal');
-    if (present.length === 0) { pushLog('No animals staged — play an animal first.'); return; }
     const vol = present.map(x => ({ ...x, def: getAnimal(x.slot.animalId) })).filter(x => x.def);
+    if (vol.length === 0) return null;
     const tagsOf = (d) => d.tags || [];
     const countTag = (t) => vol.filter(a => tagsOf(a.def).includes(t)).length;
     const comboOn = (id) => powers.some(p => p.installPower?.id === id);
-    // Herd: a Sheepdog's bonus lifts every OTHER animal in the volley.
     const herdTotal = vol.reduce((s, a) => s + (a.def.onCast?.herd || 0), 0);
-
-    let totalComp = 0, totalBlock = 0, drawN = 0, weakN = 0, vulnN = 0, thornsN = 0;
+    let damage = 0, block = 0, poise = 0, draw = 0, weak = 0, vuln = 0, thorns = 0;
+    const lines = [];
     for (const a of vol) {
-      const d = a.def;
+      const d = a.def, parts = [];
       let atk = d.attack || 0;
-      if (atk > 0) atk += (herdTotal - (d.onCast?.herd || 0)); // herd from others
-      if (comboOn('comboApex') && tagsOf(d).includes('predator') && vol.some(o => !tagsOf(o.def).includes('predator'))) atk += 7;
+      if (atk > 0) { const hb = herdTotal - (d.onCast?.herd || 0); if (hb > 0) { atk += hb; parts.push(`🐕+${hb}`); } }
+      if (comboOn('comboApex') && tagsOf(d).includes('predator') && vol.some(o => !tagsOf(o.def).includes('predator'))) { atk += 7; parts.push('🐻+7'); }
       let mult = 1;
-      if (comboOn('comboStampede') && tagsOf(d).includes('land') && countTag('land') >= 2) mult = 2;
-      let blk = d.block || 0;
-      if (comboOn('comboBriar') && tagsOf(d).includes('defensive') && countTag('defensive') >= 2) blk *= 2;
-      totalComp += Math.max(0, atk) * mult;
-      totalBlock += blk;
-      drawN += d.onCast?.draw || 0;
-      weakN += d.onCast?.weak || 0;
-      vulnN += d.onCast?.vulnerable || 0;
-      thornsN += d.onCast?.thorns || 0;
+      if (comboOn('comboStampede') && tagsOf(d).includes('land') && countTag('land') >= 2) { mult = 2; parts.push('🦌×2'); }
+      let blk = d.block || 0, poi = d.poise || 0;
+      if (comboOn('comboBriar') && tagsOf(d).includes('defensive') && countTag('defensive') >= 2) { blk *= 2; poi *= 2; if (blk || poi) parts.push('🦔×2'); }
+      const dmg = Math.max(0, atk) * mult;
+      damage += dmg; block += blk; poise += poi;
+      draw += d.onCast?.draw || 0; weak += d.onCast?.weak || 0; vuln += d.onCast?.vulnerable || 0; thorns += d.onCast?.thorns || 0;
+      const seg = [];
+      if (dmg > 0) seg.push(`${dmg}💥`);
+      if (blk > 0) seg.push(`${blk}🛡`);
+      if (poi > 0) seg.push(`${poi}🪞`);
+      if (d.onCast?.draw) seg.push(`🃏${d.onCast.draw}`);
+      if (d.onCast?.weak) seg.push(`⛧`);
+      if (d.onCast?.thorns) seg.push(`🦔${d.onCast.thorns}`);
+      lines.push({ icon: d.icon || '🐾', name: d.name, fed: !!a.slot.fed, detail: [seg.join(' '), parts.join(' ')].filter(Boolean).join('  ') });
     }
-    if (comboOn('comboMurder') && countTag('bird') >= 2) totalComp += 6;
-    if (comboOn('comboFull') && vol.length >= 3) { totalComp += 8; totalBlock += 4; }
+    const combos = [];
+    if (comboOn('comboMurder') && countTag('bird') >= 2) { damage += 6; combos.push('🐦‍⬛ Murder +6'); }
+    if (comboOn('comboFull') && vol.length >= 3) { damage += 8; block += 4; combos.push('🎪 Full Menagerie +8💥 +4🛡'); }
+    if (comboOn('comboStampede') && countTag('land') >= 2) combos.push('🦌 Stampede ×2 land');
+    if (comboOn('comboApex') && countTag('predator') >= 1 && vol.some(o => !tagsOf(o.def).includes('predator'))) combos.push('🐻 Apex +7');
+    if (comboOn('comboBriar') && countTag('defensive') >= 2) combos.push('🦔 Briar ×2 def');
+    const finalDamage = Math.round(damage * playerDmgMult);
+    return { present, count: vol.length, damage: finalDamage, rawDamage: damage, vulnMult: playerDmgMult, block, poise, draw, weak, vuln, thorns, lines, combos };
+  }
 
+  function castMenagerie() {
+    if (stage !== 'combat') return;
+    const v = computeVolley();
+    if (!v) { pushLog('No animals staged — play an animal first.'); return; }
     const bits = [];
-    if (totalComp > 0) { const dealt = Math.round(totalComp * playerDmgMult); applyDamageToEnemyComposure(dealt); bits.push(`🎭 ${dealt}`); }
-    if (totalBlock > 0) { setBlock(b => b + totalBlock); bits.push(`🛡 +${totalBlock}`); }
-    if (weakN > 0) { applyExpiringWeak(weakN); bits.push(`⛧ Weak`); }
-    if (vulnN > 0) { applyExpiringVuln(vulnN); bits.push(`🩸 Vuln`); }
-    if (thornsN > 0) { setMenagerieThorns(t => t + thornsN); bits.push(`🦔 Thorns ${thornsN}`); }
-    if (drawN > 0) { drawCards(drawN); bits.push(`🃏 +${drawN}`); }
-    pushLog(`📣 CAST — ${vol.length} fire: ${bits.join(' · ') || '(no effect)'}`);
-    logEvent('combat.handler_cast', { animals: vol.map(a => a.slot.animalId), comp: totalComp, block: totalBlock, fed: vol.filter(a => a.slot.fed).length, enemyId: enemy?.id || null });
+    if (v.damage > 0) { applyDamageToEnemyComposure(v.damage); bits.push(`💥 ${v.damage}`); }
+    if (v.block > 0) { setBlock(b => b + v.block); bits.push(`🛡 +${v.block}`); }
+    if (v.poise > 0) { setPoise(p => p + v.poise); bits.push(`🪞 +${v.poise}`); }
+    if (v.weak > 0) { applyExpiringWeak(v.weak); bits.push(`⛧ Weak`); }
+    if (v.vuln > 0) { applyExpiringVuln(v.vuln); bits.push(`🩸 Vuln`); }
+    if (v.thorns > 0) { setMenagerieThorns(t => t + v.thorns); bits.push(`🦔 Thorns ${v.thorns}`); }
+    if (v.draw > 0) { drawCards(v.draw); bits.push(`🃏 +${v.draw}`); }
+    pushLog(`📣 CAST — ${v.count} fire: ${bits.join(' · ') || '(no effect)'}`);
+    logEvent('combat.handler_cast', { animals: v.present.map(a => a.slot.animalId), damage: v.damage, block: v.block, poise: v.poise, fed: v.present.filter(a => a.slot.fed).length, enemyId: enemy?.id || null });
 
     // Unfed animals are spent → discard (recyclable). Fed animals stay, fed
     // flag cleared so they must be re-fed to persist again.
-    const spent = present.filter(x => !x.slot.fed).map(x => x.slot.card).filter(Boolean);
+    const spent = v.present.filter(x => !x.slot.fed).map(x => x.slot.card).filter(Boolean);
     if (spent.length) setDiscard(d => [...d, ...spent.map(c => ({ ...c, uid: uid() }))]);
     setTray(p => {
       const next = { ...p };
-      for (const x of present) next[x.s] = x.slot.fed ? { ...p[x.s], fed: false } : null;
+      for (const x of v.present) next[x.s] = x.slot.fed ? { ...p[x.s], fed: false } : null;
       return syncTrayLegacy(next);
     });
     advanceTutorialStep('cast-spell');
@@ -13419,6 +13438,7 @@ export default function App() {
       onPlayCard={playCard} onEndTurn={endTurn}
       onUnstage={unstageCard} onCast={castStagedSpell}
       castPreview={previewCastDamage()}
+      menagerieCast={selectedCharacter?.lane === 'handler' ? computeVolley() : null}
       castsThisTurn={castsThisTurn} maxCastsPerTurn={MAX_CASTS_PER_TURN}
       isHandler={selectedCharacter?.lane === 'handler'}
       isJnsq={selectedCharacter?.lane === 'jnsq'}

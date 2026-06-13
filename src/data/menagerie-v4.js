@@ -91,6 +91,21 @@ export const MENAGERIE_ANIMALS = [
     desc: 'Gain 9 Block.',
     flavor: 'Arrives eventually. Defends absolutely. Has no notes on urgency.',
     upgrade: { block: 13 } },
+  // POISE = composure defense. Block stops physical hits; Poise stops the ones
+  // that go for your nerve (🎭). The menagerie needed a composure shield —
+  // every other defensive animal only grants Block (Alan, 2026-06-13).
+  { id: 'av-tortoise', name: 'Tortoise', icon: '🐢', type: 'animal', slot: 'animal',
+    cost: 1, rarity: 'basic', lane: LANE, tags: ['defensive'],
+    poise: 5,
+    desc: 'Gain 5 Poise (composure defense — stops 🎭 attacks).',
+    flavor: 'Withdraws. Considers. Declines to be rattled, on principle.',
+    upgrade: { poise: 7 } },
+  { id: 'av-pangolin', name: 'Pangolin', icon: '🦔', type: 'animal', slot: 'animal',
+    cost: 2, rarity: 'common', lane: LANE, tags: ['defensive'],
+    block: 4, poise: 4,
+    desc: 'Gain 4 Block AND 4 Poise — braced against both kinds of attack.',
+    flavor: 'Rolls into a problem-shaped ball. The problem rolls away.',
+    upgrade: { block: 6, poise: 6 } },
 ];
 
 // COMBO CARDS — install (power); pay off on every CAST that meets the board
@@ -135,7 +150,8 @@ export const MENAGERIE_V4_STARTER = [
   'av-field-mouse', 'av-field-mouse',
   'av-scrubjay', 'av-scrubjay',
   'av-young-buck',
-  'av-porcupine', 'av-porcupine',
+  'av-porcupine',          // Block + Thorns (physical defense)
+  'av-tortoise',           // Poise (composure defense) — both pools now covered
   'av-sheepdog',
   'av-goose',
   'av-raven',
@@ -144,7 +160,7 @@ export const MENAGERIE_V4_STARTER = [
 // Reward pool — the rest of the roster + combos (drafted post-combat).
 export const MENAGERIE_V4_REWARD_POOL = [
   'av-raven', 'av-goose', 'av-young-buck', 'av-hawk', 'av-ox', 'av-bear',
-  'av-bunaroo', 'av-sheepdog', 'av-sloth',
+  'av-bunaroo', 'av-sheepdog', 'av-sloth', 'av-tortoise', 'av-pangolin',
   'cv-murder-of-crows', 'cv-stampede', 'cv-apex-predator', 'cv-briar-wall', 'cv-full-menagerie',
 ];
 

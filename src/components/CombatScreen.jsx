@@ -44,7 +44,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
                        block, poise, energy, energyMax, hand, deck, discard, exiled = [], tray,
                        amplifyPlaysThisCombat, getEffectiveCost,
                        equipment, powers, relics, familiar, familiarName,
-                       onPlayCard, onEndTurn, onUnstage, onCast, castPreview, log,
+                       onPlayCard, onEndTurn, onUnstage, onCast, castPreview, menagerieCast, log,
                        castsThisTurn, maxCastsPerTurn,
                        isHandler,
                        isJnsq, rollOptIn, setRollOptIn, lastRoll, combatRolls,
@@ -1024,7 +1024,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
           the spell fizzles. */}
       <V2SpellTray tray={tray} onUnstage={onUnstage} onCast={onCast}
         castsThisTurn={castsThisTurn} maxCastsPerTurn={maxCastsPerTurn}
-        isHandler={isHandler}
+        isHandler={isHandler} menagerieCast={menagerieCast}
         playerHp={hp} playerMaxHp={maxHp}
         block={block}
         tempHp={tempHp}
@@ -1445,7 +1445,7 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
                        onFeedAnimal = () => {},
                        onFeedSpecies = () => {}, feedCost = 1, playerEnergy = 0,
                        onDiscardTactic = () => {},
-                       draggingFeedKey = null,
+                       draggingFeedKey = null, menagerieCast = null,
                        dragOverSlot = null, setDragOverSlot = () => {} }) {
   // Handler Animal Summoner (2026-05-31, slice 1): a tray slot may hold a
   // { kind: 'lure' | 'animal' } envelope instead of a raw card. Cast preview
@@ -2743,6 +2743,37 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
           twice (once from mathBreakdown, once via damageParts) — now
           damageParts is the single source since it reflects the actual
           rounding applied to the Predicted number. */}
+      {/* Menagerie v4 (2026-06-13): the handler's Math bar. Mirrors the wit
+          breakdown — every animal's contribution + active combos, summed into
+          the CAST totals — so the volley is just as legible as a spell. */}
+      {menagerieCast && (() => {
+        const m = menagerieCast;
+        const pill = (key, cls, text, title) => (
+          <span key={key} className={`px-1.5 py-0.5 rounded ${cls}${title ? ' cursor-help' : ''}`} title={title}>{text}</span>
+        );
+        const pills = [];
+        for (const ln of m.lines) pills.push(pill('a-' + ln.name, 'bg-ink-700 text-parchment-100',
+          <>{ln.fed && <span className="text-emerald-300">🍖</span>}{ln.icon} {ln.detail || '—'}</>,
+          `${ln.name}${ln.fed ? ' (fed — stays)' : ''}: ${ln.detail || 'no effect'}`));
+        for (const c of m.combos) pills.push(pill('c-' + c, 'bg-amber-800 text-amber-50 font-bold', c, 'Combo bonus — already in the totals below.'));
+        if (m.vulnMult > 1 && m.rawDamage > 0) pills.push(pill('vuln', 'bg-iris-900 text-iris-100', `🩸 ×${m.vulnMult}`, 'Enemy Vulnerable — your damage amplified.'));
+        const totals = [];
+        if (m.damage > 0) totals.push(`💥 ${m.damage}`);
+        if (m.block > 0) totals.push(`🛡 +${m.block}`);
+        if (m.poise > 0) totals.push(`🪞 +${m.poise}`);
+        if (m.weak > 0) totals.push(`⛧ Weak`);
+        if (m.vuln > 0) totals.push(`🩸 Vuln`);
+        if (m.thorns > 0) totals.push(`🦔 ${m.thorns}`);
+        if (m.draw > 0) totals.push(`🃏 +${m.draw}`);
+        pills.push(pill('net', 'bg-iris-800 text-parchment-50 font-bold border border-iris-400',
+          `→ ${totals.join(' · ') || 'no effect'}`, 'What CAST does right now (unfed animals leave; fed stay).'));
+        return (
+          <div className="flex flex-wrap gap-1.5 items-center text-[11px] font-mono" title="Your staged volley, step by step.">
+            <span className="text-[10px] uppercase tracking-widest text-iris-300">Volley</span>
+            {pills}
+          </div>
+        );
+      })()}
       {mathBreakdown && (() => {
         const pill = (key, cls, text, title) => (
           <span key={key} className={`px-1.5 py-0.5 rounded ${cls} cursor-help`} title={title}>{text}</span>
