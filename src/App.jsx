@@ -74,23 +74,51 @@ const SLOT_ORDER = ['intro', 'subject', 'target'];
 // Global enemy difficulty scalar (Alan, 2026-06-08: hoisted from enterFight so
 // mid-combat summons scale identically). 1.25 = 25% harder; tuneable.
 const ENEMY_DIFFICULTY_MULT = 1.25;
+// Scale one behavior/pattern step's attack value by the difficulty mult and
+// rewrite the first number in its telegraph to match.
+function scaleEnemyStep(b) {
+  // charge is a delayed attack, so its value scales like a normal hit.
+  if (b.kind === 'attack' || b.kind === 'attack-multi' || b.kind === 'charge') {
+    const newVal = Math.max(1, Math.round((b.value || 0) * ENEMY_DIFFICULTY_MULT));
+    return { ...b, value: newVal, telegraph: b.telegraph ? b.telegraph.replace(/\d+/, String(newVal)) : b.telegraph };
+  }
+  return b;
+}
 // Scale an enemy template's stats by the global difficulty mult — shared by
 // enterFight (main + duo companion) and the `summon` intent (mid-combat adds).
 function scaleEnemyTemplate(tmpl) {
-  const behaviors = (tmpl.behaviors || []).map(b => {
-    // charge is a delayed attack, so its value scales like a normal hit.
-    if (b.kind === 'attack' || b.kind === 'attack-multi' || b.kind === 'charge') {
-      const newVal = Math.max(1, Math.round((b.value || 0) * ENEMY_DIFFICULTY_MULT));
-      return { ...b, value: newVal, telegraph: b.telegraph ? b.telegraph.replace(/\d+/, String(newVal)) : b.telegraph };
-    }
-    return b;
-  });
-  return {
+  const out = {
     ...tmpl,
     composureMax: Math.round((tmpl.composureMax || 0) * ENEMY_DIFFICULTY_MULT),
     hpMax: tmpl.hpMax >= 900 ? tmpl.hpMax : Math.round((tmpl.hpMax || 0) * ENEMY_DIFFICULTY_MULT),
-    behaviors,
+    behaviors: (tmpl.behaviors || []).map(scaleEnemyStep),
   };
+  // Scripted (pattern) enemies — Alan 2026-06-12: scale the rhythm steps too.
+  if (tmpl.pattern) out.pattern = tmpl.pattern.map(scaleEnemyStep);
+  if (tmpl.phasePattern) out.phasePattern = tmpl.phasePattern.map(scaleEnemyStep);
+  return out;
+}
+
+// SCRIPTED INTENT ("pattern") — Alan 2026-06-12. Instead of weighted-random
+// intents, an enemy can run a SCRIPT: an ordered cycle of steps, walked in
+// order and looping. The next step IS the telegraph, so the player can plan a
+// rhythm — tank the small hits, DEFEND the telegraphed spike, then PUNISH the
+// exposed recovery. That's the STS offense/defense gamble we were missing.
+// Step extras beyond the normal behavior shape:
+//   thenExpose: N — after this step resolves, the enemy is left Vulnerable
+//                   (your damage +50% for N) — the over-commit window.
+//   recover: true — a breather beat: no attack; the telegraph reads "open".
+// Phase swap: `phasePattern` + `phaseAt` (composure fraction) switches scripts
+// once at low composure (a desperation gear) — flipped in the composure-damage
+// path, mirroring the Silk Wraith precedent.
+function rollPatternIntent(enemy, hasAnimals) {
+  const script = (enemy.inPhase && enemy.phasePattern) ? enemy.phasePattern : enemy.pattern;
+  const i = (enemy.patternStep || 0) % script.length;
+  enemy.patternStep = (enemy.patternStep || 0) + 1;
+  const intent = { ...script[i] };
+  // An animal-meddling step with no board keeps its hit but drops the snatch.
+  if (!hasAnimals && isAnimalTargetingBehavior(intent)) intent.maul = undefined;
+  return intent;
 }
 
 // =============================================================================
@@ -2941,6 +2969,8 @@ function rollIntent(enemy, excludeKinds = [], hasAnimals = true) {
         : `${composurePool ? '🎭' : '⚔'} ${value}`,
     };
   }
+  // Scripted-pattern enemies (Alan 2026-06-12) — deterministic rhythm, no roll.
+  if (enemy.pattern) return rollPatternIntent(enemy, hasAnimals);
   // E2E hook: ?forceMaul makes the next intent roll pick this enemy's maul
   // behavior (consumed once), so the maul render path is regression-testable
   // without hunting a fragile RNG seed. No-op when absent or enemy has no maul.
@@ -10370,6 +10400,19 @@ export default function App() {
       pushLog('   • Re-weaves +1 Composure at the start of every enemy turn.');
       pushLog('━━━━━━━━━━━━━━━━━━━━━━━');
     }
+    // Generalized PHASE SHIFT for scripted enemies (Alan 2026-06-12): when a
+    // pattern enemy with a `phasePattern` drops to its `phaseAt` composure
+    // fraction, it flips to the desperation script once (resetting the step
+    // counter so the new rhythm starts clean). Same trigger shape as the Silk
+    // Wraith above; mirrored in the sim's composure-damage path.
+    if (enemy?.phasePattern && !enemy.inPhase && newComposure > 0
+        && newComposure <= enemy.composureMax * (enemy.phaseAt || 0.5)) {
+      enemy.inPhase = true;
+      enemy.patternStep = 0;
+      pushLog('━━━━━━━━━━━━━━━━━━━━━━━');
+      pushLog(`🔥 ${enemy.name} shifts into a final gear.`);
+      pushLog('━━━━━━━━━━━━━━━━━━━━━━━');
+    }
     if (newComposure <= 0) setTimeout(() => onEnemyDefeated(), 200);
     return newComposure;
   }
@@ -13345,6 +13388,15 @@ export default function App() {
         if (!tryNlAbsorb('Vulnerable')) applyVulnToPlayer();
       }
       if (r.block) setEnemyBlock(b => b + r.block);
+    }
+    // thenExpose (scripted-pattern enemies, Alan 2026-06-12): the over-commit
+    // window. After a big telegraphed spike resolves, the enemy is spent and
+    // left Vulnerable — your damage +50% on the recovery turn. Fires only if
+    // the intent actually resolved (early returns above = no over-commit, no
+    // opening), keeping the gamble honest.
+    if (intent.thenExpose) {
+      applyExpiringVuln(intent.thenExpose);
+      pushLog(`💥 ${e.name} over-extends — wide open! Your damage +${25 * intent.thenExpose}%.`);
     }
     if (playerDied) {
       if (tutorialActive) { setHp(maxHp); setComposure(composureMax); return; }

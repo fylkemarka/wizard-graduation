@@ -35,6 +35,17 @@ export const ENEMIES = [
       { kind: 'attack', value: 7, weight: 2, telegraph: '⚔ 7 (lunging)' },
       // The swarm drags a beast off into the dark. Block it or lose it.
       { kind: 'attack', maul: true, value: 5, weight: 1, telegraph: '🦷 5 — the pack drags one off (unblocked → lose your strongest animal)' },
+    ],
+    // SCRIPTED RHYTHM (v3.9, 2026-06-12): the PREDATOR rhythm — and a HANDLER
+    // showcase. The maul is now on a KNOWN beat (step 3), so the handler can
+    // plan around it: sacrifice a spare body or block exactly that turn instead
+    // of losing the menagerie to a coin-flip. Worry → bite → SNATCH → regroup
+    // (the regroup beat is your opening). Wit just reads it as a damage rhythm.
+    pattern: [
+      { kind: 'attack-multi', value: 3, count: 3, telegraph: '⚔ 3×3 (the pack worries at you)' },
+      { kind: 'attack', value: 7, telegraph: '⚔ 7 (a darting bite)' },
+      { kind: 'attack', maul: true, value: 6, telegraph: '🦷 6 — THE PACK DRAGS ONE OFF (unblocked → lose your strongest animal)' },
+      { kind: 'heal', value: 0, recover: true, telegraph: '😮‍💨 scattered — regrouping' },
     ] },
   // v2.17: rogue wizard — was about to claim his staff. Got too close
   // to the work. The staff turned him to wood. He is, the records will
@@ -211,6 +222,25 @@ export const ENEMIES = [
       // Freeze (Alan, 2026-06-08): pins your strongest animal into the pattern
       // — it can't attack for 2 turns. Work around it or wait it out.
       { kind: 'freeze', value: 2, weight: 1, telegraph: 'pins your strongest animal into the pattern (frozen 2 turns)' },
+    ],
+    // SCRIPTED RHYTHM (v3.9, 2026-06-12): the SHOWCASE — an enemy that
+    // literally weaves a pattern. The full STS gamble in four beats:
+    //   warp (small) → cross-stitch (medium) → SPIKE (defend!) → slips (open).
+    // The spike over-commits (thenExpose): survive it and the weave slips, so
+    // the recovery beat is your amplified offense window (+50% damage). At 40%
+    // composure it shifts to a relentless 2-beat desperation gear — faster
+    // spikes, a tighter opening. Threat budget ≈ its old weighted average; the
+    // shape is what changed.
+    phaseAt: 0.4,
+    pattern: [
+      { kind: 'attack', value: 6, pool: 'composure', telegraph: '🎭 6 (laying the warp)' },
+      { kind: 'attack-multi', value: 3, count: 3, telegraph: '⚔ 3×3 (cross-stitching)' },
+      { kind: 'attack', value: 16, thenExpose: 1, telegraph: '⚠ ⚔ 16 — PULLING THE PATTERN TIGHT' },
+      { kind: 'heal', value: 0, recover: true, telegraph: '😮‍💨 the weave slips — WIDE OPEN' },
+    ],
+    phasePattern: [
+      { kind: 'attack', value: 10, telegraph: '⚔ 10 (frantic stitching)' },
+      { kind: 'attack', value: 15, thenExpose: 1, telegraph: '⚠ ⚔ 15 — TEARING IT LOOSE' },
     ] },
   { id: 'e2-silent-spinner', act: 1, name: 'The Silent Spinner', composureMax: 64, hpMax: 999, tier: 'elite', diff: 3,
     // v3.4.82: composure 50→64; base swing 8→10, whisper 6→8; self-block
@@ -271,6 +301,14 @@ export const ENEMIES = [
       { kind: 'attack', value: 5, weight: 3, telegraph: '⚔ 5 (sorting jab)' },
       { kind: 'attack-multi', value: 2, count: 2, weight: 2, telegraph: '⚔ 2×2 (click, clack)' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (closes a clasp)' },
+    ],
+    // SCRIPTED RHYTHM (v3.9, 2026-06-12): the simplest readable cycle — a
+    // GUARD/STRIKE metronome on the easiest enemy, teaching the core read
+    // (your hits bounce off the guard turn → set up / defend; then it opens
+    // and strikes → tank it or block). Two beats, fully telegraphed.
+    pattern: [
+      { kind: 'block', value: 8, telegraph: '🛡 8 (folds shut — sorting you)' },
+      { kind: 'attack', value: 7, telegraph: '⚔ 7 (snaps open — a verdict)' },
     ] },
   { id: 'e2-unraveller', act: 1, name: 'The Unraveller', composureMax: 24, hpMax: 999, tier: 'normal', diff: 1,
     flavor: 'Finds the loose thread in everything. Including you. Especially you.',
@@ -416,6 +454,18 @@ export const ENEMIES = [
       { kind: 'attack', value: 6, weight: 3, telegraph: '⚔ 6' },
       { kind: 'attack', value: 8, weight: 1, telegraph: '⚔ 8' },
       { kind: 'block',  value: 5, weight: 1, telegraph: '🛡 5 (carapace)' },
+    ],
+    // SCRIPTED RHYTHM (v3.9, 2026-06-12): the CRESCENDO racer — light builds
+    // through the prism, hitting harder each turn (5 → 8 → 13), then it
+    // re-forms its carapace (a block beat where your hits bounce). The gamble:
+    // BURST it down during the climb (eating the rising hits), or weather the
+    // 13 and exploit the re-forming beat to heal/set up. Either way you're
+    // choosing, every turn.
+    pattern: [
+      { kind: 'attack', value: 5, telegraph: '⚔ 5 (a facet turns toward you)' },
+      { kind: 'attack', value: 8, telegraph: '⚔ 8 (the light refracts, sharper)' },
+      { kind: 'attack', value: 13, telegraph: '⚠ ⚔ 13 (FULL PRISM)' },
+      { kind: 'block', value: 9, telegraph: '🛡 9 (re-forms its carapace)' },
     ] },
   // v2.17: rogue wizard — handler-punisher. Tried to forge a ring of
   // three metals; the ring forged him. The metal absorbs direct threat.

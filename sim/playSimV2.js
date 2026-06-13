@@ -96,6 +96,23 @@ function rollIntent(enemy, excludeKinds = [], hasAnimals = true) {
     const composurePool = (step % 2 === 1);
     return { kind: 'attack', maul: hasAnimals || undefined, value, pool: composurePool ? 'composure' : undefined };
   }
+  // Scripted-pattern enemies (Alan 2026-06-12) — deterministic rhythm. Mirrors
+  // App.jsx rollPatternIntent + the generalized phase shift (here the enemy
+  // carries currentComp, so the threshold check lives inline rather than in a
+  // separate damage-path hook).
+  if (enemy.pattern) {
+    if (enemy.phasePattern && !enemy.inPhase && enemy.currentComp > 0
+        && enemy.currentComp <= (enemy.startComp || 1) * (enemy.phaseAt || 0.5)) {
+      enemy.inPhase = true;
+      enemy.patternStep = 0;
+    }
+    const script = (enemy.inPhase && enemy.phasePattern) ? enemy.phasePattern : enemy.pattern;
+    const i = (enemy.patternStep || 0) % script.length;
+    enemy.patternStep = (enemy.patternStep || 0) + 1;
+    const intent = { ...script[i] };
+    if (!hasAnimals && isAnimalTargetingBehavior(intent)) intent.maul = undefined;
+    return intent;
+  }
   const behaviors = enemy.behaviors || [];
   let filtered = behaviors.filter(b => !excludeKinds.includes(b.kind));
   if (!hasAnimals) {
@@ -2928,6 +2945,10 @@ function handlerApplyIntent(state, combat, intent) {
     if (r.vulnerable) combat.enemyDmgMult = 1.5;
     if (r.block)      combat.enemyBlock += r.block;
   }
+  // thenExpose (scripted patterns): the enemy over-extends on a spike and is
+  // left Vulnerable — player damage +50% on recovery. Mirrors App.jsx
+  // applyExpiringVuln. (playerDmgMult is the enemy-Vulnerable channel.)
+  if (intent.thenExpose) combat.playerDmgMult = 1.5;
 }
 function handlerEndOfTurnTick(state, combat) {
   combat.handlerTicks++;
@@ -3351,14 +3372,16 @@ function runCombat(state, enemyId, telemetry) {
   const DIFFICULTY_MULT = 1.25;
   const scaledComp = Math.round((tmpl.comp || 0) * DIFFICULTY_MULT);
   const scaledHp = (tmpl.hp >= 900) ? tmpl.hp : Math.round((tmpl.hp || 0) * DIFFICULTY_MULT);
-  const scaledBehaviors = (tmpl.behaviors || []).map(b => {
-    if (b.kind === 'attack' || b.kind === 'attack-multi' || b.kind === 'charge') {
-      return { ...b, value: Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT)) };
-    }
-    return { ...b };
-  });
-  const scaledAtk = Math.max(1, avgAttack(scaledBehaviors));
+  const scaleStep = (b) => (b.kind === 'attack' || b.kind === 'attack-multi' || b.kind === 'charge')
+    ? { ...b, value: Math.max(1, Math.round((b.value || 0) * DIFFICULTY_MULT)) }
+    : { ...b };
+  const scaledBehaviors = (tmpl.behaviors || []).map(scaleStep);
+  // Scripted (pattern) enemies — Alan 2026-06-12: scale the rhythm steps too.
+  const scaledPattern = tmpl.pattern ? tmpl.pattern.map(scaleStep) : undefined;
+  const scaledPhasePattern = tmpl.phasePattern ? tmpl.phasePattern.map(scaleStep) : undefined;
+  const scaledAtk = Math.max(1, avgAttack(scaledPattern || scaledBehaviors));
   const enemy = { ...tmpl, atk: scaledAtk, comp: scaledComp, hp: scaledHp, behaviors: scaledBehaviors,
+    pattern: scaledPattern, phasePattern: scaledPhasePattern,
     startComp: scaledComp, currentComp: scaledComp, currentHp: scaledHp, block: 0,
     // Effectiveness starts empty: all `eff[lane] ?? 1.0` reads default to 1.0
     // (matches the live game; only a Sway card would write here — unmodeled).
@@ -6136,7 +6159,14 @@ function runCombat(state, enemyId, telemetry) {
           taken++;
         }
         if (taken > 0) { telemetry.discardHandStolen = (telemetry.discardHandStolen || 0) + taken; state.loomStole = true; }
+      } else if (intent.kind === 'heal') {
+        // Recovery beat (scripted patterns / self-regen) — top up composure.
+        enemy.currentComp = Math.min(enemy.startComp || enemy.currentComp, enemy.currentComp + (intent.value || 0));
       }
+      // thenExpose (scripted patterns): the enemy over-extends on a spike and
+      // is left Vulnerable — player damage +50% on recovery. Mirrors App.jsx
+      // applyExpiringVuln (playerDmgMult is the enemy-Vulnerable channel).
+      if (intent.thenExpose) state.playerDmgMult = 1.5;
     }
 
     // v2.93: D-1 (Talking Over Them) — colorless flag that zeroes the
