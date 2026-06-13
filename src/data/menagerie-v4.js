@@ -101,7 +101,7 @@ export const MENAGERIE_ANIMALS = [
     flavor: 'Withdraws. Considers. Declines to be rattled, on principle.',
     upgrade: { poise: 7 } },
   { id: 'av-pangolin', name: 'Pangolin', icon: '🦔', type: 'animal', slot: 'animal',
-    cost: 2, rarity: 'common', lane: LANE, tags: ['defensive'],
+    cost: 1, rarity: 'common', lane: LANE, tags: ['defensive'],
     block: 4, poise: 4,
     desc: 'Gain 4 Block AND 4 Poise — braced against both kinds of attack.',
     flavor: 'Rolls into a problem-shaped ball. The problem rolls away.',
