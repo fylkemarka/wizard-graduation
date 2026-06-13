@@ -5854,7 +5854,16 @@ export default function App() {
       // (a "can't summon next combat" unwinnable-state bug). 'occupied' cells
       // are stand-ins for a spanning animal anchored elsewhere — skip them; the
       // anchor returns the lures once.
-      if (slot.kind === 'animal') { for (const c of (slot.sourceLures || [])) out.push(c); return; }
+      if (slot.kind === 'animal') {
+        // Menagerie v4: the animal IS a card — return it or it leaks out of the
+        // run deck (Alan bug 2026-06-13: "my Porcupines were gone by the boss").
+        // An animal on the board at combat end (fed, or staged-but-uncast when a
+        // DoT/thorns/intent killed the enemy) was being dropped entirely.
+        if (slot.card) out.push(slot.card);
+        // v3 single-use lures rode on the animal — return those too (legacy).
+        for (const c of (slot.sourceLures || [])) out.push(c);
+        return;
+      }
       if (slot.kind === 'occupied') return;
       out.push(slot); // wit/jnsq word card sits directly in the slot
     };
