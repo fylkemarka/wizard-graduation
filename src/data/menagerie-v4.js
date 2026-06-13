@@ -160,6 +160,10 @@ export const MENAGERIE_V4_STARTER = [
   'av-young-buck', 'av-young-buck', // attack 5
   'av-porcupine', 'av-porcupine',   // 5 Block + Thorns (physical defense)
   'av-tortoise', 'av-tortoise',     // 5 Poise (composure defense)
+  // One combo to open with (Alan, 2026-06-13) — teaches the whole "stage
+  // matching animals → big payoff" idea turn one. Stampede pairs with the two
+  // Young Bucks (both land): stage both, CAST, they attack TWICE.
+  'cv-stampede',
 ];
 
 // Reward pool — the rest of the roster + combos (drafted post-combat).
