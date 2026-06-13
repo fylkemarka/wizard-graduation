@@ -8179,6 +8179,7 @@ export default function App() {
     if (stage !== 'combat') return;
     const v = computeVolley();
     if (!v) { pushLog('No animals staged — play an animal first.'); return; }
+    const compBefore = enemyComposureRef.current; // for the cast telemetry
     const bits = [];
     if (v.damage > 0) { applyDamageToEnemyComposure(v.damage); bits.push(`💥 ${v.damage}`); }
     // Block/Poise: also write to shieldBraceRef — the synchronous accumulator
@@ -8196,7 +8197,7 @@ export default function App() {
     if (v.thorns > 0) { setMenagerieThorns(t => t + v.thorns); bits.push(`🦔 Thorns ${v.thorns}`); }
     if (v.draw > 0) { drawCards(v.draw); bits.push(`🃏 +${v.draw}`); }
     pushLog(`📣 CAST — ${v.count} fire: ${bits.join(' · ') || '(no effect)'}`);
-    logEvent('combat.handler_cast', { animals: v.present.map(a => a.slot.animalId), damage: v.damage, block: v.block, poise: v.poise, fed: v.present.filter(a => a.slot.fed).length, enemyId: enemy?.id || null });
+    logEvent('combat.handler_cast', { animals: v.present.map(a => a.slot.animalId), damage: v.damage, block: v.block, poise: v.poise, fed: v.present.filter(a => a.slot.fed).length, enemyId: enemy?.id || null, enemyCompBefore: compBefore, enemyCompAfter: enemyComposureRef.current });
 
     // Unfed animals are spent → discard (recyclable). Fed animals stay, fed
     // flag cleared so they must be re-fed to persist again.

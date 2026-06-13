@@ -146,15 +146,15 @@ export const MENAGERIE_COMBOS = [
 
 // Best-guess starter (design/MENAGERIE_V4.md): cheap, balanced, teaches the
 // stage→cast loop, two ways to defend, a draw engine. All animals.
+// Knocked down (Alan, 2026-06-13): a tight starter — a couple that ATTACK, a
+// couple that BLOCK, nothing else. Restrict the opening menagerie to 4 animal
+// types (2 copies each) so the deck reads instantly; build out variety via
+// rewards. Pacing of that build-out is TBD.
 export const MENAGERIE_V4_STARTER = [
-  'av-field-mouse', 'av-field-mouse',
-  'av-scrubjay', 'av-scrubjay',
-  'av-young-buck',
-  'av-porcupine',          // Block + Thorns (physical defense)
-  'av-tortoise',           // Poise (composure defense) — both pools now covered
-  'av-sheepdog',
-  'av-goose',
-  'av-raven',
+  'av-scrubjay', 'av-scrubjay',     // attack 4
+  'av-young-buck', 'av-young-buck', // attack 5
+  'av-porcupine', 'av-porcupine',   // 5 Block + Thorns (physical defense)
+  'av-tortoise', 'av-tortoise',     // 5 Poise (composure defense)
 ];
 
 // Reward pool — the rest of the roster + combos (drafted post-combat).
