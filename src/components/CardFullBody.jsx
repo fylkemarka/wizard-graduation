@@ -189,6 +189,19 @@ export function CardFullBody({ card, costOverride, costPillClass, costTooltip, l
         </div>
       )}
 
+      {/* Menagerie v4 — animal stat chips (attack / block / poise + onCast),
+          so an animal card reads as a complete card face, not just name+desc. */}
+      {card.type === 'animal' && (
+        <div className="flex gap-1 flex-wrap text-xs font-mono font-bold">
+          {card.attack ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">💥 {card.attack}</span> : null}
+          {card.block ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">🛡 {card.block}</span> : null}
+          {card.poise ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">🪞 {card.poise}</span> : null}
+          {card.onCast?.draw ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🃏 {card.onCast.draw}</span> : null}
+          {card.onCast?.weak ? <span className="px-1.5 py-0.5 rounded bg-ember-100 text-ember-800">⛧ Weak</span> : null}
+          {card.onCast?.thorns ? <span className="px-1.5 py-0.5 rounded bg-iris-100 text-iris-800">🦔 {card.onCast.thorns}</span> : null}
+          {card.onCast?.herd ? <span className="px-1.5 py-0.5 rounded bg-moss-100 text-moss-800">🐕 +{card.onCast.herd}</span> : null}
+        </div>
+      )}
       {/* Effect chips (skills, gestures, etc.) */}
       {effectChips.length > 0 && (
         <div className="flex flex-col gap-0.5 text-[13px] font-bold uppercase tracking-wide">

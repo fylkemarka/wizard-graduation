@@ -8197,7 +8197,10 @@ export default function App() {
     if (!v) { pushLog('No animals staged — play an animal first.'); return; }
     const compBefore = enemyComposureRef.current; // for the cast telemetry
     const bits = [];
-    if (v.damage > 0) { applyDamageToEnemyComposure(v.damage); bits.push(`💥 ${v.damage}`); }
+    // Duo fights: the volley follows the SELECTED target (companion or main),
+    // like the wit cast does — handler CAST was always hitting the main enemy
+    // (Alan bug 2026-06-13: "handler cards can't target a second enemy").
+    if (v.damage > 0) { applyCastDamageToTarget(v.damage, 'composure'); bits.push(`💥 ${v.damage}`); }
     // Block/Poise: also write to shieldBraceRef — the synchronous accumulator
     // applyEnemyIntent reads as `block + shieldBraceRef.current.block`. Without
     // it, an IMPLICIT cast (hitting End Turn) gained block via setBlock but
