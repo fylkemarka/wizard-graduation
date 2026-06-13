@@ -383,7 +383,7 @@ const TARGETS = [
   { id: 'wv2-t-thats-not-it', schoolId: 'slowburn', slot: 'target', tier: 1, rarity: 'basic', lane: LANE, cost: 1, type: 'effect',
     phrase: "that's not it.", tags: ['observational', 'cutting'],
     effect: { scaleBy: 'wit', base: 2, multiplier: 3, damageType: 'composure', threadScaling: 1 },
-    desc: 'Cast: 4 + Wit×3 + Long Thread × 1 composure.',
+    desc: 'Cast: 4 + Wit×3 + Long Thread × 1 damage.',
     flavor: 'Said gently. Heard sharply.' },
   // ---- Common (5) — cost 1 ----
   // v2.15: common target bases bumped +1 (sim showed +2 overshot wit
@@ -416,7 +416,7 @@ const TARGETS = [
   { id: 'wv2-t-natural-conclusion', schoolId: 'slowburn', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is, perhaps, the natural conclusion.', tags: ['academic'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3, damageType: 'composure', threadScaling: 3 },
-    desc: 'Cast: 6 + Wit×3 + Long Thread × 3 composure.',
+    desc: 'Cast: 6 + Wit×3 + Long Thread × 3 damage.',
     flavor: 'Natural is doing some work here, but it gets to.' },
 
   // ---- Rare (4) — cost 2-3 ----
@@ -445,7 +445,7 @@ const TARGETS = [
     phrase: 'is, I am afraid, where you said something rather wrong.', tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 14, multiplier: 3.5, damageType: 'composure',
               delayedMisstep: { delay: 2, selfDamage: 3 } },
-    desc: 'Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.',
+    desc: 'Cast: 13 + Wit×3 damage. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.',
     flavor: 'You said it with conviction. The conviction is, on reflection, the problem.' },
 
   // THORNS finisher — "My Collected Works" (the Body Slam). The Thorns school
@@ -460,7 +460,7 @@ const TARGETS = [
     phrase: 'collapses under the weight of the collected works.', tags: ['academic', 'cutting'],
     schoolId: 'thorns',
     effect: { scaleBy: 'wit', base: 3, multiplier: 1.5, damageType: 'composure', consumeBlockAsDamage: 1 },
-    desc: 'Consumes ALL your Block, dealing that much composure on top of the cast (1 Block = 1 composure). The longer you turtle, the heavier it lands.',
+    desc: 'Consumes ALL your Block, dealing that much damage on top of the cast (1 Block = 1 damage). The longer you turtle, the heavier it lands.',
     flavor: 'You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.' },
 
   // v3.2 damage tune: basic-tier STARTER variant of the Fabric target.
@@ -721,7 +721,7 @@ const UNIQUE_TARGETS = [
     phrase: 'is finally answered, in full.', tags: ['academic', 'cutting'],
     effect: { scaleBy: 'wit', base: 5, multiplier: 2.25, damageType: 'composure',
               requiresAnnotation: true, cashInAnnotation: { damagePerTurn: 5 } },
-    desc: 'REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.',
+    desc: 'REQUIRES an annotation attached. Cast: 4 + Wit dmg + 5 × (annotation turns remaining). Exiles the annotation.',
     flavor: 'Every footnote has, eventually, a reckoning.' },
 ];
 
@@ -800,7 +800,7 @@ const SYNERGY_CAPSTONE_CARDS = [
     setId: 'slowburn-9', setSlot: 'target',
     effect: { scaleBy: 'wit', base: 9, multiplier: 3, damageType: 'composure',
               threadScaling: 4, delayedMisstep: true },
-    desc: 'Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.',
+    desc: 'Cast: 8 + Wit×3 dmg. +4/Long Thread. Queues a Misstep in 2 turns.',
     flavor: 'Summary being a polite word for verdict.' },
   // ───── T3 capstone-row target (v3.9) ─────
   { id: 'wv2-t-entire-intersection', schoolId: 'crescendo', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
@@ -842,7 +842,7 @@ const INSULT_VULN_CARDS = [
   { id: 'wv2-t-cannot-bear', schoolId: 'crescendo', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'that being, of course, the very thing you cannot bear to hear.', tags: ['academic'],
     effect: { scaleBy: 'wit', base: 7, multiplier: 3.25, damageType: 'composure', pierceVulnerableInsult: 4 },
-    desc: 'Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy\'s insult vulnerabilities (max 3 matches).',
+    desc: 'Cast: 6 + Wit×3 dmg. +4 per staged tag matching the enemy\'s insult vulnerabilities (max 3 matches).',
     flavor: 'A flaw named is a flaw amplified.' },
 ];
 
@@ -883,13 +883,13 @@ const ANNOTATIONS = [
     lane: LANE, cost: 2, type: 'annotation',
     name: 'Marginalia on its posture', phrase: '*[on its posture]',
     duration: 3, annotationEffect: { damageOnDraw: 1 },
-    desc: 'Attach. While attached (3 turns): each card you DRAW deals 1 composure damage.',
+    desc: 'Attach. While attached (3 turns): each card you DRAW deals 1 damage.',
     flavor: 'The handwriting in the margin is, if anything, ruder than the text.' },
   { id: 'wv2-ann-margin-notes', slot: 'annotation', tier: 1, rarity: 'common',
     lane: LANE, cost: 2, type: 'annotation',
     name: 'Margin notes, throughout', phrase: '*[throughout]',
     duration: 3, annotationEffect: { damageOnTurnEnd: 2 },
-    desc: 'Attach. While attached (3 turns): at end of your turn, deal 2 composure damage.',
+    desc: 'Attach. While attached (3 turns): at end of your turn, deal 2 damage.',
     flavor: 'You ran out of margin halfway down. The notes continue, smaller.' },
 
   // ---- Uncommon (2) ----
@@ -897,13 +897,13 @@ const ANNOTATIONS = [
     lane: LANE, cost: 3, type: 'annotation',
     name: 'Subtext, in italics', phrase: '*[in italics]',
     duration: 3, annotationEffect: { bonusSpellDamage: 4 },
-    desc: 'Attach. While attached (3 turns): your spells deal +4 composure damage.',
+    desc: 'Attach. While attached (3 turns): your spells deal +4 damage.',
     flavor: 'The text was already saying it. The italics insist you noticed.' },
   { id: 'wv2-ann-read-aloud', slot: 'annotation', tier: 2, rarity: 'uncommon',
     lane: LANE, cost: 3, type: 'annotation',
     name: 'Read aloud, slowly', phrase: '*[read aloud, slowly]',
     duration: 3, annotationEffect: { damageOnTurnStart: 1, energyOnTurnStart: 1 },
-    desc: 'Attach. While attached (3 turns): at start of your turn, deal 1 composure damage AND gain 1 Energy.',
+    desc: 'Attach. While attached (3 turns): at start of your turn, deal 1 damage AND gain 1 Energy.',
     flavor: 'The act of reading them out loud is, mysteriously, energizing.' },
 
   // ---- Rare (2) ----
@@ -911,14 +911,14 @@ const ANNOTATIONS = [
     lane: LANE, cost: 3, type: 'annotation',
     name: 'Asterisked with concern', phrase: '*[*]',
     duration: 4, annotationEffect: { damageOnEnemyAttack: 3 },
-    desc: 'Attach. While attached (4 turns): whenever enemy attacks, they take 3 composure damage.',
+    desc: 'Attach. While attached (4 turns): whenever enemy attacks, they take 3 damage.',
     flavor: 'Your concern is, technically, written down. The asterisk is doing the wounding.' },
   // v2.13: scaling annotation — bonus grows with each spell cast.
   { id: 'wv2-ann-thesis-expanded', slot: 'annotation', tier: 3, rarity: 'rare',
     lane: LANE, cost: 3, type: 'annotation',
     name: 'Thesis, expanded as we go', phrase: '*[thesis: expanded]',
     duration: 4, annotationEffect: { bonusSpellDamagePerCast: 2 },
-    desc: 'Attach. While attached (4 turns): your spells deal +2 composure damage per spell already cast this combat.',
+    desc: 'Attach. While attached (4 turns): your spells deal +2 damage per spell already cast this combat.',
     flavor: 'The thesis grows. The thesis was already a problem before the growing.' },
   // v3.1: NOVICE RETORT — escalating thorns per swing. 1st swing: 1
   // back, 2nd: 2, 3rd: 3, etc. A 4-swing attack returns 1+2+3+4 = 10
@@ -928,7 +928,7 @@ const ANNOTATIONS = [
     lane: LANE, cost: 1, type: 'annotation',
     name: 'Novice Retort', phrase: '*[novice retort]',
     duration: 3, annotationEffect: { escalatingThorns: 1 },
-    desc: 'Attach. While attached (3 turns): the Nth swing of any enemy attack deals N composure damage back to the enemy. A 4×3 attack returns 1+2+3+4 = 10 comp.',
+    desc: 'Attach. While attached (3 turns): the Nth swing of any enemy attack deals N damage back to the enemy. A 4×3 attack returns 1+2+3+4 = 10 dmg.',
     flavor: 'Each example, helpfully, is sharper than the last.' },
 ];
 
@@ -1069,7 +1069,7 @@ const BUFF_CARDS = [
     name: 'Verbal Smack', phrase: 'A verbal smack —',
     tags: ['cutting', 'direct'],
     effects: { nextSpellDoubleInitial: true, exhaust: true },
-    desc: 'Your next offensive spell deals DOUBLE its initial composure damage. Exhaust.',
+    desc: 'Your next offensive spell deals DOUBLE its initial damage. Exhaust.',
     flavor: "The smack lands before they've worked out which word did it." },
   { id: 'wv2-k-i-wont-hear-of-it', slot: 'skill', tier: 1, rarity: 'common', lane: LANE, cost: 2, type: 'skill',
     name: "I Won't Hear of It", phrase: "I won't hear of it.",

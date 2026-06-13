@@ -142,7 +142,7 @@ const CARDS = [
   // alongside Defend so the player has both shields from turn 1.
   { id: 'c-compose', name: 'Compose Yourself', cost: 1, type: 'skill', rarity: 'basic',
     effects: { poise: 7, removeWeak: 1 }, upgrade: { effects: { poise: 10, removeWeak: 2 } },
-    desc: 'Gain 7 Poise (vs composure attacks). Remove 1 Weak from yourself.',
+    desc: 'Gain 7 Poise (vs damage attacks). Remove 1 Weak from yourself.',
     flavor: 'The first thing they took from you is the first thing you take back.' },
   // v3.4.10 (Alan): replaces the cross-row second intro that used to ride
   // along in the wit starter. One-shot, non-exhausting damage so the
@@ -150,7 +150,7 @@ const CARDS = [
   // assembling the tray. Goes back to deck (cycles) — not a gesture.
   { id: 'c-rebut', name: 'Rebut', lane: 'wit', cost: 1, type: 'skill', rarity: 'basic',
     effects: { compDmg: 4 }, upgrade: { effects: { compDmg: 6 } },
-    desc: 'Deal 4 composure damage.',
+    desc: 'Deal 4 damage.',
     flavor: 'Not the cleverest reply. Lands anyway.' },
   // Punchline removed 2026-05-31 — handler pivoted away from the Loudness
   // mechanic with the Animal Summoner engine. No card now feeds or consumes
@@ -246,7 +246,7 @@ const CARDS = [
     flavor: 'Each beast turns its body to the door. You may pass between them.' },
   { id: 'c-tactic-rabid', name: 'Rabid', cost: 0, type: 'tactic', slot: 'tactic', rarity: 'uncommon', lane: 'handler',
     tactic: { id: 'rabid' },
-    desc: 'Free stance: animal attacks deal 50% more damage. You take 10% of that damage as composure recoil.',
+    desc: 'Free stance: animal attacks deal 50% more damage. You take 10% of that damage as damage recoil.',
     flavor: "It's contagious, frankly. Try not to make eye contact." },
   { id: 'c-tactic-youth', name: 'Fountain of Youth', cost: 0, type: 'tactic', slot: 'tactic', rarity: 'common', lane: 'handler',
     tactic: { id: 'youth' },
@@ -318,12 +318,12 @@ const CARDS = [
   { id: 'c-steel-nerves', name: 'Steel the Nerves', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { strengthenAnimal: { poise: 2 }, costEscalates: true },
     upgrade: { effects: { strengthenAnimal: { poise: 3 }, costEscalates: true } },
-    desc: 'Pick an animal on the board. It permanently braces for +2 Poise each turn — composure-block, for as long as it stays. Costs 1 more each time you play it this combat.',
+    desc: 'Pick an animal on the board. It permanently braces for +2 Poise each turn — damage-block, for as long as it stays. Costs 1 more each time you play it this combat.',
     flavor: 'A short pep talk about the fundamental indifference of the universe. Oddly, it helps.' },
   { id: 'c-stiff-upper-lip', name: 'Stiff Upper Lip', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { strengthenAnimal: { poise: 5 }, costEscalates: true },
     upgrade: { effects: { strengthenAnimal: { poise: 7 }, costEscalates: true } },
-    desc: 'Pick an animal on the board. It permanently braces for +5 Poise each turn — a serious composure-block wall. Costs 1 more each time you play it this combat.',
+    desc: 'Pick an animal on the board. It permanently braces for +5 Poise each turn — a serious damage-block wall. Costs 1 more each time you play it this combat.',
     flavor: 'It has seen things. It will not be discussing them. There is tea at four.' },
   { id: 'c-drillmaster', name: 'Drillmaster', cost: 1, type: 'skill', rarity: 'common', lane: 'handler',
     effects: { summonStrength: 1 }, upgrade: { effects: { summonStrength: 2 } },
@@ -358,14 +358,14 @@ const CARDS = [
     flavor: 'Someone has to go first. The committee has determined it will not be the big one.' },
   { id: 'c-palpable-sadness', name: 'Palpable Sadness', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'palpableSadness' },
-    desc: 'Power. Every time you sacrifice an animal, deal 4 composure damage to all enemies.',
+    desc: 'Power. Every time you sacrifice an animal, deal 4 damage to all enemies.',
     flavor: 'The grief is genuine. It is also, you will note, weaponised.' },
   // Sacrifice-engine anchor (Alan, 2026-06-08): turns ALL board churn — every
   // sacrifice AND every natural exit — into AoE composure, so a deck of cheap
   // short-lived bodies (see Strays) becomes a damage engine.
   { id: 'c-memorial', name: 'Memorial', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'memorial' },
-    desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — deal 5 composure damage to all enemies.',
+    desc: 'Power. Whenever one of your animals leaves play — sacrificed OR expired — deal 5 damage to all enemies.',
     flavor: 'A short service for each of them. The enemy is required to attend.' },
   // 1000-run cycle 4 (2026-06-09): the CYCLER-SUSTAIN archetype. Composure
   // attrition is the handler's #1 death cause (carryover pool, no refill);
@@ -381,7 +381,7 @@ const CARDS = [
   // animal are left as dead code (prune later).
   { id: 'c-cost-of-littering', name: 'Cost of Littering', cost: 1, type: 'power', rarity: 'uncommon', lane: 'handler',
     installPower: { id: 'costOfLittering' },
-    desc: 'Power. Deal 5 composure damage to all enemies for every 5 animals you summon this combat.',
+    desc: 'Power. Deal 5 damage to all enemies for every 5 animals you summon this combat.',
     flavor: 'You leave them everywhere. Someone, eventually, has to be made to care.' },
   // ---- THE BUTCHER — the board is ammunition. These two cash the board in
   // for value. Pairs with The Whisperer.
@@ -397,7 +397,7 @@ const CARDS = [
   // birds; Stampede is a small-land Pack Tactics.
   { id: 'c-murmuration', name: 'Murmuration', cost: 1, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { compDmgPerBird: 3 },
-    desc: 'Deal 3 composure for each bird you have SACRIFICED this combat.',
+    desc: 'Deal 3 damage for each bird you have SACRIFICED this combat.',
     flavor: 'They move as one. The enemy is, briefly, outnumbered by a single idea.' },
   { id: 'c-stampede', name: 'Stampede', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { smallLandAttackAgain: true, exhaust: true },
@@ -424,11 +424,11 @@ const CARDS = [
     flavor: 'Clever girl. And, it transpires, persuasive.' },
   { id: 'c-the-horde', name: 'The Horde', cost: 2, type: 'skill', rarity: 'rare', lane: 'handler',
     effects: { damagePerSummonThisCombat: 1 },
-    desc: 'Deal composure damage equal to the number of animals you have summoned this combat.',
+    desc: 'Deal damage equal to the number of animals you have summoned this combat.',
     flavor: 'You did not, strictly, plan for this many. They came anyway, and they remember.' },
   { id: 'c-light-the-mound', name: 'Light the Mound', cost: 2, type: 'skill', rarity: 'uncommon', lane: 'handler',
     effects: { damagePerSacrificeThisCombat: 5 },
-    desc: 'Deal 5 composure damage for each animal you have sacrificed this combat.',
+    desc: 'Deal 5 damage for each animal you have sacrificed this combat.',
     flavor: 'A respectful blaze. Everyone agrees they would have wanted this. No one asked them.' },
 
   // ---- COMMON ----
@@ -568,7 +568,7 @@ const CARDS = [
   { id: 'c-when-youre-older', name: "I'll Tell You When You're Older", lane: 'wit', cost: 3, type: 'skill', rarity: 'rare',
     effects: { delayedComposureDamage: { amount: 21, delay: 3 }, exhaust: true },
     upgrade: { effects: { delayedComposureDamage: { amount: 27, delay: 3 }, exhaust: true } },
-    desc: 'Deal 21 composure damage to the enemy 3 turns from now. Exhaust.',
+    desc: 'Deal 21 damage to the enemy 3 turns from now. Exhaust.',
     flavor: 'For now, you simply file it.' },
   { id: 'c-know-what-to-say', name: 'I Know Just What to Say', lane: 'wit',
     cost: 1, type: 'skill', rarity: 'common',
@@ -10646,7 +10646,7 @@ export default function App() {
       commitCompanion(null);
       setSpellTarget('main');
     } else {
-      pushLog(`🎭 ${c.def.name}: -${remaining} composure${newBlock !== c.block ? ` (🛡 soaked ${c.block - newBlock})` : ''}.`);
+      pushLog(`🎭 ${c.def.name}: -${remaining} damage${newBlock !== c.block ? ` (🛡 soaked ${c.block - newBlock})` : ''}.`);
       commitCompanion({ ...c, block: newBlock, composure: newComposure });
     }
     return newComposure;
@@ -10968,7 +10968,7 @@ export default function App() {
       } else {
         setEnemy(e => e ? { ...e, dot: null } : e);
       }
-      pushLog(`🩸 DoT: ${dmg} composure (${remaining} turn${remaining === 1 ? '' : 's'} left).`);
+      pushLog(`🩸 DoT: ${dmg} damage (${remaining} turn${remaining === 1 ? '' : 's'} left).`);
     }
     // v3.9.1 — companion DoT tick (twin of the enemy tick above; DoT waves
     // can now land on the targeted companion). Same poison semantics:
@@ -10987,12 +10987,12 @@ export default function App() {
         : null;
       const cCompAfter = Math.max(0, c.composure - Math.max(0, cDmg || 0));
       if (cCompAfter <= 0 && c.composure > 0) {
-        pushLog(`🩸 DoT: ${cDmg} composure — ${c.def?.name || 'the companion'} unravels and scurries off.`);
+        pushLog(`🩸 DoT: ${cDmg} damage — ${c.def?.name || 'the companion'} unravels and scurries off.`);
         commitCompanion(null);
         setSpellTarget('main');
       } else {
         commitCompanion({ ...c, composure: cCompAfter, dot: nextDot });
-        if ((cDmg || 0) > 0) pushLog(`🩸 DoT on ${c.def?.name || 'companion'}: ${cDmg} composure (${cRemaining} turn${cRemaining === 1 ? '' : 's'} left).`);
+        if ((cDmg || 0) > 0) pushLog(`🩸 DoT on ${c.def?.name || 'companion'}: ${cDmg} damage (${cRemaining} turn${cRemaining === 1 ? '' : 's'} left).`);
       }
     }
 
@@ -12535,7 +12535,7 @@ export default function App() {
     if (menagerieThornsRef.current > 0 && (intent.kind === 'attack' || intent.kind === 'attack-multi')) {
       const reflect = menagerieThornsRef.current * (intent.kind === 'attack-multi' ? (intent.count || 1) : 1);
       applyDamageToEnemyComposure(reflect);
-      pushLog(`🦔 Thorns — ${reflect} composure reflected.`);
+      pushLog(`🦔 Thorns — ${reflect} damage reflected.`);
       menagerieThornsRef.current = 0;
       setMenagerieThorns(0);
     }

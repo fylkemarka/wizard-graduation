@@ -297,13 +297,13 @@ const TARGETS = [
     phrase: "is going to go interesting.", tags: ['mystical', 'chaotic'],
     effect: { scaleBy: 'jnsq', base: 6, multiplier: 3, damageType: 'composure',
               alwaysRolls: true, rollDamageScale: 1.5 },
-    desc: 'Cast: 6 + Jnsq comp. Always rolls. Roll multiplier 1.5× stronger.',
+    desc: 'Cast: 6 + Jnsq dmg. Always rolls. Roll multiplier 1.5× stronger.',
     flavor: 'Interesting being a word doing a lot of work today.' },
   { id: 'jv2-t-cosmic-recoil', slot: 'target', tier: 3, rarity: 'rare', lane: LANE, cost: 2, type: 'effect',
     phrase: 'is the cosmic recoil.', tags: ['mystical', 'theatrical', 'absurd'],
     effect: { scaleBy: 'jnsq', base: 22, multiplier: 3, damageType: 'composure',
               requiresPriorRoll: 6 },
-    desc: 'REQUIRES a prior 6 rolled this combat. 22 + Jnsq comp.',
+    desc: 'REQUIRES a prior 6 rolled this combat. 22 + Jnsq dmg.',
     flavor: 'The cosmos owes you. The cosmos has receipts. The cosmos pays.' },
 ];
 
@@ -445,7 +445,7 @@ const V250_CONTENT_CARDS = [
     phrase: 'is, even by my own standards, getting away from me.', tags: ['chaotic', 'absurd', 'mystical'],
     effect: { scaleBy: 'jnsq', base: 9, multiplier: 4, damageType: 'composure',
               mustPlayAnotherJnsq: true, doubleOnSecondCast: true },
-    desc: 'Cast: 9 + Jnsq comp ×4. Must follow with another jnsq card or take 3 HP. If cast as the 2nd cast of a Babbling turn, damage doubles BEFORE the 0.6× scalar.',
+    desc: 'Cast: 9 + Jnsq dmg ×4. Must follow with another jnsq card or take 3 HP. If cast as the 2nd cast of a Babbling turn, damage doubles BEFORE the 0.6× scalar.',
     flavor: 'A standard you set in jnsq for the benefit of those keeping records.' },
 ];
 
@@ -524,7 +524,7 @@ const WONT_SHUT_UP_CARDS = [
   { id: 'jv2-t-soup-was-never-the-point', slot: 'target', tier: 2, rarity: 'uncommon', lane: LANE, cost: 2, type: 'effect',
     phrase: 'the soup, you see, was never the point.', tags: ['absurd', 'chaotic', 'mystical'],
     effect: { scaleBy: 'jnsq', base: 11, multiplier: 4, damageType: 'composure', mustPlayAnotherJnsq: true },
-    desc: 'Cast: 11 + Jnsq comp ×4. After cast: you MUST play another jnsq card this turn or take 3 HP at end of turn.',
+    desc: 'Cast: 11 + Jnsq dmg ×4. After cast: you MUST play another jnsq card this turn or take 3 HP at end of turn.',
     flavor: 'A statement that, if interrupted now, will haunt the room for hours.' },
 ];
 
@@ -595,7 +595,7 @@ const V251_SYNERGY_CAPSTONE_CARDS = [
     effect: { scaleBy: 'jnsq', base: 9, multiplier: 3, damageType: 'composure',
               tangentOnCast: true, mustPlayAnotherJnsq: true,
               perTagBonus: { tags: ['chaotic', 'absurd', 'mystical'], bonus: 3 } },
-    desc: 'Cast: 9 + Jnsq comp ×3. On cast: TANGENT fires (random jnsq from discard). +3 dmg per chaotic/absurd/mystical tag on staged cards. Must follow with another jnsq card or take 3 HP.',
+    desc: 'Cast: 9 + Jnsq dmg ×3. On cast: TANGENT fires (random jnsq from discard). +3 dmg per chaotic/absurd/mystical tag on staged cards. Must follow with another jnsq card or take 3 HP.',
     flavor: 'THIS universe being one of approximately several.' },
   { id: 'jv2-i-three-things-sorry', slot: 'intro', tier: 2, rarity: 'uncommon', lane: LANE, cost: 1, type: 'word',
     phrase: 'oh — actually, three things, sorry,',

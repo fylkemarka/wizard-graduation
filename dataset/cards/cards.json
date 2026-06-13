@@ -2446,7 +2446,7 @@
     "tier": 1,
     "cost": 1,
     "phrase": "that's not it.",
-    "description": "Cast: 4 + Wit×3 + Long Thread × 1 composure.",
+    "description": "Cast: 4 + Wit×3 + Long Thread × 1 damage.",
     "flavor": "Said gently. Heard sharply.",
     "keywords": "observational|cutting",
     "scale_by": "wit",
@@ -2462,7 +2462,7 @@
     "feed_key": "",
     "mechanics": "threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-thats-not-it\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"that's not it.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":1},\"desc\":\"Cast: 4 + Wit×3 + Long Thread × 1 composure.\",\"flavor\":\"Said gently. Heard sharply.\"}"
+    "raw_json": "{\"id\":\"wv2-t-thats-not-it\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":1,\"rarity\":\"basic\",\"lane\":\"wit\",\"cost\":1,\"type\":\"effect\",\"phrase\":\"that's not it.\",\"tags\":[\"observational\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":2,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":1},\"desc\":\"Cast: 4 + Wit×3 + Long Thread × 1 damage.\",\"flavor\":\"Said gently. Heard sharply.\"}"
   },
   {
     "id": "wv2-t-what-i-expected",
@@ -2620,7 +2620,7 @@
     "tier": 2,
     "cost": 2,
     "phrase": "is, perhaps, the natural conclusion.",
-    "description": "Cast: 6 + Wit×3 + Long Thread × 3 composure.",
+    "description": "Cast: 6 + Wit×3 + Long Thread × 3 damage.",
     "flavor": "Natural is doing some work here, but it gets to.",
     "keywords": "academic",
     "scale_by": "wit",
@@ -2636,7 +2636,7 @@
     "feed_key": "",
     "mechanics": "threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-natural-conclusion\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, perhaps, the natural conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":7,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":3},\"desc\":\"Cast: 6 + Wit×3 + Long Thread × 3 composure.\",\"flavor\":\"Natural is doing some work here, but it gets to.\"}"
+    "raw_json": "{\"id\":\"wv2-t-natural-conclusion\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, perhaps, the natural conclusion.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":7,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":3},\"desc\":\"Cast: 6 + Wit×3 + Long Thread × 3 damage.\",\"flavor\":\"Natural is doing some work here, but it gets to.\"}"
   },
   {
     "id": "wv2-t-generous-error",
@@ -2736,7 +2736,7 @@
     "tier": 3,
     "cost": 2,
     "phrase": "is, I am afraid, where you said something rather wrong.",
-    "description": "Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.",
+    "description": "Cast: 13 + Wit×3 damage. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.",
     "flavor": "You said it with conviction. The conviction is, on reflection, the problem.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
@@ -2752,7 +2752,7 @@
     "feed_key": "",
     "mechanics": "delayedMisstep",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-saying-something-wrong\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, I am afraid, where you said something rather wrong.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":14,\"multiplier\":3.5,\"damageType\":\"composure\",\"delayedMisstep\":{\"delay\":2,\"selfDamage\":3}},\"desc\":\"Cast: 13 + Wit×3 composure. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.\",\"flavor\":\"You said it with conviction. The conviction is, on reflection, the problem.\"}"
+    "raw_json": "{\"id\":\"wv2-t-saying-something-wrong\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, I am afraid, where you said something rather wrong.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":14,\"multiplier\":3.5,\"damageType\":\"composure\",\"delayedMisstep\":{\"delay\":2,\"selfDamage\":3}},\"desc\":\"Cast: 13 + Wit×3 damage. In 2 turns, a Misstep token appears in hand: discard for 1 Energy, or end-of-turn = -3 HP. Exhausts either way.\",\"flavor\":\"You said it with conviction. The conviction is, on reflection, the problem.\"}"
   },
   {
     "id": "wv2-t-collected-works",
@@ -2765,7 +2765,7 @@
     "tier": 3,
     "cost": 2,
     "phrase": "collapses under the weight of the collected works.",
-    "description": "Consumes ALL your Block, dealing that much composure on top of the cast (1 Block = 1 composure). The longer you turtle, the heavier it lands.",
+    "description": "Consumes ALL your Block, dealing that much damage on top of the cast (1 Block = 1 damage). The longer you turtle, the heavier it lands.",
     "flavor": "You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
@@ -2781,7 +2781,7 @@
     "feed_key": "",
     "mechanics": "consumeBlockAsDamage",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-collected-works\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"collapses under the weight of the collected works.\",\"tags\":[\"academic\",\"cutting\"],\"schoolId\":\"thorns\",\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":1.5,\"damageType\":\"composure\",\"consumeBlockAsDamage\":1},\"desc\":\"Consumes ALL your Block, dealing that much composure on top of the cast (1 Block = 1 composure). The longer you turtle, the heavier it lands.\",\"flavor\":\"You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.\"}"
+    "raw_json": "{\"id\":\"wv2-t-collected-works\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"collapses under the weight of the collected works.\",\"tags\":[\"academic\",\"cutting\"],\"schoolId\":\"thorns\",\"effect\":{\"scaleBy\":\"wit\",\"base\":3,\"multiplier\":1.5,\"damageType\":\"composure\",\"consumeBlockAsDamage\":1},\"desc\":\"Consumes ALL your Block, dealing that much damage on top of the cast (1 Block = 1 damage). The longer you turtle, the heavier it lands.\",\"flavor\":\"You have had it bound. It is heavier than it looks, which — given how it looks — is saying something.\"}"
   },
   {
     "id": "wv2-t-fabric-starter",
@@ -4012,7 +4012,7 @@
     "tier": 2,
     "cost": 2,
     "phrase": "is finally answered, in full.",
-    "description": "REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.",
+    "description": "REQUIRES an annotation attached. Cast: 4 + Wit dmg + 5 × (annotation turns remaining). Exiles the annotation.",
     "flavor": "Every footnote has, eventually, a reckoning.",
     "keywords": "academic|cutting",
     "scale_by": "wit",
@@ -4028,7 +4028,7 @@
     "feed_key": "",
     "mechanics": "cashInAnnotation|requiresAnnotation",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-finally-answered\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is finally answered, in full.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":2.25,\"damageType\":\"composure\",\"requiresAnnotation\":true,\"cashInAnnotation\":{\"damagePerTurn\":5}},\"desc\":\"REQUIRES an annotation attached. Cast: 4 + Wit comp + 5 × (annotation turns remaining). Exiles the annotation.\",\"flavor\":\"Every footnote has, eventually, a reckoning.\"}"
+    "raw_json": "{\"id\":\"wv2-t-finally-answered\",\"schoolId\":\"thorns\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is finally answered, in full.\",\"tags\":[\"academic\",\"cutting\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":5,\"multiplier\":2.25,\"damageType\":\"composure\",\"requiresAnnotation\":true,\"cashInAnnotation\":{\"damagePerTurn\":5}},\"desc\":\"REQUIRES an annotation attached. Cast: 4 + Wit dmg + 5 × (annotation turns remaining). Exiles the annotation.\",\"flavor\":\"Every footnote has, eventually, a reckoning.\"}"
   },
   {
     "id": "wv2-ann-footnote-credibility",
@@ -4070,7 +4070,7 @@
     "tier": 1,
     "cost": 2,
     "phrase": "*[on its posture]",
-    "description": "Attach. While attached (3 turns): each card you DRAW deals 1 composure damage.",
+    "description": "Attach. While attached (3 turns): each card you DRAW deals 1 damage.",
     "flavor": "The handwriting in the margin is, if anything, ruder than the text.",
     "keywords": "",
     "scale_by": "",
@@ -4086,7 +4086,7 @@
     "feed_key": "",
     "mechanics": "annotationEffect|duration",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-ann-marginalia-posture\",\"slot\":\"annotation\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":2,\"type\":\"annotation\",\"name\":\"Marginalia on its posture\",\"phrase\":\"*[on its posture]\",\"duration\":3,\"annotationEffect\":{\"damageOnDraw\":1},\"desc\":\"Attach. While attached (3 turns): each card you DRAW deals 1 composure damage.\",\"flavor\":\"The handwriting in the margin is, if anything, ruder than the text.\"}"
+    "raw_json": "{\"id\":\"wv2-ann-marginalia-posture\",\"slot\":\"annotation\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":2,\"type\":\"annotation\",\"name\":\"Marginalia on its posture\",\"phrase\":\"*[on its posture]\",\"duration\":3,\"annotationEffect\":{\"damageOnDraw\":1},\"desc\":\"Attach. While attached (3 turns): each card you DRAW deals 1 damage.\",\"flavor\":\"The handwriting in the margin is, if anything, ruder than the text.\"}"
   },
   {
     "id": "wv2-ann-margin-notes",
@@ -4099,7 +4099,7 @@
     "tier": 1,
     "cost": 2,
     "phrase": "*[throughout]",
-    "description": "Attach. While attached (3 turns): at end of your turn, deal 2 composure damage.",
+    "description": "Attach. While attached (3 turns): at end of your turn, deal 2 damage.",
     "flavor": "You ran out of margin halfway down. The notes continue, smaller.",
     "keywords": "",
     "scale_by": "",
@@ -4115,7 +4115,7 @@
     "feed_key": "",
     "mechanics": "annotationEffect|duration",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-ann-margin-notes\",\"slot\":\"annotation\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":2,\"type\":\"annotation\",\"name\":\"Margin notes, throughout\",\"phrase\":\"*[throughout]\",\"duration\":3,\"annotationEffect\":{\"damageOnTurnEnd\":2},\"desc\":\"Attach. While attached (3 turns): at end of your turn, deal 2 composure damage.\",\"flavor\":\"You ran out of margin halfway down. The notes continue, smaller.\"}"
+    "raw_json": "{\"id\":\"wv2-ann-margin-notes\",\"slot\":\"annotation\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":2,\"type\":\"annotation\",\"name\":\"Margin notes, throughout\",\"phrase\":\"*[throughout]\",\"duration\":3,\"annotationEffect\":{\"damageOnTurnEnd\":2},\"desc\":\"Attach. While attached (3 turns): at end of your turn, deal 2 damage.\",\"flavor\":\"You ran out of margin halfway down. The notes continue, smaller.\"}"
   },
   {
     "id": "wv2-ann-subtext-italics",
@@ -4128,7 +4128,7 @@
     "tier": 2,
     "cost": 3,
     "phrase": "*[in italics]",
-    "description": "Attach. While attached (3 turns): your spells deal +4 composure damage.",
+    "description": "Attach. While attached (3 turns): your spells deal +4 damage.",
     "flavor": "The text was already saying it. The italics insist you noticed.",
     "keywords": "",
     "scale_by": "",
@@ -4144,7 +4144,7 @@
     "feed_key": "",
     "mechanics": "annotationEffect|duration",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-ann-subtext-italics\",\"slot\":\"annotation\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Subtext, in italics\",\"phrase\":\"*[in italics]\",\"duration\":3,\"annotationEffect\":{\"bonusSpellDamage\":4},\"desc\":\"Attach. While attached (3 turns): your spells deal +4 composure damage.\",\"flavor\":\"The text was already saying it. The italics insist you noticed.\"}"
+    "raw_json": "{\"id\":\"wv2-ann-subtext-italics\",\"slot\":\"annotation\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Subtext, in italics\",\"phrase\":\"*[in italics]\",\"duration\":3,\"annotationEffect\":{\"bonusSpellDamage\":4},\"desc\":\"Attach. While attached (3 turns): your spells deal +4 damage.\",\"flavor\":\"The text was already saying it. The italics insist you noticed.\"}"
   },
   {
     "id": "wv2-ann-read-aloud",
@@ -4157,7 +4157,7 @@
     "tier": 2,
     "cost": 3,
     "phrase": "*[read aloud, slowly]",
-    "description": "Attach. While attached (3 turns): at start of your turn, deal 1 composure damage AND gain 1 Energy.",
+    "description": "Attach. While attached (3 turns): at start of your turn, deal 1 damage AND gain 1 Energy.",
     "flavor": "The act of reading them out loud is, mysteriously, energizing.",
     "keywords": "",
     "scale_by": "",
@@ -4173,7 +4173,7 @@
     "feed_key": "",
     "mechanics": "annotationEffect|duration",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-ann-read-aloud\",\"slot\":\"annotation\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Read aloud, slowly\",\"phrase\":\"*[read aloud, slowly]\",\"duration\":3,\"annotationEffect\":{\"damageOnTurnStart\":1,\"energyOnTurnStart\":1},\"desc\":\"Attach. While attached (3 turns): at start of your turn, deal 1 composure damage AND gain 1 Energy.\",\"flavor\":\"The act of reading them out loud is, mysteriously, energizing.\"}"
+    "raw_json": "{\"id\":\"wv2-ann-read-aloud\",\"slot\":\"annotation\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Read aloud, slowly\",\"phrase\":\"*[read aloud, slowly]\",\"duration\":3,\"annotationEffect\":{\"damageOnTurnStart\":1,\"energyOnTurnStart\":1},\"desc\":\"Attach. While attached (3 turns): at start of your turn, deal 1 damage AND gain 1 Energy.\",\"flavor\":\"The act of reading them out loud is, mysteriously, energizing.\"}"
   },
   {
     "id": "wv2-ann-asterisked-concern",
@@ -4186,7 +4186,7 @@
     "tier": 3,
     "cost": 3,
     "phrase": "*[*]",
-    "description": "Attach. While attached (4 turns): whenever enemy attacks, they take 3 composure damage.",
+    "description": "Attach. While attached (4 turns): whenever enemy attacks, they take 3 damage.",
     "flavor": "Your concern is, technically, written down. The asterisk is doing the wounding.",
     "keywords": "",
     "scale_by": "",
@@ -4202,7 +4202,7 @@
     "feed_key": "",
     "mechanics": "annotationEffect|duration",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-ann-asterisked-concern\",\"slot\":\"annotation\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Asterisked with concern\",\"phrase\":\"*[*]\",\"duration\":4,\"annotationEffect\":{\"damageOnEnemyAttack\":3},\"desc\":\"Attach. While attached (4 turns): whenever enemy attacks, they take 3 composure damage.\",\"flavor\":\"Your concern is, technically, written down. The asterisk is doing the wounding.\"}"
+    "raw_json": "{\"id\":\"wv2-ann-asterisked-concern\",\"slot\":\"annotation\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Asterisked with concern\",\"phrase\":\"*[*]\",\"duration\":4,\"annotationEffect\":{\"damageOnEnemyAttack\":3},\"desc\":\"Attach. While attached (4 turns): whenever enemy attacks, they take 3 damage.\",\"flavor\":\"Your concern is, technically, written down. The asterisk is doing the wounding.\"}"
   },
   {
     "id": "wv2-ann-thesis-expanded",
@@ -4215,7 +4215,7 @@
     "tier": 3,
     "cost": 3,
     "phrase": "*[thesis: expanded]",
-    "description": "Attach. While attached (4 turns): your spells deal +2 composure damage per spell already cast this combat.",
+    "description": "Attach. While attached (4 turns): your spells deal +2 damage per spell already cast this combat.",
     "flavor": "The thesis grows. The thesis was already a problem before the growing.",
     "keywords": "",
     "scale_by": "",
@@ -4231,7 +4231,7 @@
     "feed_key": "",
     "mechanics": "annotationEffect|duration",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-ann-thesis-expanded\",\"slot\":\"annotation\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Thesis, expanded as we go\",\"phrase\":\"*[thesis: expanded]\",\"duration\":4,\"annotationEffect\":{\"bonusSpellDamagePerCast\":2},\"desc\":\"Attach. While attached (4 turns): your spells deal +2 composure damage per spell already cast this combat.\",\"flavor\":\"The thesis grows. The thesis was already a problem before the growing.\"}"
+    "raw_json": "{\"id\":\"wv2-ann-thesis-expanded\",\"slot\":\"annotation\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":3,\"type\":\"annotation\",\"name\":\"Thesis, expanded as we go\",\"phrase\":\"*[thesis: expanded]\",\"duration\":4,\"annotationEffect\":{\"bonusSpellDamagePerCast\":2},\"desc\":\"Attach. While attached (4 turns): your spells deal +2 damage per spell already cast this combat.\",\"flavor\":\"The thesis grows. The thesis was already a problem before the growing.\"}"
   },
   {
     "id": "wv2-ann-thorned-footnote",
@@ -4244,7 +4244,7 @@
     "tier": 1,
     "cost": 1,
     "phrase": "*[novice retort]",
-    "description": "Attach. While attached (3 turns): the Nth swing of any enemy attack deals N composure damage back to the enemy. A 4×3 attack returns 1+2+3+4 = 10 comp.",
+    "description": "Attach. While attached (3 turns): the Nth swing of any enemy attack deals N damage back to the enemy. A 4×3 attack returns 1+2+3+4 = 10 dmg.",
     "flavor": "Each example, helpfully, is sharper than the last.",
     "keywords": "",
     "scale_by": "",
@@ -4260,7 +4260,7 @@
     "feed_key": "",
     "mechanics": "annotationEffect|duration",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-ann-thorned-footnote\",\"slot\":\"annotation\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"annotation\",\"name\":\"Novice Retort\",\"phrase\":\"*[novice retort]\",\"duration\":3,\"annotationEffect\":{\"escalatingThorns\":1},\"desc\":\"Attach. While attached (3 turns): the Nth swing of any enemy attack deals N composure damage back to the enemy. A 4×3 attack returns 1+2+3+4 = 10 comp.\",\"flavor\":\"Each example, helpfully, is sharper than the last.\"}"
+    "raw_json": "{\"id\":\"wv2-ann-thorned-footnote\",\"slot\":\"annotation\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":1,\"type\":\"annotation\",\"name\":\"Novice Retort\",\"phrase\":\"*[novice retort]\",\"duration\":3,\"annotationEffect\":{\"escalatingThorns\":1},\"desc\":\"Attach. While attached (3 turns): the Nth swing of any enemy attack deals N damage back to the enemy. A 4×3 attack returns 1+2+3+4 = 10 dmg.\",\"flavor\":\"Each example, helpfully, is sharper than the last.\"}"
   },
   {
     "id": "wv2-k-hewn-greaves-footnotes",
@@ -4389,7 +4389,7 @@
     "tier": 3,
     "cost": 2,
     "phrase": "is, in summary, the inescapable conclusion.",
-    "description": "Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.",
+    "description": "Cast: 8 + Wit×3 dmg. +4/Long Thread. Queues a Misstep in 2 turns.",
     "flavor": "Summary being a polite word for verdict.",
     "keywords": "academic",
     "scale_by": "wit",
@@ -4405,7 +4405,7 @@
     "feed_key": "",
     "mechanics": "delayedMisstep|threadScaling",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-in-summary\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in summary, the inescapable conclusion.\",\"tags\":[\"academic\"],\"setId\":\"slowburn-9\",\"setSlot\":\"target\",\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":4,\"delayedMisstep\":true},\"desc\":\"Cast: 8 + Wit×3 comp. +4/Long Thread. Queues a Misstep in 2 turns.\",\"flavor\":\"Summary being a polite word for verdict.\"}"
+    "raw_json": "{\"id\":\"wv2-t-in-summary\",\"schoolId\":\"slowburn\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, in summary, the inescapable conclusion.\",\"tags\":[\"academic\"],\"setId\":\"slowburn-9\",\"setSlot\":\"target\",\"effect\":{\"scaleBy\":\"wit\",\"base\":9,\"multiplier\":3,\"damageType\":\"composure\",\"threadScaling\":4,\"delayedMisstep\":true},\"desc\":\"Cast: 8 + Wit×3 dmg. +4/Long Thread. Queues a Misstep in 2 turns.\",\"flavor\":\"Summary being a polite word for verdict.\"}"
   },
   {
     "id": "wv2-t-entire-intersection",
@@ -4505,7 +4505,7 @@
     "tier": 2,
     "cost": 2,
     "phrase": "that being, of course, the very thing you cannot bear to hear.",
-    "description": "Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).",
+    "description": "Cast: 6 + Wit×3 dmg. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).",
     "flavor": "A flaw named is a flaw amplified.",
     "keywords": "academic",
     "scale_by": "wit",
@@ -4521,7 +4521,7 @@
     "feed_key": "",
     "mechanics": "pierceVulnerableInsult",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-t-cannot-bear\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"that being, of course, the very thing you cannot bear to hear.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":7,\"multiplier\":3.25,\"damageType\":\"composure\",\"pierceVulnerableInsult\":4},\"desc\":\"Cast: 6 + Wit×3 comp. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).\",\"flavor\":\"A flaw named is a flaw amplified.\"}"
+    "raw_json": "{\"id\":\"wv2-t-cannot-bear\",\"schoolId\":\"crescendo\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"wit\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"that being, of course, the very thing you cannot bear to hear.\",\"tags\":[\"academic\"],\"effect\":{\"scaleBy\":\"wit\",\"base\":7,\"multiplier\":3.25,\"damageType\":\"composure\",\"pierceVulnerableInsult\":4},\"desc\":\"Cast: 6 + Wit×3 dmg. +4 per staged tag matching the enemy's insult vulnerabilities (max 3 matches).\",\"flavor\":\"A flaw named is a flaw amplified.\"}"
   },
   {
     "id": "wv2-k-page-mark",
@@ -4998,7 +4998,7 @@
     "tier": 1,
     "cost": 2,
     "phrase": "A verbal smack —",
-    "description": "Your next offensive spell deals DOUBLE its initial composure damage. Exhaust.",
+    "description": "Your next offensive spell deals DOUBLE its initial damage. Exhaust.",
     "flavor": "The smack lands before they've worked out which word did it.",
     "keywords": "cutting|direct",
     "scale_by": "",
@@ -5014,7 +5014,7 @@
     "feed_key": "",
     "mechanics": "",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"wv2-k-verbal-smack\",\"slot\":\"skill\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":2,\"type\":\"skill\",\"name\":\"Verbal Smack\",\"phrase\":\"A verbal smack —\",\"tags\":[\"cutting\",\"direct\"],\"effects\":{\"nextSpellDoubleInitial\":true,\"exhaust\":true},\"desc\":\"Your next offensive spell deals DOUBLE its initial composure damage. Exhaust.\",\"flavor\":\"The smack lands before they've worked out which word did it.\"}"
+    "raw_json": "{\"id\":\"wv2-k-verbal-smack\",\"slot\":\"skill\",\"tier\":1,\"rarity\":\"common\",\"lane\":\"wit\",\"cost\":2,\"type\":\"skill\",\"name\":\"Verbal Smack\",\"phrase\":\"A verbal smack —\",\"tags\":[\"cutting\",\"direct\"],\"effects\":{\"nextSpellDoubleInitial\":true,\"exhaust\":true},\"desc\":\"Your next offensive spell deals DOUBLE its initial damage. Exhaust.\",\"flavor\":\"The smack lands before they've worked out which word did it.\"}"
   },
   {
     "id": "wv2-k-i-wont-hear-of-it",
@@ -7579,7 +7579,7 @@
     "tier": 2,
     "cost": 2,
     "phrase": "is going to go interesting.",
-    "description": "Cast: 6 + Jnsq comp. Always rolls. Roll multiplier 1.5× stronger.",
+    "description": "Cast: 6 + Jnsq dmg. Always rolls. Roll multiplier 1.5× stronger.",
     "flavor": "Interesting being a word doing a lot of work today.",
     "keywords": "mystical|chaotic",
     "scale_by": "jnsq",
@@ -7595,7 +7595,7 @@
     "feed_key": "",
     "mechanics": "alwaysRolls|rollDamageScale",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"jv2-t-go-interesting\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is going to go interesting.\",\"tags\":[\"mystical\",\"chaotic\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\",\"alwaysRolls\":true,\"rollDamageScale\":1.5},\"desc\":\"Cast: 6 + Jnsq comp. Always rolls. Roll multiplier 1.5× stronger.\",\"flavor\":\"Interesting being a word doing a lot of work today.\"}"
+    "raw_json": "{\"id\":\"jv2-t-go-interesting\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is going to go interesting.\",\"tags\":[\"mystical\",\"chaotic\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":6,\"multiplier\":3,\"damageType\":\"composure\",\"alwaysRolls\":true,\"rollDamageScale\":1.5},\"desc\":\"Cast: 6 + Jnsq dmg. Always rolls. Roll multiplier 1.5× stronger.\",\"flavor\":\"Interesting being a word doing a lot of work today.\"}"
   },
   {
     "id": "jv2-t-cosmic-recoil",
@@ -7608,7 +7608,7 @@
     "tier": 3,
     "cost": 2,
     "phrase": "is the cosmic recoil.",
-    "description": "REQUIRES a prior 6 rolled this combat. 22 + Jnsq comp.",
+    "description": "REQUIRES a prior 6 rolled this combat. 22 + Jnsq dmg.",
     "flavor": "The cosmos owes you. The cosmos has receipts. The cosmos pays.",
     "keywords": "mystical|theatrical|absurd",
     "scale_by": "jnsq",
@@ -7624,7 +7624,7 @@
     "feed_key": "",
     "mechanics": "requiresPriorRoll",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"jv2-t-cosmic-recoil\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is the cosmic recoil.\",\"tags\":[\"mystical\",\"theatrical\",\"absurd\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":22,\"multiplier\":3,\"damageType\":\"composure\",\"requiresPriorRoll\":6},\"desc\":\"REQUIRES a prior 6 rolled this combat. 22 + Jnsq comp.\",\"flavor\":\"The cosmos owes you. The cosmos has receipts. The cosmos pays.\"}"
+    "raw_json": "{\"id\":\"jv2-t-cosmic-recoil\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is the cosmic recoil.\",\"tags\":[\"mystical\",\"theatrical\",\"absurd\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":22,\"multiplier\":3,\"damageType\":\"composure\",\"requiresPriorRoll\":6},\"desc\":\"REQUIRES a prior 6 rolled this combat. 22 + Jnsq dmg.\",\"flavor\":\"The cosmos owes you. The cosmos has receipts. The cosmos pays.\"}"
   },
   {
     "id": "jv2-m-cosmic-sense",
@@ -8275,7 +8275,7 @@
     "tier": 2,
     "cost": 2,
     "phrase": "the soup, you see, was never the point.",
-    "description": "Cast: 11 + Jnsq comp ×4. After cast: you MUST play another jnsq card this turn or take 3 HP at end of turn.",
+    "description": "Cast: 11 + Jnsq dmg ×4. After cast: you MUST play another jnsq card this turn or take 3 HP at end of turn.",
     "flavor": "A statement that, if interrupted now, will haunt the room for hours.",
     "keywords": "absurd|chaotic|mystical",
     "scale_by": "jnsq",
@@ -8291,7 +8291,7 @@
     "feed_key": "",
     "mechanics": "mustPlayAnotherJnsq",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"jv2-t-soup-was-never-the-point\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"the soup, you see, was never the point.\",\"tags\":[\"absurd\",\"chaotic\",\"mystical\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":11,\"multiplier\":4,\"damageType\":\"composure\",\"mustPlayAnotherJnsq\":true},\"desc\":\"Cast: 11 + Jnsq comp ×4. After cast: you MUST play another jnsq card this turn or take 3 HP at end of turn.\",\"flavor\":\"A statement that, if interrupted now, will haunt the room for hours.\"}"
+    "raw_json": "{\"id\":\"jv2-t-soup-was-never-the-point\",\"slot\":\"target\",\"tier\":2,\"rarity\":\"uncommon\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"the soup, you see, was never the point.\",\"tags\":[\"absurd\",\"chaotic\",\"mystical\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":11,\"multiplier\":4,\"damageType\":\"composure\",\"mustPlayAnotherJnsq\":true},\"desc\":\"Cast: 11 + Jnsq dmg ×4. After cast: you MUST play another jnsq card this turn or take 3 HP at end of turn.\",\"flavor\":\"A statement that, if interrupted now, will haunt the room for hours.\"}"
   },
   {
     "id": "jv2-p-hold-my-drink",
@@ -8507,7 +8507,7 @@
     "tier": 3,
     "cost": 2,
     "phrase": "is, even by my own standards, getting away from me.",
-    "description": "Cast: 9 + Jnsq comp ×4. Must follow with another jnsq card or take 3 HP. If cast as the 2nd cast of a Babbling turn, damage doubles BEFORE the 0.6× scalar.",
+    "description": "Cast: 9 + Jnsq dmg ×4. Must follow with another jnsq card or take 3 HP. If cast as the 2nd cast of a Babbling turn, damage doubles BEFORE the 0.6× scalar.",
     "flavor": "A standard you set in jnsq for the benefit of those keeping records.",
     "keywords": "chaotic|absurd|mystical",
     "scale_by": "jnsq",
@@ -8523,7 +8523,7 @@
     "feed_key": "",
     "mechanics": "doubleOnSecondCast|mustPlayAnotherJnsq",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"jv2-t-getting-away-from-me\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, even by my own standards, getting away from me.\",\"tags\":[\"chaotic\",\"absurd\",\"mystical\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":9,\"multiplier\":4,\"damageType\":\"composure\",\"mustPlayAnotherJnsq\":true,\"doubleOnSecondCast\":true},\"desc\":\"Cast: 9 + Jnsq comp ×4. Must follow with another jnsq card or take 3 HP. If cast as the 2nd cast of a Babbling turn, damage doubles BEFORE the 0.6× scalar.\",\"flavor\":\"A standard you set in jnsq for the benefit of those keeping records.\"}"
+    "raw_json": "{\"id\":\"jv2-t-getting-away-from-me\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"is, even by my own standards, getting away from me.\",\"tags\":[\"chaotic\",\"absurd\",\"mystical\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":9,\"multiplier\":4,\"damageType\":\"composure\",\"mustPlayAnotherJnsq\":true,\"doubleOnSecondCast\":true},\"desc\":\"Cast: 9 + Jnsq dmg ×4. Must follow with another jnsq card or take 3 HP. If cast as the 2nd cast of a Babbling turn, damage doubles BEFORE the 0.6× scalar.\",\"flavor\":\"A standard you set in jnsq for the benefit of those keeping records.\"}"
   },
   {
     "id": "jv2-t-universe-sideways",
@@ -8536,7 +8536,7 @@
     "tier": 3,
     "cost": 2,
     "phrase": "and then the entire universe — and I mean THIS universe — went sideways.",
-    "description": "Cast: 9 + Jnsq comp ×3. On cast: TANGENT fires (random jnsq from discard). +3 dmg per chaotic/absurd/mystical tag on staged cards. Must follow with another jnsq card or take 3 HP.",
+    "description": "Cast: 9 + Jnsq dmg ×3. On cast: TANGENT fires (random jnsq from discard). +3 dmg per chaotic/absurd/mystical tag on staged cards. Must follow with another jnsq card or take 3 HP.",
     "flavor": "THIS universe being one of approximately several.",
     "keywords": "chaotic|absurd|mystical",
     "scale_by": "jnsq",
@@ -8552,7 +8552,7 @@
     "feed_key": "",
     "mechanics": "mustPlayAnotherJnsq|perTagBonus|tangentOnCast",
     "modifier_kind": "",
-    "raw_json": "{\"id\":\"jv2-t-universe-sideways\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"and then the entire universe — and I mean THIS universe — went sideways.\",\"tags\":[\"chaotic\",\"absurd\",\"mystical\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":9,\"multiplier\":3,\"damageType\":\"composure\",\"tangentOnCast\":true,\"mustPlayAnotherJnsq\":true,\"perTagBonus\":{\"tags\":[\"chaotic\",\"absurd\",\"mystical\"],\"bonus\":3}},\"desc\":\"Cast: 9 + Jnsq comp ×3. On cast: TANGENT fires (random jnsq from discard). +3 dmg per chaotic/absurd/mystical tag on staged cards. Must follow with another jnsq card or take 3 HP.\",\"flavor\":\"THIS universe being one of approximately several.\"}"
+    "raw_json": "{\"id\":\"jv2-t-universe-sideways\",\"slot\":\"target\",\"tier\":3,\"rarity\":\"rare\",\"lane\":\"jnsq\",\"cost\":2,\"type\":\"effect\",\"phrase\":\"and then the entire universe — and I mean THIS universe — went sideways.\",\"tags\":[\"chaotic\",\"absurd\",\"mystical\"],\"effect\":{\"scaleBy\":\"jnsq\",\"base\":9,\"multiplier\":3,\"damageType\":\"composure\",\"tangentOnCast\":true,\"mustPlayAnotherJnsq\":true,\"perTagBonus\":{\"tags\":[\"chaotic\",\"absurd\",\"mystical\"],\"bonus\":3}},\"desc\":\"Cast: 9 + Jnsq dmg ×3. On cast: TANGENT fires (random jnsq from discard). +3 dmg per chaotic/absurd/mystical tag on staged cards. Must follow with another jnsq card or take 3 HP.\",\"flavor\":\"THIS universe being one of approximately several.\"}"
   },
   {
     "id": "jv2-i-three-things-sorry",

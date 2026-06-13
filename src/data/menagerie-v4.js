@@ -97,7 +97,7 @@ export const MENAGERIE_ANIMALS = [
   { id: 'av-tortoise', name: 'Tortoise', icon: '🐢', type: 'animal', slot: 'animal',
     cost: 1, rarity: 'basic', lane: LANE, tags: ['defensive'],
     poise: 5,
-    desc: 'Gain 5 Poise (composure defense — stops 🎭 attacks).',
+    desc: 'Gain 5 Poise (damage defense — stops 🎭 attacks).',
     flavor: 'Withdraws. Considers. Declines to be rattled, on principle.',
     upgrade: { poise: 7 } },
   { id: 'av-pangolin', name: 'Pangolin', icon: '🦔', type: 'animal', slot: 'animal',
@@ -116,7 +116,7 @@ export const MENAGERIE_COMBOS = [
     cost: 1, rarity: 'uncommon', lane: LANE,
     installPower: { id: 'comboMurder' },
     combo: { needTag: 'bird', count: 2, payoff: { attack: 6 } },
-    desc: 'Power. On each CAST with 2+ birds, deal +6 composure.',
+    desc: 'Power. On each CAST with 2+ birds, deal +6 damage.',
     flavor: 'It is technically a murder at three. At two it is merely a strongly worded letter.' },
   { id: 'cv-stampede', name: 'Stampede', icon: '🦌', type: 'power', slot: 'power',
     cost: 1, rarity: 'uncommon', lane: LANE,
@@ -140,7 +140,7 @@ export const MENAGERIE_COMBOS = [
     cost: 2, rarity: 'rare', lane: LANE,
     installPower: { id: 'comboFull' },
     combo: { needCount: 3, payoff: { attack: 8, block: 4 } },
-    desc: 'Power. On each CAST with a FULL board (3 animals), deal +8 composure and gain 4 Block.',
+    desc: 'Power. On each CAST with a FULL board (3 animals), deal +8 damage and gain 4 Block.',
     flavor: 'Everyone is here. Everyone has been briefed. It is going to be a lot.' },
 ];
 
