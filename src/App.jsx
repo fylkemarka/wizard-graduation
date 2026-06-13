@@ -3059,6 +3059,14 @@ function upgradeCard(card) {
     if (up.effect)  next.effect  = { ...card.effect, ...up.effect };
     if (up.phrase !== undefined) next.phrase = up.phrase;
     if (up.cost !== undefined)   next.cost   = up.cost;
+    // Menagerie v4 (2026-06-13): animal/combo cards carry their stats as
+    // top-level keys, so the upgrade merges those too (else "+" did nothing).
+    if (up.attack !== undefined) next.attack = up.attack;
+    if (up.block  !== undefined) next.block  = up.block;
+    if (up.poise  !== undefined) next.poise  = up.poise;
+    if (up.onCast) next.onCast = { ...card.onCast, ...up.onCast };
+    if (up.combo)  next.combo  = { ...card.combo, ...up.combo, payoff: { ...card.combo?.payoff, ...up.combo.payoff } };
+    if (up.desc !== undefined) next.desc = up.desc;
     return next;
   }
   // v2 sentence-engine auto-upgrade: any slot-typed card gets a tier-
@@ -8136,23 +8144,29 @@ export default function App() {
   // firing. Returns null when no animals are staged.
   function computeVolley() {
     const present = SLOT_ORDER.map(s => ({ s, slot: tray[s] })).filter(x => x.slot?.kind === 'animal');
-    const vol = present.map(x => ({ ...x, def: getAnimal(x.slot.animalId) })).filter(x => x.def);
+    // Use the STAGED card's own stats (slot.card) — an upgraded copy carries its
+    // bumped attack/block/poise/onCast there. Fall back to the base lookup.
+    const vol = present.map(x => ({ ...x, def: x.slot.card || getAnimal(x.slot.animalId) })).filter(x => x.def);
     if (vol.length === 0) return null;
     const tagsOf = (d) => d.tags || [];
     const countTag = (t) => vol.filter(a => tagsOf(a.def).includes(t)).length;
-    const comboOn = (id) => powers.some(p => p.installPower?.id === id);
+    // Read the INSTALLED combo power so an upgraded combo's bigger payoff applies.
+    const comboP = (id) => powers.find(p => p.installPower?.id === id);
+    const payoff = (id, key, dflt) => { const p = comboP(id); return p ? (p.combo?.payoff?.[key] ?? dflt) : null; };
     const herdTotal = vol.reduce((s, a) => s + (a.def.onCast?.herd || 0), 0);
+    const apexBonus = payoff('comboApex', 'predatorBonus', 7);
+    const hasApex = apexBonus != null;
     let damage = 0, block = 0, poise = 0, draw = 0, weak = 0, vuln = 0, thorns = 0;
     const lines = [];
     for (const a of vol) {
       const d = a.def, parts = [];
       let atk = d.attack || 0;
       if (atk > 0) { const hb = herdTotal - (d.onCast?.herd || 0); if (hb > 0) { atk += hb; parts.push(`🐕+${hb}`); } }
-      if (comboOn('comboApex') && tagsOf(d).includes('predator') && vol.some(o => !tagsOf(o.def).includes('predator'))) { atk += 7; parts.push('🐻+7'); }
+      if (hasApex && tagsOf(d).includes('predator') && vol.some(o => !tagsOf(o.def).includes('predator'))) { atk += apexBonus; parts.push(`🐻+${apexBonus}`); }
       let mult = 1;
-      if (comboOn('comboStampede') && tagsOf(d).includes('land') && countTag('land') >= 2) { mult = 2; parts.push('🦌×2'); }
+      if (comboP('comboStampede') && tagsOf(d).includes('land') && countTag('land') >= 2) { mult = 2; parts.push('🦌×2'); }
       let blk = d.block || 0, poi = d.poise || 0;
-      if (comboOn('comboBriar') && tagsOf(d).includes('defensive') && countTag('defensive') >= 2) { blk *= 2; poi *= 2; if (blk || poi) parts.push('🦔×2'); }
+      if (comboP('comboBriar') && tagsOf(d).includes('defensive') && countTag('defensive') >= 2) { blk *= 2; poi *= 2; if (blk || poi) parts.push('🦔×2'); }
       const dmg = Math.max(0, atk) * mult;
       damage += dmg; block += blk; poise += poi;
       draw += d.onCast?.draw || 0; weak += d.onCast?.weak || 0; vuln += d.onCast?.vulnerable || 0; thorns += d.onCast?.thorns || 0;
@@ -8166,11 +8180,13 @@ export default function App() {
       lines.push({ icon: d.icon || '🐾', name: d.name, fed: !!a.slot.fed, detail: [seg.join(' '), parts.join(' ')].filter(Boolean).join('  ') });
     }
     const combos = [];
-    if (comboOn('comboMurder') && countTag('bird') >= 2) { damage += 6; combos.push('🐦‍⬛ Murder +6'); }
-    if (comboOn('comboFull') && vol.length >= 3) { damage += 8; block += 4; combos.push('🎪 Full Menagerie +8💥 +4🛡'); }
-    if (comboOn('comboStampede') && countTag('land') >= 2) combos.push('🦌 Stampede ×2 land');
-    if (comboOn('comboApex') && countTag('predator') >= 1 && vol.some(o => !tagsOf(o.def).includes('predator'))) combos.push('🐻 Apex +7');
-    if (comboOn('comboBriar') && countTag('defensive') >= 2) combos.push('🦔 Briar ×2 def');
+    const murderAmt = payoff('comboMurder', 'attack', 6);
+    if (murderAmt != null && countTag('bird') >= 2) { damage += murderAmt; combos.push(`🐦‍⬛ Murder +${murderAmt}`); }
+    const fullAtk = payoff('comboFull', 'attack', 8), fullBlk = payoff('comboFull', 'block', 4);
+    if (fullAtk != null && vol.length >= 3) { damage += fullAtk; block += fullBlk; combos.push(`🎪 Full Menagerie +${fullAtk}💥 +${fullBlk}🛡`); }
+    if (comboP('comboStampede') && countTag('land') >= 2) combos.push('🦌 Stampede ×2 land');
+    if (hasApex && countTag('predator') >= 1 && vol.some(o => !tagsOf(o.def).includes('predator'))) combos.push(`🐻 Apex +${apexBonus}`);
+    if (comboP('comboBriar') && countTag('defensive') >= 2) combos.push('🦔 Briar ×2 def');
     const finalDamage = Math.round(damage * playerDmgMult);
     return { present, count: vol.length, damage: finalDamage, rawDamage: damage, vulnMult: playerDmgMult, block, poise, draw, weak, vuln, thorns, lines, combos };
   }

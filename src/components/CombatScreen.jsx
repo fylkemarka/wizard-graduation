@@ -1884,7 +1884,9 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
       );
     }
     if (card.kind === 'animal') {
-      const animal = animals?.[card.animalId];
+      // Prefer the staged card's own stats (an upgraded copy carries its
+      // bumped attack/block/poise there) over the base species lookup.
+      const animal = card.card || animals?.[card.animalId];
       // Predator-chain hint is hidden when the animal carries hidePredatorChain.
       const predatorNote = animal?.predatorChain && !animal?.hidePredatorChain
         ? ` · ${animals?.[animal.predatorChain.animalId]?.name || '?'} in ${animal.predatorChain.turnsToTrigger - (card.predatorProgress || 0)}t`
