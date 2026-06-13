@@ -149,6 +149,73 @@ export const MENAGERIE_COMBOS = [
     upgrade: { combo: { payoff: { attack: 12, block: 6 } }, desc: 'Power. On each CAST with a FULL board (3 animals), deal +12 damage and gain 6 Block.' } },
 ];
 
+// PACK TACTICS (Alan, 2026-06-13) — global/tag buff powers, a different shape
+// from the board-condition combos: install once, they reshape the WHOLE deck
+// (a whole tag's damage/cost, your block, your incoming). Data-driven via the
+// `packTactic` payload the engine reads off installed powers:
+//   flyingDmg / landDmg : N      — +N×100% damage to that tag's animals
+//   blockMult: N                 — +N×100% Block gained from animals
+//   incomingReduction: N         — take N×100% less from enemy attacks
+//   freeFirstAnimal: true        — first animal each turn costs 0
+//   composureDrain: N            — lose N Composure at the start of each turn
+//   landCostCap / flyingCostCap  — that tag's animals cost at most this
+export const MENAGERIE_PACK_TACTICS = [
+  { id: 'pt-wheel-and-turn', name: 'Wheel and Turn', icon: '🦅', type: 'power', slot: 'power',
+    cost: 1, rarity: 'uncommon', lane: LANE, installPower: { id: 'ptFly25' },
+    packTactic: { flyingDmg: 0.25 },
+    desc: 'Power. Flying animals deal +25% damage.',
+    flavor: 'Birds, given a common cause, become geometry.',
+    upgrade: { packTactic: { flyingDmg: 0.40 }, desc: 'Power. Flying animals deal +40% damage.' } },
+  { id: 'pt-storm-of-wings', name: 'Storm of Wings', icon: '🦅', type: 'power', slot: 'power',
+    cost: 2, rarity: 'rare', lane: LANE, installPower: { id: 'ptFly50' },
+    packTactic: { flyingDmg: 0.50 },
+    desc: 'Power. Flying animals deal +50% damage.',
+    flavor: 'The sky develops opinions, and then a direction.',
+    upgrade: { packTactic: { flyingDmg: 0.70 }, desc: 'Power. Flying animals deal +70% damage.' } },
+  { id: 'pt-sure-footed', name: 'Sure-Footed', icon: '🦌', type: 'power', slot: 'power',
+    cost: 1, rarity: 'uncommon', lane: LANE, installPower: { id: 'ptLand25' },
+    packTactic: { landDmg: 0.25 },
+    desc: 'Power. Land animals deal +25% damage.',
+    flavor: 'It helps, enormously, to know where the ground is.',
+    upgrade: { packTactic: { landDmg: 0.40 }, desc: 'Power. Land animals deal +40% damage.' } },
+  { id: 'pt-thundering-herd', name: 'Thundering Herd', icon: '🦌', type: 'power', slot: 'power',
+    cost: 2, rarity: 'rare', lane: LANE, installPower: { id: 'ptLand50' },
+    packTactic: { landDmg: 0.50 },
+    desc: 'Power. Land animals deal +50% damage.',
+    flavor: 'The ground keeps the minutes of the meeting. At volume.',
+    upgrade: { packTactic: { landDmg: 0.70 }, desc: 'Power. Land animals deal +70% damage.' } },
+  { id: 'pt-circle-wagons', name: 'Circle the Wagons', icon: '🛡', type: 'power', slot: 'power',
+    cost: 1, rarity: 'uncommon', lane: LANE, installPower: { id: 'ptBlock50' },
+    packTactic: { blockMult: 0.50 },
+    desc: 'Power. +50% Block gained from animals.',
+    flavor: 'A defensive formation, and also a strongly held belief.',
+    upgrade: { packTactic: { blockMult: 0.75 }, desc: 'Power. +75% Block gained from animals.' } },
+  { id: 'pt-watchful', name: 'Watchful', icon: '👁', type: 'power', slot: 'power',
+    cost: 1, rarity: 'uncommon', lane: LANE, installPower: { id: 'ptWard25' },
+    packTactic: { incomingReduction: 0.25 },
+    desc: 'Power. Take 25% less from enemy attacks.',
+    flavor: 'Something is always on watch. It has not slept since 1847.',
+    upgrade: { packTactic: { incomingReduction: 0.40 }, desc: 'Power. Take 40% less from enemy attacks.' } },
+  { id: 'pt-running-hot', name: 'Running Hot', icon: '🔥', type: 'power', slot: 'power',
+    cost: 1, rarity: 'rare', lane: LANE, installPower: { id: 'ptRunningHot' },
+    packTactic: { freeFirstAnimal: true, composureDrain: 3 },
+    desc: 'Power. The first animal you play each turn is free — but lose 3 Composure at the start of each turn.',
+    flavor: 'The menagerie runs faster when it is, technically, on fire.',
+    upgrade: { packTactic: { freeFirstAnimal: true, composureDrain: 2 }, desc: 'Power. First animal each turn is free — lose only 2 Composure at the start of each turn.' } },
+  { id: 'pt-beasts-of-burden', name: 'Beasts of Burden', icon: '🐂', type: 'power', slot: 'power',
+    cost: 2, rarity: 'rare', lane: LANE, installPower: { id: 'ptLandCheap' },
+    packTactic: { landCostCap: 1 },
+    desc: 'Power. All land animals cost at most 1 energy.',
+    flavor: 'Everything on four legs is, fundamentally, here to work.',
+    upgrade: { cost: 1, desc: 'Power. (Costs 1.) All land animals cost at most 1 energy.' } },
+  { id: 'pt-cheap-seats', name: 'The Cheap Seats', icon: '🦅', type: 'power', slot: 'power',
+    cost: 2, rarity: 'rare', lane: LANE, installPower: { id: 'ptFlyCheap' },
+    packTactic: { flyingCostCap: 1 },
+    desc: 'Power. All flying animals cost at most 1 energy.',
+    flavor: 'They fly in for free. They have always flown in for free.',
+    upgrade: { cost: 1, desc: 'Power. (Costs 1.) All flying animals cost at most 1 energy.' } },
+];
+
 // Best-guess starter (design/MENAGERIE_V4.md): cheap, balanced, teaches the
 // stage→cast loop, two ways to defend, a draw engine. All animals.
 // Knocked down (Alan, 2026-06-13): a tight starter — a couple that ATTACK, a
@@ -171,7 +238,9 @@ export const MENAGERIE_V4_REWARD_POOL = [
   'av-raven', 'av-goose', 'av-young-buck', 'av-hawk', 'av-ox', 'av-bear',
   'av-bunaroo', 'av-sheepdog', 'av-sloth', 'av-tortoise', 'av-pangolin',
   'cv-murder-of-crows', 'cv-stampede', 'cv-apex-predator', 'cv-briar-wall', 'cv-full-menagerie',
+  'pt-wheel-and-turn', 'pt-storm-of-wings', 'pt-sure-footed', 'pt-thundering-herd',
+  'pt-circle-wagons', 'pt-watchful', 'pt-running-hot', 'pt-beasts-of-burden', 'pt-cheap-seats',
 ];
 
 export const MENAGERIE_BY_ID = Object.fromEntries(
-  [...MENAGERIE_ANIMALS, ...MENAGERIE_COMBOS].map(c => [c.id, c]));
+  [...MENAGERIE_ANIMALS, ...MENAGERIE_COMBOS, ...MENAGERIE_PACK_TACTICS].map(c => [c.id, c]));

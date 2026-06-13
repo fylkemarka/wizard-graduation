@@ -47,7 +47,7 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_S
 // the new direction. FFT system is wit-only.
 import { HANDLER_V2, HANDLER_V2_BY_SLOT, SPECIAL_LURE_CARDS } from './cards/handler-v2.js';
 // Menagerie v4 (2026-06-13): animals are cards. See design/MENAGERIE_V4.md.
-import { MENAGERIE_ANIMALS, MENAGERIE_COMBOS, MENAGERIE_BY_ID, MENAGERIE_V4_STARTER, MENAGERIE_V4_REWARD_POOL } from './data/menagerie-v4.js';
+import { MENAGERIE_ANIMALS, MENAGERIE_COMBOS, MENAGERIE_PACK_TACTICS, MENAGERIE_BY_ID, MENAGERIE_V4_STARTER, MENAGERIE_V4_REWARD_POOL } from './data/menagerie-v4.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
 import Icon from './icons/Icon.jsx';
@@ -63,7 +63,7 @@ import { ReadingRoom } from './components/ReadingRoom.jsx';
 // v2 card-pool lookup table keyed by lane.
 const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
-const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2, ...MENAGERIE_ANIMALS, ...MENAGERIE_COMBOS];
+const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2, ...MENAGERIE_ANIMALS, ...MENAGERIE_COMBOS, ...MENAGERIE_PACK_TACTICS];
 // v3 (Alan, 2026-06-08): NO lure comes in pairs anymore. With single-use lures
 // (a lure leaves the deck while its animal is out) and 2-animal pools, paired
 // foundational rewards over-stuffed the deck. Every lure reward is now a single
@@ -3066,6 +3066,7 @@ function upgradeCard(card) {
     if (up.poise  !== undefined) next.poise  = up.poise;
     if (up.onCast) next.onCast = { ...card.onCast, ...up.onCast };
     if (up.combo)  next.combo  = { ...card.combo, ...up.combo, payoff: { ...card.combo?.payoff, ...up.combo.payoff } };
+    if (up.packTactic) next.packTactic = { ...card.packTactic, ...up.packTactic };
     if (up.desc !== undefined) next.desc = up.desc;
     return next;
   }
@@ -6264,6 +6265,15 @@ export default function App() {
     if (card?.slot === 'target' && hasPower('targetCheaper')) c = Math.max(0, c - 1);
     // Open Door Policy — the first lure played each turn costs 0.
     if (card?.slot === 'lure' && hasPower('openDoor') && !firstLureUsedThisTurn) c = 0;
+    // Menagerie v4 Pack Tactics — tag cost caps + free-first-animal. (v4 has no
+    // lures, so firstLureUsedThisTurn doubles as "first animal played" here.)
+    if (card?.type === 'animal') {
+      const tags = card.tags || [];
+      const ptCap = (key) => { const caps = powers.map(p => p.packTactic?.[key]).filter(v => v != null); return caps.length ? Math.min(...caps) : null; };
+      const caps = [tags.includes('land') ? ptCap('landCostCap') : null, tags.includes('bird') ? ptCap('flyingCostCap') : null].filter(v => v != null);
+      if (caps.length) c = Math.min(c, ...caps);
+      if (!firstLureUsedThisTurn && powers.some(p => p.packTactic?.freeFirstAnimal)) c = 0;
+    }
     // v3.4.59 — "I Know Just What to Say" makes the next card played free.
     if (nextCardFree) c = 0;
     return c;
@@ -6375,6 +6385,7 @@ export default function App() {
       }
       setTray(p => syncTrayLegacy({ ...p, [open]: { kind: 'animal', animalId: card.id, fed: false, durationRemaining: 1, card: { ...card }, uid: uid() } }));
       setHand(h => h.filter((_, i) => i !== handIdx));
+      setFirstLureUsedThisTurn(true); // Pack Tactic free-first-animal: consumed.
       pushLog(`${card.icon || '🐾'} ${card.name} takes the field.`);
       logEvent(TE.HANDLER_SUMMON, { cardId: card.id, slots: 1, instant: true, enemyId: enemy?.id || null });
       return;
@@ -8153,6 +8164,9 @@ export default function App() {
     // Read the INSTALLED combo power so an upgraded combo's bigger payoff applies.
     const comboP = (id) => powers.find(p => p.installPower?.id === id);
     const payoff = (id, key, dflt) => { const p = comboP(id); return p ? (p.combo?.payoff?.[key] ?? dflt) : null; };
+    // Pack Tactics: global/tag buffs summed off installed powers.
+    const ptSum = (key) => powers.reduce((s, p) => s + (p.packTactic?.[key] || 0), 0);
+    const flyingDmg = ptSum('flyingDmg'), landDmg = ptSum('landDmg'), blockMult = ptSum('blockMult');
     const herdTotal = vol.reduce((s, a) => s + (a.def.onCast?.herd || 0), 0);
     const apexBonus = payoff('comboApex', 'predatorBonus', 7);
     const hasApex = apexBonus != null;
@@ -8165,9 +8179,13 @@ export default function App() {
       if (hasApex && tagsOf(d).includes('predator') && vol.some(o => !tagsOf(o.def).includes('predator'))) { atk += apexBonus; parts.push(`🐻+${apexBonus}`); }
       let mult = 1;
       if (comboP('comboStampede') && tagsOf(d).includes('land') && countTag('land') >= 2) { mult = 2; parts.push('🦌×2'); }
+      // Pack Tactic tag damage buffs (additive across copies).
+      let tagMult = 1;
+      if (flyingDmg && tagsOf(d).includes('bird')) { tagMult += flyingDmg; parts.push(`🦅+${Math.round(flyingDmg * 100)}%`); }
+      if (landDmg && tagsOf(d).includes('land')) { tagMult += landDmg; parts.push(`🦌+${Math.round(landDmg * 100)}%`); }
       let blk = d.block || 0, poi = d.poise || 0;
       if (comboP('comboBriar') && tagsOf(d).includes('defensive') && countTag('defensive') >= 2) { blk *= 2; poi *= 2; if (blk || poi) parts.push('🦔×2'); }
-      const dmg = Math.max(0, atk) * mult;
+      const dmg = Math.round(Math.max(0, atk) * mult * tagMult);
       damage += dmg; block += blk; poise += poi;
       draw += d.onCast?.draw || 0; weak += d.onCast?.weak || 0; vuln += d.onCast?.vulnerable || 0; thorns += d.onCast?.thorns || 0;
       const seg = [];
@@ -8187,6 +8205,10 @@ export default function App() {
     if (comboP('comboStampede') && countTag('land') >= 2) combos.push('🦌 Stampede ×2 land');
     if (hasApex && countTag('predator') >= 1 && vol.some(o => !tagsOf(o.def).includes('predator'))) combos.push(`🐻 Apex +${apexBonus}`);
     if (comboP('comboBriar') && countTag('defensive') >= 2) combos.push('🦔 Briar ×2 def');
+    // Pack Tactic: +X% Block from animals (Circle the Wagons).
+    if (blockMult && block > 0) { block = Math.round(block * (1 + blockMult)); combos.push(`🛡 +${Math.round(blockMult * 100)}% Block`); }
+    if (flyingDmg) combos.push(`🦅 Flying +${Math.round(flyingDmg * 100)}%`);
+    if (landDmg) combos.push(`🦌 Land +${Math.round(landDmg * 100)}%`);
     const finalDamage = Math.round(damage * playerDmgMult);
     return { present, count: vol.length, damage: finalDamage, rawDamage: damage, vulnMult: playerDmgMult, block, poise, draw, weak, vuln, thorns, lines, combos };
   }
@@ -11434,8 +11456,15 @@ export default function App() {
     weaveFireDamageRef.current = 0;
     // Handler feeding ledger — clear for next turn after starvation check ran.
     setLuresPlayedThisTurn([]);
-    // Open Door Policy — the free-first-lure window refreshes next turn.
+    // Open Door Policy — the free-first-lure window refreshes next turn. (v4:
+    // also the free-first-ANIMAL window — Pack Tactic Running Hot.)
     setFirstLureUsedThisTurn(false);
+    // Pack Tactic — Running Hot: lose N Composure at the start of each turn.
+    const ptDrain = powers.reduce((s, p) => s + (p.packTactic?.composureDrain || 0), 0);
+    if (ptDrain > 0) {
+      setComposure(c => Math.max(0, c - ptDrain));
+      pushLog(`🔥 Running Hot — −${ptDrain} Composure.`);
+    }
     // Stake reset removed 2026-05-31 (ALL IN ripped).
     // v2.12: forget uncommitted roll-toggle at turn boundary.
     setRollOptIn(false);
@@ -11678,6 +11707,9 @@ export default function App() {
 
     // Per-swing base after the multiplier (Weak/Vuln) and self-vulnerability.
     let perSwing = mainAttacks ? Math.round(intent.value * mult * (playerIncomingMult || 1)) : 0;
+    // Pack Tactic — Watchful: take X% less from enemy attacks.
+    const ptWardProj = powers.reduce((s, p) => s + (p.packTactic?.incomingReduction || 0), 0);
+    if (ptWardProj > 0 && perSwing > 0) perSwing = Math.round(perSwing * (1 - Math.min(0.9, ptWardProj)));
     const afterMult = perSwing;
     // Flat pre-routing adds (apply to every swing, mirroring `raw` reuse).
     const arguing = arguingBackThisTurn > 0 ? arguingBackThisTurn : 0;
@@ -11982,6 +12014,10 @@ export default function App() {
         glancingApplied = true;
       }
       let raw = Math.round(intent.value * enemyDmgMult * (playerIncomingMult || 1));
+      // Pack Tactic — Watchful: take X% less from enemy attacks (mirrors the
+      // incomingProjection above so the preview matches the hit).
+      const ptWard = powers.reduce((s, p) => s + (p.packTactic?.incomingReduction || 0), 0);
+      if (ptWard > 0 && raw > 0) raw = Math.round(raw * (1 - Math.min(0.9, ptWard)));
       // v2.36: ACTUALLY— arguing-back surcharge. Each Actually— played this
       // turn adds +1 to enemy raw damage value. Applied BEFORE annotation
       // reduction so a strong annotation can still scrub the surcharge (the
