@@ -46,6 +46,8 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_PARTIAL_ROW_BONUSES, WIT_MIXED_S
 // pivoted away from the FFT system entirely. Animal Summoner engine is
 // the new direction. FFT system is wit-only.
 import { HANDLER_V2, HANDLER_V2_BY_SLOT, SPECIAL_LURE_CARDS } from './cards/handler-v2.js';
+// Menagerie v4 (2026-06-13): animals are cards. See design/MENAGERIE_V4.md.
+import { MENAGERIE_ANIMALS, MENAGERIE_COMBOS, MENAGERIE_BY_ID, MENAGERIE_V4_STARTER, MENAGERIE_V4_REWARD_POOL } from './data/menagerie-v4.js';
 import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
 import Icon from './icons/Icon.jsx';
@@ -61,7 +63,7 @@ import { ReadingRoom } from './components/ReadingRoom.jsx';
 // v2 card-pool lookup table keyed by lane.
 const LANE_POOL = { wit: WIT_V2, handler: HANDLER_V2, jnsq: JNSQ_V2 };
 const LANE_POOL_BY_SLOT = { wit: WIT_V2_BY_SLOT, handler: HANDLER_V2_BY_SLOT, jnsq: JNSQ_V2_BY_SLOT };
-const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2];
+const ALL_V2_CARDS = [...WIT_V2, ...HANDLER_V2, ...JNSQ_V2, ...MENAGERIE_ANIMALS, ...MENAGERIE_COMBOS];
 // v3 (Alan, 2026-06-08): NO lure comes in pairs anymore. With single-use lures
 // (a lure leaves the deck while its animal is out) and 2-animal pools, paired
 // foundational rewards over-stuffed the deck. Every lure reward is now a single
@@ -1113,6 +1115,9 @@ const MISSTEP_TOKEN = {
 // rarity cards lock the player into Tier 1 spells until rewards bring in
 // higher-tier intros / subjects / targets.
 function buildStarterDeckForLane(lane, startingRow = null) {
+  // Menagerie v4 (2026-06-13): the handler opens with a pure animal-card deck
+  // (no spell pieces, no lures). See design/MENAGERIE_V4.md.
+  if (lane === 'handler') return MENAGERIE_V4_STARTER.slice();
   const pool = LANE_POOL_BY_SLOT[lane];
   if (!pool) return [];
   const basics = (arr) => arr.filter(c => c.rarity === 'basic');
@@ -3780,6 +3785,11 @@ export default function App() {
   // Iron Stomach — next handler cast this turn deals +N%. Number, not bool
   // (e.g., 0.5 = +50%). Consumed only when a handler-scaling cast fires.
   const [boostNextHandlerCast, setBoostNextHandlerCast] = useState(0);
+  // Menagerie v4 thorns (Porcupine): reflects N composure each time the enemy
+  // attacks this turn; reset at the start of the player's next turn.
+  const [menagerieThorns, setMenagerieThorns] = useState(0);
+  const menagerieThornsRef = useRef(0);
+  useEffect(() => { menagerieThornsRef.current = menagerieThorns; }, [menagerieThorns]);
   // Visceral feedback — short-lived state flipped when the enemy takes
   // damage. The CombatScreen reads these and applies the hit-shake
   // class + renders damage-number floaters.
@@ -4168,7 +4178,10 @@ export default function App() {
   // combats within a run (set is run-wide state, not per-combat).
   const [upgradedAnimals, setUpgradedAnimals] = useState(() => new Set());
   const getAnimal = (id) => {
-    const base = ANIMALS[id];
+    // Menagerie v4: animal CARDS resolve through the same lookup (they carry
+    // name/icon/attack/block, the shape every getAnimal consumer expects), so
+    // the existing board render works unchanged.
+    const base = ANIMALS[id] || MENAGERIE_BY_ID[id];
     if (!base) return base;
     if (upgradedAnimals.has(id) && base.upgrade) {
       return { ...base, ...base.upgrade };
@@ -4182,6 +4195,10 @@ export default function App() {
     const out = {};
     for (const [id, def] of Object.entries(ANIMALS)) {
       out[id] = (upgradedAnimals.has(id) && def.upgrade) ? { ...def, ...def.upgrade } : def;
+    }
+    // Menagerie v4: animal cards render on the board through the same map.
+    for (const c of MENAGERIE_ANIMALS) {
+      out[c.id] = (upgradedAnimals.has(c.id) && c.upgrade) ? { ...c, ...c.upgrade } : c;
     }
     return out;
   })();
@@ -6328,6 +6345,23 @@ export default function App() {
 
     // Powers don't apply effects directly — they install themselves on the
     // player's `powers` array and trigger via the turn-hooks instead.
+    // Menagerie v4 (2026-06-13): an ANIMAL card stages into the first open
+    // board slot. It does nothing until CAST — it's a single-use damage/defense
+    // card that sits on the board a beat so combos can read it. Cost was paid
+    // at the top of playCard; refund only if there's no room.
+    if (card.type === 'animal') {
+      const open = SLOT_ORDER.find(s => tray[s] == null);
+      if (!open) {
+        setEnergy(e => e + cost);
+        pushLog(`The board is full (3 animals). CAST or feed before staging more.`);
+        return;
+      }
+      setTray(p => syncTrayLegacy({ ...p, [open]: { kind: 'animal', animalId: card.id, fed: false, durationRemaining: 1, card: { ...card }, uid: uid() } }));
+      setHand(h => h.filter((_, i) => i !== handIdx));
+      pushLog(`${card.icon || '🐾'} ${card.name} takes the field.`);
+      logEvent(TE.HANDLER_SUMMON, { cardId: card.id, slots: 1, instant: true, enemyId: enemy?.id || null });
+      return;
+    }
     if (card.type === 'power') {
       setPowers(ps => [...ps, card]);
       setHand(h => h.filter((_, i) => i !== handIdx));
@@ -8083,8 +8117,67 @@ export default function App() {
     // STORM OUT post-cast turn-end-immediately path removed 2026-05-31.
   }
 
+  // Menagerie v4 (2026-06-13): CAST resolves every staged animal — attack
+  // (composure), block, onCast ability — plus any installed combo payoffs,
+  // then clears unfed animals (fed ones stay, fed flag reset). Repeatable per
+  // turn; energy (the cost of playing more animals) is the limiter.
+  function castMenagerie() {
+    if (stage !== 'combat') return;
+    const present = SLOT_ORDER.map(s => ({ s, slot: tray[s] })).filter(x => x.slot?.kind === 'animal');
+    if (present.length === 0) { pushLog('No animals staged — play an animal first.'); return; }
+    const vol = present.map(x => ({ ...x, def: getAnimal(x.slot.animalId) })).filter(x => x.def);
+    const tagsOf = (d) => d.tags || [];
+    const countTag = (t) => vol.filter(a => tagsOf(a.def).includes(t)).length;
+    const comboOn = (id) => powers.some(p => p.installPower?.id === id);
+    // Herd: a Sheepdog's bonus lifts every OTHER animal in the volley.
+    const herdTotal = vol.reduce((s, a) => s + (a.def.onCast?.herd || 0), 0);
+
+    let totalComp = 0, totalBlock = 0, drawN = 0, weakN = 0, vulnN = 0, thornsN = 0;
+    for (const a of vol) {
+      const d = a.def;
+      let atk = d.attack || 0;
+      if (atk > 0) atk += (herdTotal - (d.onCast?.herd || 0)); // herd from others
+      if (comboOn('comboApex') && tagsOf(d).includes('predator') && vol.some(o => !tagsOf(o.def).includes('predator'))) atk += 7;
+      let mult = 1;
+      if (comboOn('comboStampede') && tagsOf(d).includes('land') && countTag('land') >= 2) mult = 2;
+      let blk = d.block || 0;
+      if (comboOn('comboBriar') && tagsOf(d).includes('defensive') && countTag('defensive') >= 2) blk *= 2;
+      totalComp += Math.max(0, atk) * mult;
+      totalBlock += blk;
+      drawN += d.onCast?.draw || 0;
+      weakN += d.onCast?.weak || 0;
+      vulnN += d.onCast?.vulnerable || 0;
+      thornsN += d.onCast?.thorns || 0;
+    }
+    if (comboOn('comboMurder') && countTag('bird') >= 2) totalComp += 6;
+    if (comboOn('comboFull') && vol.length >= 3) { totalComp += 8; totalBlock += 4; }
+
+    const bits = [];
+    if (totalComp > 0) { const dealt = Math.round(totalComp * playerDmgMult); applyDamageToEnemyComposure(dealt); bits.push(`🎭 ${dealt}`); }
+    if (totalBlock > 0) { setBlock(b => b + totalBlock); bits.push(`🛡 +${totalBlock}`); }
+    if (weakN > 0) { applyExpiringWeak(weakN); bits.push(`⛧ Weak`); }
+    if (vulnN > 0) { applyExpiringVuln(vulnN); bits.push(`🩸 Vuln`); }
+    if (thornsN > 0) { setMenagerieThorns(t => t + thornsN); bits.push(`🦔 Thorns ${thornsN}`); }
+    if (drawN > 0) { drawCards(drawN); bits.push(`🃏 +${drawN}`); }
+    pushLog(`📣 CAST — ${vol.length} fire: ${bits.join(' · ') || '(no effect)'}`);
+    logEvent('combat.handler_cast', { animals: vol.map(a => a.slot.animalId), comp: totalComp, block: totalBlock, fed: vol.filter(a => a.slot.fed).length, enemyId: enemy?.id || null });
+
+    // Unfed animals are spent → discard (recyclable). Fed animals stay, fed
+    // flag cleared so they must be re-fed to persist again.
+    const spent = present.filter(x => !x.slot.fed).map(x => x.slot.card).filter(Boolean);
+    if (spent.length) setDiscard(d => [...d, ...spent.map(c => ({ ...c, uid: uid() }))]);
+    setTray(p => {
+      const next = { ...p };
+      for (const x of present) next[x.s] = x.slot.fed ? { ...p[x.s], fed: false } : null;
+      return syncTrayLegacy(next);
+    });
+    advanceTutorialStep('cast-spell');
+  }
+
   function castStagedSpell() {
     if (stage !== 'combat') return;
+    // Menagerie v4: the handler's CAST fires the staged volley.
+    if (selectedCharacter?.lane === 'handler') { castMenagerie(); return; }
     // v2.9: enforce per-turn cast cap. Was uncapped, which let a player
     // stage+cast twice in a single turn at 3 energy. Now the second cast
     // is gated until next turn.
@@ -10121,35 +10214,28 @@ export default function App() {
   // HARD DEADLINE (Alan): an animal that already missed its needs-food turn
   // (durationRemaining < 2, committed to leave) can't be saved — skipped here.
   const FEED_COST = 1;
+  // Menagerie v4 (2026-06-13): FEED marks a staged animal to survive the next
+  // CAST (instead of being spent). The only way to carry an animal across casts
+  // — the setup lever for combos and for firing a big animal twice. Pay 1E.
   function feedSpecies(animalId) {
     if (energy < FEED_COST) { pushLog(`Not enough energy to feed.`); return; }
     const animal = getAnimal(animalId);
-    // Reset to one MORE than the needs-food threshold so a fed animal gets a
-    // healthy turn before going hungry again (feed cadence ≈ duration). Tunable.
-    const cadence = (animal?.duration || 3) + 1;
-    // Decide targets from the CURRENT tray closure. The setTray updater must
-    // stay pure — counting `fed` inside it and reading it after for the energy
-    // side-effect is unreliable (React runs the updater deferred). [feedback:
-    // react-pure-updaters]
     const targets = SLOT_ORDER.filter(sn => {
       const slot = tray[sn];
-      return slot?.kind === 'animal' && slot.animalId === animalId && (slot.durationRemaining || 0) >= 2;
+      return slot?.kind === 'animal' && slot.animalId === animalId && !slot.fed;
     });
-    if (targets.length === 0) { pushLog(`🍴 No ${animal?.name || animalId} needs feeding right now.`); return; }
+    if (targets.length === 0) { pushLog(`🍴 No un-fed ${animal?.name || animalId} on the board.`); return; }
     setTray(prev => {
       const next = { ...prev };
       for (const sn of targets) {
         const slot = next[sn];
-        if (slot?.kind === 'animal' && slot.animalId === animalId) {
-          next[sn] = { ...slot, durationRemaining: cadence, feedReceived: true, fedThisTurn: true };
-        }
+        if (slot?.kind === 'animal' && slot.animalId === animalId) next[sn] = { ...slot, fed: true };
       }
       return syncTrayLegacy(next);
     });
     setEnergy(e => e - FEED_COST);
-    setLuresPlayedThisTurn(prev => [...prev, animal?.feedKey].filter(Boolean));
-    logEvent(TE.HANDLER_FEED, { animalId, feedKey: animal?.feedKey || null, fed: targets.length, viaButton: true, enemyId: enemy?.id || null });
-    pushLog(`🍴 Fed the ${animal?.name || animalId}${targets.length > 1 ? ` ×${targets.length}` : ''} — topped up for ${FEED_COST} energy.`);
+    logEvent(TE.HANDLER_FEED, { animalId, fed: targets.length, viaButton: true, enemyId: enemy?.id || null });
+    pushLog(`🍴 Fed the ${animal?.name || animalId}${targets.length > 1 ? ` ×${targets.length}` : ''} — it stays through the next CAST (${FEED_COST}E).`);
   }
 
   // Whistle click — first click picks slot 1; second click swaps slot 1 and
@@ -10779,993 +10865,12 @@ export default function App() {
     //   b. LURES tick: decrement turnsRemaining, transform into the
     //      summoned animal in-place when it reaches 0. Newly arrived
     //      animals wait until the NEXT end-of-turn to act.
+    // Menagerie v4 (2026-06-13): End Turn is an implicit CAST — the staged
+    // volley fires, unfed animals leave, fed ones stay. The old lure→arrival→
+    // tick engine (predator chains, combine, maul-targets-animals, tactics) is
+    // retired; see design/MENAGERIE_V4.md. Animals are cards now.
     if (selectedCharacter?.lane === 'handler') {
-      // Telemetry accumulator for the menagerie's end-of-turn output — the
-      // Handler's "cast." Plain locals (not React state), incremented at each
-      // attack/exit/arrival/block site, emitted once after the tick. Lets a
-      // Handler run be gauged the way wit casts/FFT signals gauge a wit run.
-      const hTick = {
-        composureDealt: 0, hpDealt: 0, blockGained: 0,
-        attacks: 0, arrivals: [], exits: [], shortStays: 0,
-      };
-      // Enemy block at tick start — composureDealt counts ATTEMPTED damage
-      // (pre-block), which read as "animals bypass block" in Alan's
-      // 2026-06-07 telemetry. blockSoaked (emitted below) is the absorbed
-      // portion, so attempted − soaked = what actually landed.
-      const enemyBlockAtTickStart = enemyBlockRef.current;
-      // Working copy of the tray — pre-pass mutates this before the main loop
-      // iterates so the loop sees the post-cannibalism state.
-      const workingTray = { intro: tray.intro, subject: tray.subject, target: tray.target };
-      // Maul (Alan, 2026-06-02): which slots held an animal DURING the player's
-      // turn, before this tick transforms any staged lures. Only these are
-      // maul-eligible — a lure that becomes an animal on this very end-turn
-      // tick (or a fresh adjacent-spawn) isn't "out" until next turn begins.
-      const preTickAnimalSlots = new Set(SLOT_ORDER.filter(s => tray[s]?.kind === 'animal'));
-      const luresEaten = []; // lure cards sent to exiled (eaten, not cycled)
-
-      // onExit helper — fires when an animal departs by natural duration
-      // expiry. Handles damage (Young Buck's 6-comp kick), block (Field
-      // Mouse's +3 block), and Weak debuff (Hawk's parting screech).
-      // Doesn't fire on predator-chain / adjacent-spawn transforms
-      // — only natural exit.
-      const applyAnimalOnExit = (animal) => {
-        const fx = animal?.onExit;
-        if (!fx) return;
-        if (fx.damage > 0) {
-          if (fx.damageType === 'physical') { applyDamageToEnemyHp(fx.damage); hTick.hpDealt += fx.damage; }
-          else                              { applyDamageToEnemyComposure(fx.damage); hTick.composureDealt += fx.damage; }
-          pushLog(`${animal.icon} ${animal.name} parting kick: ${fx.damage} ${fx.damageType === 'physical' ? 'HP' : 'composure'}.`);
-        }
-        if (fx.block > 0) {
-          setBlock(b => b + fx.block);
-          // Mirror into the brace ref so applyEnemyIntent (same endTurn
-          // pass) actually defends with it — otherwise the exit block is
-          // granted then wiped at next turn-start having soaked nothing
-          // (Alan, 2026-06-07: exit block "doesn't appear when I expect").
-          // Same stale-closure fix as the Summoned Shield brace.
-          shieldBraceRef.current.block += fx.block;
-          hTick.blockGained += fx.block;
-          pushLog(`${animal.icon} ${animal.name} drops +${fx.block} Block on the way out.`);
-        }
-        if (fx.applyWeak > 0) {
-          applyExpiringWeak(fx.applyWeak);
-          pushLog(`${animal.icon} ${animal.name} parting screech — Weak ${fx.applyWeak} on enemy.`);
-        }
-        if (fx.healComp > 0) {
-          setComposure(c => Math.min(composureMax, c + fx.healComp));
-          pushLog(`${animal.icon} ${animal.name} nuzzles you on the way out — +${fx.healComp} composure.`);
-        }
-        if (fx.healHp > 0) {
-          setHp(h => Math.min(maxHp, h + fx.healHp));
-          pushLog(`${animal.icon} ${animal.name} leaves you with a kindness — +${fx.healHp} HP.`);
-        }
-        if (fx.redirectEnemyAttack) {
-          redirectEnemyAttackRef.current = true;
-          setRedirectArmed(true);
-          pushLog(`${animal.icon} ${animal.name} — Spittle Peck: the enemy's next attack turns on itself.`);
-        }
-      };
-
-      // Pre-pass: cannibalism check. Walk lures; for each, check both
-      // neighbors for a matching-species animal. First match wins.
-      for (let i = 0; i < SLOT_ORDER.length; i++) {
-        const lureSlot = workingTray[SLOT_ORDER[i]];
-        if (!lureSlot || lureSlot.kind !== 'lure') continue;
-        const neighborIndices = [i - 1, i + 1].filter(n => n >= 0 && n < SLOT_ORDER.length);
-        for (const ni of neighborIndices) {
-          const neighbor = workingTray[SLOT_ORDER[ni]];
-          if (!neighbor || neighbor.kind !== 'animal') continue;
-          if (neighbor.animalId !== lureSlot.animalId) continue;
-          // Match — the neighbor animal eats this lure.
-          const animal = getAnimal(neighbor.animalId);
-          pushLog(`${animal?.icon || '🐾'} ${animal?.name || neighbor.animalId} jumps over and eats the ${lureSlot.cardName || 'lure'}!`);
-          if (lureSlot.card) luresEaten.push({ ...lureSlot.card, uid: uid() });
-          // Move the animal into the lure's slot, marked as having acted.
-          workingTray[SLOT_ORDER[i]] = { ...neighbor, eatenThisTurn: true };
-          workingTray[SLOT_ORDER[ni]] = null;
-          break; // animal can only eat one lure per turn
-        }
-      }
-
-      // Pre-pass: cannibalism only considers real animals — skip occupied
-      // placeholder slots (Mouse House's second cell). Already handled
-      // naturally because workingTray[s].kind === 'animal' check excludes
-      // 'occupied' kind. Same for Hawk strike and row bonus below.
-
-      // Pre-pass: RAPTOR SWOOP (Alan, 2026-06-02). Each turn there is a 5%
-      // chance per Field Mouse on the board that a raptor swoops in and eats
-      // it. The raptor is a Hawk (65%) or an Owl (35%). The eaten animal
-      // forfeits this turn (no attack/draw); the raptor takes the slot with
-      // full duration and acts normally next turn (eatenThisTurn). Salmon is
-      // no longer eligible — it now attracts predators via its own
-      // predatorRoll gamble (Alan, 2026-06-02).
-      const swoopRaptor = (slotName, slot, verb, forcedId) => {
-        const raptorId = forcedId || (Math.random() < 0.65 ? 'hawk' : 'owl');
-        const raptor = getAnimal(raptorId);
-        const preyName = getAnimal(slot.animalId)?.name || slot.animalId;
-        pushLog(`${raptor?.icon || '🦅'} A ${raptor?.name || 'raptor'} swoops in and ${verb} the ${preyName} — its turn is forfeited.`);
-        workingTray[slotName] = {
-          kind: 'animal',
-          animalId: raptorId,
-          durationRemaining: raptor?.duration || 3,
-          predatorProgress: 0,
-          adjacentSpawnProgress: 0,
-          summonSet: slot.summonSet || null,
-          eatenThisTurn: true, // raptor took the action this turn — wait until next.
-          sourceLures: slot.sourceLures || [], // v3: lineage keeps the lure
-        };
-      };
-      for (const slotName of SLOT_ORDER) {
-        const slot = workingTray[slotName];
-        if (!slot || slot.kind !== 'animal') continue;
-        if (slot.animalId !== 'field-mouse') continue;
-        // E2E hook: ?forceSwoop=owl|hawk forces the first eligible prey to be
-        // swooped (once per combat), bypassing the 5% roll. window.__forceSwoop
-        // is only ever set by devSeed from the URL, so normal play is untouched.
-        const forced = (typeof window !== 'undefined') ? window.__forceSwoop : null;
-        if (forced === 'owl' || forced === 'hawk') {
-          window.__forceSwoop = null;
-          swoopRaptor(slotName, slot, 'snatches', forced);
-          continue;
-        }
-        if (Math.random() >= 0.05) continue;
-        swoopRaptor(slotName, slot, 'snatches');
-      }
-
-      // Declared before the combine pre-pass: the combine-detonation burst
-      // below can KO the enemy and must set this flag, so it can't live further
-      // down with the other end-of-turn locals (that was a TDZ render crash).
-      let summonerKilledEnemy = false;
-
-      // Pre-pass: THREE-OF-A-KIND COMBINES. When all 3 slots hold the same
-      // species AND that species has a combine target, merge into the
-      // combine animal anchored at intro spanning into subject. target
-      // empties. Combine animals never need feeding (no feedKey) and
-      // attack/grant defense on the turn they form (no eatenThisTurn).
-      // Combine results (Mouse House / Long Hare / McCloven) removed 2026-06-09
-      // (Alan). Map is empty → the three-of-a-kind pre-pass below never fires.
-      const COMBINE_BY_SPECIES = {};
-      const firstSlot = workingTray[SLOT_ORDER[0]];
-      const matchedSpecies = (firstSlot?.kind === 'animal' && COMBINE_BY_SPECIES[firstSlot.animalId])
-        ? firstSlot.animalId
-        : null;
-      const allSameSpecies = matchedSpecies && SLOT_ORDER.every(s =>
-        workingTray[s]?.kind === 'animal' && workingTray[s].animalId === matchedSpecies);
-      if (allSameSpecies) {
-        const combineId = COMBINE_BY_SPECIES[matchedSpecies];
-        const combineAnim = getAnimal(combineId);
-        pushLog(`✨ Three ${getAnimal(matchedSpecies)?.name || matchedSpecies}s combine into ${combineAnim?.icon || ''} ${combineAnim?.name || combineId} — it spans two slots.`);
-        // v3 single-use lures: the combined animal inherits ALL three source
-        // lures, so all three return to hand when the combine departs.
-        const combinedLures = SLOT_ORDER.flatMap(s => workingTray[s]?.sourceLures || []);
-        workingTray.intro = {
-          kind: 'animal',
-          animalId: combineId,
-          durationRemaining: combineAnim?.duration || 2,
-          predatorProgress: 0,
-          adjacentSpawnProgress: 0,
-          summonSet: matchedSpecies === 'field-mouse' ? 'tender-greens' : null,
-          spans: ['intro', 'subject'],
-          justCombined: true, // formation turn: attack but don't burn a duration tick
-          sourceLures: combinedLures,
-        };
-        workingTray.subject = { kind: 'occupied', occupiedBy: 'intro' };
-        workingTray.target = null;
-        // COMBINE DETONATION (cycle 2): assembling a three-of-a-kind is the
-        // Handler's burst valve — a one-time spike the turn it forms, on top
-        // of the combine's normal same-turn attack. Rewards narrowing lures
-        // hard enough to stack three of a species. Mirrored in sim.
-        const onForm = combineAnim?.onForm;
-        if (onForm) {
-          const bits = [];
-          if (onForm.damage > 0) {
-            if (onForm.pool === 'composure') {
-              const post = applyDamageToEnemyComposure(onForm.damage);
-              hTick.composureDealt += onForm.damage;
-              if (post <= 0) summonerKilledEnemy = true;
-              bits.push(`${onForm.damage} composure`);
-            } else {
-              const post = applyDamageToEnemyHp(onForm.damage);
-              hTick.hpDealt += onForm.damage;
-              if (post <= 0) summonerKilledEnemy = true;
-              bits.push(`${onForm.damage} HP`);
-            }
-          }
-          if (onForm.applyVulnerable > 0) { applyExpiringVuln(onForm.applyVulnerable); bits.push(`Vulnerable ${onForm.applyVulnerable}`); }
-          if (onForm.applyWeak > 0) { applyExpiringWeak(onForm.applyWeak); bits.push(`Weak ${onForm.applyWeak}`); }
-          hTick.attacks++;
-          pushLog(`💥 ${combineAnim.icon} ${combineAnim.name} forms with a burst — ${bits.join(', ')}.`);
-        }
-      }
-
-      // Pre-pass: TENDER GREENS ROW BONUS. If every slot holds an animal
-      // summoned via Tender Greens (summonSet === 'tender-greens') AND the
-      // bonus hasn't already fired for the current row composition, fire it:
-      // each animal's NEXT ATTACK is +50% AND each grants +3 Block per turn
-      // for the rest of its stay. (Alan, 2026-05-31: dropped legacy +1
-      // duration extension that fought the feeding tick; toned next-attack
-      // multiplier from 2.0 → 1.5 and added a per-turn block grant to
-      // smooth the bonus across multiple turns instead of one big burst.)
-      // tenderGreensRowBonusFired marker on each envelope prevents re-fire
-      // for the same row; when an animal leaves or the set changes, the
-      // bonus is available again on the next full row.
-      const slotEntries = SLOT_ORDER.map(s => workingTray[s]);
-      const allTenderGreens = slotEntries.every(s => s && s.kind === 'animal' && s.summonSet === 'tender-greens');
-      const allAlreadyFired = allTenderGreens && slotEntries.every(s => s.tenderGreensRowBonusFired);
-      if (allTenderGreens && !allAlreadyFired) {
-        pushLog(`🥬 TENDER GREENS row complete — each animal's next attack ×1.5 AND +3 Block per turn.`);
-        for (const slotName of SLOT_ORDER) {
-          const s = workingTray[slotName];
-          workingTray[slotName] = {
-            ...s,
-            nextAttackMult: 1.5,
-            turnGrantTemp: { ...(s.turnGrantTemp || {}), block: ((s.turnGrantTemp?.block) || 0) + 3 },
-            tenderGreensRowBonusFired: true,
-          };
-        }
-      }
-
-      // Pre-pass: RAPTOR EATS ADJACENT PREY (Alan, 2026-06-02). On its EXIT
-      // turn (durationRemaining === 1) a Hawk or Owl can eat ONE adjacent prey
-      // (Field Mouse / Rabbit / Salmon), MOVE into that square, and stay one
-      // more turn — once only (ateAdjacentOnce). It cannot be fed again after.
-      // Runs after combines so a full mouse-row still merges first.
-      for (const slotName of SLOT_ORDER) {
-        const raptorSlot = workingTray[slotName];
-        if (!raptorSlot || raptorSlot.kind !== 'animal') continue;
-        const raptor = getAnimal(raptorSlot.animalId);
-        const prey = raptor?.eatsAdjacent;
-        if (!prey || !prey.length) continue;
-        if (raptorSlot.durationRemaining !== 1 || raptorSlot.ateAdjacentOnce) continue;
-        const hi = SLOT_ORDER.indexOf(slotName);
-        for (const ni of [hi - 1, hi + 1]) {
-          if (ni < 0 || ni >= SLOT_ORDER.length) continue;
-          const ns = SLOT_ORDER[ni];
-          const neighbor = workingTray[ns];
-          if (neighbor && neighbor.kind === 'animal' && prey.includes(neighbor.animalId)) {
-            const preyName = getAnimal(neighbor.animalId)?.name || neighbor.animalId;
-            lureReturns.push(...mintSourceLures(neighbor)); // v3: eaten prey's lure returns
-            workingTray[ns] = {
-              ...raptorSlot,
-              durationRemaining: 2, // attacks this turn + one more, then exits
-              ateAdjacentOnce: true,
-            };
-            workingTray[slotName] = null;
-            pushLog(`${raptor.icon} The ${raptor.name} takes the adjacent ${preyName} and moves into its place — it stays one more turn.`);
-            break; // one prey per raptor per turn
-          }
-        }
-      }
-
-      // Pre-pass: OWL VULNERABLE (Alan, 2026-06-02). A standing Owl applies its
-      // Vulnerable to the enemy BEFORE any animal attacks, so the whole
-      // menagerie's hits land into the debuff this same turn. Skips an Owl
-      // still in its swoop-forfeit turn (eatenThisTurn) — not settled in yet.
-      for (const slotName of SLOT_ORDER) {
-        const slot = workingTray[slotName];
-        if (!slot || slot.kind !== 'animal' || slot.eatenThisTurn) continue;
-        const animal = getAnimal(slot.animalId);
-        if (!animal?.prePassVulnerable) continue;
-        applyExpiringVuln(animal.prePassVulnerable);
-        pushLog(`${animal.icon} ${animal.name} unsettles the enemy — Vulnerable ${animal.prePassVulnerable} (before the swarm).`);
-      }
-
-      // Pre-pass: RAVEN BIRD THEFT. The Raven strips `birdTheft` Block from the
-      // enemy BEFORE any animal attacks, so the flock lands on bare composure.
-      // v3 (Alan, 2026-06-09): `birdTheftPerTurn` ravens strip EVERY turn they
-      // attack; a legacy exit-only theft would fire just on durationRemaining===1.
-      // Uses enemyBlockRef for the synchronous value (setEnemyBlock is async).
-      for (const slotName of SLOT_ORDER) {
-        const slot = workingTray[slotName];
-        if (!slot || slot.kind !== 'animal') continue;
-        const animal = getAnimal(slot.animalId);
-        if (!animal?.birdTheft || slot.eatenThisTurn) continue;
-        if (!animal.birdTheftPerTurn) {
-          if (slot.durationRemaining !== 1) continue;        // legacy: exit turn only
-          if (animal.feedKey && !slot.feedReceived) continue; // unfed short-stay, no payoff
-        }
-        const stripped = Math.min(enemyBlockRef.current, animal.birdTheft);
-        if (stripped > 0) {
-          enemyBlockRef.current = Math.max(0, enemyBlockRef.current - animal.birdTheft);
-          setEnemyBlock(b => Math.max(0, b - animal.birdTheft));
-          pushLog(`${animal.icon} ${animal.name} — Bird Theft: strips ${stripped} Block from the enemy.`);
-        } else {
-          pushLog(`${animal.icon} ${animal.name} — Bird Theft: the enemy had no Block to take.`);
-        }
-      }
-
-      const nextSlots = {};
-      const luresToRecycle = []; // lure cards returned to discard on transform
-      // Feed gate (Alan, 2026-05-31): feeding does NOT extend duration. It
-      // unlocks the natural-exit onExit bonus AND the final turn. If never
-      // fed by the make-or-break turn (animal's D-1 turn on the board), the
-      // animal short-stays — leaves one turn early with no exit bonus.
-      // feedReceived is set persistently on the slot envelope when a matching
-      // feed-key lure is consumed.
-      const isUnfed = (slot, animal) => animal?.feedKey && !slot.feedReceived;
-
-      // Pre-pass: ADJACENCY COMBOS (Alan, 2026-06-02). Two specific species in
-      // adjacent slots perform a joint special attack — once per pair-type per
-      // turn. Animals can't be repositioned (they land where the lure was
-      // placed), so lining a combo up is a planned-but-luck-influenced payoff;
-      // the lure-narrowing skill is what makes a pair reliable. Fires here,
-      // before the per-animal loop, so a combo's debuff (Weak/Vuln) lands
-      // before the swarm's normal swings. Mirrored in sim/playSimV2.js.
-      const comboFiredPairs = new Set();
-      for (let i = 0; i < SLOT_ORDER.length - 1; i++) {
-        const sA = workingTray[SLOT_ORDER[i]];
-        const sB = workingTray[SLOT_ORDER[i + 1]];
-        if (!sA || sA.kind !== 'animal' || sA.eatenThisTurn) continue;
-        if (!sB || sB.kind !== 'animal' || sB.eatenThisTurn) continue;
-        const combo = ADJACENCY_COMBOS.find(c =>
-          (c.a === sA.animalId && c.b === sB.animalId) ||
-          (c.a === sB.animalId && c.b === sA.animalId));
-        if (!combo) continue;
-        const key = [combo.a, combo.b].sort().join('+');
-        if (comboFiredPairs.has(key)) continue; // one fire per pair-type per turn
-        comboFiredPairs.add(key);
-        hTick.attacks++;
-        const bits = [];
-        if (combo.damage > 0) {
-          // Duo: combos follow the player's target like every other animal
-          // attack (Alan, 2026-06-07 — "targeting always hits the main").
-          if (castTargetRef.current === 'companion' && companionRef.current) {
-            const cName = companionRef.current.def.name;
-            damageCompanion(combo.damage);
-            hTick.composureDealt += combo.damage;
-            bits.push(`${combo.damage} → ${cName}`);
-          } else if (combo.pool === 'composure') {
-            const post = applyDamageToEnemyComposure(combo.damage);
-            hTick.composureDealt += combo.damage;
-            if (post <= 0) summonerKilledEnemy = true;
-            bits.push(`${combo.damage} composure`);
-          } else {
-            const post = applyDamageToEnemyHp(combo.damage);
-            hTick.hpDealt += combo.damage;
-            if (post <= 0) summonerKilledEnemy = true;
-            bits.push(`${combo.damage} HP`);
-          }
-        }
-        if (combo.applyWeak > 0) { applyExpiringWeak(combo.applyWeak); bits.push(`Weak ${combo.applyWeak}`); }
-        if (combo.applyVulnerable > 0) { applyExpiringVuln(combo.applyVulnerable); bits.push(`Vulnerable ${combo.applyVulnerable}`); }
-        if (combo.draw > 0) { drawCards(combo.draw); bits.push(`draw ${combo.draw}`); }
-        if (combo.block > 0) { setBlock(b => b + combo.block); hTick.blockGained += combo.block; bits.push(`+${combo.block} Block`); }
-        pushLog(`✨ ${combo.icon} COMBO — ${combo.name}: ${bits.join(', ')}.`);
-      }
-
-      for (const slotName of SLOT_ORDER) {
-        const slot = workingTray[slotName];
-        if (!slot) { nextSlots[slotName] = null; continue; }
-        // Occupied placeholder cells are mirrored from their anchor. Skip
-        // here — when the anchor processes, it'll set both slots in
-        // nextSlots. If the anchor was processed FIRST and cleared this
-        // slot to null, we'd never reach here. If processed LATER, leave
-        // the placeholder in place until the anchor commits.
-        if (slot.kind === 'occupied') {
-          if (nextSlots[slotName] === undefined) nextSlots[slotName] = slot;
-          continue;
-        }
-        if (slot.kind === 'animal') {
-          const animal = getAnimal(slot.animalId);
-          if (!animal) { nextSlots[slotName] = null; continue; }
-          // Skip attack if the animal already acted this turn by eating a
-          // lure / being snatched by a Hawk (eatenThisTurn flag), or for
-          // 0-attack animals (Salmon — flops by design). nextAttackMult
-          // multiplies this attack only (consumed below; reset in the
-          // duration-tick branches).
-          // Freeze (enemy ability): a frozen animal can't attack. Tick its
-          // frozen counter down (the duration branches' `...slot` spread
-          // carries the mutated value forward).
-          if (!slot.eatenThisTurn && animal.attack > 0 && (slot.frozenTurns || 0) > 0) {
-            slot.frozenTurns = Math.max(0, (slot.frozenTurns || 0) - 1);
-            pushLog(`❄ ${animal.icon} ${animal.name} is frozen — doesn't attack${slot.frozenTurns > 0 ? ` (${slot.frozenTurns} more turn${slot.frozenTurns > 1 ? 's' : ''})` : ' (thaws next turn)'}.`);
-          } else if (!slot.eatenThisTurn && animal.attack > 0) {
-            const atkMult = slot.nextAttackMult || 1;
-            const ampMult = adjacentAmplifyMult(slotName, workingTray);
-            const baseAtk = animal.copiesHighest ? copyHighestAttack(slotName, animal, workingTray) : animalAttackValue(animal, slot);
-            // Animals respect enemy Vulnerable (playerDmgMult): the menagerie
-            // is the handler's main damage, so Vulnerable now actually matters
-            // to it (Alan, 2026-06-08). playerDmgMult is the binary 1.5/0.75.
-            let atk = Math.round(baseAtk * atkMult * ampMult * playerDmgMult);
-            const multLabel = atkMult > 1 ? ` (×${atkMult})` : '';
-            const ampLabel = ampMult > 1 ? ` (🐕 +${Math.round((ampMult - 1) * 100)}%)` : '';
-            const copyLabel = animal.copiesHighest ? " (🎙️ copies strongest)" : "";
-            const tacticId = tray.tactic?.tactic?.id;
-            const isShield = tacticId === 'shield';
-            const isRabid  = tacticId === 'rabid';
-            if (isRabid) atk = Math.round(atk * 1.5);
-            const tacticLabel = isRabid ? ' (Rabid ×1.5)' : isShield ? ' (Shield → Block & Poise)' : '';
-            hTick.attacks++;
-            // Turn Against (enemy ability): the menagerie strikes YOUR composure
-            // this turn instead of the enemy. Overrides the Shield stance — a
-            // turned animal isn't bracing for you.
-            if (animalsTurnedRef.current) {
-              setComposure(c => Math.max(0, c - atk));
-              pushLog(`🔄 ${animal.icon} ${animal.name} turns on you: -${atk} composure${multLabel}${ampLabel}${copyLabel}.`);
-            } else if (isShield) {
-              setBlock(b => b + atk);
-              setPoise(p => p + atk);
-              // Mirror into the ref so applyEnemyIntent (same pass) sees it.
-              shieldBraceRef.current.block += atk;
-              shieldBraceRef.current.poise += atk;
-              hTick.blockGained += atk;
-              pushLog(`${animal.icon} ${animal.name} braces: +${atk} Block & Poise${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
-            } else {
-              // Capture the POST-damage pool from the ref-backed damage
-              // helpers — they accumulate across the loop, so this catches a
-              // cumulative kill (two animals that each fall short alone but
-              // together drop the enemy). The old check read the stale
-              // closure `enemyComposure`/`enemyHp` and missed those, letting
-              // a dead enemy still fire its intent at the player.
-              // Duo (Alan, 2026-06-07): animals ARE the handler's attacks —
-              // they follow the player's target. When the companion flees
-              // mid-loop, the remaining animals fall back to the leader.
-              if (castTargetRef.current === 'companion' && companionRef.current) {
-                const cName = companionRef.current.def.name;
-                damageCompanion(atk);
-                hTick.composureDealt += atk;
-                pushLog(`${animal.icon} ${animal.name} attacks ${cName}: ${atk}${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
-              } else if (animal.attackPool === 'composure') {
-                const post = applyDamageToEnemyComposure(atk);
-                hTick.composureDealt += atk;
-                if (post <= 0) summonerKilledEnemy = true;
-                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} composure${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
-              } else {
-                const post = applyDamageToEnemyHp(atk);
-                hTick.hpDealt += atk;
-                if (post <= 0) summonerKilledEnemy = true;
-                pushLog(`${animal.icon} ${animal.name} attacks: ${atk} HP${multLabel}${ampLabel}${copyLabel}${tacticLabel}.`);
-              }
-              if (isRabid) {
-                const recoil = Math.max(1, Math.round(atk * 0.1));
-                setComposure(c => Math.max(0, c - recoil));
-                pushLog(`💢 Rabid recoil: -${recoil} composure.`);
-              }
-            }
-            if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
-            // Per-attack debuff rider (Mouse House Vuln 1; Long Hare Weak 1).
-            if (animal.onAttackEffect?.applyVulnerable > 0) {
-              applyExpiringVuln(animal.onAttackEffect.applyVulnerable);
-              pushLog(`${animal.icon} ${animal.name} unsettles the enemy — Vulnerable ${animal.onAttackEffect.applyVulnerable}.`);
-            }
-            if (animal.onAttackEffect?.applyWeak > 0) {
-              applyExpiringWeak(animal.onAttackEffect.applyWeak);
-              pushLog(`${animal.icon} ${animal.name} blurs the enemy's swing — Weak ${animal.onAttackEffect.applyWeak}.`);
-            }
-            // Deferred re-attacks armed by On Three! / Stampede this turn.
-            // They resolve here on the animals' turn (not at play time) using
-            // the animal's base attack — the one-shot nextAttackMult was spent
-            // by the natural swing above. Tactic modifiers (Rabid/Shield) still
-            // apply since the same tactic is in the tray.
-            const extraAttacks = slot.extraAttacks || 0;
-            for (let e = 0; e < extraAttacks; e++) {
-              let xatk = Math.round(baseAtk * ampMult);
-              if (isRabid) xatk = Math.round(xatk * 1.5);
-              hTick.attacks++;
-              if (isShield) {
-                setBlock(b => b + xatk);
-                setPoise(p => p + xatk);
-                shieldBraceRef.current.block += xatk;
-                shieldBraceRef.current.poise += xatk;
-                hTick.blockGained += xatk;
-                pushLog(`${animal.icon} ${animal.name} braces again: +${xatk} Block & Poise (Pack Tactics).`);
-              } else if (castTargetRef.current === 'companion' && companionRef.current) {
-                const cName = companionRef.current.def.name;
-                damageCompanion(xatk);
-                hTick.composureDealt += xatk;
-                pushLog(`${animal.icon} ${animal.name} attacks ${cName} again: ${xatk} (Pack Tactics).`);
-              } else if (animal.attackPool === 'composure') {
-                const post = applyDamageToEnemyComposure(xatk);
-                hTick.composureDealt += xatk;
-                if (post <= 0) summonerKilledEnemy = true;
-                pushLog(`${animal.icon} ${animal.name} attacks again: ${xatk} composure (Pack Tactics${isRabid ? ' · Rabid' : ''}).`);
-              } else {
-                const post = applyDamageToEnemyHp(xatk);
-                hTick.hpDealt += xatk;
-                if (post <= 0) summonerKilledEnemy = true;
-                pushLog(`${animal.icon} ${animal.name} attacks again: ${xatk} HP (Pack Tactics${isRabid ? ' · Rabid' : ''}).`);
-              }
-              if (!isShield && isRabid) {
-                const recoil = Math.max(1, Math.round(xatk * 0.2));
-                setComposure(c => Math.max(0, c - recoil));
-                pushLog(`💢 Rabid recoil: -${recoil} composure.`);
-              }
-              if (animal.onAttack?.draw) drawCards(animal.onAttack.draw);
-            }
-          }
-          // Per-turn passive grants (Long Hare / McCloven / Tender Greens row
-          // bonus). Fires every turn the animal is on board, regardless of
-          // eatenThisTurn or whether the animal attacked. Also fires for
-          // turnGrantTemp riders the row-bonus pre-pass stamps on slots.
-          const grant = animal.turnGrant || slot.turnGrantTemp;
-          // Per-turn Block = the animal's innate grant PLUS any Basic Training
-          // investment (slot.blockBonus, permanent for this summon). This is
-          // what makes a keeper a buildable WALL.
-          const grantBlock = (grant?.block || 0) + (slot.blockBonus || 0);
-          if (grantBlock > 0) {
-            setBlock(b => b + grantBlock);
-            // Mirror into shieldBraceRef so the SAME-tick enemy attack / maul
-            // sees it (the `block` closure applyEnemyIntent reads is stale —
-            // shieldBraceRef discipline). This is what lets a keeper's own wall
-            // self-tank the maul: animals resolve and brace, THEN the enemy
-            // hits, so its Block absorbs (Alan, 2026-06-08).
-            shieldBraceRef.current.block += grantBlock;
-            hTick.blockGained += grantBlock;
-            pushLog(`${animal.icon} ${animal.name} braces: +${grantBlock} Block.`);
-          }
-          // Per-turn Poise = innate turnGrant.poise (Long Hare) PLUS any
-          // poiseBonus invested by the composure-block training cards. Folded
-          // into shieldBraceRef so the same-tick composure maul/attack sees it.
-          const grantPoise = (grant?.poise || 0) + (slot.poiseBonus || 0);
-          if (grantPoise > 0) {
-            setPoise(p => p + grantPoise);
-            shieldBraceRef.current.poise += grantPoise;
-            pushLog(`${animal.icon} ${animal.name} steadies you: +${grantPoise} Poise.`);
-          }
-          // Decrement duration and tick chain counters. A combine on its
-          // formation turn attacks (payoff) but does NOT spend a duration
-          // tick — otherwise a duration-2 combine that forms and ticks in
-          // the same pass only survives one more turn. It mirrors a fresh
-          // summon waiting a turn, except the combine also gets to swing.
-          // v3: KEEPERS (Ox) are low-maintenance anchors — they persist with no
-          // feeding and never tick toward exit. Feedable animals tick normally;
-          // feeding (feedSpecies) resets their timer so they persist while fed.
-          let nextDuration = (animal.keeper || slot.justCombined) ? slot.durationRemaining : slot.durationRemaining - 1;
-          const nextPredator = (slot.predatorProgress || 0) + 1;
-          const nextAdjSpawn = (slot.adjacentSpawnProgress || 0) + 1;
-
-          // Predator chain (Salmon → Bear): in-place transform, fresh duration.
-          // TERRITORIAL (Alan, 2026-06-01): an apex predator won't share range
-          // with its own kind — the chain target only spawns if no animal of
-          // that species is already on the projected board. This caps the
-          // Buffet + Fish-Food "three bears at once" burst that one-shot
-          // normal enemies. Extra salmon keep flopping (normal tick, progress
-          // held high) and pop into a bear only once the resident bear leaves.
-          // FEED GATE (Alan, 2026-06-01): the predator chain is the PAYOFF for
-          // feeding. An unfed animal never summons its predator — it just slips
-          // away on its short-stay turn like any other unfed animal. Gating the
-          // chain on !isUnfed lets an unfed salmon fall through to the short-stay
-          // branch below instead of turning into a free bear.
-          const chainReady = animal.predatorChain && !isUnfed(slot, animal)
-            && nextPredator >= animal.predatorChain.turnsToTrigger;
-          const chainTargetId = animal.predatorChain?.animalId;
-          // TERRITORIAL CAP (Alan, 2026-06-01): at most MAX_CHAIN_TARGET of the
-          // chain species (bears) may hold the board at once. Raised from an
-          // effective 1 to 2 — extra salmon keep flopping until a bear leaves.
-          const MAX_CHAIN_TARGET = 2;
-          const chainTargetCount = chainReady ? SLOT_ORDER.reduce((n, s) => {
-            if (s === slotName) return n;
-            const proj = (nextSlots[s] !== undefined) ? nextSlots[s] : workingTray[s];
-            return n + ((proj && proj.kind === 'animal' && proj.animalId === chainTargetId) ? 1 : 0);
-          }, 0) : 0;
-          const chainTargetCapped = chainReady && chainTargetCount >= MAX_CHAIN_TARGET;
-          if (chainReady && chainTargetCapped) {
-            pushLog(`${animal.icon} The ${animal.name} waits — the range already holds ${chainTargetCount} ${getAnimal(chainTargetId)?.name || chainTargetId}${chainTargetCount === 1 ? '' : 's'}.`);
-          }
-          // Predator ROLL (Salmon, 2026-06-02): a probabilistic, no-feed
-          // gamble. Each tick the salmon is on the board it rolls
-          // predatorRoll.chance to attract a predator; on a hit it transforms
-          // IN PLACE into a weighted pick from predatorRoll.table (uniform
-          // within the chosen ids). A salmon that never hits just departs with
-          // no bonus — the high-risk version of the old Salmon→Bear chain.
-          let rollTargetId = null;
-          if (animal.predatorRoll) {
-            // E2E hook: ?forceSalmonRoll forces the next roll to succeed with a
-            // specific species (consumed once). Normal play is untouched.
-            const forcedRoll = (typeof window !== 'undefined') ? window.__forceSalmonRoll : null;
-            if (forcedRoll) {
-              window.__forceSalmonRoll = null;
-              rollTargetId = forcedRoll;
-            } else if (Math.random() < animal.predatorRoll.chance) {
-              const table = animal.predatorRoll.table || [];
-              const totalW = table.reduce((s, e) => s + (e.weight || 0), 0);
-              let r = Math.random() * totalW;
-              let chosen = table[0];
-              for (const e of table) { if ((r -= (e.weight || 0)) < 0) { chosen = e; break; } }
-              const ids = chosen?.ids || [];
-              if (ids.length > 0) rollTargetId = ids[Math.floor(Math.random() * ids.length)];
-            }
-          }
-          if (rollTargetId) {
-            const newAnimal = getAnimal(rollTargetId);
-            pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} draws a ${newAnimal?.name || rollTargetId}!`);
-            nextSlots[slotName] = {
-              kind: 'animal',
-              animalId: rollTargetId,
-              durationRemaining: newAnimal?.duration || 3,
-              predatorProgress: 0,
-              adjacentSpawnProgress: 0,
-              summonSet: slot.summonSet || null,
-              sourceLures: slot.sourceLures || [], // v3: lineage keeps the lure
-            };
-          } else if (chainReady && !chainTargetCapped) {
-            const newAnimalId = chainTargetId;
-            const newAnimal = getAnimal(newAnimalId);
-            pushLog(`${animal.icon}→${newAnimal?.icon || '?'} The ${animal.name} attracts a ${newAnimal?.name || newAnimalId}!`);
-            nextSlots[slotName] = {
-              kind: 'animal',
-              animalId: newAnimalId,
-              durationRemaining: newAnimal?.duration || 3,
-              predatorProgress: 0,
-              adjacentSpawnProgress: 0,
-              summonSet: slot.summonSet || null,
-              sourceLures: slot.sourceLures || [], // v3: lineage keeps the lure
-            };
-          } else if (animal.adjacentSpawn && !slot.adjacentSpawned
-                     && nextAdjSpawn >= animal.adjacentSpawn.turnsToTrigger
-                     && !isUnfed(slot, animal)
-                     && (() => {
-                          const si = SLOT_ORDER.indexOf(slotName);
-                          return [si - 1, si + 1].some(n => {
-                            if (n < 0 || n >= SLOT_ORDER.length) return false;
-                            const ns = SLOT_ORDER[n];
-                            const proj = (nextSlots[ns] !== undefined) ? nextSlots[ns] : workingTray[ns];
-                            return proj == null;
-                          });
-                        })()) {
-            // Adjacent-spawn chain (Rabbit): spawn a copy of the configured
-            // animalId in each adjacent EMPTY slot. Original extends self
-            // duration by extendSelfTurns. Fires ONCE per animal (`adjacentSpawned`
-            // flag) and only when a neighbor is open — otherwise the rabbit would
-            // re-arm every cycle and its turns-left counter would bounce back up,
-            // reading as a glitch. A full board falls through to normal exit logic.
-            const slotIdx = SLOT_ORDER.indexOf(slotName);
-            const neighborIdxs = [slotIdx - 1, slotIdx + 1].filter(n => n >= 0 && n < SLOT_ORDER.length);
-            const spawnId = animal.adjacentSpawn.animalId;
-            const spawnAnimal = getAnimal(spawnId);
-            let spawned = 0;
-            for (const ni of neighborIdxs) {
-              const ns = SLOT_ORDER[ni];
-              // Check the WORKING tray for the neighbor's current state —
-              // but we want the END state. Since we're mid-loop, any slot
-              // processed earlier in this iteration is in nextSlots. Slots
-              // not yet processed are in workingTray. Compose.
-              const projected = (nextSlots[ns] !== undefined) ? nextSlots[ns] : workingTray[ns];
-              if (projected == null) {
-                nextSlots[ns] = {
-                  kind: 'animal',
-                  animalId: spawnId,
-                  durationRemaining: spawnAnimal?.duration || 3,
-                  predatorProgress: 0,
-                  adjacentSpawnProgress: 0,
-                  adjacentSpawned: true,
-                  summonSet: slot.summonSet || null,
-                };
-                spawned++;
-              }
-            }
-            const extend = animal.adjacentSpawn.extendSelfTurns || 0;
-            nextDuration = (slot.durationRemaining - 1) + extend;
-            pushLog(`${animal.icon} ${animal.name} multiplies: +${spawned} ${spawnAnimal?.name || spawnId} adjacent. Original stays ${extend} more turn${extend === 1 ? '' : 's'}.`);
-            // Continue to duration logic; one-shot guard set below.
-            if (nextDuration <= 0) {
-              if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
-              hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
-              lureReturns.push(...mintSourceLures(slot)); // v3 single-use lure back to hand
-              if (whispererInstalled) whisperFromTick++;
-              pushLog(isUnfed(slot, animal)
-                ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
-                : `${animal.icon} ${animal.name} departs.`);
-              if (slot.spans && slot.spans.length > 0) {
-                for (const s of slot.spans) nextSlots[s] = null;
-              } else {
-                nextSlots[slotName] = null;
-              }
-            } else {
-              nextSlots[slotName] = {
-                ...slot,
-                durationRemaining: nextDuration,
-                predatorProgress: nextPredator,
-                adjacentSpawnProgress: 0,
-                adjacentSpawned: true,
-                eatenThisTurn: false,
-                fedThisTurn: false,
-                // FEED RETRIGGER: adjacent-spawn extension is a new cycle —
-                // clear stale fed status (see normal-tick branch below).
-                feedReceived: nextDuration >= 2 ? false : slot.feedReceived,
-                nextAttackMult: 1,
-                extraAttacks: 0,
-              };
-            }
-          } else if (nextDuration <= 0) {
-            if (animal.onExit && !isUnfed(slot, animal)) applyAnimalOnExit(animal);
-            hTick.exits.push({ animalId: slot.animalId, fed: !isUnfed(slot, animal) });
-            lureReturns.push(...mintSourceLures(slot)); // v3 single-use lure back to hand
-            if (whispererInstalled) whisperFromTick++;
-            pushLog(isUnfed(slot, animal)
-              ? `${animal.icon} ${animal.name} departs unfed — no exit bonus.`
-              : `${animal.icon} ${animal.name} departs.`);
-            if (slot.spans && slot.spans.length > 0) {
-              for (const s of slot.spans) nextSlots[s] = null;
-            } else {
-              nextSlots[slotName] = null;
-            }
-          } else if (nextDuration === 1 && isUnfed(slot, animal)) {
-            // SHORT-STAY: the animal hits its D-1 turn unfed. It leaves now,
-            // one turn before its natural exit, with no exit bonus. This is
-            // the consequence of never feeding during its stay. (Alan,
-            // 2026-05-31: "feeding doesn't add an extra turn — it grants
-            // the last turn AND the exit bonus.")
-            hTick.shortStays++;
-            hTick.exits.push({ animalId: slot.animalId, fed: false });
-            lureReturns.push(...mintSourceLures(slot)); // v3 single-use lure back to hand
-            if (whispererInstalled) whisperFromTick++;
-            pushLog(`${animal.icon} ${animal.name} slips away unfed — no exit bonus.`);
-            if (slot.spans && slot.spans.length > 0) {
-              for (const s of slot.spans) nextSlots[s] = null;
-            } else {
-              nextSlots[slotName] = null;
-            }
-          } else {
-            // Normal tick — clear flags that were consumed this turn.
-            nextSlots[slotName] = {
-              ...slot,
-              durationRemaining: nextDuration,
-              predatorProgress: nextPredator,
-              adjacentSpawnProgress: nextAdjSpawn,
-              eatenThisTurn: false,
-              fedThisTurn: false,
-              // FEED RETRIGGER (Alan, 2026-06-02): a feed satisfies ONE cycle
-              // (the dur-2 make-or-break → dur-1 → exit). If an extension
-              // (Gorge / Treat / adjacent-spawn) pushes the animal back to 2+
-              // turns, that's a fresh cycle — clear the stale fed status so it
-              // must be fed again before its next make-or-break. Preserved at
-              // nextDuration===1 so the original dur-2 feed still carries the
-              // last turn AND the exit bonus.
-              feedReceived: nextDuration >= 2 ? false : slot.feedReceived,
-              nextAttackMult: 1,
-              extraAttacks: 0,
-              justCombined: false,
-            };
-          }
-        } else if (slot.kind === 'lure') {
-          const nextTurns = slot.turnsRemaining - 1;
-          if (nextTurns <= 0) {
-            // Resolve species. Birds of a Feather tactic overrides with the
-            // species of any existing animal currently on the board.
-            const tacticId = tray.tactic?.tactic?.id;
-            let resolvedAnimalId = null;
-            if (tacticId === 'feather') {
-              const existing = SLOT_ORDER.map(s => (nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s]))
-                .find(v => v?.kind === 'animal');
-              if (existing) resolvedAnimalId = existing.animalId;
-            }
-            if (!resolvedAnimalId) {
-              const pool = slot.animalIds && slot.animalIds.length > 0
-                ? narrowedPool(slot.cardId, slot.animalIds)
-                : null;
-              // E2E hook: ?forceSpecies=field-mouse pins every random pool pick
-              // to that species (when the pool offers it), so a three-of-a-kind
-              // combine is deterministically reachable in Lab Mode.
-              // 2026-06-06: also accepts a comma list (field-mouse,rabbit) —
-              // entries are consumed IN ORDER, one per resolved summon, so
-              // mixed-species adjacency pairs are deterministically reachable
-              // too. (Safe to consume here: endTurn() is imperative code, not
-              // a pure setState updater.)
-              const forcedRaw = (typeof window !== 'undefined') ? window.__forceSpecies : null;
-              let forcedSpecies = forcedRaw;
-              if (forcedRaw && String(forcedRaw).includes(',')) {
-                const queue = String(forcedRaw).split(',');
-                forcedSpecies = queue[0];
-                if (pool && pool.includes(forcedSpecies)) {
-                  // Consume the entry; an exhausted list pins its final entry.
-                  window.__forceSpecies = queue.slice(1).join(',') || forcedSpecies;
-                }
-              }
-              if (forcedSpecies && pool && pool.includes(forcedSpecies)) {
-                resolvedAnimalId = forcedSpecies;
-              } else if (lockedSpeciesRef.current && pool && pool.includes(lockedSpeciesRef.current)) {
-                // Pedigree: this lure's pool can make the locked species, so it does.
-                resolvedAnimalId = lockedSpeciesRef.current;
-              } else {
-                resolvedAnimalId = pool && pool.length > 0
-                  ? pool[Math.floor(Math.random() * pool.length)]
-                  : slot.animalId;
-              }
-            }
-            // 3.5% elite-summon roll. If the chosen species has an elite
-            // variant (mecha-mouse, bonzai-bunaroo, james-deer), there's a
-            // small chance the summon arrives as the upgraded form.
-            const baseForRoll = ANIMALS[resolvedAnimalId];
-            if (baseForRoll?.elite && Math.random() < 0.035) {
-              const eliteId = baseForRoll.elite;
-              const eliteDef = ANIMALS[eliteId];
-              if (eliteDef) {
-                pushLog(`✨ Rare summon! ${eliteDef.icon} ${eliteDef.name} arrives instead of a ${baseForRoll.name}.`);
-                resolvedAnimalId = eliteId;
-              }
-            }
-            const animal = getAnimal(resolvedAnimalId);
-            hTick.arrivals.push(resolvedAnimalId);
-            noteAnimalSummoned(1); // Horde counter + Cost of Littering
-            pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
-            // v3 single-use lure: the lure card is NOT recycled to discard — it
-            // rides on the summoned animal (`sourceLure`) and returns to hand
-            // only when that animal departs (handled at every removal site +
-            // the combat-end sweep). Carried through chains/combines below.
-            // Fountain of Youth tactic: +1 duration to fresh summons.
-            const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
-            // Trough: a charge auto-feeds this fed-type arrival.
-            const troughFed = animal?.feedKey && troughChargesRef.current > 0;
-            if (troughFed) {
-              troughChargesRef.current -= 1;
-              pushLog(`🪣 Trough — ${animal?.name || resolvedAnimalId} arrives already fed.`);
-            }
-            // Best in Show — if this species is already on the board, EVERY
-            // copy of it (old + new) gains +2 attack, snowballing as the set
-            // grows (Alan 1000-run rework, 2026-06-08: was +2 to the new body
-            // only — strictly worse than Well-Drilled).
-            let arrivalBonus = 0;
-            if (hasHandlerPower('bestInShow')) {
-              const already = SLOT_ORDER.some(s => s !== slotName &&
-                (nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])?.kind === 'animal' &&
-                (nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])?.animalId === resolvedAnimalId);
-              if (already) {
-                arrivalBonus = 2;
-                // Retroactively bump every existing copy of the species too.
-                for (const s of SLOT_ORDER) {
-                  if (s === slotName) continue;
-                  const ex = nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s];
-                  if (ex?.kind === 'animal' && ex.animalId === resolvedAnimalId) {
-                    nextSlots[s] = { ...ex, attackBonus: (ex.attackBonus || 0) + 2 };
-                  }
-                }
-                pushLog(`🏆 Best in Show — the set of ${animal?.name || resolvedAnimalId} all gain +2 attack.`);
-              }
-            }
-            nextSlots[slotName] = {
-              kind: 'animal',
-              animalId: resolvedAnimalId,
-              durationRemaining: (animal?.duration || 3) + youthBonus,
-              predatorProgress: 0,
-              adjacentSpawnProgress: 0,
-              summonSet: slot.summonSet || null,
-              feedReceived: troughFed || undefined,
-              attackBonus: arrivalBonus || undefined,
-              // v3 single-use lure provenance (array — combines merge several).
-              sourceLures: slot.card ? [slot.card] : [],
-            };
-          } else {
-            nextSlots[slotName] = { ...slot, turnsRemaining: nextTurns };
-          }
-        } else {
-          nextSlots[slotName] = slot;
-        }
-      }
-      // (Starvation post-pass removed 2026-05-31 — short-stay branch in the
-      // main loop now handles unfed exits one turn earlier.)
-
-      // Birds of a Feather self-exhaust: if the tactic is active AND three
-      // animals of the SAME species are on the board after this tick, the
-      // tactic card exhausts (→ exiled) and the slot clears.
-      const activeTacticId = tray.tactic?.tactic?.id;
-      if (activeTacticId === 'feather') {
-        const speciesCounts = {};
-        for (const s of SLOT_ORDER) {
-          const slot = nextSlots[s];
-          if (slot?.kind === 'animal') {
-            speciesCounts[slot.animalId] = (speciesCounts[slot.animalId] || 0) + 1;
-          }
-        }
-        const hasTriple = Object.values(speciesCounts).some(n => n >= 3);
-        if (hasTriple) {
-          const exhaustCard = tray.tactic;
-          pushLog(`📜 Birds of a Feather — three of a kind, the tactic exhausts.`);
-          logEvent(TE.TACTIC_CHANGE, { action: 'exhaust', tacticId: 'feather', enemyId: enemy?.id || null });
-          setExiled(ex => [...ex, { ...exhaustCard, uid: uid() }]);
-          setTray(p => syncTrayLegacy({ ...p, ...nextSlots, tactic: null }));
-        } else {
-          setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
-        }
-      } else {
-        setTray(p => syncTrayLegacy({ ...p, ...nextSlots }));
-      }
-      if (luresToRecycle.length > 0) {
-        // Push into the shared recycle buffer instead of setDiscard — the
-        // end-of-turn refill block reads `discard` from closure and then
-        // overwrites it with setDiscard(wDiscard), which would clobber any
-        // setDiscard call we made here. Folding into stagedDiscard avoids
-        // the state-batching race entirely.
-        recycleToDiscard.push(...luresToRecycle);
-        pushLog(`🪱 ${luresToRecycle.length === 1 ? 'Lure' : 'Lures'} → discard.`);
-      }
-      if (luresEaten.length > 0) {
-        // Eaten lures cycle to discard, same as transformed lures (Alan
-        // 2026-05-31: "You don't lose the birdseed card permanently. You
-        // just have to replay it now because the seed was eaten by the
-        // bird"). The bait is consumed in-fiction; the card resource is
-        // not. Same stagedDiscard buffer the transform path uses to dodge
-        // the closure-vs-functional batching race.
-        recycleToDiscard.push(...luresEaten);
-        pushLog(`🪱 Eaten ${luresEaten.length === 1 ? 'lure' : 'lures'} → discard.`);
-      }
-      // Memorial — every animal that left play THIS tick (natural exit /
-      // short-stay) deals 4 composure to all enemies. Sacrifices fire it in
-      // noteAnimalSacrificed instead, so the two paths never double-count.
-      // Folded into composureDealt and can land the KO (summonerKilledEnemy).
-      if (hasHandlerPower('memorial') && hTick.exits.length > 0) {
-        for (const _ex of hTick.exits) {
-          const post = applyDamageToEnemyComposure(5);
-          hTick.composureDealt += 5;
-          if (post <= 0) summonerKilledEnemy = true;
-          if (companionRef.current) damageCompanion(5);
-        }
-        pushLog(`⚰️ Memorial — ${hTick.exits.length * 5} composure to all enemies (${hTick.exits.length} departed).`);
-      }
-      // Fond Farewell — natural exits regain composure (sacrifices fire in
-      // noteAnimalSacrificed; the two paths never double-count).
-      if (hasHandlerPower('fondFarewell') && hTick.exits.length > 0) {
-        setComposure(c => clamp(c + 2 * hTick.exits.length, 0, composureMax));
-        pushLog(`👋 Fond Farewell — +${2 * hTick.exits.length} Composure (${hTick.exits.length} waved off).`);
-      }
-      // Turn Against is a one-tick effect — the menagerie struck the player
-      // this turn; clear it so it doesn't persist.
-      if (animalsTurnedRef.current) { animalsTurnedRef.current = false; setAnimalsTurned(false); }
-      // Emit the menagerie's end-of-turn output as the Handler's "cast" —
-      // the wit-equivalent per-turn combat signal. Board pressure (animals
-      // left standing + pending lures) lets us read engine cadence/uptime.
-      logEvent(TE.HANDLER_TICK, {
-        enemyId: enemy?.id || null,
-        composureDealt: hTick.composureDealt,
-        hpDealt: hTick.hpDealt,
-        // Portion of the attempted damage the enemy's Block soaked this
-        // tick (mid-tick block GAINS don't occur during the player tick,
-        // so start − now is the absorbed amount).
-        blockSoaked: Math.max(0, enemyBlockAtTickStart - enemyBlockRef.current),
-        blockGained: hTick.blockGained,
-        attacks: hTick.attacks,
-        arrivals: hTick.arrivals,
-        exits: hTick.exits,
-        shortStays: hTick.shortStays,
-        activeTactic: tray.tactic?.tactic?.id || null,
-        animalsOnBoard: SLOT_ORDER.map(s => nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])
-          .filter(v => v?.kind === 'animal').map(v => v.animalId),
-        pendingLures: SLOT_ORDER.map(s => nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s])
-          .filter(v => v?.kind === 'lure').length,
-      });
-      // Flush the ref-tracked Trough + Horde counters into state so the
-      // badge / The Horde preview update (the tick mutated the refs above).
-      setTroughCharges(troughChargesRef.current);
-      setAnimalsSummonedThisCombat(animalsSummonedRef.current);
-      // Maul: snapshot the post-tick board for applyEnemyIntent, which runs
-      // later this endTurn before the tray setState has flushed to closure.
-      // Only slots that ALREADY held an animal during the player's turn are
-      // eligible — animals that just arrived on this tick (lure transforms,
-      // adjacent-spawns) aren't "out" until next turn and can't be mauled.
-      boardForMaulRef.current = Object.fromEntries(
-        SLOT_ORDER.map(s => {
-          const v = nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s];
-          return [s, (v?.kind === 'animal' && preTickAnimalSlots.has(s)) ? v : null];
-        }));
-      // Full post-tick board (INCLUDING just-arrived animals) for abilities that
-      // target the current menagerie regardless of "out this turn" — freeze /
-      // betray. Maul stays restricted to boardForMaulRef.
-      boardFullRef.current = Object.fromEntries(
-        SLOT_ORDER.map(s => {
-          const v = nextSlots[s] !== undefined ? nextSlots[s] : workingTray[s];
-          return [s, v?.kind === 'animal' ? v : null];
-        }));
-      if (summonerKilledEnemy) {
-        // Combat is over — this early return skips the end-of-turn refill
-        // block that normally folds recycleToDiscard into stagedDiscard
-        // (and on into setDiscard). Without flushing here, any lure that
-        // transformed into an animal — or was eaten — on this killing tick
-        // is lost: its card sits only in the local recycleToDiscard buffer,
-        // while its tray slot now holds an animal (no .card), so the next
-        // enterFight's deck rebuild can't recover it. Flush directly; no
-        // batching race exists on this path because the setDiscard(wDiscard)
-        // overwrite lives past this return.
-        if (recycleToDiscard.length > 0) {
-          setDiscard(d => [...d, ...recycleToDiscard]);
-        }
-        // v3 single-use lures: lures from animals that departed on this killing
-        // tick go to discard too (combat's over — they fold into next combat's
-        // deck rebuild). Animals STILL on the board are swept at combat end.
-        if (lureReturns.length > 0) {
-          setDiscard(d => [...d, ...lureReturns]);
-        }
-        return;
-      }
+      castMenagerie();
     }
 
     // v2.10: annotation damageOnTurnEnd — composure tick at end of player turn.
@@ -13398,6 +12503,15 @@ export default function App() {
       applyExpiringVuln(intent.thenExpose);
       pushLog(`💥 ${e.name} over-extends — wide open! Your damage +${25 * intent.thenExpose}%.`);
     }
+    // Menagerie v4 — Porcupine Thorns: reflect to the enemy when it attacks,
+    // then spend the charge (lasts one enemy turn).
+    if (menagerieThornsRef.current > 0 && (intent.kind === 'attack' || intent.kind === 'attack-multi')) {
+      const reflect = menagerieThornsRef.current * (intent.kind === 'attack-multi' ? (intent.count || 1) : 1);
+      applyDamageToEnemyComposure(reflect);
+      pushLog(`🦔 Thorns — ${reflect} composure reflected.`);
+      menagerieThornsRef.current = 0;
+      setMenagerieThorns(0);
+    }
     if (playerDied) {
       if (tutorialActive) { setHp(maxHp); setComposure(composureMax); return; }
       logEvent(TE.COMBAT_END, { enemyId: enemy?.id, outcome: 'lost', tier: enemy?.tier, hpAfter: 0, composureAfter: composure, piles: pilesSnapshot() });
@@ -13611,27 +12725,28 @@ export default function App() {
     // player homing in on a team. Count lures across every pile (incl. those
     // riding on summoned animals via sourceLures). At the cap, skip the lure
     // reward and fall through to the normal card pool.
-    const lureCount = [...hand, ...deck, ...discard, ...exiled, ...extractTrayCardsForReturn(tray)]
-      .filter(c => c.type === 'lure').length;
-    const LURE_CAP = 5;
-    if (lane === 'handler' && isEliteOrBoss && lureCount < LURE_CAP) {
-      // The lure pool is now ALL lures (foundational + special utility +
-      // single-species), since normal combats no longer hand them out. Prefer
-      // ones the player doesn't already own. Fish Food stays an ELITE-only
-      // gamble — never after a boss (Alan, 2026-06-02).
+    // Menagerie v4 (2026-06-13): the handler drafts 3 from the v4 pool — more
+    // animals + the combo cards. Elite/boss draws bias toward rares (combos,
+    // Bear). Replaces the old lure/row reward entirely.
+    if (lane === 'handler') {
       const owned = new Set([...hand, ...deck, ...discard, ...exiled].map(c => c.id));
-      const allLures = [...(HANDLER_V2_BY_SLOT.lure || []), ...SPECIAL_LURE_CARDS]
-        .filter(c => c.id !== 'cv2-l-fish-food' || enemy.tier === 'elite');
-      const unowned = allLures.filter(c => !owned.has(c.id));
-      const lurePool = unowned.length >= 3 ? unowned : allLures;
-      const lureChoices = shuffle([...lurePool]).slice(0, 3).map(c => ({ ...c }));
+      let pool = MENAGERIE_V4_REWARD_POOL.map(id => MENAGERIE_BY_ID[id]).filter(Boolean);
+      // Bias: elites/bosses surface the higher-rarity picks (combos / Bear).
+      const rare = pool.filter(c => c.rarity === 'rare' || c.rarity === 'uncommon');
+      const common = pool.filter(c => c.rarity === 'common' || c.rarity === 'basic');
+      const fresh = (arr) => arr.filter(c => !owned.has(c.id));
+      const tier = isEliteOrBoss
+        ? [...shuffle(fresh(rare)), ...shuffle(fresh(common)), ...shuffle(rare), ...shuffle(common)]
+        : [...shuffle(fresh(common)), ...shuffle(fresh(rare)), ...shuffle(common), ...shuffle(rare)];
+      const seen = new Set();
+      const choices = [];
+      for (const c of tier) { if (choices.length >= 3) break; if (seen.has(c.id)) continue; seen.add(c.id); choices.push({ ...c }); }
       logEvent('combat.reward_offer', {
-        playerLane: lane,
-        offerKind: 'handler-lures',
-        offered: lureChoices.map(c => ({ id: c.id, name: c.name })),
+        playerLane: lane, offerKind: 'menagerie-v4',
+        offered: choices.map(c => ({ id: c.id, name: c.name, rarity: c.rarity })),
         enemyId: enemy.id, enemyTier: enemy.tier,
       });
-      setRewardChoices(lureChoices);
+      setRewardChoices(choices);
       setRewardRowChoices([]);
       setStage('reward');
       return;

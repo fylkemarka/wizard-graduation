@@ -2091,6 +2091,28 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
               </span>
             );
           })()}
+          {/* Menagerie v4: feed pill — a staged animal card is spent on the next
+              CAST unless fed (then it stays). v4 animals carry no feedKey. */}
+          {!animal?.feedKey && card?.kind === 'animal' && (
+            card.fed
+              ? <span className="font-mono text-[10px] mt-0.5 px-1.5 py-0.5 rounded text-center border bg-emerald-800 text-emerald-100 border-emerald-400"
+                      title={`${animal?.name || 'This animal'} is fed — it survives the next CAST.`}>🍖 fed</span>
+              : (() => {
+                  const canAfford = playerEnergy >= feedCost;
+                  return (
+                    <span role="button" tabIndex={0} data-testid="feed-species" data-animal-id={card.animalId}
+                      onClick={(e) => { e.stopPropagation(); if (canAfford) onFeedSpecies(card.animalId); }}
+                      title={canAfford
+                        ? `Feed ${animal?.name || 'this animal'} for ${feedCost}⚡ — it survives the next CAST instead of being spent.`
+                        : `Not enough energy to feed (${feedCost} needed).`}
+                      className={`font-mono text-[10px] mt-0.5 px-1.5 py-0.5 rounded text-center leading-tight border ${
+                        canAfford ? 'bg-amber-700 text-amber-50 border-amber-300 cursor-pointer hover:bg-amber-600'
+                                  : 'bg-ember-950 text-ember-300 border-ember-700 opacity-70 cursor-not-allowed'}`}>
+                      🍴 feed ({feedCost}⚡)
+                    </span>
+                  );
+                })()
+          )}
           {animal?.feedKey && (() => {
             const FEED_NAMES = { 'small-land': 'Tender Greens', 'bird': 'Birdseed', 'fish': 'Fish Food' };
             const feedLabel = FEED_NAMES[animal.feedKey] || animal.feedKey;
@@ -2419,6 +2441,18 @@ export function V2SpellTray({ tray, onUnstage, onCast, castsThisTurn = 0, maxCas
             shares horizontal space with the slots + Predicted, instead
             of taking a full line below them. Tightens the combat
             screen's vertical footprint considerably. */}
+        {/* Menagerie v4: handler CAST fires the staged volley. Enabled whenever
+            an animal is on the board. Repeatable (energy is the limiter). */}
+        {isHandler && (() => {
+          const hasAnimals = ['intro', 'subject', 'target'].some(s => tray?.[s]?.kind === 'animal');
+          return (
+            <button onClick={onCast} disabled={!hasAnimals}
+              title={hasAnimals ? 'Fire the staged volley (unfed animals leave).' : 'Stage an animal first.'}
+              className={`btn text-base px-6 py-2 ml-2 self-center ${hasAnimals ? 'btn-iris cast-armed' : 'bg-ink-600 text-parchment-400 cursor-not-allowed'}`}>
+              <Icon name="cast" className="mr-1" />CAST
+            </button>
+          );
+        })()}
         {!isHandler && (<button onClick={onCast}
           disabled={!ready || castsThisTurn >= maxCastsPerTurn || stakeBlocked || rollBlocked}
           title={
