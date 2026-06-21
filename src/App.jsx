@@ -1211,18 +1211,17 @@ function buildStarterDeckForLane(lane, startingRow = null) {
     // intro it can't pollute the chosen row's plan; it adapts to it.
     ids.push('wv2-x-by-which-i-mean');
   }
-  // Handler Animal Summoner starter — Tender Greens lures only. Fish Food
-  // and Birdseed are reward-pool lures, not in the opening deck.
+  // Handler Animal Summoner starter (Alan, 2026-06-20): lean into Tender Greens
+  // as the opening engine — 3 copies (mouse/buck) + the Ox keeper, one trainer
+  // (Thicken the Hide), and the two offense/defense levers. The shared shell
+  // above already supplies 2× Step Back + Compose Yourself.
   if (lane === 'handler') {
-    // v3 starter (Alan, 2026-06-09): a tight 3-lure roster — one of each
-    // foundational lure + the Ox keeper — plus the two training cards so the
-    // player can start investing in their team from turn one.
     ids.push('cv2-l-tender-greens');    // → mouse / buck
-    ids.push('cv2-l-birdseed');         // → goose (premium heavy hitter)
+    ids.push('cv2-l-tender-greens');
+    ids.push('cv2-l-tender-greens');
     ids.push('cv2-l-bag-of-oats');      // keeper: Drystone Ox
-    ids.push('c-whet-claws');           // train: +2 attack (escalating cost)
     ids.push('c-thicken-hide');         // train: +2 Block/turn (escalating cost)
-    ids.push('c-pack-tactics');         // all animals attack again this turn (exhaust)
+    ids.push('c-pack-tactics');         // On Three! — all animals attack again this turn (exhaust)
     ids.push('c-tactic-shield');        // Summoned Shield — route animal attacks into Block
   }
   return ids;
