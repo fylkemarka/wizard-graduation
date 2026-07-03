@@ -9,5 +9,5 @@ ships. Wired as `predev`/`prebuild` in package.json — refreshes automatically
 whenever the game is run or built. Refresh on demand with `npm run dataset`.
 
 - [`cards/`](./cards/README.md) — 300 cards
-- [`enemies/`](./enemies/README.md) — 38 enemies
+- [`enemies/`](./enemies/README.md) — 53 enemies
 - [`animals/`](./animals/README.md) — 20 Handler animals + 2 adjacency combos

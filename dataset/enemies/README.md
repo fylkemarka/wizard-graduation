@@ -10,17 +10,17 @@ stats and behaviors cannot drift. Auto-refreshes on `npm run dev`/`build`.
 - `enemies.jsonl` — one row per line
 - `enemies.csv` — flat table
 
-**38 enemies.**
+**53 enemies.**
 
 ## By act
-- act 0: 2
+- act 0: 17
 - act 1: 22
 - act 2: 7
 - act 3: 7
 
 ## By tier
 - normal: 23
-- elite: 8
+- elite: 23
 - boss: 3
 - companion: 4
 

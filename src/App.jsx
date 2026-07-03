@@ -50,6 +50,7 @@ import { JNSQ_V2, JNSQ_V2_BY_SLOT } from './cards/jnsq-v2.js';
 import { ENEMIES, ENEMIES_BY_ID } from './data/enemies.js';
 import Icon from './icons/Icon.jsx';
 import ArtSlot from './components/ArtSlot.jsx';
+import { playSfx, playAnimalSfx, startMusic, stopMusic } from './audio.js';
 import { ANIMALS, ADJACENCY_COMBOS } from './data/animals.js';
 import { TIER_MULTIPLIER, computeSpellTier, computeSpellDamage, composeSpellText, sharedTagCount } from './cards/shared.js';
 import { CardFullBody } from './components/CardFullBody.jsx';
@@ -781,6 +782,59 @@ const RELICS = [
     effect: { onCombatStart: { draw: 2 } },
     desc: 'At the start of every combat, draw 2 extra cards.',
     flavor: 'Locked. Possibly empty. Definitely locked.' },
+
+  // ---- QUEST (Alan, 2026-07-03) ----
+  // Sidequest-exclusive relics. rarity 'quest' keeps them out of every random
+  // pool (pickRelicByRarity filters by the weights object's keys) — the ONLY
+  // way to hold one is to finish its quest, via effects.grantRelicId.
+  { id: 'r-sq-cue-card', name: 'The Understudy\'s Cue Card', rarity: 'quest',
+    effect: { onCombatStart: { draw: 1, block: 2 } },
+    desc: 'At the start of every combat: draw 1 extra card and gain 2 Block.',
+    flavor: 'Your line, in someone else\'s handwriting. It was always your line.' },
+  { id: 'r-sq-apiary-veil', name: 'The Apiary Veil', rarity: 'quest',
+    effect: { damageReduction: 1 },
+    desc: 'Every enemy swing deals −1 damage to you.',
+    flavor: 'Rated for 37,000 grievances per hour.' },
+  { id: 'r-sq-brass-knocker', name: 'Knocker From the Door That Wasn\'t', rarity: 'quest',
+    effect: { startCombatVulnerable: 1 },
+    desc: 'At the start of every combat, apply 1 Vulnerable to the enemy.',
+    flavor: 'Knock anywhere. Somewhere, something answers.' },
+  { id: 'r-sq-loose-thread', name: 'A Thread of Loose Morals', rarity: 'quest',
+    effect: { onCombatEnd: { heal: 5 } },
+    desc: 'At the end of every combat you win, heal 5 HP.',
+    flavor: 'It ties itself. You have agreed not to ask into what.' },
+  { id: 'r-sq-gavel', name: 'The Quorum\'s Gavel', rarity: 'quest',
+    effect: { passiveStrikeBonus: 2 },
+    desc: 'Your Strikes deal +2 damage.',
+    flavor: 'All in favour. All, in this case, being you.' },
+  { id: 'r-sq-waterproof-index', name: 'The Waterproof Index', rarity: 'quest',
+    effect: { startCombatPoise: 4 },
+    desc: 'At the start of every combat, gain 4 Poise.',
+    flavor: 'Every insult you have ever survived, alphabetised, laminated.' },
+  { id: 'r-sq-spare-tuesday', name: 'A Spare Tuesday', rarity: 'quest',
+    effect: { onCombatStart: { energy: 1 } },
+    desc: 'On the first turn of every combat, +1 Energy.',
+    flavor: 'Legally it does not exist. Practically it is 9 to 5.' },
+  { id: 'r-sq-borrowed-light', name: 'Borrowed Light', rarity: 'quest',
+    effect: { onCombatStart: { draw: 1, hp: 2 } },
+    desc: 'At the start of every combat: draw 1 extra card and heal 2 HP.',
+    flavor: 'Repayment terms: eventually, and in kind.' },
+  { id: 'r-sq-last-word', name: 'The Penultimate Word', rarity: 'quest',
+    effect: { everyNthEffect: { n: 3, extraDamage: 5 } },
+    desc: 'Every 3rd Effect you cast deals +5 damage.',
+    flavor: 'The last word is a myth. This one is real, and it is enough.' },
+  { id: 'r-sq-memorial-ribbon', name: 'The Chief Mourner\'s Ribbon', rarity: 'quest',
+    effect: { onAcquire: { maxComposurePlus: 6 } },
+    desc: 'On acquire: +6 max Composure.',
+    flavor: 'Black, formal, and — he was very clear on this — returnable.' },
+  { id: 'r-sq-corrected-map', name: 'The Corrected Map', rarity: 'quest',
+    effect: { onAcquire: { upgradeRandomCards: 2 } },
+    desc: 'On acquire: upgrade 2 random cards in your deck.',
+    flavor: 'The apology is in the margins. The margins are most of the map.' },
+  { id: 'r-sq-forty-year-stamp', name: 'The Forty-Year Stamp', rarity: 'quest',
+    effect: { permanentDrawBonus: 1 },
+    desc: 'Draw +1 card every turn (permanent).',
+    flavor: 'Postage due: four decades. Paid in full.' },
 ];
 const RELICS_BY_ID = Object.fromEntries(RELICS.map(r => [r.id, r]));
 
@@ -1887,6 +1941,458 @@ const SIDEQUEST_TEMPLATES = {
       { kind: 'narrative', title: 'Departure',
         flavor: 'You leave before they notice. You witnessed a divine domestic and survived.',
         next: { effects: { gainCommonCard: 1 } } },
+    ] },
+
+  // ===========================================================================
+  // DEPTH PASS (Alan, 2026-07-03) — 20 new quests in three weights:
+  //   sqx-* boss quests (10): end at a unique elite, pay out a unique relic.
+  //   bossless (5): no fight; a special reward for seeing them through.
+  //   sqe-* light quests (5): a gentler elite, a lesser reward.
+  // Choices continue the quest, bail out of it (endSpurEarly / canAbandon),
+  // or trade a penalty now for a reward later. Tone: Pratchett, leaning UU.
+  // ===========================================================================
+
+  // ---- THE BOSS TEN ---------------------------------------------------------
+  'sq2-understudy': { id: 'sq2-understudy', title: 'The Understudy', act: 1,
+    intro: 'A playbill on a fencepost: THE LIFE OF YOU — nightly, one man only, rave reviews. You do not remember licensing this.',
+    nodes: [
+      { kind: 'choice', title: 'Front of House',
+        flavor: 'The theatre is a barn with delusions. The usher recognises you at once, which is upsetting, because he recognises you as "the impersonator."',
+        choices: [
+          { label: 'Buy a ticket to your own life. (-3 HP, the seats are terrible)', effects: { loseHp: 3 } },
+          { label: 'Sweep in through the stage door. Confidence is a costume too.', effects: {} },
+          { label: 'This is beneath you. Leave.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Performance', canAbandon: true,
+        flavor: 'He has your walk. He has your little cough before you lie. Act One ends with your childhood, performed better than you performed it.',
+        choices: [
+          { label: 'Study his notes backstage. Know your enemy. (lose a card — he knows YOUR material now)', effects: { loseRandomCard: true } },
+          { label: 'Heckle. It goes badly. (-4 HP)', effects: { loseHp: 4 } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-the-understudy',
+        flavor: 'He meets you on stage for the finale. "You\'re late," he says, in your voice. "I\'ve been covering."' },
+      { kind: 'choice', title: 'Curtain',
+        flavor: 'He takes the bow lying down. The audience — three sheep and a critic — is quietly moved. He hands you a cue card: your next line, apparently, for the rest of your life.',
+        choices: [
+          { label: 'Take the card. It IS good material.', effects: { grantRelicId: 'r-sq-cue-card' } },
+          { label: 'Refuse it, but keep the review. (+6 HP, "a triumphant return")', effects: { heal: 6, grantRelicId: 'r-sq-cue-card' } },
+        ] },
+    ] },
+
+  'sq2-beekeeper': { id: 'sq2-beekeeper', title: 'The Beekeeper\'s Grievance', act: 1,
+    intro: 'A beekeeper flags you down. His bees have unionised. He is not against it in principle. It is the picket line he minds.',
+    nodes: [
+      { kind: 'choice', title: 'The Picket Line',
+        flavor: 'The hive has tiny signs. FAIR NECTAR NOW. The beekeeper explains that negotiations collapsed over the definition of "winter."',
+        choices: [
+          { label: 'Hear the bees\' side. (they present 37,000 affidavits — -2 HP, paper cuts)', effects: { loseHp: 2 } },
+          { label: 'Hear the keeper\'s side over tea. (+4 HP)', effects: { heal: 4 } },
+          { label: 'Decline to get involved in apiary politics.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'Arbitration', canAbandon: true,
+        flavor: 'Both parties accept you as arbiter, on the grounds that you know nothing about beekeeping and are therefore impartial.',
+        choices: [
+          { label: 'Rule for the bees. The keeper weeps into his smoker. (lose a card — he keeps your hanky)', effects: { loseRandomCard: true } },
+          { label: 'Rule for the keeper. The hive goes VERY quiet. (-4 HP later, and they remember)', effects: { loseHp: 4 } },
+          { label: 'Propose co-management. Both sides hate it equally.', effects: {} },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-swarm-steward',
+        flavor: 'The Swarm Steward emerges — the hive\'s elected negotiator, wearing a very small sash. Your ruling has been appealed. Physically.' },
+      { kind: 'narrative', title: 'The Settlement',
+        flavor: 'Terms are reached. The bees return to work; the keeper institutes a nectar review board. You are gifted the veil of the previous arbiter, who, everyone now admits, is part of the hive in a fuller sense.',
+        next: { effects: { grantRelicId: 'r-sq-apiary-veil' } } },
+    ] },
+
+  'sq2-door': { id: 'sq2-door', title: 'A Door That Wasn\'t', act: 1,
+    intro: 'A freestanding door in a field. No wall, no house. Locals walk around it, which is the sensible thing, so obviously you stop.',
+    nodes: [
+      { kind: 'choice', title: 'The Door',
+        flavor: 'The door is ajar by exactly one inch, in the way that is somehow more closed than closed. A sign says NO LONGER IN SERVICE. The sign is newer than the door.',
+        choices: [
+          { label: 'Knock politely.', effects: {} },
+          { label: 'Peer through the gap. (-3 HP — something peers back, faster)', effects: { loseHp: 3 } },
+          { label: 'Respect the signage. Walk on.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'narrative', title: 'The Answer',
+        flavor: 'The knock echoes somewhere that isn\'t behind the door, because there is no behind. A voice, muffled by nothing at all: "We\'re closed. We\'ve BEEN closed. The last tenant took the somewhere with him."',
+        next: { effects: {} } },
+      { kind: 'choice', title: 'The Warden', canAbandon: true,
+        flavor: 'The Warden manifests — a figure in a doorman\'s coat with nothing much where a face files its paperwork. He explains the door once led to the school\'s Department of Eventualities. Then someone graduated who shouldn\'t have.',
+        choices: [
+          { label: 'Ask what an Eventuality costs. (lose a card — the toll is knowledge)', effects: { loseRandomCard: true } },
+          { label: 'Demand entry as a student of the school. He consults a list. You are not on it. It becomes formal. (-3 HP)', effects: { loseHp: 3 } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-door-warden',
+        flavor: 'The Warden removes his coat, folds it, and hangs it on the air. "Appeals," he says, "are heard immediately."' },
+      { kind: 'narrative', title: 'What the Door Kept',
+        flavor: 'The Warden concedes with a bow and unscrews the knocker. "Take it. Knock anywhere. I warn you: anywhere will answer." The door, relieved of duty, becomes simply a door, which in a field is a kind of retirement.',
+        next: { effects: { grantRelicId: 'r-sq-brass-knocker' } } },
+    ] },
+
+  'sq2-scarf': { id: 'sq2-scarf', title: 'The Unravelled Scarf', act: 2,
+    intro: 'WANTED posters flutter through the Thread Quarter: one scarf, wool, self-motivated, considered warm and dangerous.',
+    nodes: [
+      { kind: 'choice', title: 'The Trail',
+        flavor: 'The scarf\'s crimes are listed in ascending order: loitering, impersonating a shawl, aggravated cosiness, and — recently — grand theft neck.',
+        choices: [
+          { label: 'Interview its victims. All of them describe the crime as "comfortable." (-2 HP, one strangles you a little, nostalgically)', effects: { loseHp: 2 } },
+          { label: 'Follow the loose thread through town.', effects: {} },
+          { label: 'A scarf is a constabulary matter. Leave it.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Fence', canAbandon: true,
+        flavor: 'A haberdasher admits, under mild pressure, to laundering its yarn. "You don\'t say no to the scarf," he whispers. "It knows what you did in \'88." You were not alive in \'88. It knows anyway.',
+        choices: [
+          { label: 'Pay him for the scarf\'s next location. (lose a card)', effects: { loseRandomCard: true } },
+          { label: 'Threaten him with an audit. It works instantly and you feel powerful. (-3 HP of shame)', effects: { loseHp: 3 } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-scarf-of-loose-morals',
+        flavor: 'It is waiting for you on a washing line, at neck height, patient as winter.' },
+      { kind: 'choice', title: 'The Sentence',
+        flavor: 'Subdued, the scarf unravels down to one thread of pure intention. The thread is still warm. The thread will always be warm.',
+        choices: [
+          { label: 'Keep the thread. Rehabilitation through employment.', effects: { grantRelicId: 'r-sq-loose-thread' } },
+          { label: 'Keep the thread AND turn in the reward posters. (+5 HP, civic pride)', effects: { heal: 5, grantRelicId: 'r-sq-loose-thread' } },
+        ] },
+    ] },
+
+  'sq2-committee': { id: 'sq2-committee', title: 'The Committee of One', act: 2,
+    intro: 'A village hall, lights on at midnight. Inside, one man conducts a seven-way argument with himself and is losing 4 to 3.',
+    nodes: [
+      { kind: 'choice', title: 'Public Comment',
+        flavor: 'Mr. Elias Quorum holds every seat on the village council, acquired one resignation at a time over forty years. Tonight\'s motion: whether the village exists. The village is not confident.',
+        choices: [
+          { label: 'Register as a concerned citizen. (-2 HP, the forms bite)', effects: { loseHp: 2 } },
+          { label: 'Observe from the gallery.', effects: {} },
+          { label: 'This is a municipal matter. Withdraw.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Floor', canAbandon: true,
+        flavor: 'You are recognised by the chair, objected to by the treasurer, and welcomed by the secretary — the same man, pivoting on one heel, wearing three pairs of glasses in rotation.',
+        choices: [
+          { label: 'Move that the committee dissolve itself. Seconded, astonishingly, by one of him. (lose a card — entered into the minutes)', effects: { loseRandomCard: true } },
+          { label: 'Filibuster. You speak for an hour about soup. (-4 HP, dehydration)', effects: { loseHp: 4 } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-quorum',
+        flavor: '"Point of order," says all of him, standing up at once. "The motion to remove me requires a fight. Robert\'s Rules. The REAL Robert."' },
+      { kind: 'narrative', title: 'Adjournment',
+        flavor: 'Outvoted at last, Quorum divides the estate: six of him retire to six separate cottages to write six competing memoirs. The seventh hands you the gavel. "Someone impartial should hold this," he says. "You knock things. It suits you."',
+        next: { effects: { grantRelicId: 'r-sq-gavel' } } },
+    ] },
+
+  'sq2-archivist': { id: 'sq2-archivist', title: 'Ink in the Water', act: 2,
+    intro: 'The millpond has been returning library books. Damp, overdue, and — the miller insists — annotated in a hand nobody living writes.',
+    nodes: [
+      { kind: 'choice', title: 'The Returns',
+        flavor: 'Forty years ago the school\'s Archivist walked into the pond with the Restricted Index chained to his wrist, on the reasoning that some knowledge should be filed under water. The pond has been cataloguing ever since.',
+        choices: [
+          { label: 'Read one of the returned books. (-3 HP — the marginalia argues back)', effects: { loseHp: 3 } },
+          { label: 'Interview the miller. He mostly talks about flour, but usefully.', effects: {} },
+          { label: 'Some archives should stay shut. Leave the pond alone.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Descent', canAbandon: true,
+        flavor: 'The pond is deeper than the county. Lanternlight shows shelving. The fish move in call-number order.',
+        choices: [
+          { label: 'Wade in holding your breath and your questions. (-4 HP)', effects: { loseHp: 4 } },
+          { label: 'Send a borrowed book down as tribute first. (lose a card)', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-drowned-archivist',
+        flavor: 'He rises to meet you at the reference desk, which is also rising. "Shhh," he says, with all the water.' },
+      { kind: 'choice', title: 'Deaccessioned',
+        flavor: 'Settling back into his chair of silt, the Archivist stamps you OUT — the first patron discharged in forty years. He gifts you the index he kept dry all this time, which is to say, the only thing down there he truly protected.',
+        choices: [
+          { label: 'Accept the Waterproof Index.', effects: { grantRelicId: 'r-sq-waterproof-index' } },
+          { label: 'Accept it, and shelve one of your own regrets down here. (lose a card, +6 HP)', effects: { loseRandomCard: true, heal: 6, grantRelicId: 'r-sq-waterproof-index' } },
+        ] },
+    ] },
+
+  'sq2-eighth-day': { id: 'sq2-eighth-day', title: 'The Eighth Day', act: 3,
+    intro: 'The village of Little Wenning has no Wednesdays. A man on the hill, locals mutter, has been collecting them.',
+    nodes: [
+      { kind: 'choice', title: 'Little Wenning',
+        flavor: 'Market day slides from Tuesday straight to Thursday with a lurch like a missed stair. The baker has stopped proofing anything. "No point," she says. "He\'ll only take the rise out of it."',
+        choices: [
+          { label: 'Ask the villagers what they miss most. (a list is produced; it is mostly naps; -2 HP of secondhand exhaustion)', effects: { loseHp: 2 } },
+          { label: 'Climb the hill directly.', effects: {} },
+          { label: 'Time is the school\'s jurisdiction, not yours. Report it and move on.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The House of Hours', canAbandon: true,
+        flavor: 'The house on the hill has too many mornings in the windows. The Hoarder answers the door on the third knock, which for him has already happened. "I SAVED them," he says. "Nobody else was using them PROPERLY."',
+        choices: [
+          { label: 'Appeal to his conscience. He shows you a Wednesday, mint condition. It is beautiful. (-4 HP, longing)', effects: { loseHp: 4 } },
+          { label: 'Appraise the collection like a dealer. He preens. You learn the vault\'s layout. (lose a card as your "deposit")', effects: { loseRandomCard: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-day-hoarder',
+        flavor: '"You want them BACK?" He winds his second watch. "Then we\'ll settle it during time none of us are supposed to have."' },
+      { kind: 'narrative', title: 'Restitution',
+        flavor: 'The Wednesdays go home in a long grey flock. Little Wenning gains a week of naps. The Hoarder, ruined, presses one last day into your hands — a Tuesday he acquired legitimately, he insists, at auction. It hums with unspent morning.',
+        next: { effects: { grantRelicId: 'r-sq-spare-tuesday' } } },
+    ] },
+
+  'sq2-lantern-debt': { id: 'sq2-lantern-debt', title: 'Lantern Debt', act: 3,
+    intro: 'The street lamps of Dimmerton burn black. The lamplighter, they say, borrowed against light he hadn\'t lit yet.',
+    nodes: [
+      { kind: 'choice', title: 'Dimmerton After Dark',
+        flavor: 'The town isn\'t dark, exactly. It\'s owed. Shadows queue at the pawnshop. The lamplighter\'s ladder leans against a lamppost that has clearly been crying.',
+        choices: [
+          { label: 'Light a lamp yourself, on principle. (-3 HP — the flame takes it out of you, literally)', effects: { loseHp: 3 } },
+          { label: 'Follow the ledger trail to the creditor.', effects: {} },
+          { label: 'Debt is between a man and his photons. Pass through.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Creditor', canAbandon: true,
+        flavor: 'In the counting-house, a figure made of guttering candle-stubs reviews the account. The lamplighter borrowed one dawn, compounding nightly. He now owes more light than the month contains.',
+        choices: [
+          { label: 'Offer to co-sign. The pen is warm. (lose a card as collateral)', effects: { loseRandomCard: true } },
+          { label: 'Dispute the compounding. Interest, you argue, cannot exceed the sun. (-4 HP, the audit is hostile)', effects: { loseHp: 4 } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-guttering-man',
+        flavor: 'The Guttering Man rises, dripping. "The account," he flickers, "is delinquent. Someone must be foreclosed."' },
+      { kind: 'choice', title: 'Settlement in Kind',
+        flavor: 'The debt collapses with its collector. Dawn arrives in Dimmerton unprompted, slightly embarrassed, like a guest who has been outside the whole time. The lamplighter presses his lantern on you — full of borrowed light, now nobody\'s to reclaim.',
+        choices: [
+          { label: 'Take the Borrowed Light.', effects: { grantRelicId: 'r-sq-borrowed-light' } },
+          { label: 'Take it, and leave the town your blessing. (-3 HP, +the warm feeling)', effects: { loseHp: 3, grantRelicId: 'r-sq-borrowed-light' } },
+        ] },
+    ] },
+
+  'sq2-penultimate': { id: 'sq2-penultimate', title: 'The Penultimate Word', act: 4,
+    intro: 'Two headstones, one hill, and an argument still going. The arguers died in 1904. The argument did not.',
+    nodes: [
+      { kind: 'choice', title: 'The Hill',
+        flavor: 'Professors Elm and Ashe debated the nature of conclusions for fifty years, then died mid-rebuttal, eleven minutes apart, each certain the other had conceded. The argument has been up here ever since, orphaned, arguing itself.',
+        choices: [
+          { label: 'Listen to the argument. It is, infuriatingly, good. (-3 HP, your certainties bruise)', effects: { loseHp: 3 } },
+          { label: 'Read both professors\' papers first at the parish library.', effects: {} },
+          { label: 'Some arguments deserve to rest. Walk away.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'Taking a Side', canAbandon: true,
+        flavor: 'The argument notices you. It circles, sniffing for a position. To engage it, you must hold one.',
+        choices: [
+          { label: 'Argue Elm\'s side: all conclusions are premature. (lose a card — it takes your best point)', effects: { loseRandomCard: true } },
+          { label: 'Argue Ashe\'s side: everything ends, even this. (-4 HP — the irony is load-bearing)', effects: { loseHp: 4 } },
+          { label: 'Argue the secret third position: they were both right, which is worse.', effects: { loseHp: 2, loseRandomCard: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-the-rebuttal',
+        flavor: 'The argument compiles itself into its final form: The Rebuttal, unclaimed since 1904, delighted to have somebody at last.' },
+      { kind: 'narrative', title: 'Concluded',
+        flavor: 'The argument ends. On the hill, two headstones settle a fraction closer, like colleagues nodding off at the same lecture. In the grass where the argument stood, one word remains — the second-to-last one ever said. It agrees to work for you. The LAST word, it explains, was never any good anyway.',
+        next: { effects: { grantRelicId: 'r-sq-last-word' } } },
+    ] },
+
+  'sq2-funeral': { id: 'sq2-funeral', title: 'A Funeral for the Living', act: 4,
+    intro: 'A black-edged invitation, hand-delivered by a man in mourning dress: "The honour of your presence is requested at the funeral of Barnaby Vex. Reception to follow. Barnaby Vex will attend."',
+    nodes: [
+      { kind: 'choice', title: 'The Service',
+        flavor: 'Vex holds his own funeral annually — "to stay ahead of it," he explains from the casket, which has cushions and a reading lamp. This year\'s eulogy has a new final paragraph. He did not write it. It knows things about next year.',
+        choices: [
+          { label: 'Offer a eulogy of your own. (-3 HP, public speaking)', effects: { loseHp: 3 } },
+          { label: 'Sit in the back and study the other mourners.', effects: {} },
+          { label: 'You don\'t do funerals with refreshments. Leave quietly.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The New Paragraph', canAbandon: true,
+        flavor: 'The Chief Mourner — hired forty funerals ago, never once seen leaving — has begun conducting the service as if it were binding. The paragraph, read closely, is not a eulogy. It is a schedule.',
+        choices: [
+          { label: 'Steal the eulogy from the lectern. (lose a card — it takes one of yours in trade)', effects: { loseRandomCard: true } },
+          { label: 'Challenge the Mourner\'s credentials mid-service. (-5 HP, the etiquette backlash is severe)', effects: { loseHp: 5 } },
+        ] },
+      { kind: 'combat', enemyId: 'sqx-chief-mourner',
+        flavor: 'The Chief Mourner folds his order of service. "The deceased," he says, looking directly at you, "will now be decided."' },
+      { kind: 'choice', title: 'The Reception',
+        flavor: 'Vex climbs out of the casket to a standing ovation and declares this the best funeral he\'s ever had, "and I have had FORTY." The Mourner\'s ribbon is left behind — black, formal, and no longer attached to anyone\'s grief.',
+        choices: [
+          { label: 'Take the ribbon.', effects: { grantRelicId: 'r-sq-memorial-ribbon' } },
+          { label: 'Take the ribbon and stay for the reception. (+8 HP — the spread is remarkable)', effects: { heal: 8, grantRelicId: 'r-sq-memorial-ribbon' } },
+        ] },
+    ] },
+
+  // ---- THE BOSSLESS FIVE (no fight; a special reward for the seeing-through) --
+  'sq2-cartographer': { id: 'sq2-cartographer', title: 'The Cartographer\'s Apology', act: 1,
+    intro: 'A tent by the crossroads, papered in maps. Every map is of somewhere slightly wrong. The mapmaker inside is crying with great precision.',
+    nodes: [
+      { kind: 'choice', title: 'The Errors',
+        flavor: '"Forty years of surveys," she says, "and every one flawed. A river two feet east. A hill flattered. A village I liked so much I drew it TWICE." She is compiling an atlas of corrections. It will be her masterpiece and her apology.',
+        choices: [
+          { label: 'Help her re-survey the crossroads. (-3 HP, there are stinging nettles exactly where she said there weren\'t)', effects: { loseHp: 3 } },
+          { label: 'Tell her the errors are kinder than the terrain. She takes notes.', effects: {} },
+          { label: 'You have your own map to follow. Excuse yourself.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Village Drawn Twice',
+        flavor: 'She shows you the duplicate village. "The second one is better," she admits. "Wider lanes. A pond. I gave them a pond." Somewhere, she is fairly sure, people are living in the good copy and don\'t know it.',
+        choices: [
+          { label: 'The pond stays. Some errors are improvements. Sign the margin as a witness.', effects: {} },
+          { label: 'Correct it. Truth over ponds. (she weeps; -2 HP of sympathy)', effects: { loseHp: 2 } },
+        ] },
+      { kind: 'narrative', title: 'The Corrected Map',
+        flavor: 'At dawn she hands you a copy of the atlas\'s first finished page — your road, exactly as it is, including the mistakes you are about to make. "I corrected two of them," she says. "You\'ll know which."',
+        next: { effects: { grantRelicId: 'r-sq-corrected-map' } } },
+    ] },
+
+  'sq2-retired-god': { id: 'sq2-retired-god', title: 'Tea With the Retired God', act: 2,
+    intro: 'A cottage with a brass door-knocker on every surface, including the teapot. The nameplate reads: FORMERLY DIVINE. PLEASE KNOCK.',
+    nodes: [
+      { kind: 'choice', title: 'The Small God',
+        flavor: 'He was the god of doorknobs. Sixty years of prayers — "please be unlocked" — then the fashion turned to latches and his congregation just… let themselves out. He pours tea without touching the pot, from habit.',
+        choices: [
+          { label: 'Take tea. (+4 HP)', effects: { heal: 4 } },
+          { label: 'Ask what divinity was like. (he talks until moonrise; -2 HP of sitting still)', effects: { loseHp: 2 } },
+          { label: 'Make an excuse at the door. He watches you work the knob. You feel judged.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Last Prayer',
+        flavor: '"One prayer left in me," he says, conversationally. "Been saving it. Can\'t use it on myself — professional ethics." He looks at you the way a shopkeeper looks at the last customer of a long career.',
+        choices: [
+          { label: 'Ask for strength. He sighs — "everyone asks for strength" — and grants it anyway.', effects: { maxHp: 6, heal: 6 } },
+          { label: 'Ask him to spend it on the cottage\'s squeaky hinge instead. He is MOVED. The hinge is silenced. He insists you take the strength too.', effects: { maxHp: 6, heal: 6 } },
+        ] },
+      { kind: 'narrative', title: 'Locking Up',
+        flavor: 'He sees you out. The door opens before your hand reaches it — one last professional courtesy. "Tell people," he calls after you, "that it was never about the doors. It was about the being let in."',
+        next: { effects: {} } },
+    ] },
+
+  'sq2-apology-note': { id: 'sq2-apology-note', title: 'The Apology, Postage Due', act: 2,
+    intro: 'The postmistress holds up a letter, forty years old, addressed in a dead man\'s hand. "It\'s an apology," she says. "We can tell by the weight. Somebody has to deliver it and the somebody is you."',
+    nodes: [
+      { kind: 'choice', title: 'The Route',
+        flavor: 'The recipient, one Widow Harrow, has moved eleven times since posting. The letter, the postmistress notes, has been trying to deliver ITSELF — they found it halfway out the sorting-room window twice.',
+        choices: [
+          { label: 'Pay the forty years of postage due yourself. (lose a card — the rates are archaic and specific)', effects: { loseRandomCard: true } },
+          { label: 'Argue the fee. You win, but the paperwork bites. (-3 HP)', effects: { loseHp: 3 } },
+          { label: 'Decline. The mail is not your ministry.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'Widow Harrow',
+        flavor: 'She reads the envelope for a long time before the letter. "He apologises," she says at last, "for the thing I forgave in the spring of \'91. And not for the other thing." She looks up. "They never apologise for the other thing."',
+        choices: [
+          { label: 'Sit with her while she reads it twice more. (+3 HP for you both, somehow)', effects: { heal: 3 } },
+          { label: 'Offer to write the OTHER apology yourself, as dictated. She dictates. It takes hours. (-3 HP)', effects: { loseHp: 3 } },
+        ] },
+      { kind: 'narrative', title: 'Return to Sender',
+        flavor: 'She keeps the letter and gives you the stamp — forty years of accumulated postage, paid in full, still hungry to move things along. The postmistress confirms it is now the most powerful object in the county and asks you to leave before it unionises the sorting room.',
+        next: { effects: { grantRelicId: 'r-sq-forty-year-stamp' } } },
+    ] },
+
+  'sq2-orchard': { id: 'sq2-orchard', title: 'The Orchard of Hypotheticals', act: 3,
+    intro: 'An orchard where every tree grows a different What If. The farmer at the gate charges no admission. "The fruit does its own collecting," he says.',
+    nodes: [
+      { kind: 'choice', title: 'Among the Rows',
+        flavor: 'The If-I\'d-Studied tree is heavy this year. The If-I\'d-Said-Something tree flowers but never fruits. At the orchard\'s heart stands the one the farmer won\'t prune: If-I\'d-Stayed.',
+        choices: [
+          { label: 'Eat from If-I\'d-Studied. (bitter, then useful)', effects: { loseHp: 2 } },
+          { label: 'Just walk. Touch nothing. The trees whisper their prices anyway.', effects: {} },
+          { label: 'You have enough hypotheticals at home. Leave.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Farmer\'s Ask',
+        flavor: '"One job," the farmer says. "The If-I\'d-Stayed tree drops one fruit a year. I can\'t be the one to catch it. You understand." You do not understand, and then, watching his face, you do.',
+        choices: [
+          { label: 'Catch the fruit. It weighs as much as a whole other life. (-4 HP)', effects: { loseHp: 4 } },
+          { label: 'Let it fall. Some hypotheticals should compost. (the farmer nods slowly; -2 HP of watching him)', effects: { loseHp: 2 } },
+        ] },
+      { kind: 'narrative', title: 'Payment in Kind',
+        flavor: 'At the gate he pays you from the good tree — the one nobody asks about, the If-It-Works-Out tree — and throws in the orchard\'s whole restorative afternoon. "Come back," he says, "when you\'re old enough to want the other fruit. Everyone is, eventually."',
+        next: { effects: { gainRareCard: 1, heal: 8 } } },
+    ] },
+
+  'sq2-fifth-step': { id: 'sq2-fifth-step', title: 'Every Fifth Step', act: 4,
+    intro: 'A pilgrim on the mountain road, moving like punctuation: four steps, pause. Four steps, pause. He has been climbing this road, the innkeeper says, for eleven years.',
+    nodes: [
+      { kind: 'choice', title: 'Falling In',
+        flavor: '"Every fifth step belongs to my order," he explains. "We give it back. Four for us, one for the mountain." He has given the mountain, by his ledger, some two million steps. The mountain has not said thank you. This does not appear to bother him.',
+        choices: [
+          { label: 'Walk with him, in his rhythm. (-3 HP — the fifth-step pause is HARD on the knees)', effects: { loseHp: 3 } },
+          { label: 'Walk beside him at your own pace and talk on the fours.', effects: {} },
+          { label: 'You walk alone. Wish him well.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'choice', title: 'The Summit Question',
+        flavor: 'Near the top he stops entirely — a whole step, held. "The order\'s final teaching," he says, "is that there is no fifth step. There never was. We were resting. That\'s all it ever was. The mountain doesn\'t want your steps. It wants you to ARRIVE." He looks terrified and free.',
+        choices: [
+          { label: 'Tell him eleven years of rest is still rest. He laughs for a full minute.', effects: { heal: 4 } },
+          { label: 'Take the fifth step for him — the one he\'s been holding. (-4 HP; it is heavier than a step should be)', effects: { loseHp: 4 } },
+        ] },
+      { kind: 'narrative', title: 'What the Order Keeps',
+        flavor: 'At the summit he gives you the order\'s pebble — carried in the shoe of every pilgrim, "to make sure the resting counts." Wearing it, you notice, the world hits a little less hard. Rest, it turns out, accumulates.',
+        next: { effects: { maxHp: 4, gainRareCard: 1 } } },
+    ] },
+
+  // ---- THE LIGHTER FIVE (a gentler elite, a lesser reward) -------------------
+  'sq2-broom': { id: 'sq2-broom', title: 'The Borrowed Broom', act: 1,
+    intro: 'A farmhouse, unswept for a month. The broom stands in the corner with its bristles crossed. It is, the farmwife whispers, ON STRIKE.',
+    nodes: [
+      { kind: 'choice', title: 'The Grievance',
+        flavor: 'The broom\'s demands, conveyed through pointed leaning: recognition of overtime (it also does cobwebs), an end to being called "just a broom," and the return of its original handle, which was "reassigned" to a rake in \'19.',
+        choices: [
+          { label: 'Negotiate. You have experience with committees now. (-2 HP)', effects: { loseHp: 2 } },
+          { label: 'Sweep the floor yourself as a show of good faith. The broom is scandalised.', effects: {} },
+          { label: 'It\'s a broom. Leave.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqe-militant-broom',
+        flavor: 'Talks collapse. The broom elects to demonstrate exactly what it does all day, at speed, at you.' },
+      { kind: 'narrative', title: 'Terms',
+        flavor: 'Honour satisfied, the broom returns to work under a new title (Facilities Warden) and a solemn promise about the handle. The farmwife pays you in preserves and a card trick her grandmother left her.',
+        next: { effects: { gainUncommonCard: 1 } } },
+    ] },
+
+  'sq2-soup': { id: 'sq2-soup', title: 'Soup of the Day', act: 1,
+    intro: 'A roadside inn. The board says SOUP OF THE DAY. Underneath, smaller: THE DAY IS TUESDAY. IT HAS BEEN TUESDAY FOR SOME TIME.',
+    nodes: [
+      { kind: 'choice', title: 'The Kitchen',
+        flavor: 'The cook confesses: years ago she made a Tuesday soup so perfect the soup refused to let the week proceed. It has been simmering — and enforcing — ever since. The stockpot has opinions about the calendar now.',
+        choices: [
+          { label: 'Taste the soup. (it IS perfect; that\'s the problem; -2 HP of understanding)', effects: { loseHp: 2 } },
+          { label: 'Inspect the pot from a professional distance.', effects: {} },
+          { label: 'Order the sandwich instead and go.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqe-soup-golem',
+        flavor: 'You suggest, gently, that Wednesday deserves a chance. The soup rises to defend its day.' },
+      { kind: 'narrative', title: 'Wednesday',
+        flavor: 'The week lurches forward. The cook weeps into a fresh pot — Wednesday soup, merely excellent, which is safer. She feeds you until you cannot move and teaches you the one thing the Tuesday soup taught her.',
+        next: { effects: { heal: 10, maxHp: 2 } } },
+    ] },
+
+  'sq2-wrong-hat': { id: 'sq2-wrong-hat', title: 'The Wrong Hat', act: 2,
+    intro: 'A gentleman stops you: the hat he\'s wearing is not his. It was swapped at a party in \'09. He has worn it seventeen years out of politeness. The hat has had ENOUGH.',
+    nodes: [
+      { kind: 'choice', title: 'The Fitting',
+        flavor: 'The hat vibrates faintly with misdirected loyalty. Its true owner died — the gentleman admits — eleven years ago, which makes returning it "a matter of some complexity, and possibly a séance."',
+        choices: [
+          { label: 'Examine the hat. It examines you back. (-2 HP)', effects: { loseHp: 2 } },
+          { label: 'Ask the haberdasher\'s guild about swap protocol. There are forms.', effects: {} },
+          { label: 'Recommend a good milliner and depart.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqe-haberdashers-regret',
+        flavor: 'Freed from the gentleman\'s head at last, the hat makes its feelings — seventeen years of them — physically known.' },
+      { kind: 'narrative', title: 'Correctly Fitted',
+        flavor: 'Grief spent, the hat settles. The gentleman buries it with honours in the churchyard, one row from its owner — "close enough to nod." His bare head, he says, feels like a resignation letter he should have sent years ago. He pays you from the hatband\'s savings.',
+        next: { effects: { gainUncommonCard: 1, heal: 5 } } },
+    ] },
+
+  'sq2-modest-haunting': { id: 'sq2-modest-haunting', title: 'A Modest Haunting', act: 3,
+    intro: 'A cottage advertises: HAUNTED, BUT REASONABLY. VIEWINGS THURSDAY. The ghost, the owner explains, is polite to a fault, and the fault is load-bearing.',
+    nodes: [
+      { kind: 'choice', title: 'Thursday',
+        flavor: 'The poltergeist rearranges the furniture weekly into configurations that are, annoyingly, improvements. It leaves notes. The notes apologise for the notes. The owner cannot live like this. The owner cannot explain WHY she cannot live like this, which makes it worse.',
+        choices: [
+          { label: 'Take tea with the ghost. It pours. (-2 HP; the cup is very cold)', effects: { loseHp: 2 } },
+          { label: 'Read a month of its apology notes for patterns.', effects: {} },
+          { label: 'This is between a woman and her amenities. Leave.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqe-polite-poltergeist',
+        flavor: 'You suggest the ghost express a PREFERENCE, just once, directly. It does. The preference is a fight, requested in beautiful copperplate.' },
+      { kind: 'narrative', title: 'Roommates',
+        flavor: 'Having finally been rude once, the ghost relaxes into mere honesty, and the household improves at once. The owner, oddly moved, finds she\'s glad it stayed. You leave sturdier than you arrived — arguing with the very polite dead builds a specific kind of spine.',
+        next: { effects: { maxHp: 3 } } },
+    ] },
+
+  'sq2-queue': { id: 'sq2-queue', title: 'The Queue', act: 4,
+    intro: 'A queue crosses the moor, hundreds long, orderly, ancient. Nobody in it remembers what it\'s FOR. Leaving, however, would mean losing one\'s place.',
+    nodes: [
+      { kind: 'choice', title: 'Joining Protocol',
+        flavor: 'The queue has developed its own economy, three marriages, and a newsletter. At its head — miles off — stands a door. Nobody has seen it open. The Queue Marshal patrols the line, enforcing the only law: the queue endures.',
+        choices: [
+          { label: 'Join the back. Ask questions as you\'re processed. (-3 HP; the forms are laminated AND sharp)', effects: { loseHp: 3 } },
+          { label: 'Walk the line toward the front, interviewing.', effects: {} },
+          { label: 'Never join a queue you can\'t see the front of. Leave.', effects: { endSpurEarly: true } },
+        ] },
+      { kind: 'combat', enemyId: 'sqe-queue-marshal',
+        flavor: 'Walking toward the FRONT is, per the Marshal, the gravest possible crime. He approaches with the velvet rope of office.' },
+      { kind: 'narrative', title: 'At the Door',
+        flavor: 'With the Marshal retired, you reach the door and open it. Behind: the back of the queue. It was a circle. It was always a circle. You announce this down the line. A third of the queue leaves weeping with relief; a third refuses to believe you; a third votes to keep queuing, "but socially, now." The newsletter runs your portrait. The door, unemployed, gives you what it was guarding: nothing, wrapped around one genuinely rare thing.',
+        next: { effects: { gainRareCard: 1 } } },
     ] },
 };
 
@@ -3791,6 +4297,10 @@ export default function App() {
   // edge-flash + a brief whole-combat shake (Alan, 2026-06-08 — wanted the
   // hit to read clearly). Keyed by timestamp so each hit re-runs it.
   const [screenHitFlash, setScreenHitFlash] = useState(0);
+  // Music lifecycle: whatever way a combat ends (win, defeat, tutorial, lab
+  // repeat, abandon), leaving the combat stage silences the bed. One watcher
+  // beats patching every exit path.
+  useEffect(() => { if (stage !== 'combat') stopMusic(); }, [stage]);
   // Maul notice — names the animal torn off and WHY, as a transient toast
   // over the board so it's obvious which body died and that it was a maul.
   const [maulNotice, setMaulNotice] = useState(null);
@@ -5504,6 +6014,16 @@ export default function App() {
     if (fx.gainCommonCard)   grantCardOf('common');
     if (fx.gainUncommonCard) grantCardOf('uncommon');
     if (fx.gainRareCard)     grantCardOf('rare');
+    // Sidequest-exclusive relic grant (Alan, 2026-07-03). Direct-by-id — the
+    // 'quest' rarity keeps these out of every random pool, so a quest's final
+    // node is the only path to its relic. No duplicates.
+    if (fx.grantRelicId) {
+      const r = RELICS_BY_ID[fx.grantRelicId];
+      if (r && !relics.some(x => x.id === r.id)) {
+        grantRelic(r, 'Sidequest');
+        logBits.push(`📿 ${r.name}`);
+      }
+    }
     if (fx.skill) {
       const eligibleSkills = new Set();
       for (let i = currentActIdx; i < ACTS.length; i++) {
@@ -5901,6 +6421,9 @@ export default function App() {
       window.__forcePhaseShift = false;
     }
     logEvent(TE.COMBAT_START, { enemyId: e.id, enemyName: e.name, tier: e.tier, act: e.act, hp, composure, deckSize: deck.length + hand.length + discard.length, equipment: equipment.map(eq => eq.id), piles: pilesSnapshot() });
+    // Combat music — escalates by tier (normal / elite / boss). Stops via the
+    // stage-watcher effect whenever we leave 'combat'.
+    startMusic(e.tier);
     setEnemy(e);
     setEnemyComposure(e.composureMax);
     setEnemyHp(e.hpMax);
@@ -7063,6 +7586,7 @@ export default function App() {
   function castV2SentenceSpell(t) {
     const { intro, subject, target } = t;
     const modifiers = t.modifiers || [];
+    playSfx('cast'); // the spell leaves the mouth
 
     logEvent(TE.SPELL_CAST, {
       lane: target.lane,
@@ -8377,6 +8901,7 @@ export default function App() {
   function applySideEffects(fx, logBits) {
     if (fx.block) {
       setBlock(b => b + fx.block);
+      playSfx('block');
       logBits.push(`🛡 +${fx.block}`);
     }
     // v3.8 (Alan, 2026-06-10): tray-scaling defense — Block per spell piece
@@ -8395,6 +8920,7 @@ export default function App() {
     // v2.9: poise — composure-pool shield.
     if (fx.poise) {
       setPoise(p => p + fx.poise);
+      playSfx('poise');
       logBits.push(`🪞 +${fx.poise} Poise`);
     }
     if (fx.boostNextHandlerCast) {
@@ -10291,6 +10817,7 @@ export default function App() {
     const eatTroughFed = animal?.feedKey && troughChargesRef.current > 0;
     if (eatTroughFed) { troughChargesRef.current -= 1; setTroughCharges(troughChargesRef.current); }
     pushLog(`🍴 Just Eat It — ${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives now${eatTroughFed ? ' (Trough: fed)' : ''}.`);
+    playAnimalSfx(resolvedAnimalId);
     if (slot.card) setDiscard(d => [...d, { ...slot.card, uid: uid() }]);
     const youthBonus = (tacticId === 'youth' ? 1 : 0) + (slot.youthBonus || 0);
     // Best in Show — matching a species already on the board → whole set +2.
@@ -10363,7 +10890,7 @@ export default function App() {
 
   // Composure damage: block absorbs first, then composure drops.
   function applyDamageToEnemyComposure(damage) {
-    if (damage > 0) damagedEnemyThisTurnRef.current = true;
+    if (damage > 0) { damagedEnemyThisTurnRef.current = true; playSfx('hit-composure'); }
     let remaining = damage;
     // Read from the synchronous mirrors, not the closure state, so repeated
     // calls in the same tick (animal loops, On Three!, thorns) accumulate.
@@ -10418,7 +10945,7 @@ export default function App() {
 
   // Physical damage: same block-then-pool flow, but pool is enemy HP.
   function applyDamageToEnemyHp(damage) {
-    if (damage > 0) damagedEnemyThisTurnRef.current = true;
+    if (damage > 0) { damagedEnemyThisTurnRef.current = true; playSfx('hit'); }
     let remaining = damage;
     let newBlock = enemyBlockRef.current;
     let newHp = enemyHpRef.current;
@@ -11578,6 +12105,7 @@ export default function App() {
             hTick.arrivals.push(resolvedAnimalId);
             noteAnimalSummoned(1); // Horde counter + Cost of Littering
             pushLog(`${animal?.icon || '🐾'} ${animal?.name || resolvedAnimalId} arrives!`);
+            playAnimalSfx(resolvedAnimalId); // its call announces it
             // v3 single-use lure: the lure card is NOT recycled to discard — it
             // rides on the summoned animal (`sourceLure`) and returns to hand
             // only when that animal departs (handled at every removal site +
@@ -13097,6 +13625,9 @@ export default function App() {
       if (wHp < hp || wComp < composure) {
         setPlayerHitFlash(Date.now());
         setScreenHitFlash(Date.now()); // red edge-flash + whole-screen shake
+        playSfx(wHp < hp ? 'hit' : 'hit-composure'); // the thud/sting of it landing
+      } else {
+        playSfx('block'); // attack fully absorbed — the bracing worked, audibly
       }
       // v2.34: LONG THREAD — record unblocked damage this turn so the
       // end-of-turn bookkeeping resets the meter. Block-absorbed-only
@@ -13414,6 +13945,8 @@ export default function App() {
     // duplicates the entire deck. Reset in enterFight.
     if (enemyDefeatedHandledRef.current) return;
     enemyDefeatedHandledRef.current = true;
+    playSfx('victory');
+    stopMusic();
     // v3 single-use lures — any lure queued by an animal that DEPARTED on the
     // killing turn (eaten/mauled/missed-feed → pendingLureReturnsRef) never got
     // flushed: that flush lives in endTurn's refill, which the kill pre-empts.

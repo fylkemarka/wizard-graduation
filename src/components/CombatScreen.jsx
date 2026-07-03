@@ -20,6 +20,21 @@ import { WIT_ROWS, WIT_SAME_SCHOOL_BONUSES, WIT_ROW_BY_ID, WIT_PARTIAL_ROW_BONUS
 import { ADJACENCY_COMBOS } from '../data/animals.js';
 import Icon from '../icons/Icon.jsx';
 import ArtSlot from './ArtSlot.jsx';
+import { isMuted, setMuted } from '../audio.js';
+
+// Tiny mute toggle for the combat action bar. Local state mirrors the audio
+// module's persisted flag (localStorage) so it survives reloads.
+function AudioToggle() {
+  const [muted, setMutedState] = useState(isMuted());
+  return (
+    <button data-testid="audio-toggle"
+      onClick={() => { const m = !muted; setMuted(m); setMutedState(m); }}
+      title={muted ? 'Sound is off — click to unmute.' : 'Sound is on — click to mute.'}
+      className="px-2 py-1 rounded border border-ink-500 bg-ink-700 text-parchment-200 hover:bg-ink-600 text-sm">
+      {muted ? '🔇' : '🔊'}
+    </button>
+  );
+}
 // handler row imports removed 2026-05-31 — FFT system retired for handler.
 
 // v3.5 art pass — slim vitals bar. Width animates via .stat-bar-fill's
@@ -1321,6 +1336,7 @@ export function CombatScreen({ enemy, enemyComposure, enemyHp, enemyBlock, enemy
             🗂 Deck
           </button>
         )}
+        <AudioToggle />
         <button onClick={onEndTurn} data-testid="end-turn" className="btn btn-ember text-sm px-4 py-1 ml-auto">End Turn</button>
       </div>
 

@@ -543,6 +543,138 @@ export const ENEMIES = [
       { kind: 'block', value: 12, weight: 1, telegraph: '🛡 12 (citing himself)' },
     ] },
 
+  // ===========================================================================
+  // SIDEQUEST ELITES (Alan, 2026-07-03) — unique bosses reached only through
+  // sidequests. act: 0 keeps them out of the map enemy pools (the Hewn-Greaves
+  // convention). Stats are pre-tuned to the ACT the quest is assigned to.
+  // The sqx- ten are the marquee fights (unique relic rewards); the sqe- five
+  // are the gentler elites (lesser rewards).
+  // ===========================================================================
+
+  // -- act-1 weight --------------------------------------------------------
+  { id: 'sqx-the-understudy', act: 0, name: 'The Understudy (still in costume)',
+    composureMax: 44, hpMax: 999, tier: 'elite',
+    // He learned the role. Then the role learned him. Fights in scenes.
+    pattern: [
+      { kind: 'block', value: 8, telegraph: '🎭 rehearses your line back at you (🛡 8)' },
+      { kind: 'attack', value: 7, pool: 'composure', telegraph: '🎭 7 — delivers YOUR opening better than you did' },
+      { kind: 'attack-multi', value: 3, count: 3, pool: 'composure', telegraph: '🎭 3×3 — act two, faster' },
+      { kind: 'heal', value: 0, recover: true, telegraph: '…checks the script (an opening)' },
+    ] },
+  { id: 'sqx-swarm-steward', act: 0, name: 'The Swarm Steward (37,000 constituents)',
+    composureMax: 40, hpMax: 24, tier: 'elite',
+    behaviors: [
+      { kind: 'attack-multi', value: 2, count: 4, weight: 3, telegraph: '⚔ 2×4 (a show of hands)' },
+      { kind: 'attack', value: 8, weight: 2, telegraph: '⚔ 8 (a unanimous motion)' },
+      { kind: 'block', value: 7, weight: 1, telegraph: '🛡 7 + ⛧ Weak 1 (procedural delay)', riders: { weak: 1 } },
+    ] },
+  { id: 'sqx-door-warden', act: 0, name: 'The Warden of the Door That Wasn\'t',
+    composureMax: 46, hpMax: 999, tier: 'elite',
+    behaviors: [
+      { kind: 'block', value: 12, weight: 2, telegraph: '🛡 12 (the door holds. It isn\'t there, and it holds.)' },
+      { kind: 'attack', value: 10, pool: 'composure', weight: 2, telegraph: '🎭 10 — asks what you expected to find' },
+      { kind: 'attack', value: 6, pool: 'composure', weight: 1, telegraph: '🎭 6 + 🩸 Vuln 1 (you begin to doubt the floor too)', riders: { vulnerable: 1 } },
+    ] },
+
+  // -- act-2 weight --------------------------------------------------------
+  { id: 'sqx-scarf-of-loose-morals', act: 0, name: 'The Scarf of Loose Morals (at large)',
+    composureMax: 58, hpMax: 20, tier: 'elite',
+    behaviors: [
+      { kind: 'attack-multi', value: 4, count: 3, weight: 3, telegraph: '⚔ 4×3 (winds, tightens, apologises)' },
+      { kind: 'attack', value: 9, pool: 'composure', weight: 2, telegraph: '🎭 9 + ⛧ Weak 1 (whispers what it did in \'88)', riders: { weak: 1 } },
+      { kind: 'block', value: 9, weight: 1, telegraph: '🛡 9 (knots itself)' },
+    ] },
+  { id: 'sqx-quorum', act: 0, name: 'The Quorum (one man, all seven votes)',
+    composureMax: 60, hpMax: 999, tier: 'elite',
+    // Fights parliamentary: two readings, then the motion CARRIES.
+    pattern: [
+      { kind: 'block', value: 10, telegraph: '🛡 10 — first reading (all in favour)' },
+      { kind: 'block', value: 10, telegraph: '🛡 10 — second reading (the ayes have it)' },
+      { kind: 'attack', value: 16, pool: 'composure', telegraph: '🎭 16 — THE MOTION CARRIES', thenExpose: true },
+      { kind: 'heal', value: 0, recover: true, telegraph: '…minutes are taken (an opening)' },
+    ] },
+  { id: 'sqx-drowned-archivist', act: 0, name: 'The Drowned Archivist (open to page 41)',
+    composureMax: 56, hpMax: 26, tier: 'elite',
+    behaviors: [
+      { kind: 'attack', value: 11, pool: 'composure', weight: 3, telegraph: '🎭 11 — reads your file aloud, wetly' },
+      { kind: 'attack-multi', value: 3, count: 3, weight: 2, telegraph: '⚔ 3×3 (ink runs at you)' },
+      { kind: 'block', value: 8, weight: 1, telegraph: '🛡 8 + 🩸 Vuln 1 (cross-references you)', riders: { vulnerable: 1 } },
+    ] },
+
+  // -- act-3 weight --------------------------------------------------------
+  { id: 'sqx-day-hoarder', act: 0, name: 'The Hoarder of the Eighth Day',
+    composureMax: 72, hpMax: 999, tier: 'elite',
+    // He has more time than you. He spends it all on the third beat.
+    pattern: [
+      { kind: 'attack', value: 8, pool: 'composure', telegraph: '🎭 8 — spends a spare Tuesday morning on you' },
+      { kind: 'block', value: 12, telegraph: '🛡 12 (banks the afternoon)' },
+      { kind: 'attack', value: 20, pool: 'composure', telegraph: '🎭 20 — SPENDS THE WHOLE DAY AT ONCE', thenExpose: true },
+      { kind: 'heal', value: 0, recover: true, telegraph: '…winds his second watch (an opening)' },
+    ] },
+  { id: 'sqx-guttering-man', act: 0, name: 'The Guttering Man (light on credit)',
+    composureMax: 68, hpMax: 30, tier: 'elite',
+    behaviors: [
+      { kind: 'attack', value: 13, pool: 'composure', weight: 3, telegraph: '🎭 13 — dims the room by exactly you' },
+      { kind: 'attack-multi', value: 4, count: 3, weight: 2, telegraph: '⚔ 4×3 (sparks off the wick)' },
+      { kind: 'attack', value: 8, pool: 'composure', weight: 1, telegraph: '🎭 8 + ⛧ Weak 1 (your shadow leaves early)', riders: { weak: 1 } },
+    ] },
+
+  // -- act-4 weight --------------------------------------------------------
+  { id: 'sqx-the-rebuttal', act: 0, name: 'The Rebuttal (unclaimed since 1904)',
+    composureMax: 84, hpMax: 999, tier: 'elite',
+    behaviors: [
+      { kind: 'attack', value: 15, pool: 'composure', weight: 3, telegraph: '🎭 15 — makes the point your opponent died holding' },
+      { kind: 'attack-multi', value: 5, count: 3, weight: 2, telegraph: '⚔ 5×3 (footnotes, weaponised)' },
+      { kind: 'attack', value: 10, pool: 'composure', weight: 2, telegraph: '🎭 10 + 🩸 Vuln 1 (cites you against yourself)', riders: { vulnerable: 1 } },
+      { kind: 'block', value: 12, weight: 1, telegraph: '🛡 12 (rests its case, heavily)' },
+    ] },
+  { id: 'sqx-chief-mourner', act: 0, name: 'The Chief Mourner (of himself, annually)',
+    composureMax: 88, hpMax: 34, tier: 'elite',
+    pattern: [
+      { kind: 'attack', value: 12, pool: 'composure', telegraph: '🎭 12 — reads your eulogy (draft one)' },
+      { kind: 'attack', value: 12, pool: 'composure', telegraph: '🎭 12 — reads your eulogy (draft two, crueller)' },
+      { kind: 'block', value: 14, telegraph: '🛡 14 (lowers the veil)' },
+      { kind: 'attack', value: 22, telegraph: '⚔ 22 — CLOSES THE CASKET', thenExpose: true },
+      { kind: 'heal', value: 0, recover: true, telegraph: '…accepts condolences (an opening)' },
+    ] },
+
+  // -- the gentler five (sqe-) ----------------------------------------------
+  { id: 'sqe-militant-broom', act: 0, name: 'The Militant Broom (Local 411)',
+    composureMax: 32, hpMax: 18, tier: 'elite',
+    behaviors: [
+      { kind: 'attack-multi', value: 2, count: 3, weight: 3, telegraph: '⚔ 2×3 (sweeping action)' },
+      { kind: 'attack', value: 6, weight: 2, telegraph: '⚔ 6 (handle-first)' },
+      { kind: 'block', value: 6, weight: 1, telegraph: '🛡 6 (bristles)' },
+    ] },
+  { id: 'sqe-soup-golem', act: 0, name: 'The Soup of the Day (it is always that day)',
+    composureMax: 34, hpMax: 22, tier: 'elite',
+    behaviors: [
+      { kind: 'attack', value: 7, weight: 3, telegraph: '⚔ 7 (scalding ladleful)' },
+      { kind: 'attack', value: 5, pool: 'composure', weight: 2, telegraph: '🎭 5 — you recognise Tuesday\'s carrots' },
+      { kind: 'block', value: 7, weight: 1, telegraph: '🛡 7 (forms a skin)' },
+    ] },
+  { id: 'sqe-haberdashers-regret', act: 0, name: "The Haberdasher's Regret (a hat, wronged)",
+    composureMax: 44, hpMax: 999, tier: 'elite',
+    behaviors: [
+      { kind: 'attack', value: 9, pool: 'composure', weight: 3, telegraph: '🎭 9 — it remembers your head. It preferred the other one.' },
+      { kind: 'attack-multi', value: 3, count: 2, weight: 2, telegraph: '⚔ 3×2 (brim, then band)' },
+      { kind: 'block', value: 8, weight: 1, telegraph: '🛡 8 (sits firmly)' },
+    ] },
+  { id: 'sqe-polite-poltergeist', act: 0, name: 'The Polite Poltergeist (Thursdays only)',
+    composureMax: 52, hpMax: 999, tier: 'elite',
+    behaviors: [
+      { kind: 'attack', value: 10, pool: 'composure', weight: 3, telegraph: '🎭 10 — rearranges your certainties, then apologises' },
+      { kind: 'block', value: 9, weight: 2, telegraph: '🛡 9 (tidies)' },
+      { kind: 'attack', value: 7, pool: 'composure', weight: 1, telegraph: '🎭 7 + ⛧ Weak 1 (leaves a very reasonable note)', riders: { weak: 1 } },
+    ] },
+  { id: 'sqe-queue-marshal', act: 0, name: 'The Queue Marshal (the queue survives him)',
+    composureMax: 62, hpMax: 30, tier: 'elite',
+    behaviors: [
+      { kind: 'attack', value: 12, pool: 'composure', weight: 3, telegraph: '🎭 12 — informs you that you have, in fact, cut in' },
+      { kind: 'attack-multi', value: 4, count: 2, weight: 2, telegraph: '⚔ 4×2 (velvet rope, applied)' },
+      { kind: 'block', value: 10, weight: 1, telegraph: '🛡 10 (forms an orderly line)' },
+    ] },
+
   { id: 'tutorial-bursar', act: 0, name: 'The Bursar (Practice Match)', composureMax: 30, hpMax: 999, tier: 'normal',
     behaviors: [
       { kind: 'attack', value: 3, weight: 2, telegraph: '⚔ 3 (gentle)' },
